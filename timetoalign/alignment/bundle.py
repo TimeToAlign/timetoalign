@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any
@@ -1738,26 +1739,46 @@ class AlignmentBundle:
         self,
         claims: list[MatchClaim] | None = None,
         *,
+        coordinates: Iterable[CoordinateSpec] | None = None,
+        timeline_id: str | None = None,
         from_graph: bool = True,
     ) -> list[MatchStamp]:
-        """Get MatchStamps for a list of MatchClaims.
+        """Get MatchStamps for a list of MatchClaims or query coordinates.
 
         Convenience method for retrieving MatchStamps for multiple claims
         at once. Uses the bundle's caching mechanism for efficient retrieval.
+
+        When ``coordinates`` is given instead of ``claims``, each coordinate is
+        resolved through :meth:`get_matchstamp_at` — the coordinate-first entry
+        point for callers who hold coordinates rather than ``MatchClaim``
+        objects. Input order is preserved and every coordinate yields exactly
+        one stamp (a full transitive cross-section).
 
         Args:
             claims: List of MatchClaims to get stamps for. If None, uses
                 every cross-group claim in the bundle — the per-claim list
                 and every columnar ``MatchClaimField`` (see
                 :meth:`get_match_claims`, which materialises the columnar
-                rows).
+                rows). Mutually exclusive with ``coordinates``.
+            coordinates: Query coordinates to resolve through
+                :meth:`get_matchstamp_at`, one stamp per coordinate in input
+                order. Each element is a raw ``int``/``float``/``Fraction`` or
+                ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
+                (carrying its own timeline). Mutually exclusive with ``claims``.
+            timeline_id: Source timeline for the ``coordinates`` batch; may be
+                ``None`` when every element is an ``IdCoordinate``. Ignored on
+                the ``claims`` path.
             from_graph: If True (default), return full MatchStamps from the
                 MatchGraph (all connected timelines). If False, return
-                reduced 2-timeline stamps.
+                reduced 2-timeline stamps. Ignored on the ``coordinates``
+                path, where each stamp is already a full cross-section.
 
         Returns:
             List of MatchStamp objects. Non-synchronous claims yield None
             entries (filtered out).
+
+        Raises:
+            ValueError: If both ``claims`` and ``coordinates`` are given.
 
         Examples:
             >>> stamps = bundle.get_matchstamps()
@@ -1765,7 +1786,17 @@ class AlignmentBundle:
             100
             >>> stamps[0].n_timelines
             23
+            >>> coord_stamps = bundle.get_matchstamps(
+            ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
+            ... )
+            >>> coord_stamps[1].get("score:clt1")
+            50.0
         """
+        if coordinates is not None:
+            if claims is not None:
+                raise ValueError("Pass either claims or coordinates, not both")
+            return [self.get_matchstamp_at(c, timeline_id) for c in coordinates]
+
         if claims is None:
             claims = self.get_match_claims()
 
@@ -1781,6 +1812,8 @@ class AlignmentBundle:
         self,
         claims: list[MatchClaim] | None = None,
         *,
+        coordinates: Iterable[CoordinateSpec] | None = None,
+        timeline_id: str | None = None,
         timeline_filter: set[str] | None = None,
         from_graph: bool = False,
     ) -> "pa.Table":
@@ -1804,17 +1837,36 @@ class AlignmentBundle:
         ever materialised — which is what keeps a hundreds-of-thousands-of-rows
         alignment tabulable.
 
+        When ``coordinates`` is given instead of ``claims``, each coordinate is
+        resolved through :meth:`get_matchstamp_at` and becomes exactly one
+        row — a full transitive cross-section, every reached timeline filled —
+        in input order. ``from_graph`` does not apply on this path (the stamps
+        are already collapsed cross-sections) and is ignored.
+
         Args:
             claims: List of MatchClaims to tabulate.  If None, uses every
                 cross-group claim in the bundle (both stores).  When given,
-                only those claims are tabulated.
+                only those claims are tabulated.  Mutually exclusive with
+                ``coordinates``.
+            coordinates: Query coordinates to resolve through
+                :meth:`get_matchstamp_at`, one row per coordinate in input
+                order. Each element is a raw ``int``/``float``/``Fraction`` or
+                ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
+                (carrying its own timeline). Mutually exclusive with ``claims``.
+            timeline_id: Source timeline for the ``coordinates`` batch; may be
+                ``None`` when every element is an ``IdCoordinate``. Ignored on
+                the ``claims`` path.
             timeline_filter: Only include these timeline fields.
             from_graph: Collapse claims into one row per connected component
-                instead of one row per claim.
+                instead of one row per claim.  Ignored on the ``coordinates``
+                path.
 
         Returns:
             PyArrow Table with one field per timeline.  Non-synchronous claims
             are excluded.  Empty input yields an empty table.
+
+        Raises:
+            ValueError: If both ``claims`` and ``coordinates`` are given.
 
         Note:
             Collapsed rows are ordered by the coordinate on the
@@ -1832,14 +1884,28 @@ class AlignmentBundle:
             ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
             >>> bundle.get_matchstamp_table(from_graph=True).num_rows
             25
+            >>> bundle.get_matchstamp_table(
+            ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
+            ... ).num_rows
+            2
         """
-        import pyarrow as pa
+        if coordinates is not None:
+            if claims is not None:
+                raise ValueError("Pass either claims or coordinates, not both")
+            stamps = [self.get_matchstamp_at(c, timeline_id) for c in coordinates]
+            rows = [dict(stamp.coordinates) for stamp in stamps]
+            all_tl_ids: set[str] = set()
+            for row in rows:
+                all_tl_ids.update(row)
+            return self._assemble_matchstamp_table(
+                rows, [], all_tl_ids, timeline_filter
+            )
 
         list_claims = self.cross_group_claims if claims is None else claims
         claim_fields = [] if claims is not None else self.cross_group_claim_fields
 
-        all_tl_ids: set[str] = set()
-        rows: list[dict[str, float | None]] = []
+        all_tl_ids = set()
+        rows = []
         # Bulk (timeline_a_id, timeline_b_id, coordinate_a, coordinate_b)
         # column reads, one per columnar store, scattered without dicts.
         bulk_columns: list[tuple[list[str], list[str], list[float], list[float]]] = []
@@ -1870,6 +1936,40 @@ class AlignmentBundle:
                 all_tl_ids.update(ids_b)
             all_tl_ids.discard(None)
 
+        return self._assemble_matchstamp_table(
+            rows, bulk_columns, all_tl_ids, timeline_filter
+        )
+
+    def _assemble_matchstamp_table(
+        self,
+        rows: list[dict[str, float | None]],
+        bulk_columns: list[tuple[list[str], list[str], list[float], list[float]]],
+        all_tl_ids: set[str],
+        timeline_filter: set[str] | None,
+    ) -> "pa.Table":
+        """Scatter per-row dicts and bulk columnar reads into one PyArrow table.
+
+        Shared assembly tail for :meth:`get_matchstamp_table`.  Each ``rows``
+        entry contributes one row (its timeline keys scattered into the
+        matching fields); each ``bulk_columns`` entry contributes
+        ``len(ids_a)`` further rows read four Arrow columns at a time — no
+        ``MatchClaim`` materialised.  ``all_tl_ids`` is the field universe
+        before filtering; ``timeline_filter`` (when given) intersects it.
+
+        Args:
+            rows: One dict per already-materialised stamp/claim row.
+            bulk_columns: ``(ids_a, ids_b, coordinates_a, coordinates_b)``
+                reads, one per columnar store, each contributing one row per
+                position.
+            all_tl_ids: Union of every timeline ID appearing in the inputs.
+            timeline_filter: Only include these timeline fields, if given.
+
+        Returns:
+            PyArrow Table with one field per (filtered) timeline ID.  Empty
+            input yields an empty table.
+        """
+        import pyarrow as pa
+
         n_rows = len(rows) + sum(len(ids_a) for ids_a, _, _, _ in bulk_columns)
         if n_rows == 0:
             return pa.table({})
@@ -1878,8 +1978,8 @@ class AlignmentBundle:
         if timeline_filter is not None:
             all_tl_ids = all_tl_ids & timeline_filter
 
-        # Build table with consistent fields, scattering each claim into its
-        # two cells rather than probing every field of every row.
+        # Build table with consistent fields, scattering each row into its
+        # cells rather than probing every field of every row.
         field_lists: dict[str, list[float | None]] = {
             tl_id: [None] * n_rows for tl_id in sorted(all_tl_ids)
         }

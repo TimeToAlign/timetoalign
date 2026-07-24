@@ -5,6 +5,15 @@ Covers:
 - MatchClaim.get_matchstamp() (reduced and graph-expanded)
 - AlignmentBundle MatchGraph cache
 - AlignmentBundle.get_matchstamp_at() cross-group coordinate resolution
+- AlignmentBundle.get_matchstamps() / get_matchstamp_table() coordinate-batch
+  input: a keyword-only ``coordinates`` collection (+ ``timeline_id``) is a
+  thin, order-preserving fan-out that delegates element-by-element to
+  ``get_matchstamp_at``. The cases below pin that raw values and IdCoordinates
+  coerce identically to the singular resolver, that each query coordinate
+  yields exactly one full transitive cross-section (one list entry / one table
+  row), that ``timeline_filter`` narrows the table's columns, that empty input
+  yields empty output, and that supplying both ``claims`` and ``coordinates``
+  is rejected.
 - MatchGraph.get_matchstamp() + split_components()
 - MatchStamp __str__ and _repr_html_ display methods
 - MatchClaim __str__ and _repr_html_ display methods
@@ -24,7 +33,7 @@ from timetoalign.alignment.claims import (
     MatchMetadata,
 )
 from timetoalign.alignment.graph import MatchGraph, MatchStamp
-from timetoalign.core import AgentType, Coordinate, TimeUnit
+from timetoalign.core import AgentType, Coordinate, IdCoordinate, TimeUnit
 from timetoalign.timelines import Timeline
 
 # region Helpers
@@ -44,10 +53,14 @@ def _make_star_bundle():
     Bundle UIDs = actual timeline IDs (no UID mapping needed since
     add_match_claims uses actual timeline IDs in claims).
     """
-    score_tl = Timeline(length=100, uid="score:clt1", name="Score")
-    perf1_tl = Timeline(length=200, uid="perf:dlt1", name="Perf1")
-    perf2_tl = Timeline(length=200, uid="perf:dlt2", name="Perf2")
-    perf3_tl = Timeline(length=200, uid="perf:dlt3", name="Perf3")
+    # Timelines are number-native to match the units their own claims use,
+    # so a number-unit Coordinate/IdCoordinate resolves without conversion.
+    score_tl = Timeline(
+        length=100, uid="score:clt1", name="Score", unit=TimeUnit.number
+    )
+    perf1_tl = Timeline(length=200, uid="perf:dlt1", name="Perf1", unit=TimeUnit.number)
+    perf2_tl = Timeline(length=200, uid="perf:dlt2", name="Perf2", unit=TimeUnit.number)
+    perf3_tl = Timeline(length=200, uid="perf:dlt3", name="Perf3", unit=TimeUnit.number)
 
     bundle = AlignmentBundle(id="star_test")
     bundle.add_timeline(score_tl, uid="score:clt1", as_group="score_group")
@@ -600,6 +613,124 @@ class TestGetMatchstampAt:
         assert stamp.n_timelines == 2
         assert "score:clt1" in stamp.coordinates
         assert "perf:dlt1" in stamp.coordinates
+
+
+# endregion
+
+
+# region coordinate-batch
+
+
+class TestCoordinateBatch:
+    """Coordinate-batch input on get_matchstamps() / get_matchstamp_table().
+
+    Validation rationale: users hold coordinates, not ``MatchClaim`` objects.
+    Both plural matchstamp methods accept a keyword-only ``coordinates``
+    collection (plus ``timeline_id``) that fans out element-by-element to
+    ``get_matchstamp_at`` — the singular resolver already validated above. The
+    batch adds no new resolution semantics, so these cases pin only the fan-out
+    contract: input order is preserved, each query coordinate yields exactly
+    one full transitive cross-section, raw values and IdCoordinates coerce
+    exactly as they do on the singular path, the table lays one row per
+    coordinate through the same assembly the claims path uses, ``timeline_filter``
+    narrows columns, empty input yields empty output, and combining ``claims``
+    with ``coordinates`` is rejected.
+    """
+
+    # Full cross-section at score coordinate 50 (score length 100; performer
+    # factors 2.0 / 1.5 / 1.8), reused as the gold row across cases.
+    COORD_50 = {
+        "score:clt1": 50.0,
+        "perf:dlt1": 100.0,
+        "perf:dlt2": 75.0,
+        "perf:dlt3": 90.0,
+    }
+
+    def test_matchstamps_raw_values_ordered(self):
+        """Raw-value batch: one ordered stamp per coordinate, exact cross-sections."""
+        bundle, _ = _make_star_bundle()
+        stamps = bundle.get_matchstamps(
+            coordinates=[0.0, 50.0, 100.0], timeline_id="score:clt1"
+        )
+        assert len(stamps) == 3
+        assert stamps[1].coordinates == self.COORD_50
+        assert stamps[0].coordinates["perf:dlt1"] == 0.0
+        assert stamps[2].coordinates["perf:dlt1"] == 200.0
+        assert stamps[2].coordinates["perf:dlt2"] == 150.0
+        assert stamps[2].coordinates["perf:dlt3"] == 180.0
+
+    def test_matchstamps_idcoordinate_carries_timeline(self):
+        """An IdCoordinate carries its own timeline, so timeline_id is optional."""
+        bundle, _ = _make_star_bundle()
+        stamps = bundle.get_matchstamps(
+            coordinates=[IdCoordinate(50.0, TimeUnit.number, "score:clt1")]
+        )
+        assert len(stamps) == 1
+        assert stamps[0].coordinates == self.COORD_50
+
+    def test_matchstamps_wiring_parity_with_singular(self):
+        """Batch fan-out equals mapping get_matchstamp_at over the coordinates."""
+        bundle, _ = _make_star_bundle()
+        coords = [0.0, 25.0, 50.0, 75.0, 100.0]
+        batched = [
+            s.coordinates
+            for s in bundle.get_matchstamps(
+                coordinates=coords, timeline_id="score:clt1"
+            )
+        ]
+        singular = [
+            bundle.get_matchstamp_at(c, "score:clt1").coordinates for c in coords
+        ]
+        assert batched == singular
+
+    def test_table_one_row_per_coordinate(self):
+        """Table batch: one row per coordinate, full cross-section columns."""
+        bundle, _ = _make_star_bundle()
+        table = bundle.get_matchstamp_table(
+            coordinates=[0.0, 50.0, 100.0], timeline_id="score:clt1"
+        )
+        assert table.num_rows == 3
+        assert set(table.column_names) == {
+            "score:clt1",
+            "perf:dlt1",
+            "perf:dlt2",
+            "perf:dlt3",
+        }
+        assert table.to_pylist()[1] == self.COORD_50
+
+    def test_table_timeline_filter_narrows_columns(self):
+        """timeline_filter narrows the coordinate table to the named fields."""
+        bundle, _ = _make_star_bundle()
+        table = bundle.get_matchstamp_table(
+            coordinates=[0.0, 50.0, 100.0],
+            timeline_id="score:clt1",
+            timeline_filter={"score:clt1", "perf:dlt1"},
+        )
+        assert set(table.column_names) == {"score:clt1", "perf:dlt1"}
+        assert table.to_pylist()[1] == {"score:clt1": 50.0, "perf:dlt1": 100.0}
+
+    def test_empty_coordinates_yield_empty_output(self):
+        """Empty coordinates yield an empty table and an empty stamp list."""
+        bundle, _ = _make_star_bundle()
+        assert (
+            bundle.get_matchstamp_table(
+                coordinates=[], timeline_id="score:clt1"
+            ).num_rows
+            == 0
+        )
+        assert bundle.get_matchstamps(coordinates=[], timeline_id="score:clt1") == []
+
+    def test_claims_and_coordinates_mutually_exclusive(self):
+        """Supplying both claims and coordinates raises on either method."""
+        bundle, claims = _make_star_bundle()
+        with pytest.raises(ValueError, match="not both"):
+            bundle.get_matchstamps(
+                claims=claims, coordinates=[0.0], timeline_id="score:clt1"
+            )
+        with pytest.raises(ValueError, match="not both"):
+            bundle.get_matchstamp_table(
+                claims=claims, coordinates=[0.0], timeline_id="score:clt1"
+            )
 
 
 # endregion

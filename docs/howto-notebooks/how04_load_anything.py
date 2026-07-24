@@ -985,13 +985,38 @@ if len(tilia_bundle.timeline_ids) >= 2:
 if len(tilia_bundle.timeline_ids) >= 2 and tilia_new_claims:
     tilia_new_claims[0].get_matchstamp()
 
-# %%
-# get_matchstamps() - batch retrieval
-if tilia_bundle.cross_group_claims:
-    tilia_bundle.get_matchstamps(tilia_bundle.cross_group_claims[:3])
+# %% [markdown]
+# Batch retrieval comes in two flavours. **Coordinate-batch** — "resolve THESE
+# coordinates" — takes a handful of query coordinates on one timeline and returns
+# one full cross-section per coordinate. The **whole-alignment** table further
+# down instead tabulates the entire alignment. Users hold coordinates, not
+# `MatchClaim` objects, so the coordinate-batch form is the recommended entry
+# point.
 
 # %%
-# get_matchstamp_table()
+# get_matchstamps(coordinates=..., timeline_id=...) - resolve THESE coordinates
+# into full MatchStamps, one per query coordinate (input order preserved). The
+# query coordinates are a few of the timeline's own event coordinates.
+tilia_query_tl_id = tilia_loader.timeline_ids[0]
+tilia_query_events = list(tilia_tl0.get_events())
+tilia_query_coords = [
+    tilia_query_events[i]["start"]["value"]
+    for i in (0, len(tilia_query_events) // 2, -1)
+]
+tilia_bundle.get_matchstamps(
+    coordinates=tilia_query_coords, timeline_id=tilia_query_tl_id
+)
+
+# %%
+# get_matchstamp_table(coordinates=..., timeline_id=...) - the same batch as a
+# table: one row per query coordinate, every connected timeline filled.
+tilia_bundle.get_matchstamp_table(
+    coordinates=tilia_query_coords, timeline_id=tilia_query_tl_id
+)
+
+# %%
+# get_matchstamp_table() - no arguments tabulates the WHOLE alignment (one row
+# per claim), a distinct operation from the coordinate-batch above.
 tilia_bundle.get_matchstamp_table()
 
 
@@ -1099,12 +1124,39 @@ if match_evts_a and match_evts_b:
     print(f"Created {len(match_new_claims)} new MatchClaim(s)")
     match_new_claims[0] if match_new_claims else "No claims created"
 
-# %%
-# get_matchstamps() - batch retrieval
-match_bundle.get_matchstamps(match_claims[:5])
+# %% [markdown]
+# Batch retrieval has two flavours. **Coordinate-batch** — "resolve THESE
+# coordinates" — resolves a handful of query coordinates on one timeline into one
+# full cross-section each. The **whole-alignment** table below instead tabulates
+# the entire alignment. Users hold coordinates, not `MatchClaim` objects, so the
+# coordinate-batch form is the recommended entry point.
 
 # %%
-# get_matchstamp_table()
+# get_matchstamps(coordinates=..., timeline_id=...) - resolve THESE score
+# coordinates into full cross-group MatchStamps (raw numeric + timeline_id form).
+match_query_events = list(match_tl_a.get_events())
+match_query_coords = [
+    match_query_events[i]["start"]["value"]
+    for i in (0, len(match_query_events) // 2, -1)
+]
+match_bundle.get_matchstamps(
+    coordinates=match_query_coords, timeline_id=match_tl_ids[0]
+)
+
+# %%
+# get_matchstamp_table(coordinates=...) - the same batch as a table. Here the
+# query coordinates are IdCoordinates, which carry their own timeline_id, so no
+# separate timeline_id argument is needed. One row per query coordinate.
+from timetoalign.core import IdCoordinate
+
+match_id_coords = [
+    IdCoordinate(c, match_tl_a.unit, match_tl_ids[0]) for c in match_query_coords
+]
+match_bundle.get_matchstamp_table(coordinates=match_id_coords)
+
+# %%
+# get_matchstamp_table() - no arguments tabulates the WHOLE alignment (one row
+# per claim), a distinct operation from the coordinate-batch above.
 match_bundle.get_matchstamp_table()
 
 
@@ -1119,4 +1171,5 @@ match_bundle.get_matchstamp_table()
 # | **Loader** | `load()`, `from_file()`, `store`, `create_timeline()`, `create_timelines()` |
 # | **Timeline** | `get_events()`, `get_event()`, `get_timestamp()`, `get_timestamp_of()`, `get_timestamps_of()` |
 # | **TimelineGroup** | `get_timeline()`, `get_events()`, `get_timestamp_at()`, `get_timestamp_of()` |
-# | **AlignmentBundle** | `get_timelines()`, `get_match_claims()`, `create_match_claims()`, `get_matchstamp_table()` |
+# | **AlignmentBundle** | `get_timelines()`, `get_match_claims()`, `create_match_claims()` |
+# | | `get_matchstamps()`, `get_matchstamp_table()` |
