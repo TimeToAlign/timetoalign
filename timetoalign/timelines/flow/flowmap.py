@@ -170,7 +170,7 @@ class FlowMap:
 
             target_position += section_duration
 
-    def unfold(self, coord: Fraction | float | int) -> list[Fraction]:
+    def unfold_coordinate(self, coord: Fraction | float | int) -> list[Fraction]:
         """Map source coordinate to target coordinates.
 
         Since a source coordinate may be visited multiple times (due to repeats),
@@ -185,7 +185,7 @@ class FlowMap:
 
         Examples:
             >>> # Source coord 3 appears twice due to repeat
-            >>> flow_map.unfold(3)
+            >>> flow_map.unfold_coordinate(3)
             [Fraction(2), Fraction(6)]
         """
         coord = Fraction(coord)
@@ -256,9 +256,9 @@ class FlowMap:
         tracing back to the original source.
 
         Note:
-            The inverse FlowMap's unfold() returns coordinates in the original
-            source space, which may yield multiple results if the source coord
-            is visited multiple times.
+            The inverse FlowMap's unfold_coordinate() returns coordinates in
+            the original source space, which may yield multiple results if the
+            source coord is visited multiple times.
 
         Returns:
             A new FlowMap with inverted sections.

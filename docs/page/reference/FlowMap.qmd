@@ -1,23 +1,41 @@
 # FlowMap { #timetoalign.timelines.FlowMap }
 
 ```python
-timelines.FlowMap(flow, id='', _sections=list(), _target_boundaries=list())
+timelines.FlowMap(source=None, *, id='', resolve=None)
 ```
 
 Coordinate transformation map for flow control.
 
-FlowMap encodes one specific Flow and enables bidirectional coordinate
-conversion between source (with flow control) and target (linearized) timelines:
+A FlowMap enables bidirectional coordinate conversion between a source
+timeline (with flow control) and a target (linearized) timeline:
+
 - Source -> Target conversion (1:N, since repeats duplicate coordinates)
 - Target -> Source lookup (N:1, always unique)
 
+The single positional argument, *source*, is polymorphic:
+
+- ``None`` — an empty map (no sections). Used by internal construction
+  such as :meth:`inverse`, which fills the section tables afterwards.
+- a :class:`Flow` — sections are derived from the flow's measure-count
+  ranges (integer MC space); *id* defaults to the flow's mode value.
+- a single interval-like descriptor **or** an iterable of them — sections
+  are built directly from the resulting ``(start, end)`` ranges with a
+  cumulative target position, so the played spans concatenate in the
+  target axis and any gaps between them map to nothing. *id* defaults to
+  ``"default"``. Accepted descriptors are region names (resolved through
+  *resolve*), ``Region`` objects, ``(start, end)`` coordinate pairs,
+  ``Timeline`` objects, and interval events — see
+  :func:`~timetoalign.timelines.flow.sections._coerce_intervals`.
+
 FlowMap stores sections for efficient lookup:
-- `_sections`: List of FlowMapSection objects
-- `_target_boundaries`: Sorted list of target section starts for binary search
+
+- ``_sections``: List of FlowMapSection objects
+- ``_target_boundaries``: Sorted list of target section starts for
+  binary search
 
 Attributes:
-    flow: The computed Flow.
-    id: Identifier for this FlowMap (defaults to flow.mode.value).
+    flow: The computed Flow, or ``None`` for interval-built maps.
+    id: Identifier for this FlowMap.
 
 ## Attributes
 
@@ -33,7 +51,7 @@ Attributes:
 | [fold](#timetoalign.timelines.FlowMap.fold) | Map target coordinate back to source coordinate. |
 | [from_qb_sections](#timetoalign.timelines.FlowMap.from_qb_sections) | Create a FlowMap with QB-space source coordinates. |
 | [inverse](#timetoalign.timelines.FlowMap.inverse) | Create the inverse FlowMap (target -> source becomes source -> target). |
-| [unfold](#timetoalign.timelines.FlowMap.unfold) | Map source coordinate to target coordinates. |
+| [unfold_coordinate](#timetoalign.timelines.FlowMap.unfold_coordinate) | Map source coordinate to target coordinates. |
 
 ### fold { #timetoalign.timelines.FlowMap.fold }
 
@@ -103,17 +121,17 @@ This is useful for attaching to a target timeline to enable
 tracing back to the original source.
 
 Note:
-    The inverse FlowMap's unfold() returns coordinates in the original
-    source space, which may yield multiple results if the source coord
-    is visited multiple times.
+    The inverse FlowMap's unfold_coordinate() returns coordinates in
+    the original source space, which may yield multiple results if the
+    source coord is visited multiple times.
 
 Returns:
     A new FlowMap with inverted sections.
 
-### unfold { #timetoalign.timelines.FlowMap.unfold }
+### unfold_coordinate { #timetoalign.timelines.FlowMap.unfold_coordinate }
 
 ```python
-timelines.FlowMap.unfold(coord)
+timelines.FlowMap.unfold_coordinate(coord)
 ```
 
 Map source coordinate to target coordinates.
@@ -130,5 +148,5 @@ Returns:
 
 Examples:
     >>> # Source coord 3 appears twice due to repeat
-    >>> flow_map.unfold(3)
+    >>> flow_map.unfold_coordinate(3)
     [Fraction(2), Fraction(6)]

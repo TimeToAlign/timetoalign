@@ -10,6 +10,7 @@ from timetoalign.core import CoordinateSpec
 from .coordinate_ops import coordinate_numeric_value, shift_coordinate
 
 if TYPE_CHECKING:
+    from ..base import Timeline
     from ..flow import FlowMap
     from ..types import SegmentLine
 
@@ -379,7 +380,7 @@ class SegmentsMixin:
 
         The played spans described by *intervals* concatenate contiguously in
         the unfolded (target) axis; coordinates falling in a gap between spans
-        map to nothing (an empty ``unfold`` result).
+        map to nothing (an empty ``unfold_coordinate`` result).
 
         Args:
             intervals: One interval-like descriptor or a collection of them.
@@ -467,7 +468,72 @@ class SegmentsMixin:
         """Number of attached FlowMaps."""
         return len(self._flow_maps)
 
-    def unfold(self, coord: CoordinateSpec, id: str = "default") -> list[float]:
+    def apply_flow(
+        self,
+        id: str = "default",
+        *,
+        include_children: bool = True,
+        as_segment_line: bool = True,
+        uid: str | None = None,
+        name: str | None = None,
+    ) -> "Timeline":
+        """Yield the unfolded timeline for an attached FlowMap.
+
+        Slices this timeline at each of the attached FlowMap's sections and
+        concatenates the slices, in target (unfolded) order, into a new
+        timeline. By default the result is a ``SegmentLine`` with one segment
+        per section; with ``as_segment_line=False`` the slices are flattened
+        into a single timeline of this timeline's concrete type.
+
+        The returned timeline carries a reverse FlowMap (id ``"source"``) for
+        tracing coordinates back to the folded source, plus the forward
+        FlowMap (id ``f"forward_{flow_map.id}"``).
+
+        Args:
+            id: Which attached FlowMap to unfold along. Passed positionally,
+                so ``timeline.unfold("A8")`` selects the FlowMap stored under
+                ``"A8"``.
+            include_children: If True (default), child timelines are
+                recursively sliced and included in each section.
+            as_segment_line: If True (default), return a ``SegmentLine`` with
+                one segment per section. If False, flatten into a single
+                timeline of this timeline's concrete type.
+            uid: Optional identifier for the returned timeline.
+            name: Optional name for the returned timeline. Defaults to
+                ``f"{self.name}_unfolded"``.
+
+        Returns:
+            The unfolded timeline (a ``SegmentLine`` unless
+            ``as_segment_line`` is False).
+
+        Raises:
+            ValueError: If no FlowMap with the given id is attached.
+
+        Examples:
+            >>> child.create_flow_map(["A8_1", "A8_2"], id="A8")
+            FlowMap(A8: 2 sections)
+            >>> unfolded = child.apply_flow("A8")
+            >>> unfolded.n_segments
+            2
+        """
+        flow_map = self._flow_maps.get(id)
+        if flow_map is None:
+            raise ValueError(f"No FlowMap attached with id '{id}'")
+
+        from ..flow.unfolding import unfold_via_flowmap
+
+        return unfold_via_flowmap(
+            self,
+            flow_map,
+            uid=uid,
+            include_children=include_children,
+            as_segment_line=as_segment_line,
+            name=name,
+        )
+
+    def unfold_coordinate(
+        self, coord: CoordinateSpec, id: str = "default"
+    ) -> list[float]:
         """Convert a folded coordinate to unfolded coordinates.
 
         Convenience method that delegates to the attached FlowMap.
@@ -487,7 +553,10 @@ class SegmentsMixin:
         flow_map = self._flow_maps.get(id)
         if flow_map is None:
             raise ValueError(f"No FlowMap attached with id '{id}'")
-        return [float(c) for c in flow_map.unfold(self._resolve_axis_value(coord))]
+        return [
+            float(c)
+            for c in flow_map.unfold_coordinate(self._resolve_axis_value(coord))
+        ]
 
     def fold(self, coord: CoordinateSpec, id: str = "default") -> float:
         """Convert an unfolded coordinate to a folded coordinate.

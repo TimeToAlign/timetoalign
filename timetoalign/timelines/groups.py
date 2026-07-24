@@ -2012,7 +2012,7 @@ class TimelineGroup:
             >>> score_group = TimelineGroup(
             ...     id="score", timelines=[clt1, dgt1, openscore]
             ... )
-            >>> unfolded = score_group.unfold(flow, controller, "clt1")
+            >>> unfolded = score_group.apply_flow(flow, controller, "clt1")
         """
         from timetoalign.timelines.flow import (
             FlowMap,

@@ -33,7 +33,7 @@
 # `is_jump`, `is_break`, `is_target`, and `is_structural_marker` filter members.
 #
 # A **FlowMap** is the bidirectional coordinate transform derived from a chosen
-# `FlowMode`. `unfold(coord)` returns a list of unfolded positions (≥1);
+# `FlowMode`. `unfold_coordinate(coord)` returns a list of unfolded positions (≥1);
 # `fold(coord)` returns a single folded coordinate.
 # `FlowMap.from_qb_sections(flow, qb_sections)` is the entry point for manual
 # correction or non-standard interpretations.
@@ -246,7 +246,7 @@ export_flows(controller, piece_name)
 #
 # Swap `demo_name` to inspect any of the three pieces above. The cells below
 # build a controller, a `FlowMap`, and a timeline with multiple flow maps
-# attached, then exercise `unfold` / `fold` / `inverse`.
+# attached, then exercise `unfold_coordinate` / `fold` / `inverse`.
 
 # %%
 demo_name = "score_1988-Ciume_e_brincadeira"  # or score_1361-... / score_133-...
@@ -271,7 +271,7 @@ boundaries_demo = controller_demo.get_section_boundary_coordinates()
 # %%
 # A folded coord inside the first repeated section appears at multiple unfolded positions.
 coord = boundaries_demo[0] / 2 if boundaries_demo else Fraction(5)
-unfolded = flow_map.unfold(coord)
+unfolded = flow_map.unfold_coordinate(coord)
 {
     "source_coord": float(coord),
     "unfolded_positions": [float(u) for u in unfolded],
@@ -289,7 +289,7 @@ for target in unfolded:
 late_coord = flow_map.fold(flow_map.total_target_length - 1)
 {
     "source_coord": float(late_coord),
-    "n_appearances": len(flow_map.unfold(late_coord)),
+    "n_appearances": len(flow_map.unfold_coordinate(late_coord)),
 }
 
 # %%
@@ -308,7 +308,7 @@ pd.DataFrame(
     [
         {
             "map_id": map_id,
-            "n_appearances": len(score_tl.unfold(sample_coord, id=map_id)),
+            "n_appearances": len(score_tl.unfold_coordinate(sample_coord, id=map_id)),
         }
         for map_id in score_tl.list_flow_maps()
     ]
@@ -316,7 +316,7 @@ pd.DataFrame(
 
 # %%
 # Fold a specific unfolded position back to the score.
-positions = score_tl.unfold(sample_coord)
+positions = score_tl.unfold_coordinate(sample_coord)
 if len(positions) > 1:
     folded_back = score_tl.fold(positions[1])
     {"second_unfolded": positions[1], "folded_back": folded_back}

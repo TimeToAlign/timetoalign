@@ -1504,14 +1504,14 @@ class TestTimelineGroupUnfold:
     @pytest.fixture(scope="class")
     def unfolded_group(self, score_data):
         """Unfold the score group once for flattened-result assertions."""
-        return score_data["group"].unfold(
+        return score_data["group"].apply_flow(
             score_data["flow"], score_data["controller"], "clt1"
         )
 
     @pytest.fixture(scope="class")
     def unfolded_segment_lines(self, score_data):
         """Unfold the score group once as segment lines."""
-        return score_data["group"].unfold(
+        return score_data["group"].apply_flow(
             score_data["flow"],
             score_data["controller"],
             "clt1",
@@ -1539,7 +1539,7 @@ class TestTimelineGroupUnfold:
     def test_unfold_custom_name(self, score_data):
         """Custom name is used when specified."""
         group = score_data["group"]
-        result = group.unfold(
+        result = group.apply_flow(
             score_data["flow"],
             score_data["controller"],
             "clt1",
@@ -1581,7 +1581,7 @@ class TestTimelineGroupUnfold:
         """KeyError when reference_timeline_id is not in the group."""
         group = score_data["group"]
         with pytest.raises(KeyError, match="nonexistent"):
-            group.unfold(
+            group.apply_flow(
                 score_data["flow"],
                 score_data["controller"],
                 "nonexistent",

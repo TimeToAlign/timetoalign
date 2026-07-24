@@ -574,7 +574,7 @@ Examples:
 ### unfold { #timetoalign.timelines.TimelineGroup.unfold }
 
 ```python
-timelines.TimelineGroup.unfold(
+timelines.TimelineGroup.apply_flow(
     flow,
     flow_controller,
     reference_timeline_id,

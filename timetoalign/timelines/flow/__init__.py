@@ -29,7 +29,7 @@ from .sections import (
     _coerce_intervals,
     load_valid_flows,
 )
-from .unfolding import compute_qb_sections, create_unfolded_timeline
+from .unfolding import compute_qb_sections, create_unfolded_timeline, unfold_via_flowmap
 
 __all__ = [
     "SegmentNameGenerator",
@@ -54,4 +54,5 @@ __all__ = [
     "ScoreFlowController",
     "compute_qb_sections",
     "create_unfolded_timeline",
+    "unfold_via_flowmap",
 ]

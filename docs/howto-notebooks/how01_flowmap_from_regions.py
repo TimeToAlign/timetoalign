@@ -37,10 +37,12 @@
 #
 # 1. Mark the played spans as {{< glossary Region >}}s on the folded timeline
 # 2. Build and attach a FlowMap in one call with `Timeline.create_flow_map()`
-# 3. `unfold()` a folded coordinate to its performance position — and see a
-#    skipped coordinate return `[]`
+# 3. Map a folded coordinate to its performance position with
+#    `unfold_coordinate()` — and see a skipped coordinate return `[]`
 # 4. `fold()` a performance coordinate back onto the score
-# 5. Recognise that FlowMap construction takes **one** argument in many shapes:
+# 5. Assemble the whole unfolded timeline with `unfold()`, concatenating the
+#    played spans into a {{< glossary SegmentLine >}}
+# 6. Recognise that FlowMap construction takes **one** argument in many shapes:
 #    region names, `Region` objects, coordinate pairs, a `Timeline`, or a
 #    collection of any of these
 #
@@ -90,7 +92,7 @@ def downbeat(measure: int, qb_per_measure: int = QB_PER_MEASURE) -> float:
 
 def probe(flow_map: FlowMap, coords: list[float]) -> dict[float, list[float]]:
     """Unfold each probe coordinate; a skipped coordinate yields ``[]``."""
-    return {c: [float(t) for t in flow_map.unfold(c)] for c in coords}
+    return {c: [float(t) for t in flow_map.unfold_coordinate(c)] for c in coords}
 
 
 # %%
@@ -139,19 +141,19 @@ cut_map = score.create_flow_map(["before_cut", "after_cut"], id="cut")
 cut_map
 
 # %% [markdown]
-# ## Unfold: folded → performance
+# ## Unfold a coordinate: folded → performance
 #
-# `unfold()` reports where a folded coordinate lands in the performance. Because
-# a folded coordinate could be played more than once (under a repeat), it always
-# returns a **list** of positions. Here nothing repeats, so a played coordinate
-# yields exactly one position.
+# `unfold_coordinate()` reports where a folded coordinate lands in the
+# performance. Because a folded coordinate could be played more than once (under
+# a repeat), it always returns a **list** of positions. Here nothing repeats, so
+# a played coordinate yields exactly one position.
 #
 # The first span is unshifted — measures 1–41 play at their score coordinates:
 
 # %%
 {
     "folded_qb": downbeat(11),
-    "unfolded": [float(t) for t in cut_map.unfold(downbeat(11))],
+    "unfolded": [float(t) for t in cut_map.unfold_coordinate(downbeat(11))],
 }
 
 # %% [markdown]
@@ -162,15 +164,15 @@ cut_map
 # %%
 {
     "folded_qb": downbeat(46),
-    "unfolded": [float(t) for t in cut_map.unfold(downbeat(46))],
+    "unfolded": [float(t) for t in cut_map.unfold_coordinate(downbeat(46))],
 }
 
 # %% [markdown]
 # ### A skipped coordinate returns `[]`
 #
 # The downbeats of the omitted measures 42 and 43 lie in neither span, so they
-# are played **nowhere**. `unfold()` returns an empty list — the coordinate has
-# no performance position at all.
+# are played **nowhere**. `unfold_coordinate()` returns an empty list — the
+# coordinate has no performance position at all.
 
 # %%
 probe(cut_map, [downbeat(42), downbeat(43)])
@@ -186,13 +188,35 @@ probe(cut_map, [downbeat(42), downbeat(43)])
 {"performance_qb": 129.0, "folded": float(cut_map.fold(129.0))}
 
 # %% [markdown]
-# The map is also attached to the timeline under its id, so `score.unfold()` and
-# `score.fold()` delegate to it without your having to hold the FlowMap object:
+# The map is also attached to the timeline under its id, so
+# `score.unfold_coordinate()` and `score.fold()` delegate to it without your
+# having to hold the FlowMap object:
 
 # %%
 {
-    "via_timeline_unfold": score.unfold(downbeat(46), id="cut"),
+    "via_timeline_unfold": score.unfold_coordinate(downbeat(46), id="cut"),
     "via_timeline_fold": score.fold(129.0, id="cut"),
+}
+
+# %% [markdown]
+# ## Unfold the whole timeline
+#
+# Everything above maps a *single* coordinate. To materialise the entire
+# performance as its own timeline, call `unfold()` with the attached FlowMap's
+# id. Where `unfold_coordinate()` answers "where does this one coordinate land?",
+# `unfold(id)` slices the folded timeline at each played span and concatenates
+# the slices — copying their events and children — into performance order.
+#
+# The result is a {{< glossary SegmentLine >}}: one segment per played span. Its
+# length is the two spans summed (123 QB before the cut + 21 QB after = 144 QB),
+# the 6 QB of the omitted measures removed from the folded 150.
+
+# %%
+unfolded = score.apply_flow("cut")
+{
+    "type": type(unfolded).__name__,
+    "n_segments": unfolded.n_segments,
+    "length_qb": float(unfolded.length.value),
 }
 
 # %% [markdown]
@@ -234,7 +258,8 @@ probes = [downbeat(11), downbeat(42), downbeat(46)]
 # A **single** interval-like value is equally valid and needs no wrapping list —
 # `FlowMap((0, 123))` is a one-span map, and passing a whole
 # {{< glossary Timeline >}} takes its full extent as one span. Whatever the
-# shape, the result is one FlowMap with the same `unfold()`/`fold()` behaviour.
+# shape, the result is one FlowMap with the same `unfold_coordinate()`/`fold()`
+# behaviour.
 
 # %%
 one_span = FlowMap((0, before_end), id="opening_only")
@@ -249,11 +274,12 @@ probe(one_span, [downbeat(11), downbeat(46)])
 # | Build + attach a FlowMap from spans | `timeline.create_flow_map(intervals, id=...)` |
 # | Build a FlowMap directly | `FlowMap(intervals, id=...)` |
 # | Accepted `intervals` shapes | region name, `Region`, `(start, end)`, `Timeline`, or interval event |
-# | Map folded → performance (1 → N) | `flow_map.unfold(coord)` · `timeline.unfold(coord, id=...)` |
-# | A skipped coordinate | `unfold()` returns `[]` |
-# | Map performance → folded (N → 1) | `flow_map.fold(coord)` · `timeline.fold(coord, id=...)` |
+# | Coordinate folded → performance (1→N) | `flow_map.unfold_coordinate(coord)` · `timeline.unfold_coordinate(coord)` |
+# | A skipped coordinate | `unfold_coordinate()` returns `[]` |
+# | Map a coordinate performance → folded (N → 1) | `flow_map.fold(coord)` · `timeline.fold(coord, id=...)` |
+# | Assemble the whole unfolded timeline | `timeline.unfold(id)` → {{< glossary SegmentLine >}} |
 #
 # The same {{< glossary FlowMap >}} also unfolds *repeats* — a span listed twice
-# plays twice, and `unfold()` then returns two positions. For repeats read
-# straight from a score's notated {{< glossary Break >}}s and
+# plays twice, and `unfold_coordinate()` then returns two positions. For repeats
+# read straight from a score's notated {{< glossary Break >}}s and
 # {{< glossary Jump >}}s, see the multimodal alignment guide.

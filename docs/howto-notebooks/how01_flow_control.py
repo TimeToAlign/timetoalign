@@ -33,7 +33,7 @@
 # 1. Construct {{< glossary Break >}} and {{< glossary Jump >}} objects by hand
 # 2. Load a score and inspect its flow structure via `ScoreFlowController`
 # 3. Compare all `FlowMode` variants and their effect on unfolded length
-# 4. Use `FlowMap.unfold()` and `FlowMap.fold()` for coordinate transformation
+# 4. Use `FlowMap.unfold_coordinate()` and `FlowMap.fold()` for coordinate transformation
 # 5. Attach a `FlowMap` to a {{< glossary Timeline >}} and query it by id
 # 6. Build a custom `FlowMap` from explicit quarter-beat section boundaries
 #
@@ -335,8 +335,8 @@ flow_printed = controller.compute_flow(FlowMode.printed)
 #
 # The mapping is asymmetric by design:
 #
-# - `unfold(coord)` → `list[Fraction]` — a folded coordinate that falls inside a
-#   repeated section appears at *multiple* unfolded positions
+# - `unfold_coordinate(coord)` → `list[Fraction]` — a folded coordinate that falls
+#   inside a repeated section appears at *multiple* unfolded positions
 # - `fold(coord)` → `Fraction` — always returns a single value because the
 #   unfolded timeline has no repeated positions
 
@@ -350,7 +350,7 @@ flow_map = controller.create_flow_map()  # DEFAULT flow by default
 # %%
 # Pick a coordinate inside the repeated section
 coord = boundaries[0] / 2 if boundaries else Fraction(5)
-unfolded = flow_map.unfold(coord)
+unfolded = flow_map.unfold_coordinate(coord)
 {
     "source_coord": float(coord),
     "unfolded_positions": [float(u) for u in unfolded],
@@ -368,7 +368,7 @@ for target in unfolded:
 late_coord = flow_map.fold(flow_map.total_target_length - 1)
 {
     "source_coord": float(late_coord),
-    "n_appearances": len(flow_map.unfold(late_coord)),
+    "n_appearances": len(flow_map.unfold_coordinate(late_coord)),
 }
 
 # %% [markdown]
@@ -392,7 +392,7 @@ inverse_map = flow_map.inverse()
 # ## Part 5: Attaching FlowMaps to a Timeline
 #
 # A `FlowMap` is most useful when attached to a {{< glossary Timeline >}}.
-# Once attached, `timeline.unfold()` and `timeline.fold()` delegate to it, keeping
+# Once attached, `timeline.unfold_coordinate()` and `timeline.fold()` delegate to it, keeping
 # coordinate transformations co-located with the events they describe.
 #
 # Multiple `FlowMap` objects can coexist on the same timeline, each identified by a
@@ -423,7 +423,7 @@ score_tl.list_flow_maps()
 # %%
 # Unfold a coordinate from the repeated section
 sample_coord = float(boundaries[0]) / 2 if boundaries else 5.0
-positions = score_tl.unfold(sample_coord)
+positions = score_tl.unfold_coordinate(sample_coord)
 {
     "folded_coord": sample_coord,
     "unfolded_positions": positions,
@@ -450,7 +450,7 @@ pd.DataFrame(
     [
         {
             "map_id": map_id,
-            "n_appearances": len(score_tl.unfold(sample_coord, id=map_id)),
+            "n_appearances": len(score_tl.unfold_coordinate(sample_coord, id=map_id)),
         }
         for map_id in score_tl.list_flow_maps()
     ]
@@ -527,8 +527,12 @@ score_tl.add_flow_map(extra_pass_map)
     "added_qb": float(
         extra_pass_map.total_target_length - flow_map.total_target_length
     ),
-    "appearances_in_default": len(score_tl.unfold(sample_coord, id="default")),
-    "appearances_in_extra_pass": len(score_tl.unfold(sample_coord, id="extra_pass")),
+    "appearances_in_default": len(
+        score_tl.unfold_coordinate(sample_coord, id="default")
+    ),
+    "appearances_in_extra_pass": len(
+        score_tl.unfold_coordinate(sample_coord, id="extra_pass")
+    ),
 }
 
 # %% [markdown]
@@ -544,7 +548,7 @@ score_tl.add_flow_map(extra_pass_map)
 # | Compute a traversal for a given mode | `controller.compute_flow(FlowMode.X)` |
 # | Get the default `FlowMap` | `controller.create_flow_map()` |
 # | Get a mode-specific `FlowMap` | `controller.create_flow_map_for_mode(FlowMode.X)` |
-# | Map folded → unfolded (1 → N) | `flow_map.unfold(coord)` · `timeline.unfold(coord)` |
+# | Map folded → unfolded (1 → N) | `flow_map.unfold_coordinate(coord)` · `timeline.unfold_coordinate(coord)` |
 # | Map unfolded → folded (N → 1) | `flow_map.fold(coord)` · `timeline.fold(coord)` |
 # | Reverse a `FlowMap` | `flow_map.inverse()` |
 # | Attach to a {{< glossary Timeline >}} | `timeline.add_flow_map(flow_map, id=...)` |

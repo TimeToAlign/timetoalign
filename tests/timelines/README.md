@@ -1142,15 +1142,15 @@ Sections are built directly from the coerced `(start, end)` ranges with a
 
 | Query | Method | Exact result | Derivation |
 |-------|--------|--------------|------------|
-| `unfold(50)` | source → target | `[Fraction(50)]` | span 1: `0 + (50-0)` |
-| `unfold(125)` | source → target (gap) | `[]` | QB 125 is in the skipped gap |
-| `unfold(150)` | source → target | `[Fraction(144)]` | span 2: `123 + (150-129)` |
+| `unfold_coordinate(50)` | source → target | `[Fraction(50)]` | span 1: `0 + (50-0)` |
+| `unfold_coordinate(125)` | source → target (gap) | `[]` | QB 125 is in the skipped gap |
+| `unfold_coordinate(150)` | source → target | `[Fraction(144)]` | span 2: `123 + (150-129)` |
 | `fold(144)` | target → source | `Fraction(150)` | inverse of the above |
 | `fold(50)` | target → source | `Fraction(50)` | span 1 |
 | `total_target_length` | — | `Fraction(246)` | `123 + (252-129)` |
 | `n_sections` | — | `2` | two played spans |
 
-`inverse()` round-trips (`inverse().unfold(144) == [Fraction(150)]`) and does
+`inverse()` round-trips (`inverse().unfold_coordinate(144) == [Fraction(150)]`) and does
 not require a non-`None` `flow`. `__repr__` reads the `id`, so an interval map
 built with `id="A8"` reprs as `FlowMap(A8: 2 sections)` and its inverse as
 `FlowMap(A8_inverse: 2 sections)`.
@@ -1158,7 +1158,7 @@ built with `id="A8"` reprs as `FlowMap(A8: 2 sections)` and its inverse as
 #### Regression — the `Flow` and `from_qb_sections` paths are unchanged
 
 `FlowMap(flow_obj)` still builds MC-space sections from `flow.sections`
-(`unfold(3)` over two `[1, 5)` playthrough sections gives
+(`unfold_coordinate(3)` over two `[1, 5)` playthrough sections gives
 `[Fraction(2), Fraction(6)]`, since MC 3 is visited twice), `id` defaults to
 `flow.mode.value`, and `from_qb_sections` is untouched. The polymorphic
 positional parameter is named `source`, so `FlowMap(source=flow_obj)` works by
@@ -1176,9 +1176,47 @@ calls all build the same two-span map on a length-252 child:
 `create_flow_map([region1, region2], id="A8")`,
 `create_flow_map([(0, 123), (129, length)], id="A8")`, and the singleton
 `create_flow_map(region1, id="X")`. After construction `get_flow_map(id)`
-returns the same object, and the timeline's `unfold`/`fold` convenience
-methods delegate with the exact values above (`tl.unfold(150, "A8") == [144.0]`,
-`tl.unfold(125, "A8") == []`, `tl.fold(144, "A8") == 150.0`).
+returns the same object, and the timeline's `unfold_coordinate`/`fold`
+convenience methods delegate with the exact values above
+(`tl.unfold_coordinate(150, "A8") == [144.0]`,
+`tl.unfold_coordinate(125, "A8") == []`, `tl.fold(144, "A8") == 150.0`).
+
+#### `Timeline.unfold` — the unfolded timeline
+
+`unfold_coordinate` maps a single folded coordinate to a list of unfolded
+coordinates; `unfold(id)` instead yields the whole unfolded **timeline**. It
+slices the source at each section of the attached FlowMap via
+`Timeline.get_slice` (which rebases each slice by `-start`) and concatenates the
+slices, in target order, onto a `SegmentLine` (the default) whose segment
+offsets accumulate as `0` then `123`. With `as_segment_line=False` the slices
+are flattened into a single timeline of the source's concrete type. The result
+carries a reverse FlowMap (id `"source"`) and the forward FlowMap
+(id `f"forward_{id}"`).
+
+The fixture is a length-252 source with played spans `A8_1` `[0, 123)` and
+`A8_2` `[129, 252)`, instants `e10` at absolute 10 (span 1) and `e140` at
+absolute 140 (span 2), and a nested child at offset 40 (span `[40, 60)`, inside
+span 1) carrying instant `c5` at local 5. `sl = source.unfold("A8")` and
+`flat = source.unfold("A8", as_segment_line=False)` give the exact values:
+
+| Query | Exact result | Derivation |
+|-------|--------------|------------|
+| `isinstance(sl, SegmentLine)` | `True` | default is a SegmentLine |
+| `sl.n_segments` | `2` | one segment per played span |
+| `float(sl.length.value)` | `246.0` | `123 + (252 - 129)` |
+| segment 0 / segment 1 length | `123.0` / `123.0` | span lengths |
+| `e10` in segment 0 | `Fraction(10)` | slice `[0, 123)`: `10 - 0` |
+| `e140` in segment 1 | `Fraction(11)` | slice `[129, 252)`: `140 - 129` |
+| child offset in segment 0 | `40.0` | `40 - 0`; segment 1 has no children |
+| child `c5` local coord | `Fraction(5)` | slice `[0, 20)`: `5 - 0` |
+| `sl.get_flow_map("source")` | not `None` | reverse FlowMap attached |
+| `sl.has_flow_map("forward_A8")` | `True` | forward FlowMap attached |
+| `type(flat) is ContinuousLogicalTimeline` | `True` | flattened to source type |
+| `float(flat.length.value)` | `246.0` | same target length |
+| flattened `e10` | `10.0` | section offset 0: `10 + 0` |
+| flattened `e140` | `134.0` | section offset 123: `11 + 123` |
+| flattened child offset / `c5` | `40.0` / `5.0` | offset `40 + 0`, event local 5 |
+| `source.unfold("nope")` | raises `ValueError` | no FlowMap attached with that id |
 
 ---
 

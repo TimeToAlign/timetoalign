@@ -475,7 +475,7 @@ section_boundary_table
 # sliced and reassembled in playthrough order.
 
 # %%
-score_group_unfolded = score_group.unfold(
+score_group_unfolded = score_group.apply_flow(
     abc_flow, abc_controller, reference_timeline_id="clt1"
 )
 score_group_unfolded
