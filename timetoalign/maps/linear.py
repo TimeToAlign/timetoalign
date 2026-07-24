@@ -198,8 +198,8 @@ class ScalarMap(ConversionMap[CoordinateValue]):
 
     def __init__(
         self,
-        *,
         scalar: CoordinateValue = 1.0,
+        *,
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
