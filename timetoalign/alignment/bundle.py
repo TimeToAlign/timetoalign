@@ -26,6 +26,7 @@ from timetoalign.core import (
     CoordinateSpec,
     IdCoordinate,
     IdGenerator,
+    SupportPolicy,
     resolve_coordinate_spec,
     resolve_id,
 )
@@ -161,6 +162,12 @@ class AlignmentBundle:
     # only the matched rows — a million-claim field is never exploded into a
     # Python list. The Python-list ``cross_group_claims`` path is unchanged.
     cross_group_claim_fields: list[MatchClaimField] = field(default_factory=list)
+
+    # Persistent per-bundle setting: how ``get_matchstamp_at`` treats a
+    # timeline whose transferred coordinate falls outside alignment support
+    # (below the first anchor or beyond the last). The default drops such a
+    # timeline; a per-call ``support_policy`` argument overrides it.
+    support_policy: SupportPolicy = SupportPolicy.omit
 
     # Mapping from bundle UID to actual timeline.id (used by groups)
     _uid_to_timeline_id: dict[str, str] = field(default_factory=dict, repr=False)
@@ -1407,6 +1414,7 @@ class AlignmentBundle:
         coordinate: CoordinateSpec,
         timeline_id: str | None = None,
         *,
+        support_policy: "SupportPolicy | str | None" = None,
         conversion_maps: "ConversionMapsSpec" = True,
         timeline_ids: set[str] | None = None,
         id_pattern: str | None = None,
@@ -1419,10 +1427,19 @@ class AlignmentBundle:
         Given a coordinate on one timeline, returns coordinates on ALL
         connected timelines across ALL groups.
 
-        The method:
-        1. Builds (or retrieves from cache) the MatchGraph for this
-           coordinate's connected component.
-        2. Returns the graph's MatchStamp.
+        The stamp is the **transitive cross-group union** reachable from the
+        query. Exact-anchor coordinates from the coordinate's MatchGraph are
+        overlaid first (exact wins over interpolated), then the assembly walks
+        outward across groups to closure: every reached timeline expands into
+        its own group (by interpolation) and warps into not-yet-reached groups
+        (by WarpMap). ``is_interpolated`` is ``False`` exactly when the query
+        node itself carries an explicit anchor.
+
+        A timeline whose transferred coordinate falls outside alignment
+        support — the entering coordinate lies outside the transferring
+        WarpMap's source-anchor hull, or the produced coordinate would fall
+        outside ``[0, length]`` — is handled by ``support_policy``. No policy
+        ever yields a negative coordinate or one beyond a timeline's length.
 
         Args:
             coordinate: The query coordinate. Can be:
@@ -1434,6 +1451,12 @@ class AlignmentBundle:
             timeline_id: Bundle UID of the source timeline. Required unless
                 ``coordinate`` is an ``IdCoordinate``, in which case the
                 coordinate's own ``timeline_id`` is used.
+            support_policy: How to treat out-of-support timelines
+                (``omit`` / ``clamp`` / ``extrapolate``). Accepts a
+                :class:`~timetoalign.core.SupportPolicy` or its string name.
+                ``None`` (the default) uses the bundle's ``support_policy``
+                setting, itself ``omit`` by default. The query timeline's own
+                coordinate is never dropped, clamped, or altered.
             conversion_maps: C-map conversions available through unit lookup.
             timeline_ids: Only include these bundle UIDs in the result.
             id_pattern: Regex filter for bundle UIDs in the result.
@@ -1479,39 +1502,40 @@ class AlignmentBundle:
             else coordinate_value
         )
 
-        try:
-            mg = self._get_or_build_matchgraph(actual_timeline_id, coordinate)
-        except ValueError as error:
-            if "No synchronous claims touch" not in str(error):
-                raise
-            stamp = self._get_interpolated_matchstamp(
+        policy = (
+            self.support_policy
+            if support_policy is None
+            else self._coerce_support_policy(support_policy)
+        )
+
+        coordinates, anchor_edges, inferred_edges, query_has_anchor = (
+            self._assemble_matchstamp(
                 coordinate,
-                bundle_uid,
                 actual_timeline_id,
-                timeline_id,
-                conversion_maps,
-            )
-        else:
-            graph_stamp = mg.get_matchstamp()
-            unit_map = self._get_unit_map()
-            units = dict(unit_map)
-            units.update(
-                {
-                    self._uid_to_timeline_id.get(bundle_tl_id, bundle_tl_id): unit
-                    for bundle_tl_id, unit in unit_map.items()
-                }
-            )
-            stamp = MatchStamp(
-                coordinates=dict(graph_stamp.coordinates),
-                anchor_edges=list(graph_stamp.anchor_edges),
-                inferred_edges=list(graph_stamp.inferred_edges),
-                units=units,
-                axis=coordinate,
-                source=self,
-                source_id=timeline_id,
-                is_interpolated=False,
+                support_policy=policy,
                 conversion_maps=conversion_maps,
             )
+        )
+
+        unit_map = self._get_unit_map()
+        units = dict(unit_map)
+        units.update(
+            {
+                self._uid_to_timeline_id.get(bundle_tl_id, bundle_tl_id): unit
+                for bundle_tl_id, unit in unit_map.items()
+            }
+        )
+        stamp = MatchStamp(
+            coordinates=coordinates,
+            anchor_edges=anchor_edges,
+            inferred_edges=inferred_edges,
+            units=units,
+            axis=coordinate,
+            source=self,
+            source_id=timeline_id,
+            is_interpolated=not query_has_anchor,
+            conversion_maps=conversion_maps,
+        )
 
         # Apply post-hoc filtering if requested
         has_filter = (
@@ -1572,95 +1596,143 @@ class AlignmentBundle:
 
         return stamp
 
-    def _get_interpolated_matchstamp(
+    @staticmethod
+    def _coerce_support_policy(
+        policy: "SupportPolicy | str",
+    ) -> SupportPolicy:
+        """Coerce a policy argument to a :class:`SupportPolicy` member."""
+        return policy if isinstance(policy, SupportPolicy) else SupportPolicy(policy)
+
+    def _assemble_matchstamp(
         self,
         coordinate: float,
-        source_bundle_uid: str,
-        source_timeline_id: str,
-        query_timeline_id: str,
+        actual_timeline_id: str,
+        *,
+        support_policy: SupportPolicy,
         conversion_maps: "ConversionMapsSpec",
-    ) -> MatchStamp:
-        """Resolve a cross-group stamp through group timestamps and WarpMaps."""
-        source_group_id = self.timeline_to_group.get(source_bundle_uid)
-        if source_group_id is None:
-            coordinates = {source_bundle_uid: coordinate}
-            inferred_edges: list[tuple[str, str]] = []
-        else:
-            source_group = self.groups[source_group_id]
-            grouped_coordinates = self._get_group_timestamp(
-                source_group,
-                coordinate,
-                source_timeline_id,
-                conversion_maps=conversion_maps,
-            )
-            coordinates = {
-                tl_id: value
-                for tl_id, value in grouped_coordinates.items()
-                if value is not None
-            }
-            inferred_edges = []
+    ) -> tuple[dict[str, float], list[tuple[str, str]], list[tuple[str, str]], bool]:
+        """Assemble the transitive cross-group union reachable from a query.
 
-            def add_inferred_edge(timeline_a: str, timeline_b: str) -> None:
-                """Record a relationship once, regardless of orientation."""
-                edge = (timeline_a, timeline_b)
-                reverse = (timeline_b, timeline_a)
-                if (
-                    timeline_a != timeline_b
-                    and edge not in inferred_edges
-                    and reverse not in inferred_edges
-                ):
-                    inferred_edges.append(edge)
+        Seeds from the query node, overlays exact-anchor coordinates from the
+        query's MatchGraph (exact wins over interpolated), then walks outward
+        across groups to closure: every reached timeline expands into its own
+        group (interpolation) and warps into not-yet-reached groups (WarpMap),
+        each transferred coordinate governed by ``support_policy``. The query
+        timeline's own coordinate is never dropped, clamped, or altered.
 
-            for member_uid, member_coordinate in grouped_coordinates.items():
-                if member_coordinate is not None:
-                    add_inferred_edge(source_bundle_uid, member_uid)
+        Args:
+            coordinate: The query coordinate in the query timeline's unit.
+            actual_timeline_id: Actual timeline id of the query.
+            support_policy: How out-of-support transfers are handled.
+            conversion_maps: C-map spec forwarded to group timestamps.
 
+        Returns:
+            ``(coordinates, anchor_edges, inferred_edges, query_has_anchor)``.
+            ``query_has_anchor`` is True when the query node carries an
+            explicit anchor (making the stamp non-interpolated).
+        """
+        coordinates: dict[str, float] = {}
+        anchor_edges: list[tuple[str, str]] = []
+        inferred_edges: list[tuple[str, str]] = []
+
+        def add_inferred_edge(timeline_a: str, timeline_b: str) -> None:
+            """Record an inferred relationship once, regardless of orientation."""
+            if timeline_a == timeline_b:
+                return
+            if (timeline_a, timeline_b) in inferred_edges:
+                return
+            if (timeline_b, timeline_a) in inferred_edges:
+                return
+            if (timeline_a, timeline_b) in anchor_edges:
+                return
+            if (timeline_b, timeline_a) in anchor_edges:
+                return
+            inferred_edges.append((timeline_a, timeline_b))
+
+        # 1. Exact-anchor seed: the query's connected component of explicit
+        #    (and any graph-inferred) claims.
+        try:
+            mg = self._get_or_build_matchgraph(actual_timeline_id, coordinate)
+        except ValueError as error:
+            if "No synchronous claims touch" not in str(error):
+                raise
+            mg = None
+
+        query_has_anchor = mg is not None
+        if query_has_anchor:
+            graph_stamp = mg.get_matchstamp()
+            coordinates.update(graph_stamp.coordinates)
+            anchor_edges.extend(graph_stamp.anchor_edges)
+            inferred_edges.extend(graph_stamp.inferred_edges)
+        # The query timeline's coordinate is authoritative and never altered.
+        coordinates[actual_timeline_id] = coordinate
+
+        # 2. Transitive closure across groups (BFS worklist).
+        worklist: list[str] = list(coordinates.keys())
+        processed: set[str] = set()
+
+        while worklist:
+            node_id = worklist.pop()
+            if node_id in processed:
+                continue
+            processed.add(node_id)
+            node_coordinate = coordinates[node_id]
+            node_uid = self._timeline_id_to_uid.get(node_id, node_id)
+            group_id = self.timeline_to_group.get(node_uid)
+            if group_id is None:
+                continue
+            source_group = self.groups.get(group_id)
+            if source_group is None:
+                continue
+
+            # 2a. Within-group interpolation to the node's own group members.
+            if len(source_group.timeline_ids) > 1:
+                grouped = self._get_group_timestamp(
+                    source_group,
+                    node_coordinate,
+                    node_id,
+                    conversion_maps=conversion_maps,
+                )
+                for member_uid, member_coordinate in grouped.items():
+                    member_id = self._uid_to_timeline_id.get(member_uid, member_uid)
+                    if member_id in coordinates or member_coordinate is None:
+                        continue
+                    resolved = self._resolve_group_member_coordinate(
+                        member_id, float(member_coordinate), support_policy
+                    )
+                    if resolved is None:
+                        continue
+                    coordinates[member_id] = resolved
+                    add_inferred_edge(node_id, member_id)
+                    worklist.append(member_id)
+
+            # 2b. Cross-group warp into every not-yet-reached group.
             for other_group_id, other_group in self.groups.items():
-                if other_group_id == source_group_id:
+                if other_group_id == group_id:
+                    continue
+                if all(
+                    self._uid_to_timeline_id.get(member_uid, member_uid) in coordinates
+                    for member_uid in other_group.timeline_ids
+                ):
                     continue
                 transferred = self._transfer_to_group(
-                    coordinate,
-                    source_timeline_id,
+                    node_coordinate,
+                    node_id,
                     source_group,
                     other_group,
+                    support_policy,
+                    actual_timeline_id,
                 )
                 if transferred is None:
                     continue
-                target_timeline_id, target_coordinate = transferred
-                target_bundle_uid = self._timeline_id_to_uid.get(
-                    target_timeline_id, target_timeline_id
-                )
-                other_coordinates = self._get_group_timestamp(
-                    other_group,
-                    target_coordinate,
-                    target_timeline_id,
-                    conversion_maps=conversion_maps,
-                )
-                materialized_coordinates = {
-                    tl_id: value
-                    for tl_id, value in other_coordinates.items()
-                    if value is not None
-                }
-                if target_bundle_uid in materialized_coordinates:
-                    add_inferred_edge(source_bundle_uid, target_bundle_uid)
-                    for member_uid in materialized_coordinates:
-                        add_inferred_edge(target_bundle_uid, member_uid)
-                coordinates.update(materialized_coordinates)
+                target_id, target_coordinate = transferred
+                if target_id in coordinates:
+                    continue
+                coordinates[target_id] = target_coordinate
+                add_inferred_edge(node_id, target_id)
+                worklist.append(target_id)
 
-        unit_map = self._get_unit_map()
-        return MatchStamp(
-            coordinates=coordinates,
-            anchor_edges=[],
-            inferred_edges=inferred_edges,
-            units={
-                tl_id: unit_map[tl_id] for tl_id in coordinates if tl_id in unit_map
-            },
-            axis=coordinate,
-            source=self,
-            source_id=query_timeline_id,
-            is_interpolated=True,
-            conversion_maps=conversion_maps,
-        )
+        return coordinates, anchor_edges, inferred_edges, query_has_anchor
 
     def get_matchstamps(
         self,
@@ -2166,29 +2238,186 @@ class AlignmentBundle:
         self._claim_converter_cache[timeline_id] = None
         return None
 
+    def _timeline_length(self, timeline_id: str) -> float | None:
+        """Return a timeline's length in its native unit, or None."""
+        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+        tl = self.timelines.get(bundle_uid)
+        if tl is None or tl.length is None:
+            return None
+        return float(tl.length.value)
+
+    def _reconcile_entering_coordinate(
+        self, timeline_id: str, coordinate: float, hull_low: float, hull_high: float
+    ) -> float:
+        """Bring an entering coordinate into a WarpMap's source hull via C-Maps.
+
+        A coordinate reached through a claim anchor may be expressed in a unit
+        that differs from the one the target WarpMap's anchors use — e.g. a
+        measure boundary stored in seconds on a samples timeline, warping into
+        an alignment whose anchors are native samples. When ``coordinate`` lies
+        outside ``[hull_low, hull_high]`` but one of the timeline's conversion
+        maps (applied forward or inverse) lands it inside, that reinterpretation
+        is returned. Otherwise ``coordinate`` is returned unchanged and its
+        support is judged as-is.
+
+        Args:
+            timeline_id: Actual timeline id the coordinate lives on.
+            coordinate: The entering coordinate.
+            hull_low: Lower bound of the WarpMap's source-anchor hull.
+            hull_high: Upper bound of the WarpMap's source-anchor hull.
+
+        Returns:
+            The reconciled coordinate, or the original when no C-Map fits.
+        """
+        if hull_low <= coordinate <= hull_high:
+            return coordinate
+        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+        tl = self.timelines.get(bundle_uid)
+        conversion_maps = getattr(tl, "_conversion_maps", None)
+        if not conversion_maps:
+            return coordinate
+        for cmap in conversion_maps.values():
+            for reinterpret in ("forward", "inverse"):
+                try:
+                    if reinterpret == "forward":
+                        candidate = float(cmap(coordinate))
+                    else:
+                        candidate = float(cmap.inverse()(coordinate))
+                except Exception:
+                    continue
+                if hull_low <= candidate <= hull_high:
+                    return candidate
+        return coordinate
+
+    def _clip_to_length(self, timeline_id: str, coordinate: float) -> float:
+        """Clip a coordinate into ``[0, length]`` for a target timeline."""
+        out = 0.0 if coordinate < 0.0 else coordinate
+        length = self._timeline_length(timeline_id)
+        if length is not None and out > length:
+            out = length
+        return out
+
+    def _resolve_group_member_coordinate(
+        self, member_id: str, coordinate: float, support_policy: SupportPolicy
+    ) -> float | None:
+        """Apply the support policy to a within-group interpolated coordinate.
+
+        Group-internal transfer has no anchor hull, so support is judged only
+        by ``[0, length]``. ``omit`` drops an out-of-range member; ``clamp`` and
+        ``extrapolate`` both clip it into range (there is nothing to extrapolate
+        past a group's own start or end).
+
+        Args:
+            member_id: Actual timeline id of the group member.
+            coordinate: The interpolated coordinate on that member.
+            support_policy: The active policy.
+
+        Returns:
+            The (possibly clipped) coordinate, or None when omitted.
+        """
+        length = self._timeline_length(member_id)
+        within = coordinate >= 0.0 and (length is None or coordinate <= length)
+        if within:
+            return coordinate
+        if support_policy is SupportPolicy.omit:
+            return None
+        return self._clip_to_length(member_id, coordinate)
+
+    def _transfer_coordinate(
+        self,
+        warp: WarpMap,
+        entering: float,
+        source_tl_id: str,
+        target_tl_id: str,
+        support_policy: SupportPolicy,
+        *,
+        reconcile: bool = True,
+    ) -> float | None:
+        """Warp one coordinate into a target timeline under a support policy.
+
+        Unless ``reconcile`` is False, the entering coordinate is first
+        reconciled to the WarpMap's source hull via the source timeline's
+        C-Maps (handling derived-unit anchors). It is then classified:
+        out-of-support when it still lies outside the hull, or when the produced
+        coordinate would fall outside ``[0, length]``.
+
+        Args:
+            warp: The source → target WarpMap.
+            entering: The source coordinate to transfer.
+            source_tl_id: Actual timeline id of the source.
+            target_tl_id: Actual timeline id of the target.
+            support_policy: The active policy.
+            reconcile: Whether the entering coordinate may be reinterpreted
+                through the source timeline's C-Maps. False for the query
+                timeline's own authoritative coordinate, which is always taken
+                in its native unit.
+
+        Returns:
+            The target coordinate (always within ``[0, length]``), or None when
+            out-of-support under the ``omit`` policy.
+        """
+        source_coords = warp.source_coords
+        hull_low = float(source_coords[0])
+        hull_high = float(source_coords[-1])
+        reconciled = (
+            self._reconcile_entering_coordinate(
+                source_tl_id, float(entering), hull_low, hull_high
+            )
+            if reconcile
+            else float(entering)
+        )
+        length = self._timeline_length(target_tl_id)
+
+        def _produce(value: float) -> float:
+            out = float(warp(value))
+            conv = self._get_claim_to_native_converter(target_tl_id)
+            if conv is not None:
+                out = float(conv(out))
+            return out
+
+        produced = _produce(reconciled)
+        within_hull = hull_low <= reconciled <= hull_high
+        within_length = produced >= 0.0 and (length is None or produced <= length)
+        if within_hull and within_length:
+            return produced
+
+        if support_policy is SupportPolicy.omit:
+            return None
+        if support_policy is SupportPolicy.clamp:
+            clamped = min(max(reconciled, hull_low), hull_high)
+            return self._clip_to_length(target_tl_id, _produce(clamped))
+        # extrapolate: keep the linear extrapolation, clipped into range.
+        return self._clip_to_length(target_tl_id, produced)
+
     def _transfer_to_group(
         self,
         coordinate: float,
         source_tl_id: str,
         source_group: TimelineGroup,
         target_group: TimelineGroup,
+        support_policy: SupportPolicy,
+        query_tl_id: str,
     ) -> tuple[str, float] | None:
         """Transfer a coordinate from one group to another via WarpMap.
 
         Searches for a WarpMap connecting any timeline in the source
         group to any timeline in the target group.  Tries direct maps
         first, then indirect (convert within source group, then warp).
-
-        The WarpMap may return a coordinate in the claim's unit rather
-        than the target timeline's native unit (e.g. seconds instead of
-        samples).  ``_get_claim_to_native_converter`` detects this and
-        provides an inverse C-Map to correct the output.
+        Each transfer is governed by ``support_policy``
+        (see :meth:`_transfer_coordinate`); a transfer omitted under the
+        ``omit`` policy is skipped so another timeline in the target group may
+        still be reached. The entering coordinate is reconciled to the
+        WarpMap's source unit unless the source *is* the query timeline, whose
+        coordinate is authoritative in its native unit.
 
         Args:
             coordinate: Source coordinate.
             source_tl_id: Source timeline ID (actual, not bundle UID).
             source_group: Source group.
             target_group: Target group.
+            support_policy: How out-of-support transfers are handled.
+            query_tl_id: Actual timeline id of the original query, whose
+                coordinate is never reconciled.
 
         Returns:
             ``(target_timeline_id, transferred_coordinate)`` or ``None``.
@@ -2196,15 +2425,21 @@ class AlignmentBundle:
         # Try direct: source_tl_id -> any timeline in target group
         for target_tl_id in target_group.timeline_ids:
             warp = self._get_or_build_warp_map(source_tl_id, target_tl_id)
-            if warp is not None:
-                try:
-                    transferred = float(warp(coordinate))
-                    conv = self._get_claim_to_native_converter(target_tl_id)
-                    if conv is not None:
-                        transferred = float(conv(transferred))
-                    return (target_tl_id, transferred)
-                except Exception:
-                    continue
+            if warp is None:
+                continue
+            try:
+                transferred = self._transfer_coordinate(
+                    warp,
+                    coordinate,
+                    source_tl_id,
+                    target_tl_id,
+                    support_policy,
+                    reconcile=source_tl_id != query_tl_id,
+                )
+            except Exception:
+                continue
+            if transferred is not None:
+                return (target_tl_id, transferred)
 
         # Try indirect: convert within source group, then warp
         for src_other_tl_id in source_group.timeline_ids:
@@ -2223,15 +2458,21 @@ class AlignmentBundle:
             # Try WarpMap from intermediate to target group
             for target_tl_id in target_group.timeline_ids:
                 warp = self._get_or_build_warp_map(src_other_tl_id, target_tl_id)
-                if warp is not None:
-                    try:
-                        transferred = float(warp(float(intermediate)))
-                        conv = self._get_claim_to_native_converter(target_tl_id)
-                        if conv is not None:
-                            transferred = float(conv(transferred))
-                        return (target_tl_id, transferred)
-                    except Exception:
-                        continue
+                if warp is None:
+                    continue
+                try:
+                    transferred = self._transfer_coordinate(
+                        warp,
+                        float(intermediate),
+                        src_other_tl_id,
+                        target_tl_id,
+                        support_policy,
+                        reconcile=src_other_tl_id != query_tl_id,
+                    )
+                except Exception:
+                    continue
+                if transferred is not None:
+                    return (target_tl_id, transferred)
 
         return None
 

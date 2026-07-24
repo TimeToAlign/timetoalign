@@ -98,7 +98,11 @@ class MatchLine:
         ]
         if len(valid_stamps) != len(self.stamps):
             n_dropped = len(self.stamps) - len(valid_stamps)
-            module_logger.warning(
+            # Routine per-source filtering: a MatchLine is built from all
+            # cross-group claims, so components describing OTHER sources are
+            # expected here (a hub-and-spoke bridge hits this on every query).
+            # Not an error condition, hence debug rather than warning.
+            module_logger.debug(
                 "MatchLine: dropped %d stamp(s) that do not contain "
                 "source timeline '%s'",
                 n_dropped,

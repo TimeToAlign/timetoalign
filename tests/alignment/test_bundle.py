@@ -954,10 +954,12 @@ class TestGetMatchstampAtCrossGroup:
 
         stamp = bundle.get_matchstamp_at(75.0, "score")
 
+        # Edges are keyed by actual timeline id (the namespace the MatchGraph
+        # and the transitive-closure assembly share), not the bundle UID.
         assert stamp.inferred_edges == [
-            ("score", "image"),
-            ("score", "audio"),
-            ("audio", "midi"),
+            ("score_t", "image_t"),
+            ("score_t", "audio_t"),
+            ("audio_t", "midi_t"),
         ]
 
     def test_cached_graph_matchstamp_carries_bundle_units(self) -> None:
@@ -1297,7 +1299,9 @@ class TestAddMatchClaimField:
         stamp = bundle.get_matchstamp_at(123.456, score_tl.id)
 
         assert stamp.is_interpolated is True
-        assert stamp.get("score") == 123.456
+        # Coordinates are keyed by the actual timeline id (the namespace the
+        # assembly shares with the MatchGraph), not the bundle UID "score".
+        assert stamp.get(score_tl.id) == 123.456
 
     def test_list_and_field_stores_coexist(self) -> None:
         # A bundle may hold a Python-list claim AND a columnar field at once;
@@ -1412,9 +1416,14 @@ class TestGetMatchstampAtCoordinateParity:
         """Raw float with explicit timeline_id returns the known stamp."""
         bundle, score_id, audio_id = _make_xgroup_bundle_with_claims()
         stamp = bundle.get_matchstamp_at(100.0, score_id)
-        assert stamp.n_timelines == 2
+        # The stamp is the transitive cross-group union: the exact anchor pair
+        # (score_t, audio_t) plus each reached group's cross-section
+        # (image_t in score_t's group, midi_t in audio_t's group).
+        assert stamp.n_timelines == 4
         assert stamp.get(score_id) == 100.0
         assert stamp.get(audio_id) == 50.0
+        assert stamp.get("image_t") == 200.0  # score_t 100 -> image_t (200:400)
+        assert stamp.get("midi_t") == 50.0  # aligned with audio_t
 
     def test_coordinate_form_equals_raw(self) -> None:
         """A Coordinate with explicit timeline_id matches the raw-float result."""

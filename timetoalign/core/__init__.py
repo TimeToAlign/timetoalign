@@ -37,6 +37,7 @@ from .enums import (
     IntervalPolicy,
     NumberType,
     PartitionMode,
+    SupportPolicy,
     TimeUnit,
 )
 from .events import (
@@ -165,6 +166,7 @@ __all__ = [
     "IntervalPolicy",
     "NumberType",
     "PartitionMode",
+    "SupportPolicy",
     "TimeUnit",
     # Time scalars + paired Fields
     "Coordinate",

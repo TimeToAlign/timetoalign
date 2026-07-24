@@ -102,6 +102,90 @@ equivalent graph, group-extension, match-line, and stamp filtering results.
 
 ---
 
+## Transitive Cross-Group Union & Support Policy (`test_transitive_support.py`)
+
+### What We're Validating
+
+`AlignmentBundle.get_matchstamp_at` assembles the **transitive cross-group
+union** reachable from the query, and governs out-of-support transfers with a
+`support_policy` (`omit` / `clamp` / `extrapolate`, default `omit`). Two
+properties are proven with a synthetic fixture that owns no corpus data:
+
+1. A query reaches **every** timeline of **both** merged bundles, including
+   timelines that are only reachable through a bridge timeline, and only after
+   that bridge timeline's derived-unit coordinate is reconciled to its native
+   alignment unit.
+2. A coordinate below the first alignment anchor produces **no negative
+   coordinate under any policy**, and the three policies produce exact,
+   distinct results.
+
+### Synthetic Fixture Topology
+
+Two bundles are built, then merged with `AlignmentBundle.from_bundles`, then
+bridged with `create_match_claims`:
+
+- **Bundle A — a star in the per-claim list.** `a1` (score, quarters, len 100),
+  `a2` (seconds, len 100), `a3` (seconds, len 100), each in its own group.
+  Cross-group `MatchClaim`s at `a1` coordinates `{0, 50, 100}`:
+  `a2 = a1` and `a3 = a1 / 2`. A query at `a1 = 50` reaches `a2 = 50`,
+  `a3 = 25` by exact anchor.
+- **Bundle B — a WarpMap-able columnar `MatchClaimField`.** `b_bridge`
+  (samples, len 1000) carrying a `ScalarMap(0.01, samples→seconds)` C-Map,
+  plus `b1` (samples, len 3000) and `b2` (samples, len 3000), each in its own
+  group. The field holds native-samples instant anchors:
+
+  | `b_bridge` (samples) | `b1` (samples) | `b2` (samples) |
+  |---|---|---|
+  | 200 | 100 | 300 |
+  | 400 | 900 | 600 |
+  | 600 | 1700 | 900 |
+  | 800 | 2500 | 1200 |
+
+  The field's `b_bridge` hull is therefore `[200, 800]`.
+- **Bridge A↔B.** `create_match_claims` anchors `a1 = 50` to `b_bridge = 5`.
+  Because `b_bridge`'s native unit is samples, the anchor is recorded as
+  `b_bridge = 5` *samples* — a value that is really 5 seconds (the derived
+  unit), the same "seconds-on-a-samples-timeline" shape as the specimen.
+
+### Exact Expected Values
+
+**Union query — `merged.get_matchstamp_at(50, "a1:clt1")` (default `omit`):**
+
+`is_interpolated is False` (the query carries an exact anchor); 6 timelines,
+no negatives:
+
+| timeline | coordinate | how |
+|---|---|---|
+| `a1:clt1` | 50 | query |
+| `a2:cpt1` | 50 | exact anchor |
+| `a3:cpt2` | 25 | exact anchor |
+| `b_bridge:dpt1` | 5 | exact bridge anchor (unaltered) |
+| `b1:dpt2` | 1300 | reconcile 5 s → 500 samples, warp → 1300 |
+| `b2:dpt3` | 750 | reconcile 5 s → 500 samples, warp → 750 |
+
+`b_bridge = 5` is out of the field hull `[200, 800]`; its C-Map inverse
+reinterprets 5 seconds as 500 samples (in hull), and `np.interp(500, …)` gives
+`b1 = 1300`, `b2 = 750`.
+
+**Parity.** `b_bundle.get_matchstamp_at(500, "b_bridge:dpt1")` (the reconciled
+native coordinate) yields `b1 = 1300`, `b2 = 750` — identical to the union's B
+portion for the transferred timelines.
+
+**Out-of-support query — `merged.get_matchstamp_at(50, "b_bridge:dpt1")`** (50
+samples, below the hull; the query's own coordinate is never reconciled):
+
+| policy | timelines | `b1:dpt2` | `b2:dpt3` |
+|---|---|---|---|
+| `omit` | 1 (`b_bridge` only) | — | — |
+| `clamp` | 3 | 100 (`warp(200)`) | 300 (`warp(200)`) |
+| `extrapolate` | 3 | 0 (`warp(50) = -500`, floored) | 75 (`warp(50)`, kept) |
+
+`b_bridge = 50` stays present and unaltered under every policy. `a1/a2/a3` are
+unreachable from `b_bridge` (the single bridge pair cannot form a WarpMap, which
+needs at least two anchors), which keeps the out-of-support counts exact.
+
+---
+
 ## TimelineGroup Integration
 
 ### What We're Validating
