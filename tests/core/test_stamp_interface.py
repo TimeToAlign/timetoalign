@@ -173,3 +173,39 @@ def test_matchstamp_conversion_maps_false_disables_unit_subscript() -> None:
     assert stamp.get_unit(TimeUnit.milliseconds) is None
     with pytest.raises(KeyError):
         _ = stamp["milliseconds"]
+
+
+def test_matchstamp_str_surfaces_conversion_rows() -> None:
+    """Enabled conversion maps appear as rows in __str__, with exact values."""
+    stamp = _matchstamp_with_maps(conversion_maps=True)
+    s = str(stamp)
+
+    assert "milliseconds" in s
+    assert "25000" in s
+    assert "frames" in s
+    assert "1250" in s
+
+
+def test_matchstamp_str_omits_conversions_when_disabled() -> None:
+    """Disabled conversion maps surface neither row while the source coordinate remains."""
+    stamp = _matchstamp_with_maps(conversion_maps=False)
+    s = str(stamp)
+
+    assert "milliseconds" not in s
+    assert "frames" not in s
+    assert "clock" in s
+    assert "25" in s
+
+
+def test_matchstamp_repr_html_surfaces_conversion_rows() -> None:
+    """_repr_html_ mirrors __str__'s conversion-row gating, tagged as cmap rows."""
+    enabled = _matchstamp_with_maps(conversion_maps=True)._repr_html_()
+    assert "milliseconds" in enabled
+    assert "25000" in enabled
+    assert "frames" in enabled
+    assert "1250" in enabled
+    assert "cmap" in enabled
+
+    disabled = _matchstamp_with_maps(conversion_maps=False)._repr_html_()
+    assert "milliseconds" not in disabled
+    assert "frames" not in disabled

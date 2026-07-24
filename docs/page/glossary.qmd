@@ -267,12 +267,20 @@ to the relevant section of the conceptual model.
 **MatchStamp**
 :   The union of {{< glossary TimeStamp >}}s from groups synchronously
     connected by a {{< glossary MatchGraph >}}. Contains one coordinate per
-    participating timeline and, with `conversion_maps=True` (the default),
-    C-map conversion values. MatchStamp implements the shared `Stamp`
-    interface: `get()` returns a raw coordinate, `get_coordinate()` returns a
-    unit-bearing {{< glossary Coordinate >}}, `present_timelines` lists
-    available timelines, and `is_interpolated` identifies interpolation
-    fallback.
+    participating timeline and, with `conversion_maps=True`, C-map
+    conversion values. Unlike {{< glossary TimeStamp >}}, where C-Maps are
+    visible by default, `conversion_maps` on a MatchStamp getter
+    (`bundle.get_matchstamp_at()`, `get_matchstamps()`, `get_matchstamp_table()`,
+    `MatchClaim.get_matchstamp()`) is opt-in and defaults to `False`.
+    This is a per-context *default value* for a shared parameter, not a
+    structural difference: MatchStamp implements the same `Stamp` interface
+    as every other stamp type — `get()` returns a raw coordinate,
+    `get_coordinate()` returns a unit-bearing {{< glossary Coordinate >}},
+    `present_timelines` lists available timelines, and `is_interpolated`
+    identifies interpolation fallback. A stamp from any source keeps the
+    identical structure, methods, and behaviour the `Stamp` contract
+    guarantees; only the caller-visible default for one keyword argument
+    varies by producing context.
     See [Alignment](concepts.qmd#alignment).
 
 **MetricMap**

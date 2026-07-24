@@ -72,7 +72,8 @@ class MatchStamp(Stamp):
         source: Bundle that produced the stamp.
         source_id: Timeline ID used for the query.
         is_interpolated: Whether the stamp used interpolated transfer.
-        conversion_maps: Conversion maps available to unit lookup.
+        conversion_maps: Conversion maps available to unit lookup and display.
+            Opt-in: defaults to ``False``.
 
     Examples:
         >>> stamp = MatchStamp(
@@ -92,7 +93,7 @@ class MatchStamp(Stamp):
     source: "AlignmentBundle | None" = None
     source_id: str | None = None
     is_interpolated: bool = False
-    conversion_maps: ConversionMapsSpec = True
+    conversion_maps: ConversionMapsSpec = False
 
     def __post_init__(self) -> None:
         """Isolate mutable containers from callers and serialized data."""
@@ -196,6 +197,38 @@ class MatchStamp(Stamp):
         if timestamp is None:
             return False
         return timestamp._unit_resolution_enabled(unit)
+
+    def _conversion_rows(self) -> list[tuple[str, Any, str]]:
+        """Surface every enabled C-Map across the cross-section.
+
+        For each present timeline, evaluate each of its conversion maps at that
+        timeline's own coordinate, yielding ``(label, value, suffix)`` triples
+        with the same collision-qualification and formatting rules
+        :class:`TimeStamp` uses. Empty when no source bundle is attached, no map
+        is enabled by ``conversion_maps``, or a map raises at this coordinate.
+        """
+        if self.source is None:
+            return []
+        getter = getattr(self.source, "_get_conversion_maps_for_timeline", None)
+        if getter is None:
+            return []
+        collected: list[tuple[str, Any, str, str]] = []
+        for timeline_id, coordinate in self.coordinates.items():
+            for cmap in getter(timeline_id):
+                if not self._conversion_map_enabled(cmap):
+                    continue
+                try:
+                    value = cmap(coordinate)
+                except Exception:
+                    continue
+                if cmap.target_unit is not None:
+                    label = cmap.target_unit.value
+                    suffix = cmap.target_unit.value
+                else:
+                    label = cmap.name
+                    suffix = ""
+                collected.append((label, value, suffix, timeline_id))
+        return self._qualify_conversion_rows(collected)
 
     def _is_timeline_id(self, key: str) -> bool:
         """Return whether key names a coordinate carried by this stamp."""
@@ -451,6 +484,11 @@ class MatchStamp(Stamp):
                 tag = ""
             entries.append((tl_id, _fmt(coord), tag))
 
+        from timetoalign.core.timestamp import _format_stamp_value
+
+        for label, value, suffix in self._conversion_rows():
+            entries.append((label, _format_stamp_value(value, suffix), ""))
+
         if entries:
             max_id = max(len(e[0]) for e in entries)
             max_coord = max(len(e[1]) for e in entries)
@@ -520,6 +558,16 @@ class MatchStamp(Stamp):
                     f"<td></td></tr>"
                 )
 
+        from timetoalign.core.timestamp import _format_stamp_value
+
+        for label, value, suffix in self._conversion_rows():
+            rows.append(
+                f"<tr><td style='color: #666;'>{html_mod.escape(label)}</td>"
+                f"<td style='text-align: right;'>"
+                f"{html_mod.escape(_format_stamp_value(value, suffix))}</td>"
+                f"<td style='color: #666;'><em>cmap</em></td></tr>"
+            )
+
         badge = (
             f" <span style='background: #e3f2fd; padding: 0 4px; "
             f"border-radius: 3px; font-size: 0.8em;'>"
@@ -537,7 +585,7 @@ class MatchStamp(Stamp):
             f"</tr></thead>"
             f"<tbody>{''.join(rows)}</tbody>"
             f"</table>"
-            f"{affordance_line(['stamp.get(<tl_id>)', 'stamp.get_coordinate(<tl_id>)'])}"
+            f"{affordance_line(['stamp.get(<tl_id>)', 'stamp.get_coordinate(<tl_id>)', 'stamp.get_unit(<unit>)'])}"
             f"</div>"
         )
 

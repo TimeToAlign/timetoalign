@@ -60,6 +60,39 @@ ConversionMapsSpec = (
 )
 
 
+def _conversion_map_enabled_for_spec(
+    cmap: "ConversionMap[Any]", spec: "ConversionMapsSpec"
+) -> bool:
+    """Return whether a ``conversion_maps`` *spec* surfaces *cmap*.
+
+    Pure predicate over a spec and a single map — shared by every
+    :class:`Stamp` and by table assembly, which holds a spec but no stamp.
+    """
+    if spec is True:
+        return True
+    if spec is False or spec is None:
+        return False
+    requested = spec if isinstance(spec, list) else [spec]
+    for allowed in requested:
+        if isinstance(allowed, TimeUnit):
+            if cmap.target_unit == allowed:
+                return True
+        elif isinstance(allowed, str):
+            try:
+                if cmap.target_unit is not None and TimeUnit(allowed) == (
+                    cmap.target_unit
+                ):
+                    return True
+            except ValueError:
+                pass
+            if cmap.matches_selector(allowed):
+                return True
+        elif isinstance(allowed, ConversionMap):
+            if allowed is cmap or allowed.id == cmap.id:
+                return True
+    return False
+
+
 # region Coordinate Formatting
 
 # Discrete units MUST be displayed as integers, never as floats or scientific notation.
@@ -398,6 +431,31 @@ class Stamp(ABC):
         getter = getattr(self.source, "_get_descendant_timeline_ids", None)
         return getter is not None and key in getter()
 
+    def _conversion_map_enabled(self, cmap: "ConversionMap[Any]") -> bool:
+        """Return whether this stamp's spec surfaces *cmap*."""
+        return _conversion_map_enabled_for_spec(
+            cmap, getattr(self, "conversion_maps", True)
+        )
+
+    @staticmethod
+    def _qualify_conversion_rows(
+        collected: list[tuple[str, Any, str, str]],
+    ) -> list[tuple[str, Any, str]]:
+        """Qualify colliding conversion-row labels with their owning timeline id.
+
+        Each *collected* entry is ``(label, value, suffix, owner)``. A label that
+        appears once keeps its bare form; a label shared by several owners is
+        prefixed ``owner:label`` so displays stay unambiguous.
+        """
+        counts: dict[str, int] = {}
+        for label, _value, _suffix, _owner in collected:
+            counts[label] = counts.get(label, 0) + 1
+        rows: list[tuple[str, Any, str]] = []
+        for label, value, suffix, owner in collected:
+            final_label = label if counts[label] == 1 else f"{owner}:{label}"
+            rows.append((final_label, value, suffix))
+        return rows
+
 
 # endregion
 
@@ -564,34 +622,6 @@ class TimeStamp(Stamp):
             return resolver(timeline_id, self.axis, self.source_id)
         return None
 
-    def _conversion_map_enabled(self, cmap: "ConversionMap[Any]") -> bool:
-        """Return whether the stamp's ``conversion_maps`` spec surfaces *cmap*."""
-        spec = self.conversion_maps
-        if spec is True:
-            return True
-        if spec is False or spec is None:
-            return False
-
-        requested = spec if isinstance(spec, list) else [spec]
-        for allowed in requested:
-            if isinstance(allowed, TimeUnit):
-                if cmap.target_unit == allowed:
-                    return True
-            elif isinstance(allowed, str):
-                try:
-                    if cmap.target_unit is not None and TimeUnit(allowed) == (
-                        cmap.target_unit
-                    ):
-                        return True
-                except ValueError:
-                    pass
-                if cmap.matches_selector(allowed):
-                    return True
-            elif isinstance(allowed, ConversionMap):
-                if allowed is cmap or allowed.id == cmap.id:
-                    return True
-        return False
-
     def _conversion_rows(self) -> list[tuple[str, Any, str]]:
         """Surface every C-Map across the cross-section.
 
@@ -629,15 +659,7 @@ class TimeStamp(Stamp):
                     suffix = ""
                 collected.append((label, value, suffix, timeline_id))
 
-        counts: dict[str, int] = {}
-        for label, _value, _suffix, _owner in collected:
-            counts[label] = counts.get(label, 0) + 1
-
-        rows: list[tuple[str, Any, str]] = []
-        for label, value, suffix, owner in collected:
-            final_label = label if counts[label] == 1 else f"{owner}:{label}"
-            rows.append((final_label, value, suffix))
-        return rows
+        return self._qualify_conversion_rows(collected)
 
     def get_conversion(self, key: str) -> Any:
         """Get the raw output of a conversion map addressed by name/selector.

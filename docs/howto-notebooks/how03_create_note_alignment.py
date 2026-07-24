@@ -27,6 +27,7 @@
 # 3. Query coordinates across both using `get_matchstamp_at()`
 # 4. Create `MatchLine` objects from both directions
 # 5. Export a `MatchLine` to the Vienna `.match` format
+# 6. Opt into converted coordinates in a MatchStamp with `conversion_maps=True`
 
 # %% [markdown]
 # ## TL;DR
@@ -266,6 +267,45 @@ for line in text.splitlines()[:15]:
 # `MatchfileLoader` or any tool that reads the Vienna format.
 
 # %% [markdown]
+# ## 8. Conversion Maps in MatchStamp Display
+#
+# The score timeline already carries conversion maps from `Ms3Loader`
+# (ticks, floating measures), and a conversion map can be added to any
+# timeline at any time. Either way, `get_matchstamp_at()` leaves them out of
+# the {{< glossary MatchStamp >}} by default — `conversion_maps` is opt-in.
+
+# %%
+# Add one more conversion map, this time on the performance timeline.
+from timetoalign.maps import ScalarMap
+
+perf_tl.add_conversion_map(
+    ScalarMap(
+        scalar=1000, source_unit=TimeUnit.seconds, target_unit=TimeUnit.milliseconds
+    )
+)
+
+# %%
+# Default: conversion_maps=False, so none of the enabled maps show up.
+bundle.get_matchstamp_at(78.0, "clt1")
+
+# %%
+# conversion_maps=True adds one row per enabled map, each evaluated at its
+# own timeline's coordinate — ticks and floating measures from the score's
+# loader-provided maps, milliseconds from the one just added.
+bundle.get_matchstamp_at(78.0, "clt1", conversion_maps=True)
+
+# %% [markdown]
+# The same flag adds a derived column to `get_matchstamp_table()` — one
+# column per (timeline, enabled numeric-unit map), after the timeline
+# columns. A label-valued map would still show in the stamp display above
+# but never as a table column.
+
+# %%
+bundle.get_matchstamp_table(
+    coordinates=[78.0], timeline_id="clt1", conversion_maps=True
+).column_names
+
+# %% [markdown]
 # ## Summary
 #
 # > *"MatchClaims connect timelines across groups. The AlignmentBundle
@@ -279,5 +319,6 @@ for line in text.splitlines()[:15]:
 # | Query by coordinate | `bundle.get_matchstamp_at(coord, tl_id)` |
 # | Create MatchLine | `MatchLine.from_claims(claims, source_timeline_id)` |
 # | Export to `.match` | `matchline.save_as("out.match", context=ctx)` |
+# | Reveal converted coordinates | `bundle.get_matchstamp_at(coord, tl_id, conversion_maps=True)` |
 
 # %%

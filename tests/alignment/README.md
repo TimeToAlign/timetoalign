@@ -971,6 +971,30 @@ result = warp(source_coord)
 
 The cache is keyed by `(source_group_id, target_group_id)` and invalidated whenever `add_match_claims()` is called. This avoids redundant `MatchLine.from_claims()` + `WarpMap.from_match_line()` computation for repeated queries.
 
+### `get_matchstamp_table` Conversion Columns
+
+`get_matchstamp_table` accepts a keyword-only `conversion_maps` spec
+(default `False`, matching the opt-in default now shared by every
+matchstamp getter). When given, `_assemble_matchstamp_table` adds one
+derived column per (timeline, enabled unit-conversion map) after the
+timeline columns already in the table — **numeric unit conversions only**
+(a map's `target_unit` must be set); label/structured maps surface in
+`MatchStamp` display but never become table columns. A derived column's
+name is the map's target-unit name, qualified `"<timeline_id>:<unit>"`
+when two timelines would otherwise produce the same unit name — the same
+collision rule `TimeStamp`/`MatchStamp` display uses.
+
+Fixture: a single `clock` timeline (length 100 seconds, `uid="clock"`,
+`as_group="clock-group"`) carrying the two exact-value `TableMap`s from
+`test_stamp_interface.py` — seconds→milliseconds (`[0,100]->[0,100000]`)
+and seconds→frames (`[0,100]->[0,5000]`).
+
+| Test | Validates |
+|------|-----------|
+| `test_matchstamp_table_adds_conversion_columns` | `get_matchstamp_table(coordinates=[25.0], timeline_id="clock", conversion_maps=True)` returns columns `{"clock", "milliseconds", "frames"}`, one row, with exact values `clock=25.0`, `milliseconds=25000.0`, `frames=1250.0` |
+| `test_matchstamp_table_no_conversion_columns_by_default` | Omitting `conversion_maps` yields `column_names == ["clock"]` — no derived columns |
+| `test_matchstamp_table_conversion_column_collision_qualified` | Two timelines in different groups, each with its own seconds→milliseconds map, linked by one cross-group synchronous claim: requesting the table with `conversion_maps=True` qualifies both derived columns as `"<timeline_id>:milliseconds"` rather than colliding on a bare `"milliseconds"` |
+
 ### Coordinate-Type Parity (raw / Coordinate / IdCoordinate)
 
 Every coordinate-accepting query method must accept a raw `int`/`float`/

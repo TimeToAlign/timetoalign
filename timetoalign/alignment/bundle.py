@@ -1416,7 +1416,7 @@ class AlignmentBundle:
         timeline_id: str | None = None,
         *,
         support_policy: "SupportPolicy | str | None" = None,
-        conversion_maps: "ConversionMapsSpec" = True,
+        conversion_maps: "ConversionMapsSpec" = False,
         timeline_ids: set[str] | None = None,
         id_pattern: str | None = None,
         include_domains: set["Domain"] | None = None,
@@ -1458,7 +1458,8 @@ class AlignmentBundle:
                 ``None`` (the default) uses the bundle's ``support_policy``
                 setting, itself ``omit`` by default. The query timeline's own
                 coordinate is never dropped, clamped, or altered.
-            conversion_maps: C-map conversions available through unit lookup.
+            conversion_maps: C-map conversions available through unit lookup
+                and display. Opt-in: defaults to ``False``.
             timeline_ids: Only include these bundle UIDs in the result.
             id_pattern: Regex filter for bundle UIDs in the result.
             include_domains: Only these domains in the result.
@@ -1742,6 +1743,7 @@ class AlignmentBundle:
         coordinates: Iterable[CoordinateSpec] | None = None,
         timeline_id: str | None = None,
         from_graph: bool = True,
+        conversion_maps: "ConversionMapsSpec" = False,
     ) -> list[MatchStamp]:
         """Get MatchStamps for a list of MatchClaims or query coordinates.
 
@@ -1772,6 +1774,8 @@ class AlignmentBundle:
                 MatchGraph (all connected timelines). If False, return
                 reduced 2-timeline stamps. Ignored on the ``coordinates``
                 path, where each stamp is already a full cross-section.
+            conversion_maps: C-map conversions available through unit lookup
+                and display. Opt-in: defaults to ``False``.
 
         Returns:
             List of MatchStamp objects. Non-synchronous claims yield None
@@ -1795,14 +1799,19 @@ class AlignmentBundle:
         if coordinates is not None:
             if claims is not None:
                 raise ValueError("Pass either claims or coordinates, not both")
-            return [self.get_matchstamp_at(c, timeline_id) for c in coordinates]
+            return [
+                self.get_matchstamp_at(c, timeline_id, conversion_maps=conversion_maps)
+                for c in coordinates
+            ]
 
         if claims is None:
             claims = self.get_match_claims()
 
         stamps = []
         for claim in claims:
-            stamp = claim.get_matchstamp(bundle=self, from_graph=from_graph)
+            stamp = claim.get_matchstamp(
+                bundle=self, from_graph=from_graph, conversion_maps=conversion_maps
+            )
             if stamp is not None:
                 stamps.append(stamp)
 
@@ -1816,6 +1825,7 @@ class AlignmentBundle:
         timeline_id: str | None = None,
         timeline_filter: set[str] | None = None,
         from_graph: bool = False,
+        conversion_maps: "ConversionMapsSpec" = False,
     ) -> "pa.Table":
         """Get a PyArrow table of MatchStamps for alignment queries.
 
@@ -1860,6 +1870,11 @@ class AlignmentBundle:
             from_graph: Collapse claims into one row per connected component
                 instead of one row per claim.  Ignored on the ``coordinates``
                 path.
+            conversion_maps: C-map conversions to add as derived columns, one
+                per (timeline, enabled unit-conversion map). Opt-in: defaults
+                to ``False``. Only numeric unit-conversion maps (a
+                ``target_unit`` set) become columns; label/structured maps
+                appear in stamp display but never as table columns.
 
         Returns:
             PyArrow Table with one field per timeline.  Non-synchronous claims
@@ -1892,13 +1907,16 @@ class AlignmentBundle:
         if coordinates is not None:
             if claims is not None:
                 raise ValueError("Pass either claims or coordinates, not both")
-            stamps = [self.get_matchstamp_at(c, timeline_id) for c in coordinates]
+            stamps = [
+                self.get_matchstamp_at(c, timeline_id, conversion_maps=conversion_maps)
+                for c in coordinates
+            ]
             rows = [dict(stamp.coordinates) for stamp in stamps]
             all_tl_ids: set[str] = set()
             for row in rows:
                 all_tl_ids.update(row)
             return self._assemble_matchstamp_table(
-                rows, [], all_tl_ids, timeline_filter
+                rows, [], all_tl_ids, timeline_filter, conversion_maps=conversion_maps
             )
 
         list_claims = self.cross_group_claims if claims is None else claims
@@ -1937,7 +1955,11 @@ class AlignmentBundle:
             all_tl_ids.discard(None)
 
         return self._assemble_matchstamp_table(
-            rows, bulk_columns, all_tl_ids, timeline_filter
+            rows,
+            bulk_columns,
+            all_tl_ids,
+            timeline_filter,
+            conversion_maps=conversion_maps,
         )
 
     def _assemble_matchstamp_table(
@@ -1946,6 +1968,7 @@ class AlignmentBundle:
         bulk_columns: list[tuple[list[str], list[str], list[float], list[float]]],
         all_tl_ids: set[str],
         timeline_filter: set[str] | None,
+        conversion_maps: "ConversionMapsSpec" = False,
     ) -> "pa.Table":
         """Scatter per-row dicts and bulk columnar reads into one PyArrow table.
 
@@ -1963,10 +1986,15 @@ class AlignmentBundle:
                 position.
             all_tl_ids: Union of every timeline ID appearing in the inputs.
             timeline_filter: Only include these timeline fields, if given.
+            conversion_maps: C-map conversions to add as derived columns, one
+                per (timeline, enabled unit-conversion map). Opt-in: defaults
+                to ``False``. Only numeric unit-conversion maps (a
+                ``target_unit`` set) become columns.
 
         Returns:
-            PyArrow Table with one field per (filtered) timeline ID.  Empty
-            input yields an empty table.
+            PyArrow Table with one field per (filtered) timeline ID, followed
+            by any derived conversion columns.  Empty input yields an empty
+            table.
         """
         import pyarrow as pa
 
@@ -1999,6 +2027,33 @@ class AlignmentBundle:
                 if column is not None:
                     column[offset + position] = coordinates_b[position]
             offset += len(ids_a)
+
+        if conversion_maps is not False and conversion_maps is not None:
+            from timetoalign.core.timestamp import _conversion_map_enabled_for_spec
+
+            collected: list[tuple[str, str, "ConversionMap[Any]"]] = []
+            for tl_id in list(field_lists.keys()):
+                for cmap in self._get_conversion_maps_for_timeline(tl_id):
+                    if cmap.target_unit is None:
+                        continue  # numeric unit conversions only in tables
+                    if not _conversion_map_enabled_for_spec(cmap, conversion_maps):
+                        continue
+                    collected.append((cmap.target_unit.value, tl_id, cmap))
+            label_counts: dict[str, int] = {}
+            for label, _tl_id, _cmap in collected:
+                label_counts[label] = label_counts.get(label, 0) + 1
+            for label, tl_id, cmap in collected:
+                col_name = label if label_counts[label] == 1 else f"{tl_id}:{label}"
+                derived: list[float | None] = []
+                for value in field_lists[tl_id]:
+                    if value is None:
+                        derived.append(None)
+                        continue
+                    try:
+                        derived.append(float(cmap(value)))
+                    except Exception:
+                        derived.append(None)
+                field_lists[col_name] = derived
 
         return pa.table(field_lists)
 
@@ -2255,6 +2310,22 @@ class AlignmentBundle:
             if hasattr(tl, "unit") and tl.unit is not None:
                 unit_map[tl_uid] = str(tl.unit)
         return unit_map
+
+    def _get_conversion_maps_for_timeline(
+        self, timeline_id: str
+    ) -> "list[ConversionMap[Any]]":
+        """Get every conversion map attached to a timeline in the bundle.
+
+        Accepts an actual timeline id or a bundle UID. Returns C-Maps of all
+        kinds (including unitless label/structured maps), so MatchStamp display
+        surfaces them — the bundle-level counterpart of the TimelineGroup method
+        of the same name.
+        """
+        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+        tl = self.timelines.get(bundle_uid)
+        if tl is None:
+            return []
+        return list(tl._conversion_maps.values())
 
     def _get_claim_to_native_converter(
         self, timeline_id: str

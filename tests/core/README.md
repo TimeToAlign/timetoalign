@@ -321,6 +321,29 @@ subscript lookup with unit-name fallback, conversion-map gating, every
 `MatchStamp.to_dict()` format, and frozen `MatchStamp` fields. Exact dictionary
 shapes ensure neither grouped rendering nor legacy graph serialization drifts.
 
+**`MatchStamp` conversion-row display:** `MatchStamp.__str__`/`_repr_html_`
+surface every C-Map enabled by the stamp's `conversion_maps` spec, the same
+row shape `TimeStamp` uses (`_conversion_rows()` — inherited from the shared
+`Stamp` base). The fixture timeline (`clock`, length 100 seconds) carries two
+exact-value `TableMap`s: seconds→milliseconds (`[0,100]->[0,100000]`) and
+seconds→frames (`[0,100]->[0,5000]`), queried at 25.0 seconds:
+
+- `conversion_maps=True` — `str(stamp)` and `_repr_html_()` contain
+  `"milliseconds"`/`"25000"` and `"frames"`/`"1250"` (25.0×1000 and 25.0×50);
+  the HTML rows are tagged `<em>cmap</em>`.
+- `conversion_maps=False` (the getter default, see below) — neither unit name
+  appears in either rendering; the source coordinate (`"clock"`/`"25"`) still
+  does.
+
+**`conversion_maps` is opt-in on `MatchStamp`:** the field default and every
+public matchstamp getter (`AlignmentBundle.get_matchstamp_at`,
+`get_matchstamps`, `get_matchstamp_table`, `MatchClaim.get_matchstamp`) now
+default `conversion_maps` to `False` — a caller must ask for conversions
+explicitly, matching the opt-in getter pattern elsewhere in the module. Every
+existing exact-value assertion in this file passes `conversion_maps=True`
+(or `False`) explicitly through `_matchstamp_with_maps`, so none depend on
+the getter default.
+
 ---
 
 ### `test_field_scalar_parity.py` - Scalar `to(*)` vs Field `convert_to(*)` Parity
@@ -346,9 +369,9 @@ shapes ensure neither grouped rendering nor legacy graph serialization drifts.
 
 **Validity Rationale:**
 
-Per `workshop_typing_push.md` decision 6 ("Scalar/Field parity is structurally enforced — for data-shaped methods only"), every scalar method tagged `@data_shaped` MUST have a vectorized mirror on the paired `SemanticField` subclass. These tests are the runtime guarantee that the mirror produces semantically identical output to the per-row scalar path. Samples include nulls and boundary values (e.g. MIDI 0/1/127, step C/B with alter ±2, octave -1 and 8) to confirm that null propagation and edge cases are handled identically on both paths.
+Scalar/Field parity is structurally enforced for data-shaped methods: every scalar method tagged `@data_shaped` MUST have a vectorized mirror on the paired `SemanticField` subclass. These tests are the runtime guarantee that the mirror produces semantically identical output to the per-row scalar path. Samples include nulls and boundary values (e.g. MIDI 0/1/127, step C/B with alter ±2, octave -1 and 8) to confirm that null propagation and edge cases are handled identically on both paths.
 
-The sliced-field tests confirm the corpus-scale slicing constraint (`workshop_typing_push.md` negative constraints): SemanticField operations MUST work efficiently on zero-copy `pa.Array` slices, never round-tripping through Python loops over materialised scalars.
+The sliced-field tests confirm the corpus-scale slicing constraint: SemanticField operations MUST work efficiently on zero-copy `pa.Array` slices, never round-tripping through Python loops over materialised scalars.
 
 This file also carries the `__init_subclass__` parity-check failure-path test (`TestParityCheckEnforcement`) that exercises `SemanticField.__init_subclass__`'s `@data_shaped` enforcement on a synthetic bad subclass.
 

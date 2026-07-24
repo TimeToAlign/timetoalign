@@ -630,9 +630,18 @@ Definition: MatchStamp
 :::
 A **MatchStamp** is the union of {{< glossary TimeStamp >}}s from groups
 synchronously connected by a {{< glossary MatchGraph >}}. It contains
-one coordinate per participating timeline and, with `conversion_maps=True`
-(the default), the results of all {{< glossary ConversionMap >}}s
-associated with those timelines.
+one coordinate per participating timeline and, with `conversion_maps=True`,
+the results of all {{< glossary ConversionMap >}}s associated with those
+timelines. Unlike a {{< glossary TimeStamp >}}, where C-Map results are
+visible by default, `conversion_maps` on every MatchStamp-producing getter
+(`bundle.get_matchstamp_at()`, `get_matchstamps()`, `get_matchstamp_table()`,
+`MatchClaim.get_matchstamp()`) is opt-in and defaults to `False`. This
+differing default is a per-context parameter setting, not a break in stamp
+uniformity: a MatchStamp exposes the identical `Stamp` interface --- `get()`,
+`get_unit()`, `get_coordinate()`, `present_timelines`, `is_interpolated`,
+`to_dict()`, subscript access --- as a `TimeStamp` or `GroupTimestamp`, so a
+stamp from any source keeps the same structure and behaviour regardless of
+which keyword defaults were used to produce it.
 :::
 
 A MatchStamp from a single {{< glossary MatchClaim >}} contains the
@@ -640,7 +649,15 @@ TimeStamps for the claim's {{< glossary AlignmentAnchor >}}. A MatchStamp
 from a MatchGraph contains *all* TimeStamps that the graph connects
 through its connected components. Like a {{< glossary TimeStamp >}}, it
 can be expanded with within-group coordinates (delegating to
-{{< glossary TimelineGroup >}}) and C-map conversions.
+{{< glossary TimelineGroup >}}) and, once opted in, C-map conversions.
+
+`get_matchstamp_table()` extends the same opt-in flag to tabular output: with
+`conversion_maps=True`, one derived column is added per timeline for each of
+its enabled *numeric* unit-conversion maps (a map with a `target_unit`),
+placed after the timeline columns. A label- or structure-valued conversion
+map still surfaces in a MatchStamp's display but never becomes a table
+column. A converted-unit column name that collides across timelines is
+qualified as `"<timeline_id>:<unit>"`.
 
 
 ### The MatchLine

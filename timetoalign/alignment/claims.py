@@ -63,6 +63,7 @@ from timetoalign.core.fields import (
 if TYPE_CHECKING:
     from timetoalign.alignment.bundle import AlignmentBundle
     from timetoalign.alignment.graph import MatchStamp
+    from timetoalign.core.timestamp import ConversionMapsSpec
 
 module_logger = logging.getLogger(__name__)
 
@@ -606,7 +607,7 @@ class MatchClaim(BaseModel):
         *,
         bundle: "AlignmentBundle | None" = None,
         from_graph: bool = True,
-        conversion_maps: bool = True,
+        conversion_maps: "ConversionMapsSpec" = False,
     ) -> "MatchStamp | None":
         """Return a MatchStamp for this claim's start anchor.
 
@@ -627,6 +628,7 @@ class MatchClaim(BaseModel):
                 connected groups. If False, return a reduced 2-timeline
                 MatchStamp.
             conversion_maps: C-map conversions available through unit lookup.
+                Opt-in: defaults to ``False``.
 
         Returns:
             MatchStamp with coordinates, or None if this claim is

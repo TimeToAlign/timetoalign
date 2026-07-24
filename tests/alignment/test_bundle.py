@@ -28,7 +28,7 @@ from timetoalign.alignment import (
 from timetoalign.alignment.graph import MatchStamp
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
-from timetoalign.maps import ScalarMap
+from timetoalign.maps import ScalarMap, TableMap
 from timetoalign.timelines import Timeline, TimelineGroup
 
 # region Fixtures
@@ -1627,6 +1627,123 @@ class TestTransferCoordinateParity:
             "audio",
         )
         assert from_coord == (0.0, 100.0)
+
+
+# endregion
+
+
+# region Test: get_matchstamp_table Conversion Columns
+
+
+def _clock_bundle_with_maps() -> AlignmentBundle:
+    """A single ``clock`` timeline with the same exact-value maps used to pin
+    ``MatchStamp`` conversion-row display in ``tests/core/test_stamp_interface.py``.
+    """
+    timeline = Timeline(length=100, unit=TimeUnit.seconds, uid="clock")
+    timeline.add_conversion_map(
+        TableMap(
+            x_values=[0.0, 100.0],
+            y_values=[0.0, 100000.0],
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.milliseconds,
+            uid="clock-ms",
+        )
+    )
+    timeline.add_conversion_map(
+        TableMap(
+            x_values=[0.0, 100.0],
+            y_values=[0.0, 5000.0],
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.frames,
+            uid="clock-frames",
+        )
+    )
+    bundle = AlignmentBundle(id="matchstamp-table-conversions")
+    bundle.add_timeline(timeline, uid="clock", as_group="clock-group")
+    return bundle
+
+
+def _cross_group_millisecond_bundle() -> AlignmentBundle:
+    """Two single-timeline groups, each with its own seconds->milliseconds
+    map, linked by one cross-group synchronous claim at 25 seconds.
+    """
+    tl_a = Timeline(length=100, unit=TimeUnit.seconds, uid="clock_a")
+    tl_a.add_conversion_map(
+        TableMap(
+            x_values=[0.0, 100.0],
+            y_values=[0.0, 100000.0],
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.milliseconds,
+            uid="clock_a-ms",
+        )
+    )
+    tl_b = Timeline(length=100, unit=TimeUnit.seconds, uid="clock_b")
+    tl_b.add_conversion_map(
+        TableMap(
+            x_values=[0.0, 100.0],
+            y_values=[0.0, 100000.0],
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.milliseconds,
+            uid="clock_b-ms",
+        )
+    )
+    bundle = AlignmentBundle(id="matchstamp-table-collision")
+    bundle.add_timeline(tl_a, uid="clock_a", as_group="group-a")
+    bundle.add_timeline(tl_b, uid="clock_b", as_group="group-b")
+    bundle.add_match_claims(
+        [
+            MatchClaim(
+                timeline_a_id="clock_a",
+                timeline_b_id="clock_b",
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id="clock_a",
+                    coordinate_a=Coordinate(25.0, TimeUnit.seconds),
+                    timeline_b_id="clock_b",
+                    coordinate_b=Coordinate(25.0, TimeUnit.seconds),
+                ),
+            )
+        ]
+    )
+    return bundle
+
+
+class TestGetMatchstampTableConversionColumns:
+    """``get_matchstamp_table(conversion_maps=...)`` derived unit columns."""
+
+    def test_matchstamp_table_adds_conversion_columns(self) -> None:
+        """Enabling conversion_maps adds one column per numeric unit map."""
+        bundle = _clock_bundle_with_maps()
+
+        table = bundle.get_matchstamp_table(
+            coordinates=[25.0], timeline_id="clock", conversion_maps=True
+        )
+
+        assert set(table.column_names) == {"clock", "milliseconds", "frames"}
+        assert table.num_rows == 1
+        assert table.column("clock")[0].as_py() == 25.0
+        assert table.column("milliseconds")[0].as_py() == 25000.0
+        assert table.column("frames")[0].as_py() == 1250.0
+
+    def test_matchstamp_table_no_conversion_columns_by_default(self) -> None:
+        """Without conversion_maps, only the timeline column is present."""
+        bundle = _clock_bundle_with_maps()
+
+        table = bundle.get_matchstamp_table(coordinates=[25.0], timeline_id="clock")
+
+        assert table.column_names == ["clock"]
+
+    def test_matchstamp_table_conversion_column_collision_qualified(self) -> None:
+        """Two timelines converting to the same unit get qualified column names."""
+        bundle = _cross_group_millisecond_bundle()
+
+        table = bundle.get_matchstamp_table(conversion_maps=True)
+
+        assert table.num_rows == 1
+        assert "milliseconds" not in table.column_names
+        assert "clock_a:milliseconds" in table.column_names
+        assert "clock_b:milliseconds" in table.column_names
+        assert table.column("clock_a:milliseconds")[0].as_py() == 25000.0
+        assert table.column("clock_b:milliseconds")[0].as_py() == 25000.0
 
 
 # endregion
