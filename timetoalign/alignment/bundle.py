@@ -792,7 +792,7 @@ class AlignmentBundle:
 
     def create_match_claims(
         self,
-        event_pairs: list[tuple[dict | str, str, dict | str, str]],
+        event_pairs: list[tuple[dict | str | None, str, dict | str | None, str]],
         *,
         synchronous: bool = True,
         agent: str = "user",
@@ -806,13 +806,16 @@ class AlignmentBundle:
         Args:
             event_pairs: List of tuples, each containing:
                 ``(event_a, timeline_a_id, event_b, timeline_b_id)``.
-                ``event_a``/``event_b`` are either event dicts (must have at
-                least a ``start`` key with a coordinate; an ``end`` key on
-                both sides produces an interval match) or the ``id`` string
-                of an existing event on the paired timeline, resolved via
-                ``Timeline.get_event()``. The two forms may be mixed within
-                a pair.
+                ``event_a``/``event_b`` are each one of:
+                an event dict (must have at least a ``start`` key with a
+                coordinate; an ``end`` key on both sides produces an
+                interval match), the ``id`` string of an existing event on
+                the paired timeline (resolved via ``Timeline.get_event()``),
+                or ``None``. Exactly one of ``event_a``/``event_b`` may be
+                ``None``, producing a NOMATCH claim for the other side's
+                event. The forms may be mixed within a pair.
             synchronous: Whether the matches are temporally synchronous.
+                Ignored for NOMATCH pairs, which are always non-synchronous.
             agent: Name of the agent creating the claims (for provenance).
             agent_identifier: The agent's stable identifier — a version string
                 for a software agent or a URI for a human agent (e.g.
@@ -824,17 +827,19 @@ class AlignmentBundle:
             the bundle's ``cross_group_claims``.
 
         Raises:
-            ValueError: If event dicts are missing required keys, or an
-                event id string doesn't resolve to an existing event.
+            ValueError: If event dicts are missing required keys, an event
+                id string doesn't resolve to an existing event, or both
+                ``event_a`` and ``event_b`` are ``None``.
 
         Examples:
             >>> pairs = [
             ...     ({"start": 0.0}, "score", {"start": 45.5}, "audio"),
             ...     ("note:000010", "score", "note:000042", "audio"),
+            ...     ("note:000099", "score", None, "audio"),  # NOMATCH
             ... ]
             >>> claims = bundle.create_match_claims(pairs, agent="manual_alignment")
             >>> len(claims)
-            2
+            3
         """
         from timetoalign.core import AgentType
 
@@ -847,6 +852,9 @@ class AlignmentBundle:
             event_a = self._resolve_event(event_a, timeline_a, tl_a)
             event_b = self._resolve_event(event_b, timeline_b, tl_b)
 
+            if event_a is None and event_b is None:
+                raise ValueError("event_a and event_b cannot both be None")
+
             metadata = MatchMetadata(
                 agent=Agent(
                     name=agent,
@@ -854,30 +862,48 @@ class AlignmentBundle:
                     identifier=agent_identifier,
                 ),
             )
-            # Auto-detect interval events: if both events have a non-null
-            # "end" key, create an interval match with both start and end
-            # anchors.  Event dicts from PyArrow may store coordinates as
-            # structs ``{"value": float, ...}``; a None value means no end.
-            end_key = None
-            end_a = event_a.get("end")
-            end_b = event_b.get("end")
-            if end_a is not None and end_b is not None:
-                # Handle struct dicts: {"value": float, ...}
-                val_a = end_a["value"] if isinstance(end_a, dict) else end_a
-                val_b = end_b["value"] if isinstance(end_b, dict) else end_b
-                if val_a is not None and val_b is not None:
-                    end_key = "end"
-            claim = MatchClaim.from_events(
-                event_a=event_a,
-                tl_a_id=tl_a,
-                event_b=event_b,
-                tl_b_id=tl_b,
-                unit_a=timeline_a.unit,
-                unit_b=timeline_b.unit,
-                end_coord_key=end_key,
-                is_synchronous=synchronous,
-                metadata=metadata,
-            )
+
+            if event_b is None:
+                claim = MatchClaim.nomatch(
+                    event=event_a,
+                    source_tl_id=tl_a,
+                    target_tl_id=tl_b,
+                    unit=timeline_a.unit,
+                    metadata=metadata,
+                )
+            elif event_a is None:
+                claim = MatchClaim.nomatch(
+                    event=event_b,
+                    source_tl_id=tl_b,
+                    target_tl_id=tl_a,
+                    unit=timeline_b.unit,
+                    metadata=metadata,
+                )
+            else:
+                # Auto-detect interval events: if both events have a non-null
+                # "end" key, create an interval match with both start and end
+                # anchors.  Event dicts from PyArrow may store coordinates as
+                # structs ``{"value": float, ...}``; a None value means no end.
+                end_key = None
+                end_a = event_a.get("end")
+                end_b = event_b.get("end")
+                if end_a is not None and end_b is not None:
+                    # Handle struct dicts: {"value": float, ...}
+                    val_a = end_a["value"] if isinstance(end_a, dict) else end_a
+                    val_b = end_b["value"] if isinstance(end_b, dict) else end_b
+                    if val_a is not None and val_b is not None:
+                        end_key = "end"
+                claim = MatchClaim.from_events(
+                    event_a=event_a,
+                    tl_a_id=tl_a,
+                    event_b=event_b,
+                    tl_b_id=tl_b,
+                    unit_a=timeline_a.unit,
+                    unit_b=timeline_b.unit,
+                    end_coord_key=end_key,
+                    is_synchronous=synchronous,
+                    metadata=metadata,
+                )
             claims.append(claim)
 
         if claims:
@@ -887,18 +913,19 @@ class AlignmentBundle:
 
     @staticmethod
     def _resolve_event(
-        event: dict | str, timeline: "Timeline", timeline_id: str
-    ) -> dict:
-        """Resolve an event-dict-or-id argument to an event dict.
+        event: dict | str | None, timeline: "Timeline", timeline_id: str
+    ) -> dict | None:
+        """Resolve an event-dict-or-id-or-None argument to an event dict.
 
         Args:
-            event: An event dict, or the ``id`` of an existing event.
+            event: An event dict, the ``id`` of an existing event, or
+                ``None``.
             timeline: The timeline ``event`` belongs to.
             timeline_id: The timeline's id as given by the caller (for
                 error messages).
 
         Returns:
-            The event dict.
+            The event dict, or ``None`` if ``event`` was ``None``.
 
         Raises:
             ValueError: If ``event`` is an id string with no matching event.
