@@ -195,6 +195,56 @@ class AlignmentBundle:
             self.id = _bundle_id_generator.create(type_hint="AlignmentBundle")
         self._logger = module_logger.getChild(self.id)
 
+    @classmethod
+    def from_bundles(
+        cls,
+        bundles: list["AlignmentBundle"],
+        *,
+        id: str = "",
+        name: str | None = None,
+    ) -> "AlignmentBundle":
+        """Merge multiple bundles' groups, standalone timelines, and claims.
+
+        Registers every group and standalone timeline from each source
+        bundle into a new bundle, preserving each source's bundle-UID
+        namespace, and carries over every cross-group ``MatchClaim`` (both
+        the per-claim list and any columnar ``MatchClaimField`` stores)
+        unchanged. Groups from different source bundles remain distinct —
+        merging does not itself align timelines across bundles. Add
+        cross-group MatchClaims (e.g. via :meth:`create_match_claims`)
+        afterwards to align them.
+
+        Args:
+            bundles: The bundles to merge, in order.
+            id: Explicit ID for the merged bundle. Auto-generated if omitted.
+            name: Optional human-readable name for the merged bundle.
+
+        Returns:
+            A new AlignmentBundle containing every group, standalone
+            timeline, and cross-group claim from ``bundles``.
+
+        Raises:
+            ValueError: If two source bundles share a group ID, or a
+                timeline UID collision would occur across bundles.
+
+        Examples:
+            >>> merged = AlignmentBundle.from_bundles([score_bundle, audio_bundle])
+            >>> merged.groups.keys() == score_bundle.groups.keys() | audio_bundle.groups.keys()
+            True
+        """
+        merged = cls(id=id, name=name)
+        for bundle in bundles:
+            uid_map = {tl.id: bundle_uid for bundle_uid, tl in bundle.timelines.items()}
+            for group in bundle.groups.values():
+                merged.add_group(group, uid_map=uid_map)
+            for bundle_uid, timeline in bundle.timelines.items():
+                if bundle_uid not in bundle.timeline_to_group:
+                    merged.add_timeline(timeline, uid=bundle_uid)
+            merged.add_match_claims(bundle.cross_group_claims)
+            for claim_field in bundle.cross_group_claim_fields:
+                merged.add_match_claim_field(claim_field)
+        return merged
+
     # region Timeline Management
 
     def add_timeline(
