@@ -99,6 +99,15 @@ class EventsMixin:
         if not rows:
             return
 
+        # Resolve unit-qualified coordinates into this timeline's native unit
+        # before anything measures or stores them. A ``Coordinate`` whose unit
+        # differs from the native one (e.g. a measure boundary given in seconds
+        # on a samples timeline) is converted through the timeline's C-Maps;
+        # bare numbers, struct dicts and native-unit coordinates pass through
+        # unchanged. Without this, a derived-unit value would be stored verbatim
+        # under the native unit label — a silent mis-unit.
+        rows = [self._resolve_row_coordinates(row) for row in rows]
+
         # Validate and find max coordinate
         max_coord = 0.0
         for row in rows:
@@ -110,6 +119,31 @@ class EventsMixin:
 
         # Add events
         self._add_events_unchecked(rows)
+
+    def _resolve_row_coordinates(self, row: dict[str, Any]) -> dict[str, Any]:
+        """Return a row whose coordinate fields are in the native unit.
+
+        Each of ``start`` / ``end`` / ``instant`` given as a unit-qualified
+        :class:`~timetoalign.core.Coordinate` is resolved through
+        :meth:`resolve_coordinate`, so a value expressed in a derived unit is
+        converted into the timeline's native unit via its C-Maps. Raw numbers,
+        coordinate struct dicts and durations are left untouched, and the input
+        dict is never mutated in place.
+
+        Args:
+            row: An event dictionary as passed to :meth:`add_events`.
+
+        Returns:
+            The row, copied only when a coordinate needed resolving.
+        """
+        resolved: dict[str, Any] | None = None
+        for key in ("start", "end", "instant"):
+            value = row.get(key)
+            if isinstance(value, Coordinate):
+                if resolved is None:
+                    resolved = dict(row)
+                resolved[key] = self.resolve_coordinate(value).value
+        return resolved if resolved is not None else row
 
     def _add_events_unchecked(self, rows: list[dict[str, Any]]) -> None:
         """Add events without validation (internal use).
