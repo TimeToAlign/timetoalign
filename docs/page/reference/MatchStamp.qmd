@@ -23,36 +23,31 @@ inferred group membership.
 Contains one coordinate per participating timeline, where coordinates
 are linked via explicit anchors or inferred group membership.
 
-Attributes:
-    coordinates: Dict of timeline_id -> coordinate.
-    anchor_edges: List of (tl_a, tl_b) pairs that are explicitly anchored.
-    inferred_edges: List of (tl_a, tl_b) pairs inferred via groups.
-    units: Coordinate unit name for each timeline.
-    axis: Coordinate used to query the stamp.
-    source: Bundle that produced the stamp.
-    source_id: Timeline ID used for the query.
-    is_interpolated: Whether the stamp used interpolated transfer.
-    conversion_maps: Conversion maps available to unit lookup and display.
-        Opt-in: defaults to ``False``.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> stamp = MatchStamp(
-    ...     coordinates={"score": 100.0, "audio": 45.5, "video": 1365.0},
-    ...     anchor_edges=[("score", "audio")],
-    ...     inferred_edges=[("audio", "video")],
-    ... )
-    >>> stamp.get("audio")
-    45.5
+| Name            | Type                                                                  | Description                                                                          |
+|-----------------|-----------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| coordinates     | [dict](`dict`)\[[str](`str`), [float](`float`)\]                      | Dict of timeline_id -> coordinate.                                                   |
+| anchor_edges    | [list](`list`)\[[tuple](`tuple`)\[[str](`str`), [str](`str`)\]\]      | List of (tl_a, tl_b) pairs that are explicitly anchored.                             |
+| inferred_edges  | [list](`list`)\[[tuple](`tuple`)\[[str](`str`), [str](`str`)\]\]      | List of (tl_a, tl_b) pairs inferred via groups.                                      |
+| units           | [dict](`dict`)\[[str](`str`), [str](`str`)\]                          | Coordinate unit name for each timeline.                                              |
+| axis            | [float](`float`) \| None                                              | Coordinate used to query the stamp.                                                  |
+| source          | \'AlignmentBundle \| None\'                                           | Bundle that produced the stamp.                                                      |
+| source_id       | [str](`str`) \| None                                                  | Timeline ID used for the query.                                                      |
+| is_interpolated | [bool](`bool`)                                                        | Whether the stamp used interpolated transfer.                                        |
+| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | Conversion maps available to unit lookup and display. Opt-in: defaults to ``False``. |
 
-## Attributes
+## Examples {.doc-section .doc-section-examples}
 
-| Name | Description |
-| --- | --- |
-| [axis_coordinate](#timetoalign.alignment.MatchStamp.axis_coordinate) | Get the axis value with its source unit, when an axis exists. |
-| [n_explicit_edges](#timetoalign.alignment.MatchStamp.n_explicit_edges) | Number of explicitly anchored pairs. |
-| [n_inferred_edges](#timetoalign.alignment.MatchStamp.n_inferred_edges) | Number of inferred (via group) pairs. |
-| [n_timelines](#timetoalign.alignment.MatchStamp.n_timelines) | Number of timelines in this stamp. |
-| [present_timelines](#timetoalign.alignment.MatchStamp.present_timelines) | List of timeline IDs in this stamp. |
+```python
+>>> stamp = MatchStamp(
+...     coordinates={"score": 100.0, "audio": 45.5, "video": 1365.0},
+...     anchor_edges=[("score", "audio")],
+...     inferred_edges=[("audio", "video")],
+... )
+>>> stamp.get("audio")
+45.5
+```
 
 ## Methods
 
@@ -74,12 +69,18 @@ alignment.MatchStamp.filter_by_timelines(timeline_ids=None, id_pattern=None)
 
 Create filtered stamp with subset of timelines.
 
-Args:
-    timeline_ids: Only include these timelines (None = all).
-    id_pattern: Regex filter for timeline IDs.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    New MatchStamp with filtered timelines.
+| Name         | Type                                 | Description                                | Default   |
+|--------------|--------------------------------------|--------------------------------------------|-----------|
+| timeline_ids | [set](`set`)\[[str](`str`)\] \| None | Only include these timelines (None = all). | `None`    |
+| id_pattern   | [str](`str`) \| None                 | Regex filter for timeline IDs.             | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                             |
+|--------|----------------|-----------------------------------------|
+|        | \'MatchStamp\' | New MatchStamp with filtered timelines. |
 
 ### from_dict { #timetoalign.alignment.MatchStamp.from_dict }
 
@@ -97,12 +98,18 @@ alignment.MatchStamp.get(timeline_id, default=None)
 
 Get coordinate for a specific timeline.
 
-Args:
-    timeline_id: The timeline to get coordinate for.
-    default: Value returned when the timeline is absent.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The coordinate, or the default if the timeline is absent.
+| Name        | Type                     | Description                                 | Default    |
+|-------------|--------------------------|---------------------------------------------|------------|
+| timeline_id | [str](`str`)             | The timeline to get coordinate for.         | _required_ |
+| default     | [float](`float`) \| None | Value returned when the timeline is absent. | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                     | Description                                               |
+|--------|--------------------------|-----------------------------------------------------------|
+|        | [float](`float`) \| None | The coordinate, or the default if the timeline is absent. |
 
 ### get_group_coordinates { #timetoalign.alignment.MatchStamp.get_group_coordinates }
 
@@ -112,11 +119,17 @@ alignment.MatchStamp.get_group_coordinates(group)
 
 Get all coordinates for timelines in a specific group.
 
-Args:
-    group: The TimelineGroup to filter by.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Dict of timeline_id -> coordinate for timelines in the group.
+| Name   | Type              | Description                     | Default    |
+|--------|-------------------|---------------------------------|------------|
+| group  | \'TimelineGroup\' | The TimelineGroup to filter by. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                             | Description                                                   |
+|--------|--------------------------------------------------|---------------------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [float](`float`)\] | Dict of timeline_id -> coordinate for timelines in the group. |
 
 ### get_unit { #timetoalign.alignment.MatchStamp.get_unit }
 
@@ -129,11 +142,17 @@ Get the query coordinate converted to a unit.
 Unit conversion is delegated to the source timeline's owning group so
 the same conversion-map selection rules as ``TimeStamp`` apply.
 
-Args:
-    unit: The target unit.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The converted coordinate, or None when it cannot be resolved.
+| Name   | Type                                          | Description      | Default    |
+|--------|-----------------------------------------------|------------------|------------|
+| unit   | [TimeUnit](`timetoalign.core.enums.TimeUnit`) | The target unit. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                     | Description                                                   |
+|--------|--------------------------|---------------------------------------------------------------|
+|        | [float](`float`) \| None | The converted coordinate, or None when it cannot be resolved. |
 
 ### has_timeline { #timetoalign.alignment.MatchStamp.has_timeline }
 
@@ -151,13 +170,20 @@ alignment.MatchStamp.to_dict(format='flat')
 
 Materialize the stamp in a flat, grouped, or graph representation.
 
-Args:
-    format: Output representation. ``"graph"`` preserves the
-        MatchGraph storage shape.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The requested dictionary representation.
+| Name   | Type                                                                       | Description                                                                | Default   |
+|--------|----------------------------------------------------------------------------|----------------------------------------------------------------------------|-----------|
+| format | [Literal](`typing.Literal`)\[\'flat\', \'prefix\', \'nested\', \'graph\'\] | Output representation. ``"graph"`` preserves the MatchGraph storage shape. | `'flat'`  |
 
-Raises:
-    ValueError: If a grouped format is requested without a source
-        bundle, or if the format is unknown.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                              |
+|--------|-----------------------------------------------------|------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | The requested dictionary representation. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                                            |
+|--------|----------------------------|----------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If a grouped format is requested without a source bundle, or if the format is unknown. |

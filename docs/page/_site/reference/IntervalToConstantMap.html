@@ -855,12 +855,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.IntervalToConstantMap" id="toc-timetoalign.IntervalToConstantMap" class="nav-link active" data-scroll-target="#timetoalign.IntervalToConstantMap">IntervalToConstantMap</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.IntervalToConstantMap.from_dict" id="toc-timetoalign.IntervalToConstantMap.from_dict" class="nav-link" data-scroll-target="#timetoalign.IntervalToConstantMap.from_dict">from_dict</a></li>
-  <li><a href="#timetoalign.IntervalToConstantMap.inverse" id="toc-timetoalign.IntervalToConstantMap.inverse" class="nav-link" data-scroll-target="#timetoalign.IntervalToConstantMap.inverse">inverse</a></li>
+  <li><a href="#timetoalign.IntervalToConstantMap.inverse" id="toc-timetoalign.IntervalToConstantMap.inverse" class="nav-link" data-scroll-target="#timetoalign.IntervalToConstantMap.inverse">inverse</a>
+  <ul class="collapse">
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
   <li><a href="#timetoalign.IntervalToConstantMap.to_dict" id="toc-timetoalign.IntervalToConstantMap.to_dict" class="nav-link" data-scroll-target="#timetoalign.IntervalToConstantMap.to_dict">to_dict</a></li>
-  <li><a href="#timetoalign.IntervalToConstantMap.to_table_map" id="toc-timetoalign.IntervalToConstantMap.to_table_map" class="nav-link" data-scroll-target="#timetoalign.IntervalToConstantMap.to_table_map">to_table_map</a></li>
+  <li><a href="#timetoalign.IntervalToConstantMap.to_table_map" id="toc-timetoalign.IntervalToConstantMap.to_table_map" class="nav-link" data-scroll-target="#timetoalign.IntervalToConstantMap.to_table_map">to_table_map</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -886,32 +895,47 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Unlike TableMap, IntervalToConstantMap does not interpolate. A coordinate x returns the value associated with the interval that contains x.</p>
 <p>Values can be any type (string, int, float, etc.). This is NOT a coordinate conversion map when values are non-numeric (e.g., string labels).</p>
 <p>This is useful for: - Measure number lookup (quarters -&gt; MN label) - Region/section lookup (coordinate -&gt; section name) - Any step-function relationship</p>
-<p>Attributes: boundaries: Sorted x-coordinates defining interval starts. values: Value for each interval (len = len(boundaries)).</p>
-<p>Examples: &gt;&gt;&gt; # Map quarters to section names &gt;&gt;&gt; section_map = IntervalToConstantMap( … boundaries=[0, 16, 32, 48], … values=[“Intro”, “Verse”, “Chorus”, “Outro”], … source_unit=“quarters”, … ) &gt;&gt;&gt; section_map(20) ‘Verse’ &gt;&gt;&gt; section_map(40) ‘Chorus’</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 62%">
+<col style="width: 30%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.IntervalToConstantMap.boundaries">boundaries</a></td>
-<td>The interval start positions.</td>
+<td>boundaries</td>
+<td><code>NDArray</code>[<code>np</code>.<code>floating</code>[<code>Any</code>]]</td>
+<td>Sorted x-coordinates defining interval starts.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.IntervalToConstantMap.is_invertible">is_invertible</a></td>
-<td>IntervalToConstantMap is NOT invertible (many-to-one).</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.IntervalToConstantMap.values">values</a></td>
-<td>The values for each interval.</td>
+<td>values</td>
+<td><code>list</code>[<code>T</code>]</td>
+<td>Value for each interval (len = len(boundaries)).</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Map quarters to section names</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> section_map <span class="op">=</span> IntervalToConstantMap(</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     boundaries<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">16</span>, <span class="dv">32</span>, <span class="dv">48</span>],</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     values<span class="op">=</span>[<span class="st">"Intro"</span>, <span class="st">"Verse"</span>, <span class="st">"Chorus"</span>, <span class="st">"Outro"</span>],</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>...     source_unit<span class="op">=</span><span class="st">"quarters"</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> section_map(<span class="dv">20</span>)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">'Verse'</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> section_map(<span class="dv">40</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="co">'Chorus'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -943,30 +967,115 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.IntervalToConstantMap.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IntervalToConstantMap.from_dict">from_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>IntervalToConstantMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>IntervalToConstantMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Deserialize from dictionary.</p>
 </section>
 <section id="timetoalign.IntervalToConstantMap.inverse" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IntervalToConstantMap.inverse">inverse</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>IntervalToConstantMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>IntervalToConstantMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>IntervalToConstantMap is not invertible.</p>
-<p>Raises: NotImplementedError: Always.</p>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 66%">
+<col style="width: 21%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>NotImplementedError</code></td>
+<td>Always.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.IntervalToConstantMap.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IntervalToConstantMap.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>IntervalToConstantMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>IntervalToConstantMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Serialize to dictionary.</p>
 </section>
 <section id="timetoalign.IntervalToConstantMap.to_table_map" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IntervalToConstantMap.to_table_map">to_table_map</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>IntervalToConstantMap.to_table_map(kind<span class="op">=</span>InterpolationKind.previous)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>IntervalToConstantMap.to_table_map(kind<span class="op">=</span>InterpolationKind.previous)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert to TableMap for numeric values.</p>
 <p>This allows using TableMap operations on interval data when values are numeric.</p>
-<p>Args: kind: Interpolation kind. Default is “previous” (step function).</p>
-<p>Returns: TableMap with the same boundaries and values.</p>
-<p>Raises: TypeError: If values are not numeric.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 39%">
+<col style="width: 36%">
+<col style="width: 18%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>kind</td>
+<td><code>InterpolationKind</code></td>
+<td>Interpolation kind. Default is “previous” (step function).</td>
+<td><code>InterpolationKind.previous</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/TableMap.html#timetoalign.TableMap">TableMap</a></td>
+<td>TableMap with the same boundaries and values.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-1" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>TypeError</code></td>
+<td>If values are not numeric.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

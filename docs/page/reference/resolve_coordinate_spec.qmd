@@ -6,13 +6,22 @@ resolve_coordinate_spec(spec, *, timeline_id=None)
 
 Decompose a coordinate specification without converting its unit.
 
-Args:
-    spec: Coordinate specification to decompose.
-    timeline_id: Optional timeline ID for otherwise unqualified input.
+## Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The numeric value and any timeline or unit metadata.
+| Name        | Type                                                     | Description                                           | Default    |
+|-------------|----------------------------------------------------------|-------------------------------------------------------|------------|
+| spec        | [CoordinateSpec](`timetoalign.core.time.CoordinateSpec`) | Coordinate specification to decompose.                | _required_ |
+| timeline_id | [str](`str`) \| None                                     | Optional timeline ID for otherwise unqualified input. | `None`     |
 
-Raises:
-    ValueError: If an explicit timeline ID conflicts with an IdCoordinate.
-    TypeError: If spec is not a supported coordinate specification.
+## Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                             | Description                                          |
+|--------|------------------------------------------------------------------|------------------------------------------------------|
+|        | [ResolvedCoordinate](`timetoalign.core.time.ResolvedCoordinate`) | The numeric value and any timeline or unit metadata. |
+
+## Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                |
+|--------|----------------------------|------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If an explicit timeline ID conflicts with an IdCoordinate. |
+|        | [TypeError](`TypeError`)   | If spec is not a supported coordinate specification.       |

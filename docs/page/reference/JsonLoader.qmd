@@ -39,34 +39,39 @@ Follows the standard two-phase pattern:
 1. ``loader.load(*sources)`` -- parse JSON files.
 2. ``loader.get_table(key)`` -- retrieve a normalised table.
 
-Args:
-    principal_keys: List of keys to normalise.  ``None`` for auto-detect.
-    sep: Separator for flattened nested key names.  Default ``"."``.
-    resolve_lookups: Whether to resolve ``*_id`` foreign keys.  Default ``True``.
+## Parameters {.doc-section .doc-section-parameters}
 
-Examples:
-    Auto-detect all array keys::
+| Name            | Type                                   | Description                                                  | Default   |
+|-----------------|----------------------------------------|--------------------------------------------------------------|-----------|
+| principal_keys  | [list](`list`)\[[str](`str`)\] \| None | List of keys to normalise.  ``None`` for auto-detect.        | `None`    |
+| sep             | [str](`str`)                           | Separator for flattened nested key names.  Default ``"."``.  | `'.'`     |
+| resolve_lookups | [bool](`bool`)                         | Whether to resolve ``*_id`` foreign keys.  Default ``True``. | `True`    |
 
-        loader = JsonLoader()
-        loader.load("Wagner_WWV086B_140.json")
-        for name in loader.store.keys():
-            print(name, loader.get_table(name).num_rows)
+## Examples {.doc-section .doc-section-examples}
 
-    Specify principal key::
+Auto-detect all array keys::
 
-        loader = JsonLoader(principal_keys=["audio"])
-        loader.load("dj_studio_data.json")
-        assert loader.get_table("audio").num_rows == 3
+    loader = JsonLoader()
+    loader.load("Wagner_WWV086B_140.json")
+    for name in loader.store.keys():
+        print(name, loader.get_table(name).num_rows)
 
-    Nested principal key::
+Specify principal key::
 
-        loader = JsonLoader(principal_keys=["hotCuePoints"])
-        loader.load("dj_studio_data.json")
-        # Collects hotCuePoints from audio[*].cueData.hotCuePoints
+    loader = JsonLoader(principal_keys=["audio"])
+    loader.load("dj_studio_data.json")
+    assert loader.get_table("audio").num_rows == 3
 
-See Also:
-    timetoalign.storage.store.DictStore
-    timetoalign.loader.base.Loader
+Nested principal key::
+
+    loader = JsonLoader(principal_keys=["hotCuePoints"])
+    loader.load("dj_studio_data.json")
+    # Collects hotCuePoints from audio[*].cueData.hotCuePoints
+
+## See Also {.doc-section .doc-section-see-also}
+
+timetoalign.storage.store.DictStore
+timetoalign.loader.base.Loader
 
 ## Attributes
 
@@ -103,14 +108,23 @@ loader.format.JsonLoader.get_table(key)
 
 Retrieve a normalised table by key name.
 
-Args:
-    key: The principal key name.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A ``pa.Table`` with one row per element.
+| Name   | Type         | Description             | Default    |
+|--------|--------------|-------------------------|------------|
+| key    | [str](`str`) | The principal key name. | _required_ |
 
-Raises:
-    KeyError: If *key* was not normalised.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                     | Description                              |
+|--------|------------------------------------------|------------------------------------------|
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) | A ``pa.Table`` with one row per element. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                  |
+|--------|------------------------|------------------------------|
+|        | [KeyError](`KeyError`) | If *key* was not normalised. |
 
 ### keys { #timetoalign.loader.format.JsonLoader.keys }
 
@@ -131,11 +145,17 @@ Load one or more JSON files.
 For multiple files the tables are concatenated (same keys) or
 added (new keys).
 
-Args:
-    *sources: Paths to JSON files.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name     | Type                                   | Description          | Default   |
+|----------|----------------------------------------|----------------------|-----------|
+| *sources | [Path](`pathlib.Path`) \| [str](`str`) | Paths to JSON files. | `()`      |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
 
 ### load_dict { #timetoalign.loader.format.JsonLoader.load_dict }
 
@@ -147,8 +167,14 @@ Load from an already-parsed Python dict.
 
 Convenient for programmatic use or testing.
 
-Args:
-    data: A parsed JSON structure (dict).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name   | Type                                                | Description                     | Default    |
+|--------|-----------------------------------------------------|---------------------------------|------------|
+| data   | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | A parsed JSON structure (dict). | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |

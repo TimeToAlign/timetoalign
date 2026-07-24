@@ -6,18 +6,22 @@ alignment.Agent()
 
 The author of a match claim — a human annotator or a software aligner.
 
-Attributes:
-    name: A human-readable label for the agent (a person's name or a
-        tool's name).
-    type: Whether the agent is a human or a piece of software.
-    identifier: A stable handle for the agent — a URI for a human (e.g.
-        an ORCID), a version string for software (e.g. ``"v0.20.0"``).
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> Agent(name="J. Doe", type=AgentType.human, identifier="0000-0001")
-    Agent(name='J. Doe', type="human", identifier='0000-0001')
-    >>> Agent(name="dtw", type=AgentType.software, identifier="v2")
-    Agent(name='dtw', type="software", identifier='v2')
+| Name       | Type                                      | Description                                                                                                            |
+|------------|-------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
+| name       | [str](`str`)                              | A human-readable label for the agent (a person's name or a tool's name).                                               |
+| type       | [AgentType](`timetoalign.core.AgentType`) | Whether the agent is a human or a piece of software.                                                                   |
+| identifier | [str](`str`)                              | A stable handle for the agent — a URI for a human (e.g. an ORCID), a version string for software (e.g. ``"v0.20.0"``). |
+
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> Agent(name="J. Doe", type=AgentType.human, identifier="0000-0001")
+Agent(name='J. Doe', type="human", identifier='0000-0001')
+>>> Agent(name="dtw", type=AgentType.software, identifier="v2")
+Agent(name='dtw', type="software", identifier='v2')
+```
 
 ## Methods
 

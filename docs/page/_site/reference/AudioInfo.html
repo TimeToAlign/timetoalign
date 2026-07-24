@@ -880,28 +880,66 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Metadata for an audio file.</p>
 <p>This dataclass holds all relevant information about an audio file that is needed to create a DiscretePhysicalTimeline.</p>
-<p>Attributes: n_samples: Total number of samples in the file (frames). sample_rate: Sample rate in Hz (e.g., 44100, 48000). channels: Number of audio channels (1=mono, 2=stereo). duration_seconds: Duration in seconds (computed from n_samples/sample_rate). format: Audio format/codec (e.g., “WAV”, “FLAC”, “MP3”). subtype: Audio subtype/encoding (e.g., “PCM_16”, “PCM_24”, “VORBIS”). bits_per_sample: Bit depth (e.g., 16, 24, 32). May be None for lossy formats. source_path: Path to the source file. extra: Additional format-specific metadata.</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 39%">
+<col style="width: 46%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.loader.AudioInfo.is_mono">is_mono</a></td>
-<td>Whether the audio is mono (single channel).</td>
+<td>n_samples</td>
+<td><code>int</code></td>
+<td>Total number of samples in the file (frames).</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.loader.AudioInfo.is_stereo">is_stereo</a></td>
-<td>Whether the audio is stereo (two channels).</td>
+<td>sample_rate</td>
+<td><code>int</code></td>
+<td>Sample rate in Hz (e.g., 44100, 48000).</td>
 </tr>
 <tr class="odd">
-<td><a href="#timetoalign.loader.AudioInfo.length_in_samples">length_in_samples</a></td>
-<td>Alias for n_samples, matching timeline terminology.</td>
+<td>channels</td>
+<td><code>int</code></td>
+<td>Number of audio channels (1=mono, 2=stereo).</td>
+</tr>
+<tr class="even">
+<td>duration_seconds</td>
+<td><code>float</code></td>
+<td>Duration in seconds (computed from n_samples/sample_rate).</td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>str</code></td>
+<td>Audio format/codec (e.g., “WAV”, “FLAC”, “MP3”).</td>
+</tr>
+<tr class="even">
+<td>subtype</td>
+<td><code>str</code> | None</td>
+<td>Audio subtype/encoding (e.g., “PCM_16”, “PCM_24”, “VORBIS”).</td>
+</tr>
+<tr class="odd">
+<td>bits_per_sample</td>
+<td><code>int</code> | None</td>
+<td>Bit depth (e.g., 16, 24, 32). May be None for lossy formats.</td>
+</tr>
+<tr class="even">
+<td>source_path</td>
+<td><code>Path</code> | None</td>
+<td>Path to the source file.</td>
+</tr>
+<tr class="odd">
+<td>extra</td>
+<td><code>dict</code>[<code>str</code>, <code>Any</code>]</td>
+<td>Additional format-specific metadata.</td>
 </tr>
 </tbody>
 </table>

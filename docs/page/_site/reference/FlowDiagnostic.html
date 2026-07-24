@@ -852,7 +852,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.timelines.FlowDiagnostic" id="toc-timetoalign.timelines.FlowDiagnostic" class="nav-link active" data-scroll-target="#timetoalign.timelines.FlowDiagnostic">FlowDiagnostic</a></li>
+  <li><a href="#timetoalign.timelines.FlowDiagnostic" id="toc-timetoalign.timelines.FlowDiagnostic" class="nav-link active" data-scroll-target="#timetoalign.timelines.FlowDiagnostic">FlowDiagnostic</a>
+  <ul>
+  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -867,10 +871,58 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowDiagnostic(kind, message, section_id<span class="op">=</span><span class="va">None</span>, mc<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A structural-invariant violation found in an atomic flow graph.</p>
 <p>Diagnostics are produced by <code>ScoreFlowController.check_invariants</code> and describe a way in which the folded section graph departs from the rules a well-formed score must satisfy. The controller never raises on a malformed flow — it reports. Each diagnostic names the kind of violation and, where applicable, the section(s) and measure involved.</p>
-<p>Attributes: kind: Short machine-readable violation tag (e.g.&nbsp;<code>"volta_follows_volta"</code>). message: Human-readable explanation, including a remediation hint. section_id: The offending source section’s id, if the violation is attributable to a single section. <code>None</code> otherwise. mc: The measure count most relevant to the violation, if any.</p>
-<p>Examples: &gt;&gt;&gt; diag = FlowDiagnostic( … kind=“volta_follows_volta”, … message=“section ‘B’ flows directly to volta section ‘C’”, … section_id=“B”, … mc=5, … ) &gt;&gt;&gt; diag.kind ‘volta_follows_volta’</p>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 15%">
+<col style="width: 76%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>kind</td>
+<td><code>str</code></td>
+<td>Short machine-readable violation tag (e.g.&nbsp;<code>"volta_follows_volta"</code>).</td>
+</tr>
+<tr class="even">
+<td>message</td>
+<td><code>str</code></td>
+<td>Human-readable explanation, including a remediation hint.</td>
+</tr>
+<tr class="odd">
+<td>section_id</td>
+<td><code>str</code> | None</td>
+<td>The offending source section’s id, if the violation is attributable to a single section. <code>None</code> otherwise.</td>
+</tr>
+<tr class="even">
+<td>mc</td>
+<td><code>int</code> | None</td>
+<td>The measure count most relevant to the violation, if any.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> diag <span class="op">=</span> FlowDiagnostic(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>...     kind<span class="op">=</span><span class="st">"volta_follows_volta"</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     message<span class="op">=</span><span class="st">"section 'B' flows directly to volta section 'C'"</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     section_id<span class="op">=</span><span class="st">"B"</span>,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>...     mc<span class="op">=</span><span class="dv">5</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> diag.kind</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">'volta_follows_volta'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

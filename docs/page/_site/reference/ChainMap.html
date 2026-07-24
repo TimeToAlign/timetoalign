@@ -855,6 +855,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.ChainMap" id="toc-timetoalign.ChainMap" class="nav-link active" data-scroll-target="#timetoalign.ChainMap">ChainMap</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.ChainMap.from_dict" id="toc-timetoalign.ChainMap.from_dict" class="nav-link" data-scroll-target="#timetoalign.ChainMap.from_dict">from_dict</a></li>
@@ -876,28 +877,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>ChainMap(maps, <span class="op">*</span>, uid<span class="op">=</span><span class="va">None</span>, name<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Composition of multiple maps: f(g(h(x))).</p>
 <p>The maps are applied in sequence from first to last. The output unit of one map must match the input unit of the next (if specified).</p>
-<p>Attributes: maps: The sequence of maps to apply.</p>
-<p>Examples: &gt;&gt;&gt; # Ticks -&gt; Seconds -&gt; Milliseconds &gt;&gt;&gt; ticks_to_secs = ScalarMap(scalar=1/480, source_unit=“ticks”, target_unit=“seconds”) &gt;&gt;&gt; secs_to_ms = ScalarMap(scalar=1000, source_unit=“seconds”, target_unit=“milliseconds”) &gt;&gt;&gt; chain = ChainMap([ticks_to_secs, secs_to_ms]) &gt;&gt;&gt; chain(480) 1000.0</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.ChainMap.is_invertible">is_invertible</a></td>
-<td>Whether the chain is invertible (all sub-maps must be invertible).</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.ChainMap.maps">maps</a></td>
-<td>The sequence of maps.</td>
+<td>maps</td>
+<td><code>list</code>[<a href="../reference/ConversionMap.html#timetoalign.ConversionMap">ConversionMap</a>[<code>Any</code>]]</td>
+<td>The sequence of maps to apply.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Ticks -&gt; Seconds -&gt; Milliseconds</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ticks_to_secs <span class="op">=</span> ScalarMap(scalar<span class="op">=</span><span class="dv">1</span><span class="op">/</span><span class="dv">480</span>, source_unit<span class="op">=</span><span class="st">"ticks"</span>, target_unit<span class="op">=</span><span class="st">"seconds"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> secs_to_ms <span class="op">=</span> ScalarMap(scalar<span class="op">=</span><span class="dv">1000</span>, source_unit<span class="op">=</span><span class="st">"seconds"</span>, target_unit<span class="op">=</span><span class="st">"milliseconds"</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> chain <span class="op">=</span> ChainMap([ticks_to_secs, secs_to_ms])</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> chain(<span class="dv">480</span>)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fl">1000.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -925,18 +931,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.ChainMap.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ChainMap.from_dict">from_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>ChainMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ChainMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Deserialize from dictionary.</p>
 </section>
 <section id="timetoalign.ChainMap.inverse" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ChainMap.inverse">inverse</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ChainMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ChainMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return the inverse chain.</p>
 <p>This reverses the order of maps and inverts each one. (f(g(x)))^-1 = g<sup>-1(f</sup>-1(x))</p>
 </section>
 <section id="timetoalign.ChainMap.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ChainMap.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ChainMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>ChainMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Serialize to dictionary.</p>
 
 

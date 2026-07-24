@@ -855,10 +855,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.loader.score.MeasureMapLoader" id="toc-timetoalign.loader.score.MeasureMapLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.score.MeasureMapLoader">MeasureMapLoader</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.loader.score.MeasureMapLoader.compute_default_traversal" id="toc-timetoalign.loader.score.MeasureMapLoader.compute_default_traversal" class="nav-link" data-scroll-target="#timetoalign.loader.score.MeasureMapLoader.compute_default_traversal">compute_default_traversal</a></li>
-  <li><a href="#timetoalign.loader.score.MeasureMapLoader.get_traversal_summary" id="toc-timetoalign.loader.score.MeasureMapLoader.get_traversal_summary" class="nav-link" data-scroll-target="#timetoalign.loader.score.MeasureMapLoader.get_traversal_summary">get_traversal_summary</a></li>
+  <li><a href="#timetoalign.loader.score.MeasureMapLoader.compute_default_traversal" id="toc-timetoalign.loader.score.MeasureMapLoader.compute_default_traversal" class="nav-link" data-scroll-target="#timetoalign.loader.score.MeasureMapLoader.compute_default_traversal">compute_default_traversal</a>
+  <ul class="collapse">
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.score.MeasureMapLoader.get_traversal_summary" id="toc-timetoalign.loader.score.MeasureMapLoader.get_traversal_summary" class="nav-link" data-scroll-target="#timetoalign.loader.score.MeasureMapLoader.get_traversal_summary">get_traversal_summary</a>
+  <ul class="collapse">
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -876,27 +883,44 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Load MeasureMap JSON files into ScoreStore.</p>
 <p>MeasureMapLoader parses the MeasureMap JSON format (as specified in the MeasureMap paper) and returns a ScoreStore with populated MeasureData.</p>
 <p>The loader handles: - Compressed MeasureMap (minimal entries, defaults inferred) - Expanded MeasureMap (all fields explicit) - Validation of structure (MC unique, qstamp monotonic, next valid)</p>
-<p>Attributes: unit: Always TimeUnit.quarters (MeasureMap uses quarter beats). expanded_data: The fully expanded measure list after loading.</p>
-<p>Examples: &gt;&gt;&gt; loader = MeasureMapLoader() &gt;&gt;&gt; loader.load(“WoO71.measures.mm.json”) &gt;&gt;&gt; print(len(loader.store.measures)) # Number of measures 240</p>
-<pre><code>&gt;&gt;&gt; # Access flow control summary
-&gt;&gt;&gt; summary = loader.store.measures.get_flow_control_summary()
-&gt;&gt;&gt; print(f"Repeats: {summary['repeat_starts']} starts, {summary['repeat_ends']} ends")</code></pre>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 48%">
+<col style="width: 40%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.loader.score.MeasureMapLoader.expanded_data">expanded_data</a></td>
-<td>The fully expanded measure data after loading.</td>
+<td>unit</td>
+<td><code>TimeUnit</code></td>
+<td>Always TimeUnit.quarters (MeasureMap uses quarter beats).</td>
+</tr>
+<tr class="even">
+<td>expanded_data</td>
+<td><code>list</code>[<code>dict</code>[<code>str</code>, <code>Any</code>]]</td>
+<td>The fully expanded measure list after loading.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> MeasureMapLoader()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.load(<span class="st">"WoO71.measures.mm.json"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">print</span>(<span class="bu">len</span>(loader.store.measures))  <span class="co"># Number of measures</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="dv">240</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Access flow control summary</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> summary <span class="op">=</span> loader.store.measures.get_flow_control_summary()</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">print</span>(<span class="ss">f"Repeats: </span><span class="sc">{</span>summary[<span class="st">'repeat_starts'</span>]<span class="sc">}</span><span class="ss"> starts, </span><span class="sc">{</span>summary[<span class="st">'repeat_ends'</span>]<span class="sc">}</span><span class="ss"> ends"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -920,32 +944,78 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.loader.score.MeasureMapLoader.compute_default_traversal" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.score.MeasureMapLoader.compute_default_traversal">compute_default_traversal</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>loader.score.MeasureMapLoader.compute_default_traversal()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.score.MeasureMapLoader.compute_default_traversal()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Compute the default traversal sequence from the expanded data.</p>
 <p>The algorithm follows the ‘next’ field, using visit counts to choose which branch to take at repeat points.</p>
 <p>From the design spec:</p>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>sequence <span class="op">=</span> []</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>current_mc <span class="op">=</span> <span class="dv">1</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>visit_counts <span class="op">=</span> defaultdict(<span class="bu">int</span>)</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> current_mc <span class="op">!=</span> <span class="op">-</span><span class="dv">1</span>:</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    bar <span class="op">=</span> get_bar_by_mc(mm_data, current_mc)</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    sequence.append(bar[<span class="st">"ID"</span>])</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    next_options <span class="op">=</span> bar[<span class="st">"next"</span>]</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    visit_counts[current_mc] <span class="op">+=</span> <span class="dv">1</span></span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> <span class="bu">min</span>(visit_counts[current_mc] <span class="op">-</span> <span class="dv">1</span>, <span class="bu">len</span>(next_options) <span class="op">-</span> <span class="dv">1</span>)</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    current_mc <span class="op">=</span> next_options[idx]</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> TraversalMap(sequence<span class="op">=</span>sequence)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Returns: List of MC values in traversal order.</p>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>sequence <span class="op">=</span> []</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>current_mc <span class="op">=</span> <span class="dv">1</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>visit_counts <span class="op">=</span> defaultdict(<span class="bu">int</span>)</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> current_mc <span class="op">!=</span> <span class="op">-</span><span class="dv">1</span>:</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    bar <span class="op">=</span> get_bar_by_mc(mm_data, current_mc)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    sequence.append(bar[<span class="st">"ID"</span>])</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    next_options <span class="op">=</span> bar[<span class="st">"next"</span>]</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    visit_counts[current_mc] <span class="op">+=</span> <span class="dv">1</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    idx <span class="op">=</span> <span class="bu">min</span>(visit_counts[current_mc] <span class="op">-</span> <span class="dv">1</span>, <span class="bu">len</span>(next_options) <span class="op">-</span> <span class="dv">1</span>)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    current_mc <span class="op">=</span> next_options[idx]</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="cf">return</span> TraversalMap(sequence<span class="op">=</span>sequence)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 40%">
+<col style="width: 49%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>int</code>]</td>
+<td>List of MC values in traversal order.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.score.MeasureMapLoader.get_traversal_summary" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.score.MeasureMapLoader.get_traversal_summary">get_traversal_summary</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.score.MeasureMapLoader.get_traversal_summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.score.MeasureMapLoader.get_traversal_summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get summary of the default traversal.</p>
-<p>Returns: Dict with traversal statistics.</p>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 56%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>dict</code>[<code>str</code>, <code>Any</code>]</td>
+<td>Dict with traversal statistics.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

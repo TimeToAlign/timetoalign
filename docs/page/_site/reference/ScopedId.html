@@ -855,10 +855,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.ScopedId" id="toc-timetoalign.ScopedId" class="nav-link active" data-scroll-target="#timetoalign.ScopedId">ScopedId</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.ScopedId.nested" id="toc-timetoalign.ScopedId.nested" class="nav-link" data-scroll-target="#timetoalign.ScopedId.nested">nested</a></li>
-  <li><a href="#timetoalign.ScopedId.parse" id="toc-timetoalign.ScopedId.parse" class="nav-link" data-scroll-target="#timetoalign.ScopedId.parse">parse</a></li>
+  <li><a href="#timetoalign.ScopedId.nested" id="toc-timetoalign.ScopedId.nested" class="nav-link" data-scroll-target="#timetoalign.ScopedId.nested">nested</a>
+  <ul class="collapse">
+  <li><a href="#example" id="toc-example" class="nav-link" data-scroll-target="#example">Example</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.ScopedId.parse" id="toc-timetoalign.ScopedId.parse" class="nav-link" data-scroll-target="#timetoalign.ScopedId.parse">parse</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
+  </ul></li>
   <li><a href="#timetoalign.ScopedId.with_local" id="toc-timetoalign.ScopedId.with_local" class="nav-link" data-scroll-target="#timetoalign.ScopedId.with_local">with_local</a></li>
   <li><a href="#timetoalign.ScopedId.with_scope" id="toc-timetoalign.ScopedId.with_scope" class="nav-link" data-scroll-target="#timetoalign.ScopedId.with_scope">with_scope</a></li>
   </ul></li>
@@ -878,32 +887,45 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>An identifier with a scope prefix and local part.</p>
 <p>Format: “{scope}:{local}” or just “{local}” if scope is empty.</p>
 <p>The scope typically represents the source (e.g., “midi”, “score”) while the local part is the original ID from that source.</p>
-<p>Attributes: scope: The namespace/source prefix (e.g., “midi”, “score:track1”) local: The local identifier within that scope</p>
-<p>Examples: &gt;&gt;&gt; ScopedId(“midi”, “n42”) ScopedId(scope=‘midi’, local=‘n42’)</p>
-<pre><code>&gt;&gt;&gt; str(ScopedId("midi", "n42"))
-'midi:n42'
-
-&gt;&gt;&gt; ScopedId.parse("midi:n42")
-ScopedId(scope='midi', local='n42')
-
-&gt;&gt;&gt; ScopedId.parse("bare_id")
-ScopedId(scope='', local='bare_id')</code></pre>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 17%">
+<col style="width: 73%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.ScopedId.is_scoped">is_scoped</a></td>
-<td>Whether this ID has a non-empty scope.</td>
+<td>scope</td>
+<td><code>str</code></td>
+<td>The namespace/source prefix (e.g., “midi”, “score:track1”)</td>
+</tr>
+<tr class="even">
+<td>local</td>
+<td><code>str</code></td>
+<td>The local identifier within that scope</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ScopedId(<span class="st">"midi"</span>, <span class="st">"n42"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>ScopedId(scope<span class="op">=</span><span class="st">'midi'</span>, local<span class="op">=</span><span class="st">'n42'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">str</span>(ScopedId(<span class="st">"midi"</span>, <span class="st">"n42"</span>))</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co">'midi:n42'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ScopedId.parse(<span class="st">"midi:n42"</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>ScopedId(scope<span class="op">=</span><span class="st">'midi'</span>, local<span class="op">=</span><span class="st">'n42'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ScopedId.parse(<span class="st">"bare_id"</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ScopedId(scope<span class="op">=</span><span class="st">''</span>, local<span class="op">=</span><span class="st">'bare_id'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -935,28 +957,85 @@ ScopedId(scope='', local='bare_id')</code></pre>
 </table>
 <section id="timetoalign.ScopedId.nested" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ScopedId.nested">nested</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ScopedId.nested(child_scope)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ScopedId.nested(child_scope)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a nested scope by appending to the current scope.</p>
-<p>Example: &gt;&gt;&gt; ScopedId(“midi”, “note”).nested(“track1”) ScopedId(scope=‘midi.track1’, local=‘note’)</p>
+<section id="example" class="level4 doc-section doc-section-example">
+<h4 class="doc-section doc-section-example anchored" data-anchor-id="example">Example</h4>
+<blockquote class="blockquote">
+<blockquote class="blockquote">
+<blockquote class="blockquote">
+<p>ScopedId(“midi”, “note”).nested(“track1”) ScopedId(scope=‘midi.track1’, local=‘note’)</p>
+</blockquote>
+</blockquote>
+</blockquote>
+</section>
 </section>
 <section id="timetoalign.ScopedId.parse" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ScopedId.parse">parse</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ScopedId.parse(id_str)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>ScopedId.parse(id_str)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Parse a scoped ID string.</p>
-<p>Args: id_str: A string like “scope:local” or just “local”</p>
-<p>Returns: A ScopedId instance</p>
-<p>Examples: &gt;&gt;&gt; ScopedId.parse(“midi:n42”) ScopedId(scope=‘midi’, local=‘n42’)</p>
-<pre><code>&gt;&gt;&gt; ScopedId.parse("bare_id")
-ScopedId(scope='', local='bare_id')</code></pre>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 17%">
+<col style="width: 56%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>id_str</td>
+<td><code>str</code></td>
+<td>A string like “scope:local” or just “local”</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/ScopedId.html#timetoalign.ScopedId">ScopedId</a></td>
+<td>A ScopedId instance</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples-1" class="level4 doc-section doc-section-examples">
+<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-1">Examples</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ScopedId.parse(<span class="st">"midi:n42"</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>ScopedId(scope<span class="op">=</span><span class="st">'midi'</span>, local<span class="op">=</span><span class="st">'n42'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ScopedId.parse(<span class="st">"bare_id"</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>ScopedId(scope<span class="op">=</span><span class="st">''</span>, local<span class="op">=</span><span class="st">'bare_id'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 </section>
 <section id="timetoalign.ScopedId.with_local" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ScopedId.with_local">with_local</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>ScopedId.with_local(new_local)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>ScopedId.with_local(new_local)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return a new ScopedId with a different local part.</p>
 </section>
 <section id="timetoalign.ScopedId.with_scope" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ScopedId.with_scope">with_scope</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>ScopedId.with_scope(new_scope)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>ScopedId.with_scope(new_scope)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return a new ScopedId with a different scope.</p>
 
 

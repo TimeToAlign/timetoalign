@@ -854,9 +854,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.timelines.SegmentNameGenerator" id="toc-timetoalign.timelines.SegmentNameGenerator" class="nav-link active" data-scroll-target="#timetoalign.timelines.SegmentNameGenerator">SegmentNameGenerator</a>
   <ul>
+  <li><a href="#alphabet" id="toc-alphabet" class="nav-link" data-scroll-target="#alphabet">Alphabet</a></li>
+  <li><a href="#volta-suffix" id="toc-volta-suffix" class="nav-link" data-scroll-target="#volta-suffix">Volta suffix</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.timelines.SegmentNameGenerator.generate" id="toc-timetoalign.timelines.SegmentNameGenerator.generate" class="nav-link" data-scroll-target="#timetoalign.timelines.SegmentNameGenerator.generate">generate</a></li>
+  <li><a href="#timetoalign.timelines.SegmentNameGenerator.generate" id="toc-timetoalign.timelines.SegmentNameGenerator.generate" class="nav-link" data-scroll-target="#timetoalign.timelines.SegmentNameGenerator.generate">generate</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -873,11 +880,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.SegmentNameGenerator(alphabet<span class="op">=</span><span class="va">None</span>, volta_suffix<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Assign display labels to a run of atomic sections.</p>
 <p>The generator turns a sequence of per-section volta flags into a list of labels, one per section. Two policies are configurable:</p>
-<p>Alphabet: Base sections walk <em>alphabet</em> (default <code>_SECTION_ALPHABET</code> — Latin upper, Latin lower, Greek upper, Greek lower). Once the alphabet is exhausted it repeats with a numeric suffix (<code>A2</code>, <code>B2</code>, …) so labels stay unique and printable for arbitrarily long scores. A caller may pass any sequence of symbols.</p>
-<p>Volta suffix: When <em>volta_suffix</em> is <code>True</code> (the default), a section that opens a volta bracket inherits the preceding non-volta section’s label plus a positional numeric suffix (<code>1</code>, <code>2</code>, …). A section <strong>B</strong> followed by two alternative endings is therefore labelled <code>B</code>, <code>B1</code>, <code>B2</code> rather than consuming the next three letters. The suffix is positional — the first volta after a base is <code>1</code>, the second <code>2</code> — and is independent of the volta’s own ending number. A non-volta section resets the counter, so two independent volta groups read <code>B, B1, B2</code> then <code>C, C1, C2</code> (never <code>C3, C4</code>). A leading volta with no preceding base falls back to a base letter.</p>
-<pre><code>When *volta_suffix* is ``False`` every section consumes the next
-base label in sequence (``B, C, D``), the historical behaviour.</code></pre>
-<p>Examples: &gt;&gt;&gt; SegmentNameGenerator().generate([False, True, True]) [‘A’, ‘A1’, ‘A2’] &gt;&gt;&gt; SegmentNameGenerator(volta_suffix=False).generate([False, True, True]) [‘A’, ‘B’, ‘C’]</p>
+<section id="alphabet" class="level2 doc-section doc-section-alphabet">
+<h2 class="doc-section doc-section-alphabet anchored" data-anchor-id="alphabet">Alphabet</h2>
+<p>Base sections walk <em>alphabet</em> (default <code>_SECTION_ALPHABET</code> — Latin upper, Latin lower, Greek upper, Greek lower). Once the alphabet is exhausted it repeats with a numeric suffix (<code>A2</code>, <code>B2</code>, …) so labels stay unique and printable for arbitrarily long scores. A caller may pass any sequence of symbols.</p>
+</section>
+<section id="volta-suffix" class="level2 doc-section doc-section-volta-suffix">
+<h2 class="doc-section doc-section-volta-suffix anchored" data-anchor-id="volta-suffix">Volta suffix</h2>
+<p>When <em>volta_suffix</em> is <code>True</code> (the default), a section that opens a volta bracket inherits the preceding non-volta section’s label plus a positional numeric suffix (<code>1</code>, <code>2</code>, …). A section <strong>B</strong> followed by two alternative endings is therefore labelled <code>B</code>, <code>B1</code>, <code>B2</code> rather than consuming the next three letters. The suffix is positional — the first volta after a base is <code>1</code>, the second <code>2</code> — and is independent of the volta’s own ending number. A non-volta section resets the counter, so two independent volta groups read <code>B, B1, B2</code> then <code>C, C1, C2</code> (never <code>C3, C4</code>). A leading volta with no preceding base falls back to a base letter.</p>
+<p>When <em>volta_suffix</em> is <code>False</code> every section consumes the next base label in sequence (<code>B, C, D</code>), the historical behaviour.</p>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> SegmentNameGenerator().generate([<span class="va">False</span>, <span class="va">True</span>, <span class="va">True</span>])</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>[<span class="st">'A'</span>, <span class="st">'A1'</span>, <span class="st">'A2'</span>]</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> SegmentNameGenerator(volta_suffix<span class="op">=</span><span class="va">False</span>).generate([<span class="va">False</span>, <span class="va">True</span>, <span class="va">True</span>])</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>[<span class="st">'A'</span>, <span class="st">'B'</span>, <span class="st">'C'</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <table class="caption-top table">
@@ -898,10 +916,59 @@ base label in sequence (``B, C, D``), the historical behaviour.</code></pre>
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.SegmentNameGenerator.generate">generate</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.SegmentNameGenerator.generate(volta_flags)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return one label per section, honouring the volta-suffix policy.</p>
-<p>Args: volta_flags: <code>volta_flags[i]</code> is <code>True</code> when atomic section <code>i</code> opens a volta bracket.</p>
-<p>Returns: A list of labels the same length as <em>volta_flags</em>.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 31%">
+<col style="width: 52%">
+<col style="width: 7%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>volta_flags</td>
+<td><code>Sequence</code>[<code>bool</code>]</td>
+<td><code>volta_flags[i]</code> is <code>True</code> when atomic section <code>i</code> opens a volta bracket.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 34%">
+<col style="width: 56%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>str</code>]</td>
+<td>A list of labels the same length as <em>volta_flags</em>.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

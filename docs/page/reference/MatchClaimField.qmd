@@ -36,36 +36,32 @@ present, and ``end_anchor`` is ``None`` (an instant). NOMATCH claims
 scope** for this store; :meth:`from_claims` raises :class:`ValueError`
 when handed one.
 
-Attributes:
-    table: The backing single-column :class:`pyarrow.Table` (read-only
-        property) whose one column is the derived ``MatchClaim`` struct.
-    metadata: Shared :class:`MatchMetadata` (or ``None``) applied to every
-        materialised claim.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> agent = Agent(name="dtw", type=AgentType.software, identifier="v1")
-    >>> meta = MatchMetadata(agent=agent)
-    >>> field = MatchClaimField.from_columns(
-    ...     timeline_a_ids=["A", "A", "B"],
-    ...     timeline_b_ids=["B", "C", "C"],
-    ...     coordinate_a=[0.0, 0.0, 1.0],
-    ...     coordinate_b=[10.0, 20.0, 21.0],
-    ...     unit_a=TimeUnit.quarters,
-    ...     unit_b=TimeUnit.seconds,
-    ...     metadata=meta,
-    ... )
-    >>> len(field)
-    3
-    >>> field[0].timeline_a_id, field[0].timeline_b_id
-    ('A', 'B')
+| Name     | Type                                                                  | Description                                                                                                                  |
+|----------|-----------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------|
+| table    | [pa](`pyarrow`).[Table](`pyarrow.Table`)                              | The backing single-column :class:`pyarrow.Table` (read-only property) whose one column is the derived ``MatchClaim`` struct. |
+| metadata | [MatchMetadata](`timetoalign.alignment.claims.MatchMetadata`) \| None | Shared :class:`MatchMetadata` (or ``None``) applied to every materialised claim.                                             |
 
-## Attributes
+## Examples {.doc-section .doc-section-examples}
 
-| Name | Description |
-| --- | --- |
-| [metadata](#timetoalign.alignment.MatchClaimField.metadata) | Shared provenance applied to every materialised claim. |
-| [table](#timetoalign.alignment.MatchClaimField.table) | The backing single-column :class:`pyarrow.Table`. |
-| [timeline_ids](#timetoalign.alignment.MatchClaimField.timeline_ids) | The distinct timeline ids appearing in either id column. |
+```python
+>>> agent = Agent(name="dtw", type=AgentType.software, identifier="v1")
+>>> meta = MatchMetadata(agent=agent)
+>>> field = MatchClaimField.from_columns(
+...     timeline_a_ids=["A", "A", "B"],
+...     timeline_b_ids=["B", "C", "C"],
+...     coordinate_a=[0.0, 0.0, 1.0],
+...     coordinate_b=[10.0, 20.0, 21.0],
+...     unit_a=TimeUnit.quarters,
+...     unit_b=TimeUnit.seconds,
+...     metadata=meta,
+... )
+>>> len(field)
+3
+>>> field[0].timeline_a_id, field[0].timeline_b_id
+('A', 'B')
+```
 
 ## Methods
 
@@ -103,13 +99,19 @@ must land on a value the field actually carries.  There is no
 tolerance and no nearest-value fallback, so the result agrees with a
 per-claim scan of the same claims.
 
-Args:
-    timeline_id: The timeline the queried coordinate lives on.
-    coordinate: The exact coordinate value on that timeline.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new :class:`MatchClaimField` holding only the matching rows
-    (possibly empty).
+| Name        | Type             | Description                                   | Default    |
+|-------------|------------------|-----------------------------------------------|------------|
+| timeline_id | [str](`str`)     | The timeline the queried coordinate lives on. | _required_ |
+| coordinate  | [float](`float`) | The exact coordinate value on that timeline.  | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                | Description                                                   |
+|--------|---------------------|---------------------------------------------------------------|
+|        | \'MatchClaimField\' | A new :class:`MatchClaimField` holding only the matching rows |
+|        | \'MatchClaimField\' | (possibly empty).                                             |
 
 ### connecting { #timetoalign.alignment.MatchClaimField.connecting }
 
@@ -123,11 +125,17 @@ The filter is a vectorized boolean mask over the struct's id
 sub-fields; no claim is materialised. The shared metadata carries
 over.
 
-Args:
-    timeline_id: The exact timeline id to match against either column.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new :class:`MatchClaimField` holding only the matching rows.
+| Name        | Type         | Description                                           | Default    |
+|-------------|--------------|-------------------------------------------------------|------------|
+| timeline_id | [str](`str`) | The exact timeline id to match against either column. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                | Description                                                    |
+|--------|---------------------|----------------------------------------------------------------|
+|        | \'MatchClaimField\' | A new :class:`MatchClaimField` holding only the matching rows. |
 
 ### connects_groups { #timetoalign.alignment.MatchClaimField.connects_groups }
 
@@ -142,12 +150,18 @@ other side in ``group_b_ids``.  The test is a vectorized mask reduced
 with :func:`pyarrow.compute.any`; no claim is materialised, so it
 answers commensurability over a million-row field in one pass.
 
-Args:
-    group_a_ids: Timeline ids on one side.
-    group_b_ids: Timeline ids on the other side.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    True if some claim connects the two sets.
+| Name        | Type                         | Description                     | Default    |
+|-------------|------------------------------|---------------------------------|------------|
+| group_a_ids | [set](`set`)\[[str](`str`)\] | Timeline ids on one side.       | _required_ |
+| group_b_ids | [set](`set`)\[[str](`str`)\] | Timeline ids on the other side. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                               |
+|--------|----------------|-------------------------------------------|
+|        | [bool](`bool`) | True if some claim connects the two sets. |
 
 ### coordinate_pairs { #timetoalign.alignment.MatchClaimField.coordinate_pairs }
 
@@ -163,9 +177,12 @@ lists pulled straight off the Arrow columns.  Materialising the rows
 as :class:`MatchClaim` objects instead costs orders of magnitude more
 for the same information.
 
-Returns:
-    ``(timeline_a_ids, timeline_b_ids, coordinates_a, coordinates_b)``,
-    all of length ``len(self)``.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                           | Description                                                         |
+|--------|--------------------------------|---------------------------------------------------------------------|
+|        | [list](`list`)\[[str](`str`)\] | ``(timeline_a_ids, timeline_b_ids, coordinates_a, coordinates_b)``, |
+|        | [list](`list`)\[[str](`str`)\] | all of length ``len(self)``.                                        |
 
 ### filter { #timetoalign.alignment.MatchClaimField.filter }
 
@@ -194,28 +211,30 @@ hold.  A caller that owns that metadata — an
 them into the set of timeline ids that pass and hands that set to
 ``within``.
 
-Args:
-    timeline_id: Keep rows involving this exact id on either side
-        (equivalent to :meth:`connecting`).
-    timeline_ids: Keep rows involving **any** id in this set on either
-        side.
-    id_pattern: Keep rows involving any id matching this regex
-        (``re.search`` against the field's :attr:`timeline_ids`).
-    between: Keep rows connecting exactly these two ids
-        (order-independent).
-    within: Keep rows whose **both** ids are in this set.  This is the
-        primitive behind domain- and unit-restricted queries.
-    synchronous_only: A no-op — every row in this store is a
-        synchronous claim by class invariant.
-    nomatch_only: Returns an **empty** field, for the same reason.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new :class:`MatchClaimField`.  With no criteria set, a copy of
-    the whole field is returned.
+| Name             | Type                                                   | Description                                                                                                      | Default   |
+|------------------|--------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|-----------|
+| timeline_id      | [str](`str`) \| None                                   | Keep rows involving this exact id on either side (equivalent to :meth:`connecting`).                             | `None`    |
+| timeline_ids     | [set](`set`)\[[str](`str`)\] \| None                   | Keep rows involving **any** id in this set on either side.                                                       | `None`    |
+| id_pattern       | [str](`str`) \| None                                   | Keep rows involving any id matching this regex (``re.search`` against the field's :attr:`timeline_ids`).         | `None`    |
+| between          | [tuple](`tuple`)\[[str](`str`), [str](`str`)\] \| None | Keep rows connecting exactly these two ids (order-independent).                                                  | `None`    |
+| within           | [set](`set`)\[[str](`str`)\] \| None                   | Keep rows whose **both** ids are in this set.  This is the primitive behind domain- and unit-restricted queries. | `None`    |
+| synchronous_only | [bool](`bool`)                                         | A no-op — every row in this store is a synchronous claim by class invariant.                                     | `False`   |
+| nomatch_only     | [bool](`bool`)                                         | Returns an **empty** field, for the same reason.                                                                 | `False`   |
 
-Raises:
-    ValueError: If ``synchronous_only`` and ``nomatch_only`` are both
-        set.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                | Description                                                      |
+|--------|---------------------|------------------------------------------------------------------|
+|        | \'MatchClaimField\' | A new :class:`MatchClaimField`.  With no criteria set, a copy of |
+|        | \'MatchClaimField\' | the whole field is returned.                                     |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                |
+|--------|----------------------------|------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If ``synchronous_only`` and ``nomatch_only`` are both set. |
 
 ### from_claims { #timetoalign.alignment.MatchClaimField.from_claims }
 
@@ -233,18 +252,24 @@ If ``metadata`` is ``None`` and all claims share one identical
 field-level provenance; otherwise the field's metadata stays ``None``
 (no per-row metadata is ever stored).
 
-Args:
-    claims: The claims to store. Coordinates are pulled from each
-        claim's ``start_anchor``.
-    metadata: Explicit field-level provenance. When provided it
-        overrides any per-claim metadata inference.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new :class:`MatchClaimField`.
+| Name     | Type                                                                      | Description                                                                                   | Default    |
+|----------|---------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|------------|
+| claims   | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | The claims to store. Coordinates are pulled from each claim's ``start_anchor``.               | _required_ |
+| metadata | [MatchMetadata](`timetoalign.alignment.claims.MatchMetadata`) \| None     | Explicit field-level provenance. When provided it overrides any per-claim metadata inference. | `None`     |
 
-Raises:
-    ValueError: If any claim is non-synchronous (NOMATCH), lacks a
-        start anchor, or is an interval (carries an end anchor).
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                | Description                     |
+|--------|---------------------|---------------------------------|
+|        | \'MatchClaimField\' | A new :class:`MatchClaimField`. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                                                                 |
+|--------|----------------------------|-------------------------------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If any claim is non-synchronous (NOMATCH), lacks a start anchor, or is an interval (carries an end anchor). |
 
 ### from_columns { #timetoalign.alignment.MatchClaimField.from_columns }
 
@@ -276,20 +301,29 @@ the inputs; ``is_synchronous`` and ``is_explicit`` are ``True``;
 ``metadata`` / ``source_claim_id`` / ``id`` are left null (the shared
 metadata is injected on read, the id is generated on materialise).
 
-Args:
-    timeline_a_ids: Timeline-A ids, one per claim.
-    timeline_b_ids: Timeline-B ids, one per claim.
-    coordinate_a: Coordinate value on timeline A, one per claim.
-    coordinate_b: Coordinate value on timeline B, one per claim.
-    unit_a: Unit applied to every coordinate on timeline A.
-    unit_b: Unit applied to every coordinate on timeline B.
-    metadata: Shared provenance for every claim in the field.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new :class:`MatchClaimField`.
+| Name           | Type                                                                                                                                                                                                                 | Description                                     | Default    |
+|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------|------------|
+| timeline_a_ids | [Sequence](`collections.abc.Sequence`)\[[str](`str`)\] \| [pa](`pyarrow`).[Array](`pyarrow.Array`) \| [pa](`pyarrow`).[ChunkedArray](`pyarrow.ChunkedArray`)                                                         | Timeline-A ids, one per claim.                  | _required_ |
+| timeline_b_ids | [Sequence](`collections.abc.Sequence`)\[[str](`str`)\] \| [pa](`pyarrow`).[Array](`pyarrow.Array`) \| [pa](`pyarrow`).[ChunkedArray](`pyarrow.ChunkedArray`)                                                         | Timeline-B ids, one per claim.                  | _required_ |
+| coordinate_a   | [Sequence](`collections.abc.Sequence`)\[[int](`int`) \| [float](`float`) \| [Fraction](`fractions.Fraction`)\] \| [pa](`pyarrow`).[Array](`pyarrow.Array`) \| [pa](`pyarrow`).[ChunkedArray](`pyarrow.ChunkedArray`) | Coordinate value on timeline A, one per claim.  | _required_ |
+| coordinate_b   | [Sequence](`collections.abc.Sequence`)\[[int](`int`) \| [float](`float`) \| [Fraction](`fractions.Fraction`)\] \| [pa](`pyarrow`).[Array](`pyarrow.Array`) \| [pa](`pyarrow`).[ChunkedArray](`pyarrow.ChunkedArray`) | Coordinate value on timeline B, one per claim.  | _required_ |
+| unit_a         | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`)                                                                                                                                                              | Unit applied to every coordinate on timeline A. | _required_ |
+| unit_b         | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`)                                                                                                                                                              | Unit applied to every coordinate on timeline B. | _required_ |
+| metadata       | [MatchMetadata](`timetoalign.alignment.claims.MatchMetadata`) \| None                                                                                                                                                | Shared provenance for every claim in the field. | `None`     |
 
-Raises:
-    ValueError: If the four inputs do not all have the same length.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                | Description                     |
+|--------|---------------------|---------------------------------|
+|        | \'MatchClaimField\' | A new :class:`MatchClaimField`. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                         |
+|--------|----------------------------|-----------------------------------------------------|
+|        | [ValueError](`ValueError`) | If the four inputs do not all have the same length. |
 
 ### from_dict { #timetoalign.alignment.MatchClaimField.from_dict }
 
@@ -301,12 +335,17 @@ Deserialize a field from a plain dictionary.
 
 Inverse of :meth:`to_dict`.
 
-Args:
-    data: A mapping with the four column lists and an optional
-        ``metadata`` dict.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new :class:`MatchClaimField`.
+| Name   | Type                                                | Description                                                             | Default    |
+|--------|-----------------------------------------------------|-------------------------------------------------------------------------|------------|
+| data   | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | A mapping with the four column lists and an optional ``metadata`` dict. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                | Description                     |
+|--------|---------------------|---------------------------------|
+|        | \'MatchClaimField\' | A new :class:`MatchClaimField`. |
 
 ### max_coordinate { #timetoalign.alignment.MatchClaimField.max_coordinate }
 
@@ -319,12 +358,18 @@ The largest coordinate this field carries for ``timeline_id``.
 Both anchor sides are scanned vectorized with :func:`pyarrow.compute.max`;
 no claim is materialised.
 
-Args:
-    timeline_id: The timeline to look up.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The maximum coordinate value carried for that timeline, or
-    ``None`` if the timeline does not appear in this field.
+| Name        | Type         | Description              | Default    |
+|-------------|--------------|--------------------------|------------|
+| timeline_id | [str](`str`) | The timeline to look up. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                     | Description                                                |
+|--------|--------------------------|------------------------------------------------------------|
+|        | [float](`float`) \| None | The maximum coordinate value carried for that timeline, or |
+|        | [float](`float`) \| None | ``None`` if the timeline does not appear in this field.    |
 
 ### to_claims { #timetoalign.alignment.MatchClaimField.to_claims }
 
@@ -337,8 +382,11 @@ Materialise every row into a list of :class:`MatchClaim` objects.
 This is ``O(n)`` and defeats the columnar purpose for large sets; it
 is provided for convenience and round-tripping, not for hot paths.
 
-Returns:
-    A list of synchronous instant claims, one per row.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                      | Description                                        |
+|--------|---------------------------------------------------------------------------|----------------------------------------------------|
+|        | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | A list of synchronous instant claims, one per row. |
 
 ### to_dict { #timetoalign.alignment.MatchClaimField.to_dict }
 
@@ -352,5 +400,8 @@ The id and coordinate columns are emitted as plain Python lists (read
 directly from the struct sub-fields); the metadata is emitted via
 :meth:`MatchMetadata.to_dict` (or ``None``).
 
-Returns:
-    A round-trippable mapping.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                |
+|--------|-----------------------------------------------------|----------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | A round-trippable mapping. |

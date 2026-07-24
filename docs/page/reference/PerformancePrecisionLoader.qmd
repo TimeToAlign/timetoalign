@@ -22,11 +22,12 @@ quarter-note positions.
 3. ``loader.create_timeline(uid)`` / ``create_timelines()`` — retrieve
    individual timelines.
 
-Args:
-    score_unit: Unit for the score timeline. Default
-        ``TimeUnit.quarters``.
-    media_unit: Unit for the performance timelines. Default
-        ``TimeUnit.seconds``.
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type                                    | Description                                                       | Default             |
+|------------|-----------------------------------------|-------------------------------------------------------------------|---------------------|
+| score_unit | [TimeUnit](`timetoalign.core.TimeUnit`) | Unit for the score timeline. Default ``TimeUnit.quarters``.       | `TimeUnit.quarters` |
+| media_unit | [TimeUnit](`timetoalign.core.TimeUnit`) | Unit for the performance timelines. Default ``TimeUnit.seconds``. | `TimeUnit.seconds`  |
 
 ## Attributes
 
@@ -53,13 +54,19 @@ loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle(
 
 Assemble an AlignmentBundle from the loaded specimen.
 
-Returns:
-    An ``AlignmentBundle`` with the score timeline in its own
-    ``"score"`` group, each performer timeline standalone, and all
-    MatchClaims as cross-group claims.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    RuntimeError: If ``load()`` has not been called yet.
+| Name   | Type                | Description                                                    |
+|--------|---------------------|----------------------------------------------------------------|
+|        | \'AlignmentBundle\' | An ``AlignmentBundle`` with the score timeline in its own      |
+|        | \'AlignmentBundle\' | ``"score"`` group, each performer timeline standalone, and all |
+|        | \'AlignmentBundle\' | MatchClaims as cross-group claims.                             |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                            |
+|--------|--------------------------------|----------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet. |
 
 ### create_timeline { #timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline }
 
@@ -72,14 +79,18 @@ loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelin
 
 Return a single timeline by uid, role, or performer key.
 
-Args:
-    uid: ``"score"`` (or the score uid) for the score timeline; a
-        performer key (``"Chopin_Ashkenazy"``) or its uid
-        (``"perf:Chopin_Ashkenazy:cpt1"``) for a performance timeline.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Raises:
-    KeyError: If no timeline matches.
-    RuntimeError: If ``load()`` has not been called yet.
+| Name   | Type                 | Description                                                                                                                                                               | Default   |
+|--------|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| uid    | [str](`str`) \| None | ``"score"`` (or the score uid) for the score timeline; a performer key (``"Chopin_Ashkenazy"``) or its uid (``"perf:Chopin_Ashkenazy:cpt1"``) for a performance timeline. | `None`    |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                            |
+|--------|--------------------------------|----------------------------------------|
+|        | [KeyError](`KeyError`)         | If no timeline matches.                |
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet. |
 
 ### create_timelines { #timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines }
 
@@ -91,8 +102,11 @@ loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelin
 
 Return all timelines: ``[score, performer_1, ..., performer_n]``.
 
-Args:
-    id_pattern: Optional regex pattern to filter timeline IDs.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type                 | Description                                    | Default   |
+|------------|----------------------|------------------------------------------------|-----------|
+| id_pattern | [str](`str`) \| None | Optional regex pattern to filter timeline IDs. | `None`    |
 
 ### load { #timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load }
 
@@ -104,15 +118,21 @@ loader.alignment.performance_precision.PerformancePrecisionLoader.load(
 
 Ingest a whole Performance Precision specimen directory.
 
-Args:
-    specimen_dir: Path to the directory containing the ``.solo``
-        file, the Verovio timemap ``.json``, and the
-        ``Alignments/`` subdirectory.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name         | Type                                   | Description                                                                                                               | Default    |
+|--------------|----------------------------------------|---------------------------------------------------------------------------------------------------------------------------|------------|
+| specimen_dir | [str](`str`) \| [Path](`pathlib.Path`) | Path to the directory containing the ``.solo`` file, the Verovio timemap ``.json``, and the ``Alignments/`` subdirectory. | _required_ |
 
-Raises:
-    FileNotFoundError: If the directory or a required artifact is
-        missing.
-    ValueError: If more than one ``.solo`` or timemap is present.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                     | Description                                         |
+|--------|------------------------------------------|-----------------------------------------------------|
+|        | [FileNotFoundError](`FileNotFoundError`) | If the directory or a required artifact is missing. |
+|        | [ValueError](`ValueError`)               | If more than one ``.solo`` or timemap is present.   |

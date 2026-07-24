@@ -11,30 +11,29 @@ given *source* timeline, orders them by coordinate on that timeline,
 and exposes ``get_coordinate_pairs()`` to extract the
 ``(source_coord, target_coord)`` table consumed by WarpMap.
 
-Attributes:
-    source_timeline_id: The timeline whose coordinates define the
-        ordering of the stamps.
-    stamps: MatchStamps sorted by coordinate on ``source_timeline_id``.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> line = MatchLine.from_claims(
-    ...     claims=claims,
-    ...     source_timeline_id="score",
-    ... )
-    >>> pairs = line.get_coordinate_pairs("audio")
-    >>> pairs
-    [(0.0, 0.0), (100.0, 45.5), (200.0, 91.0)]
+| Name               | Type                                                                     | Description                                                       |
+|--------------------|--------------------------------------------------------------------------|-------------------------------------------------------------------|
+| source_timeline_id | [str](`str`)                                                             | The timeline whose coordinates define the ordering of the stamps. |
+| stamps             | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | MatchStamps sorted by coordinate on ``source_timeline_id``.       |
 
-See Also:
-    `timetoalign.MatchGraph`
-    `timetoalign.MatchStamp`
+## Examples {.doc-section .doc-section-examples}
 
-## Attributes
+```python
+>>> line = MatchLine.from_claims(
+...     claims=claims,
+...     source_timeline_id="score",
+... )
+>>> pairs = line.get_coordinate_pairs("audio")
+>>> pairs
+[(0.0, 0.0), (100.0, 45.5), (200.0, 91.0)]
+```
 
-| Name | Description |
-| --- | --- |
-| [n_stamps](#timetoalign.alignment.MatchLine.n_stamps) | Number of stamps in this MatchLine. |
-| [source_coordinates](#timetoalign.alignment.MatchLine.source_coordinates) | Sorted list of coordinates on the source timeline. |
+## See Also {.doc-section .doc-section-see-also}
+
+`timetoalign.MatchGraph`
+`timetoalign.MatchStamp`
 
 ## Methods
 
@@ -70,21 +69,24 @@ Constructs a MatchGraph from the supplied claims, optionally
 extends it to groups, extracts MatchStamps, and orders them by
 coordinate on the source timeline.
 
-Args:
-    claims: List of MatchClaims to resolve.
-    source_timeline_id: The timeline whose coordinates define
-        the ordering.
-    groups: Dict of group_id -> TimelineGroup for group extension.
-        If None, no group extension is performed.
-    timeline_to_group: Dict of timeline_id -> group_id.  Required
-        if ``groups`` is provided.
-    timeline_ids: Only extend to these timeline IDs.
-    id_pattern: Regex filter for timeline IDs.
-    include_domains: Only extend to timelines in these domains.
-    include_units: Only extend to timelines with these units.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A MatchLine with stamps sorted by source coordinate.
+| Name               | Type                                                                                                  | Description                                                                                      | Default    |
+|--------------------|-------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------|------------|
+| claims             | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\]                             | List of MatchClaims to resolve.                                                                  | _required_ |
+| source_timeline_id | [str](`str`)                                                                                          | The timeline whose coordinates define the ordering.                                              | _required_ |
+| groups             | [dict](`dict`)\[[str](`str`), [TimelineGroup](`timetoalign.timelines.groups.TimelineGroup`)\] \| None | Dict of group_id -> TimelineGroup for group extension. If None, no group extension is performed. | `None`     |
+| timeline_to_group  | [dict](`dict`)\[[str](`str`), [str](`str`)\] \| None                                                  | Dict of timeline_id -> group_id.  Required if ``groups`` is provided.                            | `None`     |
+| timeline_ids       | [set](`set`)\[[str](`str`)\] \| None                                                                  | Only extend to these timeline IDs.                                                               | `None`     |
+| id_pattern         | [str](`str`) \| None                                                                                  | Regex filter for timeline IDs.                                                                   | `None`     |
+| include_domains    | [set](`set`)\[[Domain](`timetoalign.core.enums.Domain`)\] \| None                                     | Only extend to timelines in these domains.                                                       | `None`     |
+| include_units      | [set](`set`)\[[TimeUnit](`timetoalign.core.enums.TimeUnit`)\] \| None                                 | Only extend to timelines with these units.                                                       | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                     | Description                                          |
+|--------|----------------------------------------------------------|------------------------------------------------------|
+|        | [MatchLine](`timetoalign.alignment.matchline.MatchLine`) | A MatchLine with stamps sorted by source coordinate. |
 
 ### from_dict { #timetoalign.alignment.MatchLine.from_dict }
 
@@ -94,11 +96,17 @@ alignment.MatchLine.from_dict(data)
 
 Deserialize from dictionary.
 
-Args:
-    data: Dict as produced by ``to_dict()``.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new MatchLine.
+| Name   | Type                                                | Description                        | Default    |
+|--------|-----------------------------------------------------|------------------------------------|------------|
+| data   | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict as produced by ``to_dict()``. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                     | Description      |
+|--------|----------------------------------------------------------|------------------|
+|        | [MatchLine](`timetoalign.alignment.matchline.MatchLine`) | A new MatchLine. |
 
 ### from_graphs { #timetoalign.alignment.MatchLine.from_graphs }
 
@@ -113,14 +121,19 @@ pattern) into a single ordered sequence. Duplicate stamps
 (same source coordinate) are deduplicated, keeping the stamp
 with the most timelines.
 
-Args:
-    graphs: List of MatchGraphs to merge.
-    source_timeline_id: The timeline whose coordinates define
-        the ordering.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A MatchLine with merged, deduplicated stamps sorted by
-    source coordinate.
+| Name               | Type                                                                     | Description                                         | Default    |
+|--------------------|--------------------------------------------------------------------------|-----------------------------------------------------|------------|
+| graphs             | [list](`list`)\[[MatchGraph](`timetoalign.alignment.graph.MatchGraph`)\] | List of MatchGraphs to merge.                       | _required_ |
+| source_timeline_id | [str](`str`)                                                             | The timeline whose coordinates define the ordering. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                     | Description                                            |
+|--------|----------------------------------------------------------|--------------------------------------------------------|
+|        | [MatchLine](`timetoalign.alignment.matchline.MatchLine`) | A MatchLine with merged, deduplicated stamps sorted by |
+|        | [MatchLine](`timetoalign.alignment.matchline.MatchLine`) | source coordinate.                                     |
 
 ### get_coordinate_pairs { #timetoalign.alignment.MatchLine.get_coordinate_pairs }
 
@@ -133,17 +146,24 @@ Extract (source_coord, target_coord) pairs for a target timeline.
 Only stamps that contain both the source and target timelines
 contribute to the result. Pairs are ordered by source coordinate.
 
-Args:
-    target_timeline_id: The timeline to extract target coordinates
-        for.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of ``(source_coord, target_coord)`` tuples, sorted by
-    source coordinate.
+| Name               | Type         | Description                                     | Default    |
+|--------------------|--------------|-------------------------------------------------|------------|
+| target_timeline_id | [str](`str`) | The timeline to extract target coordinates for. | _required_ |
 
-Raises:
-    ValueError: If ``target_timeline_id`` equals
-        ``source_timeline_id``.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                     | Description                                                |
+|--------|--------------------------------------------------------------------------|------------------------------------------------------------|
+|        | [list](`list`)\[[tuple](`tuple`)\[[float](`float`), [float](`float`)\]\] | List of ``(source_coord, target_coord)`` tuples, sorted by |
+|        | [list](`list`)\[[tuple](`tuple`)\[[float](`float`), [float](`float`)\]\] | source coordinate.                                         |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                              |
+|--------|----------------------------|----------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If ``target_timeline_id`` equals ``source_timeline_id``. |
 
 ### save_as { #timetoalign.alignment.MatchLine.save_as }
 
@@ -153,23 +173,32 @@ alignment.MatchLine.save_as(filepath, *, format='match', context=None)
 
 Export this MatchLine to a file.
 
-Args:
-    filepath: Output file path.  If the extension matches a known
-        format, the format is inferred (e.g. ``.match``).
-    format: Export format.  Currently supported: ``"match"``.
-    context: Supplementary data for format-specific fields.
-        Required for full ``.match`` export; if ``None``, a minimal
-        file with coordinate-only placeholder data is produced.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The resolved output path.
+| Name     | Type                                                                              | Description                                                                                                                                                        | Default    |
+|----------|-----------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| filepath | [str](`str`) \| [Path](`pathlib.Path`)                                            | Output file path.  If the extension matches a known format, the format is inferred (e.g. ``.match``).                                                              | _required_ |
+| format   | [str](`str`)                                                                      | Export format.  Currently supported: ``"match"``.                                                                                                                  | `'match'`  |
+| context  | [MatchFileContext](`timetoalign.alignment.match_format.MatchFileContext`) \| None | Supplementary data for format-specific fields. Required for full ``.match`` export; if ``None``, a minimal file with coordinate-only placeholder data is produced. | `None`     |
 
-Raises:
-    ValueError: If the format is not supported.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> line.save_as("output.match")  # minimal placeholder export
-    >>> line.save_as("output.match", context=ctx)  # rich export
+| Name   | Type                   | Description               |
+|--------|------------------------|---------------------------|
+|        | [Path](`pathlib.Path`) | The resolved output path. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                     |
+|--------|----------------------------|---------------------------------|
+|        | [ValueError](`ValueError`) | If the format is not supported. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> line.save_as("output.match")  # minimal placeholder export
+>>> line.save_as("output.match", context=ctx)  # rich export
+```
 
 ### target_timeline_ids { #timetoalign.alignment.MatchLine.target_timeline_ids }
 
@@ -182,9 +211,12 @@ All target timelines appearing in at least 2 stamps.
 A target timeline must appear in at least two stamps for
 interpolation (i.e., WarpMap construction) to be meaningful.
 
-Returns:
-    Set of timeline IDs (excluding the source) that appear
-    in >= 2 stamps.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                         | Description                                            |
+|--------|------------------------------|--------------------------------------------------------|
+|        | [set](`set`)\[[str](`str`)\] | Set of timeline IDs (excluding the source) that appear |
+|        | [set](`set`)\[[str](`str`)\] | in >= 2 stamps.                                        |
 
 ### to_dict { #timetoalign.alignment.MatchLine.to_dict }
 
@@ -194,5 +226,8 @@ alignment.MatchLine.to_dict()
 
 Serialize to dictionary for storage.
 
-Returns:
-    Dict with ``source_timeline_id`` and ``stamps``.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                                      |
+|--------|-----------------------------------------------------|--------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict with ``source_timeline_id`` and ``stamps``. |

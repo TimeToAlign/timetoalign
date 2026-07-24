@@ -857,7 +857,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.loader.midi.performance.PerformanceMidiLoader.from_file" id="toc-timetoalign.loader.midi.performance.PerformanceMidiLoader.from_file" class="nav-link" data-scroll-target="#timetoalign.loader.midi.performance.PerformanceMidiLoader.from_file">from_file</a></li>
+  <li><a href="#timetoalign.loader.midi.performance.PerformanceMidiLoader.from_file" id="toc-timetoalign.loader.midi.performance.PerformanceMidiLoader.from_file" class="nav-link" data-scroll-target="#timetoalign.loader.midi.performance.PerformanceMidiLoader.from_file">from_file</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -928,11 +933,89 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a loader and load a MIDI file in one step.</p>
 <p>Convenience constructor for loading a single file.</p>
-<p>Args: path: Path to the MIDI file. parse_durations: Whether to pair note_on/off into intervals. on0_means_off: Treat note_on with velocity 0 as note_off. include_controls: Include Control Change events. include_program_changes: Include Program Change events.</p>
-<p>Returns: A new PerformanceMidiLoader instance with the file already loaded.</p>
-<p>Examples: &gt;&gt;&gt; loader = PerformanceMidiLoader.from_file(“performance.mid”) &gt;&gt;&gt; loader.ticks_per_beat 480</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 32%">
+<col style="width: 36%">
+<col style="width: 9%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>path</td>
+<td><code>Path</code> | <code>str</code></td>
+<td>Path to the MIDI file.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>parse_durations</td>
+<td><code>bool</code></td>
+<td>Whether to pair note_on/off into intervals.</td>
+<td><code>True</code></td>
+</tr>
+<tr class="odd">
+<td>on0_means_off</td>
+<td><code>bool</code></td>
+<td>Treat note_on with velocity 0 as note_off.</td>
+<td><code>True</code></td>
+</tr>
+<tr class="even">
+<td>include_controls</td>
+<td><code>bool</code></td>
+<td>Include Control Change events.</td>
+<td><code>True</code></td>
+</tr>
+<tr class="odd">
+<td>include_program_changes</td>
+<td><code>bool</code></td>
+<td>Include Program Change events.</td>
+<td><code>True</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 26%">
+<col style="width: 66%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'PerformanceMidiLoader'</td>
+<td>A new PerformanceMidiLoader instance with the file already loaded.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level4 doc-section doc-section-examples">
+<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> PerformanceMidiLoader.from_file(<span class="st">"performance.mid"</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.ticks_per_beat</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="dv">480</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 </section>
 </section>

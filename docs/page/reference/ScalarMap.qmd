@@ -15,16 +15,21 @@ Pure scaling transformation: y = scalar * x.
 
 A simplified version of LinearMap with no offset.
 
-Examples:
-    >>> # Seconds to milliseconds
-    >>> s_to_ms = ScalarMap(scalar=1000, source_unit="seconds", target_unit="milliseconds")
-    >>> s_to_ms(1.5)
-    1500.0
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # Samples to seconds at 44100 Hz
-    >>> samples_to_sec = ScalarMap(scalar=1/44100, source_unit="samples", target_unit="seconds")
-    >>> samples_to_sec(44100)
-    1.0
+```python
+>>> # Seconds to milliseconds
+>>> s_to_ms = ScalarMap(scalar=1000, source_unit="seconds", target_unit="milliseconds")
+>>> s_to_ms(1.5)
+1500.0
+```
+
+```python
+>>> # Samples to seconds at 44100 Hz
+>>> samples_to_sec = ScalarMap(scalar=1/44100, source_unit="samples", target_unit="seconds")
+>>> samples_to_sec(44100)
+1.0
+```
 
 ## Attributes
 

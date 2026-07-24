@@ -26,25 +26,20 @@ Flows computed by ScoreFlowController have a controller reference, allowing
 access to MeasureUnits via iter_units(). Flows loaded from CSV are
 "detached" and do not have controller access.
 
-Note:
-    MC ranges use the **right-open interval convention** [mc_start, mc_end),
-    consistent with partitura and the TTA manuscript.
+## Note {.doc-section .doc-section-note}
 
-Attributes:
-    sections: The sequence of PlaythroughSection objects.
-    mode: The FlowMode used to compute this flow.
-    folded_length: Number of unique MCs (measures in printed score).
-    id: Identifier for this flow (defaults to mode.value).
-    source_metadata: Optional metadata from the source MeasureData.
+MC ranges use the **right-open interval convention** [mc_start, mc_end),
+consistent with partitura and the TTA manuscript.
 
-## Attributes
+## Attributes {.doc-section .doc-section-attributes}
 
-| Name | Description |
-| --- | --- |
-| [controller](#timetoalign.timelines.Flow.controller) | Get the ScoreFlowController that created this Flow, if still alive. |
-| [has_repeats](#timetoalign.timelines.Flow.has_repeats) | Whether the flow contains repeated measures. |
-| [total_quarterbeats](#timetoalign.timelines.Flow.total_quarterbeats) | Total duration of the unfolded sequence in quarter beats. |
-| [unfolded_length](#timetoalign.timelines.Flow.unfolded_length) | Number of measure visitations in the unfolded sequence. |
+| Name            | Type                                                                                             | Description                                        |
+|-----------------|--------------------------------------------------------------------------------------------------|----------------------------------------------------|
+| sections        | [list](`list`)\[[PlaythroughSection](`timetoalign.timelines.flow.sections.PlaythroughSection`)\] | The sequence of PlaythroughSection objects.        |
+| mode            | [FlowMode](`timetoalign.core.enums.FlowMode`)                                                    | The FlowMode used to compute this flow.            |
+| folded_length   | [int](`int`)                                                                                     | Number of unique MCs (measures in printed score).  |
+| id              | [str](`str`)                                                                                     | Identifier for this flow (defaults to mode.value). |
+| source_metadata | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\]                                              | Optional metadata from the source MeasureData.     |
 
 ## Methods
 
@@ -78,14 +73,20 @@ timelines.Flow.diagram(
 
 Show playthrough section sequence for this flow.
 
-Args:
-    width: Total width of the diagram in characters.
-    unicode: Use Unicode characters (True) or ASCII fallback (False).
-    show_mcs: Whether to expand MC sequences per section.
-    show_reasons: Whether to annotate why each section starts.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+| Name         | Type           | Description                                              | Default   |
+|--------------|----------------|----------------------------------------------------------|-----------|
+| width        | [int](`int`)   | Total width of the diagram in characters.                | `70`      |
+| unicode      | [bool](`bool`) | Use Unicode characters (True) or ASCII fallback (False). | `True`    |
+| show_mcs     | [bool](`bool`) | Whether to expand MC sequences per section.              | `False`   |
+| show_reasons | [bool](`bool`) | Whether to annotate why each section starts.             | `True`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type        | Description                                                           |
+|--------|-------------|-----------------------------------------------------------------------|
+|        | \'Diagram\' | Diagram object (displays as ASCII in terminal, rich HTML in Jupyter). |
 
 ### diff_diagram { #timetoalign.timelines.Flow.diff_diagram }
 
@@ -95,13 +96,19 @@ timelines.Flow.diff_diagram(other, width=80, unicode=True)
 
 Show side-by-side comparison of this flow with another.
 
-Args:
-    other: Another Flow to compare with.
-    width: Total width of the diagram in characters.
-    unicode: Use Unicode characters (True) or ASCII fallback (False).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+| Name    | Type           | Description                                              | Default    |
+|---------|----------------|----------------------------------------------------------|------------|
+| other   | \'Flow\'       | Another Flow to compare with.                            | _required_ |
+| width   | [int](`int`)   | Total width of the diagram in characters.                | `80`       |
+| unicode | [bool](`bool`) | Use Unicode characters (True) or ASCII fallback (False). | `True`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type        | Description                                                           |
+|--------|-------------|-----------------------------------------------------------------------|
+|        | \'Diagram\' | Diagram object (displays as ASCII in terminal, rich HTML in Jupyter). |
 
 ### diff_flows { #timetoalign.timelines.Flow.diff_flows }
 
@@ -113,11 +120,17 @@ Show differences between this flow and another using sequence alignment.
 
 Uses difflib to produce a human-readable diff of atomic sequences.
 
-Args:
-    other: Another Flow to compare against.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    String showing the alignment/diff between the two flows.
+| Name   | Type     | Description                      | Default    |
+|--------|----------|----------------------------------|------------|
+| other  | \'Flow\' | Another Flow to compare against. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                                              |
+|--------|--------------|----------------------------------------------------------|
+|        | [str](`str`) | String showing the alignment/diff between the two flows. |
 
 ### from_csv { #timetoalign.timelines.Flow.from_csv }
 
@@ -129,18 +142,28 @@ Load Flow for specific mode from .flow.csv file.
 
 Filters CSV to rows matching the given flow_mode.
 
-Note:
-    MC ranges use right-open interval convention [mc_start, mc_end).
+#### Note {.doc-section .doc-section-note}
 
-Args:
-    path: Path to the .flow.csv file.
-    mode: The FlowMode to load.
+MC ranges use right-open interval convention [mc_start, mc_end).
 
-Returns:
-    New Flow instance with sections populated.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Raises:
-    ValueError: If no entries found for the given mode.
+| Name   | Type                                          | Description                 | Default    |
+|--------|-----------------------------------------------|-----------------------------|------------|
+| path   | \'Path \| str\'                               | Path to the .flow.csv file. | _required_ |
+| mode   | [FlowMode](`timetoalign.core.enums.FlowMode`) | The FlowMode to load.       | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type     | Description                                |
+|--------|----------|--------------------------------------------|
+|        | \'Flow\' | New Flow instance with sections populated. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                             |
+|--------|----------------------------|-----------------------------------------|
+|        | [ValueError](`ValueError`) | If no entries found for the given mode. |
 
 ### from_dataframe { #timetoalign.timelines.Flow.from_dataframe }
 
@@ -150,16 +173,22 @@ timelines.Flow.from_dataframe(df, mode)
 
 Create Flow from DataFrame with mc_start, mc_end, atomic_sections fields.
 
-Note:
-    MC ranges use right-open interval convention [mc_start, mc_end).
+#### Note {.doc-section .doc-section-note}
 
-Args:
-    df: DataFrame with fields: mc_start, mc_end, atomic_sections
-        (or its flow-CSV spelling "atomic_segments").
-    mode: The FlowMode for this flow.
+MC ranges use right-open interval convention [mc_start, mc_end).
 
-Returns:
-    New Flow instance with sections populated.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type                                          | Description                                                                                            | Default    |
+|--------|-----------------------------------------------|--------------------------------------------------------------------------------------------------------|------------|
+| df     | \'pd.DataFrame\'                              | DataFrame with fields: mc_start, mc_end, atomic_sections (or its flow-CSV spelling "atomic_segments"). | _required_ |
+| mode   | [FlowMode](`timetoalign.core.enums.FlowMode`) | The FlowMode for this flow.                                                                            | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type     | Description                                |
+|--------|----------|--------------------------------------------|
+|        | \'Flow\' | New Flow instance with sections populated. |
 
 ### from_records { #timetoalign.timelines.Flow.from_records }
 
@@ -169,20 +198,22 @@ timelines.Flow.from_records(records, mode)
 
 Create Flow from list of dicts with mc_start, mc_end, atomic_sections.
 
-Note:
-    MC ranges use right-open interval convention [mc_start, mc_end).
+#### Note {.doc-section .doc-section-note}
 
-Args:
-    records: List of dicts, each with keys:
-        - mc_start: int (inclusive)
-        - mc_end: int (exclusive, right-open)
-        - atomic_sections: str (semicolon-separated, e.g., "A;B");
-          the persisted flow-CSV format names this column
-          "atomic_segments", which is accepted as a fallback key
-    mode: The FlowMode for this flow.
+MC ranges use right-open interval convention [mc_start, mc_end).
 
-Returns:
-    New Flow instance with sections populated.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name    | Type                                          | Description                                                                                                                                                                                                                                                            | Default    |
+|---------|-----------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| records | [list](`list`)\[[dict](`dict`)\]              | List of dicts, each with keys: - mc_start: int (inclusive) - mc_end: int (exclusive, right-open) - atomic_sections: str (semicolon-separated, e.g., "A;B");   the persisted flow-CSV format names this column   "atomic_segments", which is accepted as a fallback key | _required_ |
+| mode    | [FlowMode](`timetoalign.core.enums.FlowMode`) | The FlowMode for this flow.                                                                                                                                                                                                                                            | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type     | Description                                |
+|--------|----------|--------------------------------------------|
+|        | \'Flow\' | New Flow instance with sections populated. |
 
 ### from_sections { #timetoalign.timelines.Flow.from_sections }
 
@@ -192,13 +223,19 @@ timelines.Flow.from_sections(sections, mode, folded_length=None)
 
 Create a Flow from PlaythroughSections.
 
-Args:
-    sections: List of PlaythroughSection objects.
-    mode: The FlowMode for this flow.
-    folded_length: Number of unique MCs. If None, computed from sections.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    New Flow instance with sections populated.
+| Name          | Type                                                                                             | Description                                            | Default    |
+|---------------|--------------------------------------------------------------------------------------------------|--------------------------------------------------------|------------|
+| sections      | [list](`list`)\[[PlaythroughSection](`timetoalign.timelines.flow.sections.PlaythroughSection`)\] | List of PlaythroughSection objects.                    | _required_ |
+| mode          | [FlowMode](`timetoalign.core.enums.FlowMode`)                                                    | The FlowMode for this flow.                            | _required_ |
+| folded_length | [int](`int`) \| None                                                                             | Number of unique MCs. If None, computed from sections. | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type     | Description                                |
+|--------|----------|--------------------------------------------|
+|        | \'Flow\' | New Flow instance with sections populated. |
 
 ### is_equivalent { #timetoalign.timelines.Flow.is_equivalent }
 
@@ -213,11 +250,17 @@ and each corresponding section has matching mc_start and mc_end.
 
 Note: atomic_section_ids are NOT compared - only MC ranges matter.
 
-Args:
-    other: Another Flow to compare against.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    True if flows are equivalent, False otherwise.
+| Name   | Type     | Description                      | Default    |
+|--------|----------|----------------------------------|------------|
+| other  | \'Flow\' | Another Flow to compare against. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                                    |
+|--------|----------------|------------------------------------------------|
+|        | [bool](`bool`) | True if flows are equivalent, False otherwise. |
 
 ### iter_units { #timetoalign.timelines.Flow.iter_units }
 
@@ -230,16 +273,25 @@ Iterate over MeasureUnits via the controller.
 This provides access to the folded score skeleton (one MeasureUnit
 per MeasureData row).
 
-Yields:
-    MeasureUnit objects in MC order.
+#### Yields {.doc-section .doc-section-yields}
 
-Raises:
-    ValueError: If Flow is detached from controller (e.g., loaded from CSV).
+| Name   | Type                                                             | Description                      |
+|--------|------------------------------------------------------------------|----------------------------------|
+|        | [MeasureUnit](`timetoalign.timelines.flow.measures.MeasureUnit`) | MeasureUnit objects in MC order. |
 
-Examples:
-    >>> flow = controller.compute_flow()
-    >>> for unit in flow.iter_units():
-    ...     print(f"MC {unit.mc}: next={unit.next}")
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                  |
+|--------|----------------------------|--------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If Flow is detached from controller (e.g., loaded from CSV). |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> flow = controller.compute_flow()
+>>> for unit in flow.iter_units():
+...     print(f"MC {unit.mc}: next={unit.next}")
+```
 
 ### to_atomic_sequence { #timetoalign.timelines.Flow.to_atomic_sequence }
 
@@ -252,17 +304,23 @@ Return flattened sequence of atomic section IDs.
 This provides a canonical representation of the flow as a sequence
 of atomic section traversals. Useful for comparing flows and debugging.
 
-Returns:
-    List of atomic section IDs in traversal order.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> flow = Flow.from_sections([
-    ...     PlaythroughSection(1, 17, ("A", "B")),
-    ...     PlaythroughSection(17, 32, ("C",)),
-    ...     PlaythroughSection(6, 17, ("B",)),
-    ... ], FlowMode.default)
-    >>> flow.to_atomic_sequence()
-    ['A', 'B', 'C', 'B']
+| Name   | Type                           | Description                                    |
+|--------|--------------------------------|------------------------------------------------|
+|        | [list](`list`)\[[str](`str`)\] | List of atomic section IDs in traversal order. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> flow = Flow.from_sections([
+...     PlaythroughSection(1, 17, ("A", "B")),
+...     PlaythroughSection(17, 32, ("C",)),
+...     PlaythroughSection(6, 17, ("B",)),
+... ], FlowMode.default)
+>>> flow.to_atomic_sequence()
+['A', 'B', 'C', 'B']
+```
 
 ### to_csv_rows { #timetoalign.timelines.Flow.to_csv_rows }
 
@@ -272,15 +330,22 @@ timelines.Flow.to_csv_rows(source_file, software_version)
 
 Export as .flow.csv format rows.
 
-Returns list of dicts with keys:
-    flow_mode, source_file, software_version, mc_start, mc_end, atomic_sections
+#### Returns list of dicts with keys {.doc-section .doc-section-returns-list-of-dicts-with-keys}
 
-Args:
-    source_file: The file that was parsed to produce this flow.
-    software_version: Software name and version for reproducibility.
+flow_mode, source_file, software_version, mc_start, mc_end, atomic_sections
 
-Returns:
-    List of dicts ready for CSV writing.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name             | Type         | Description                                    | Default    |
+|------------------|--------------|------------------------------------------------|------------|
+| source_file      | [str](`str`) | The file that was parsed to produce this flow. | _required_ |
+| software_version | [str](`str`) | Software name and version for reproducibility. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                          |
+|--------|----------------------------------|--------------------------------------|
+|        | [list](`list`)\[[dict](`dict`)\] | List of dicts ready for CSV writing. |
 
 ### to_dataframe { #timetoalign.timelines.Flow.to_dataframe }
 
@@ -290,13 +355,17 @@ timelines.Flow.to_dataframe()
 
 Convert to pandas DataFrame with section information.
 
-Returns:
-    DataFrame with fields: mc_start, mc_end, atomic_sections
-    for each PlaythroughSection.
+#### Returns {.doc-section .doc-section-returns}
 
-Note:
-    This returns section-level data. For per-MC data, use
-    iter_units() with controller access.
+| Name   | Type             | Description                                              |
+|--------|------------------|----------------------------------------------------------|
+|        | \'pd.DataFrame\' | DataFrame with fields: mc_start, mc_end, atomic_sections |
+|        | \'pd.DataFrame\' | for each PlaythroughSection.                             |
+
+#### Note {.doc-section .doc-section-note}
+
+This returns section-level data. For per-MC data, use
+iter_units() with controller access.
 
 ### to_mc_sequence { #timetoalign.timelines.Flow.to_mc_sequence }
 
@@ -306,8 +375,11 @@ timelines.Flow.to_mc_sequence()
 
 Return the sequence of MCs in traversal order.
 
-Returns:
-    List of MC values in the order they are visited (right-open intervals).
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                           | Description                                                             |
+|--------|--------------------------------|-------------------------------------------------------------------------|
+|        | [list](`list`)\[[int](`int`)\] | List of MC values in the order they are visited (right-open intervals). |
 
 ### to_records { #timetoalign.timelines.Flow.to_records }
 
@@ -317,5 +389,8 @@ timelines.Flow.to_records()
 
 Export as list of dicts (section-based).
 
-Returns:
-    List of dicts with keys: mc_start, mc_end, atomic_sections.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                                                 |
+|--------|----------------------------------|-------------------------------------------------------------|
+|        | [list](`list`)\[[dict](`dict`)\] | List of dicts with keys: mc_start, mc_end, atomic_sections. |

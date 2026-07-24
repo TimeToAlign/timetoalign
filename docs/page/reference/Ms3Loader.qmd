@@ -53,20 +53,30 @@ Create a loader and load TSV files in one step.
 
 Convenience constructor for loading one or more TSV files.
 
-Args:
-    *paths: Paths to TSV files (notes, measures, harmonies, chords).
-    auto_discover: If True, automatically locate companion facet
-        files for each source.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new Ms3Loader instance with the files already loaded.
+| Name          | Type                                   | Description                                                          | Default   |
+|---------------|----------------------------------------|----------------------------------------------------------------------|-----------|
+| *paths        | [Path](`pathlib.Path`) \| [str](`str`) | Paths to TSV files (notes, measures, harmonies, chords).             | `()`      |
+| auto_discover | [bool](`bool`)                         | If True, automatically locate companion facet files for each source. | `False`   |
 
-Examples:
-    >>> loader = Ms3Loader.from_file("score.notes.tsv", "score.measures.tsv")
-    >>> loader.store.summary()
+#### Returns {.doc-section .doc-section-returns}
 
-    >>> # Auto-discover all facet files from a single notes file:
-    >>> loader = Ms3Loader.from_file("score.notes.tsv", auto_discover=True)
+| Name   | Type          | Description                                             |
+|--------|---------------|---------------------------------------------------------|
+|        | \'Ms3Loader\' | A new Ms3Loader instance with the files already loaded. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader = Ms3Loader.from_file("score.notes.tsv", "score.measures.tsv")
+>>> loader.store.summary()
+```
+
+```python
+>>> # Auto-discover all facet files from a single notes file:
+>>> loader = Ms3Loader.from_file("score.notes.tsv", auto_discover=True)
+```
 
 ### load { #timetoalign.loader.score.Ms3Loader.load }
 
@@ -81,8 +91,14 @@ include its companion facet files (measures, chords, harmonies,
 etc.) before loading. Files that have already been loaded (or that
 appear more than once in the expanded set) are silently skipped.
 
-Args:
-    *sources: Paths to TSV files.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name     | Type                                   | Description         | Default   |
+|----------|----------------------------------------|---------------------|-----------|
+| *sources | [Path](`pathlib.Path`) \| [str](`str`) | Paths to TSV files. | `()`      |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |

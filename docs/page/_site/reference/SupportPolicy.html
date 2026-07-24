@@ -852,7 +852,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.core.SupportPolicy" id="toc-timetoalign.core.SupportPolicy" class="nav-link active" data-scroll-target="#timetoalign.core.SupportPolicy">SupportPolicy</a></li>
+  <li><a href="#timetoalign.core.SupportPolicy" id="toc-timetoalign.core.SupportPolicy" class="nav-link active" data-scroll-target="#timetoalign.core.SupportPolicy">SupportPolicy</a>
+  <ul>
+  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -867,10 +870,43 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>core.SupportPolicy()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>How to treat a transferred coordinate that falls outside alignment support.</p>
 <p>A coordinate transferred to another timeline is <em>out-of-support</em> when the entering coordinate lies outside the transferring WarpMap’s source-anchor hull, or when the produced coordinate would fall outside the target timeline’s <code>[0, length]</code> span. This policy decides what happens to such a timeline when a cross-timeline stamp is assembled.</p>
-<p>Attributes: omit: Drop the out-of-support timeline from the stamp entirely. This is the default: a coordinate below the first alignment anchor or beyond the last one has no defined position, so the timeline simply does not appear. clamp: Clamp the entering coordinate to the nearest hull boundary before warping (yielding that boundary anchor’s target), then clip the result to <code>[0, length]</code>. The timeline stays present. extrapolate: Keep the linear extrapolation beyond the hull, then clip the result to <code>[0, length]</code>. The timeline stays present.</p>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 3%">
+<col style="width: 91%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>omit</td>
+<td></td>
+<td>Drop the out-of-support timeline from the stamp entirely. This is the default: a coordinate below the first alignment anchor or beyond the last one has no defined position, so the timeline simply does not appear.</td>
+</tr>
+<tr class="even">
+<td>clamp</td>
+<td></td>
+<td>Clamp the entering coordinate to the nearest hull boundary before warping (yielding that boundary anchor’s target), then clip the result to <code>[0, length]</code>. The timeline stays present.</td>
+</tr>
+<tr class="odd">
+<td>extrapolate</td>
+<td></td>
+<td>Keep the linear extrapolation beyond the hull, then clip the result to <code>[0, length]</code>. The timeline stays present.</td>
+</tr>
+</tbody>
+</table>
 <p>No policy ever emits a negative coordinate or one exceeding the target timeline’s length.</p>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

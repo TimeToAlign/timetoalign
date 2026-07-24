@@ -854,14 +854,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.loader.format.JsonLoader" id="toc-timetoalign.loader.format.JsonLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.format.JsonLoader">JsonLoader</a>
   <ul>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.loader.format.JsonLoader.clear" id="toc-timetoalign.loader.format.JsonLoader.clear" class="nav-link" data-scroll-target="#timetoalign.loader.format.JsonLoader.clear">clear</a></li>
-  <li><a href="#timetoalign.loader.format.JsonLoader.get_table" id="toc-timetoalign.loader.format.JsonLoader.get_table" class="nav-link" data-scroll-target="#timetoalign.loader.format.JsonLoader.get_table">get_table</a></li>
+  <li><a href="#timetoalign.loader.format.JsonLoader.get_table" id="toc-timetoalign.loader.format.JsonLoader.get_table" class="nav-link" data-scroll-target="#timetoalign.loader.format.JsonLoader.get_table">get_table</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
   <li><a href="#timetoalign.loader.format.JsonLoader.keys" id="toc-timetoalign.loader.format.JsonLoader.keys" class="nav-link" data-scroll-target="#timetoalign.loader.format.JsonLoader.keys">keys</a></li>
-  <li><a href="#timetoalign.loader.format.JsonLoader.load" id="toc-timetoalign.loader.format.JsonLoader.load" class="nav-link" data-scroll-target="#timetoalign.loader.format.JsonLoader.load">load</a></li>
-  <li><a href="#timetoalign.loader.format.JsonLoader.load_dict" id="toc-timetoalign.loader.format.JsonLoader.load_dict" class="nav-link" data-scroll-target="#timetoalign.loader.format.JsonLoader.load_dict">load_dict</a></li>
+  <li><a href="#timetoalign.loader.format.JsonLoader.load" id="toc-timetoalign.loader.format.JsonLoader.load" class="nav-link" data-scroll-target="#timetoalign.loader.format.JsonLoader.load">load</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.format.JsonLoader.load_dict" id="toc-timetoalign.loader.format.JsonLoader.load_dict" class="nav-link" data-scroll-target="#timetoalign.loader.format.JsonLoader.load_dict">load_dict</a>
+  <ul class="collapse">
+  <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -896,25 +912,65 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>loader.load(*sources)</code> – parse JSON files.</li>
 <li><code>loader.get_table(key)</code> – retrieve a normalised table.</li>
 </ol>
-<p>Args: principal_keys: List of keys to normalise. <code>None</code> for auto-detect. sep: Separator for flattened nested key names. Default <code>"."</code>. resolve_lookups: Whether to resolve <code>*_id</code> foreign keys. Default <code>True</code>.</p>
-<p>Examples: Auto-detect all array keys::</p>
-<pre><code>    loader = JsonLoader()
-    loader.load("Wagner_WWV086B_140.json")
-    for name in loader.store.keys():
-        print(name, loader.get_table(name).num_rows)
-
-Specify principal key::
-
-    loader = JsonLoader(principal_keys=["audio"])
-    loader.load("dj_studio_data.json")
-    assert loader.get_table("audio").num_rows == 3
-
-Nested principal key::
-
-    loader = JsonLoader(principal_keys=["hotCuePoints"])
-    loader.load("dj_studio_data.json")
-    # Collects hotCuePoints from audio[*].cueData.hotCuePoints</code></pre>
-<p>See Also: timetoalign.storage.store.DictStore timetoalign.loader.base.Loader</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 30%">
+<col style="width: 47%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>principal_keys</td>
+<td><code>list</code>[<code>str</code>] | None</td>
+<td>List of keys to normalise. <code>None</code> for auto-detect.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>sep</td>
+<td><code>str</code></td>
+<td>Separator for flattened nested key names. Default <code>"."</code>.</td>
+<td><code>'.'</code></td>
+</tr>
+<tr class="odd">
+<td>resolve_lookups</td>
+<td><code>bool</code></td>
+<td>Whether to resolve <code>*_id</code> foreign keys. Default <code>True</code>.</td>
+<td><code>True</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<p>Auto-detect all array keys::</p>
+<pre><code>loader = JsonLoader()
+loader.load("Wagner_WWV086B_140.json")
+for name in loader.store.keys():
+    print(name, loader.get_table(name).num_rows)</code></pre>
+<p>Specify principal key::</p>
+<pre><code>loader = JsonLoader(principal_keys=["audio"])
+loader.load("dj_studio_data.json")
+assert loader.get_table("audio").num_rows == 3</code></pre>
+<p>Nested principal key::</p>
+<pre><code>loader = JsonLoader(principal_keys=["hotCuePoints"])
+loader.load("dj_studio_data.json")
+# Collects hotCuePoints from audio[*].cueData.hotCuePoints</code></pre>
+</section>
+<section id="see-also" class="level2 doc-section doc-section-see-also">
+<h2 class="doc-section doc-section-see-also anchored" data-anchor-id="see-also">See Also</h2>
+<p>timetoalign.storage.store.DictStore timetoalign.loader.base.Loader</p>
+</section>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
@@ -978,39 +1034,198 @@ Nested principal key::
 </table>
 <section id="timetoalign.loader.format.JsonLoader.clear" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.JsonLoader.clear">clear</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.clear()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.clear()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Clear all loaded data.</p>
 </section>
 <section id="timetoalign.loader.format.JsonLoader.get_table" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.JsonLoader.get_table">get_table</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.get_table(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.get_table(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Retrieve a normalised table by key name.</p>
-<p>Args: key: The principal key name.</p>
-<p>Returns: A <code>pa.Table</code> with one row per element.</p>
-<p>Raises: KeyError: If <em>key</em> was not normalised.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>key</td>
+<td><code>str</code></td>
+<td>The principal key name.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 45%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>pa</code>.<code>Table</code></td>
+<td>A <code>pa.Table</code> with one row per element.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>KeyError</code></td>
+<td>If <em>key</em> was not normalised.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.format.JsonLoader.keys" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.JsonLoader.keys">keys</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.keys()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.keys()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return the list of available table key names.</p>
 </section>
 <section id="timetoalign.loader.format.JsonLoader.load" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.JsonLoader.load">load</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.load(<span class="op">*</span>sources)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.load(<span class="op">*</span>sources)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Load one or more JSON files.</p>
 <p>For multiple files the tables are concatenated (same keys) or added (new keys).</p>
-<p>Args: *sources: Paths to JSON files.</p>
-<p>Returns: Self, for method chaining.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 48%">
+<col style="width: 26%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>*sources</td>
+<td><code>Path</code> | <code>str</code></td>
+<td>Paths to JSON files.</td>
+<td><code>()</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 48%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Self</code></td>
+<td>Self, for method chaining.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.format.JsonLoader.load_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.JsonLoader.load_dict">load_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.load_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.JsonLoader.load_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Load from an already-parsed Python dict.</p>
 <p>Convenient for programmatic use or testing.</p>
-<p>Args: data: A parsed JSON structure (dict).</p>
-<p>Returns: Self, for method chaining.</p>
+<section id="parameters-3" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 50%">
+<col style="width: 31%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>data</td>
+<td><code>dict</code>[<code>str</code>, <code>Any</code>]</td>
+<td>A parsed JSON structure (dict).</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 48%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Self</code></td>
+<td>Self, for method chaining.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

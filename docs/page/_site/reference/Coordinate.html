@@ -854,6 +854,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.Coordinate" id="toc-timetoalign.Coordinate" class="nav-link active" data-scroll-target="#timetoalign.Coordinate">Coordinate</a>
   <ul>
+  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.Coordinate.with_timeline" id="toc-timetoalign.Coordinate.with_timeline" class="nav-link" data-scroll-target="#timetoalign.Coordinate.with_timeline">with_timeline</a></li>
@@ -873,8 +875,37 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>Coordinate(value<span class="op">=</span><span class="va">None</span>, unit<span class="op">=</span><span class="va">None</span>, <span class="op">/</span>, <span class="op">**</span>data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A position on a timeline, defined by a value and unit.</p>
 <p>Coordinates are immutable and support arithmetic operations when units match. They preserve the native numeric type (int, float, or Fraction) for precision.</p>
-<p>Attributes: value: The numeric position (int, float, or Fraction). unit: The time unit (e.g., seconds, quarters, pixels).</p>
-<p>Examples: &gt;&gt;&gt; c1 = Coordinate(120, TimeUnit.ticks) &gt;&gt;&gt; c2 = Coordinate(240, TimeUnit.ticks) &gt;&gt;&gt; c2 - c1 Duration(120, ticks)</p>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>value</td>
+<td><code>TimeScalarValue</code></td>
+<td>The numeric position (int, float, or Fraction).</td>
+</tr>
+<tr class="even">
+<td>unit</td>
+<td><a href="../reference/TimeUnit.html#timetoalign.TimeUnit">TimeUnit</a></td>
+<td>The time unit (e.g., seconds, quarters, pixels).</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> c1 <span class="op">=</span> Coordinate(<span class="dv">120</span>, TimeUnit.ticks)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> c2 <span class="op">=</span> Coordinate(<span class="dv">240</span>, TimeUnit.ticks)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> c2 <span class="op">-</span> c1</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>Duration(<span class="dv">120</span>, ticks)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <table class="caption-top table">
@@ -893,7 +924,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.Coordinate.with_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.Coordinate.with_timeline">with_timeline</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>Coordinate.with_timeline(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>Coordinate.with_timeline(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return an <code>IdCoordinate</code> carrying the given timeline id.</p>
 
 

@@ -11,28 +11,34 @@ Format: "{scope}:{local}" or just "{local}" if scope is empty.
 The scope typically represents the source (e.g., "midi", "score")
 while the local part is the original ID from that source.
 
-Attributes:
-    scope: The namespace/source prefix (e.g., "midi", "score:track1")
-    local: The local identifier within that scope
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> ScopedId("midi", "n42")
-    ScopedId(scope='midi', local='n42')
+| Name   | Type         | Description                                                |
+|--------|--------------|------------------------------------------------------------|
+| scope  | [str](`str`) | The namespace/source prefix (e.g., "midi", "score:track1") |
+| local  | [str](`str`) | The local identifier within that scope                     |
 
-    >>> str(ScopedId("midi", "n42"))
-    'midi:n42'
+## Examples {.doc-section .doc-section-examples}
 
-    >>> ScopedId.parse("midi:n42")
-    ScopedId(scope='midi', local='n42')
+```python
+>>> ScopedId("midi", "n42")
+ScopedId(scope='midi', local='n42')
+```
 
-    >>> ScopedId.parse("bare_id")
-    ScopedId(scope='', local='bare_id')
+```python
+>>> str(ScopedId("midi", "n42"))
+'midi:n42'
+```
 
-## Attributes
+```python
+>>> ScopedId.parse("midi:n42")
+ScopedId(scope='midi', local='n42')
+```
 
-| Name | Description |
-| --- | --- |
-| [is_scoped](#timetoalign.ScopedId.is_scoped) | Whether this ID has a non-empty scope. |
+```python
+>>> ScopedId.parse("bare_id")
+ScopedId(scope='', local='bare_id')
+```
 
 ## Methods
 
@@ -51,9 +57,10 @@ ScopedId.nested(child_scope)
 
 Create a nested scope by appending to the current scope.
 
-Example:
-    >>> ScopedId("midi", "note").nested("track1")
-    ScopedId(scope='midi.track1', local='note')
+#### Example {.doc-section .doc-section-example}
+
+>>> ScopedId("midi", "note").nested("track1")
+ScopedId(scope='midi.track1', local='note')
 
 ### parse { #timetoalign.ScopedId.parse }
 
@@ -63,18 +70,29 @@ ScopedId.parse(id_str)
 
 Parse a scoped ID string.
 
-Args:
-    id_str: A string like "scope:local" or just "local"
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A ScopedId instance
+| Name   | Type         | Description                                 | Default    |
+|--------|--------------|---------------------------------------------|------------|
+| id_str | [str](`str`) | A string like "scope:local" or just "local" | _required_ |
 
-Examples:
-    >>> ScopedId.parse("midi:n42")
-    ScopedId(scope='midi', local='n42')
+#### Returns {.doc-section .doc-section-returns}
 
-    >>> ScopedId.parse("bare_id")
-    ScopedId(scope='', local='bare_id')
+| Name   | Type                                        | Description         |
+|--------|---------------------------------------------|---------------------|
+|        | [ScopedId](`timetoalign.core.ids.ScopedId`) | A ScopedId instance |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> ScopedId.parse("midi:n42")
+ScopedId(scope='midi', local='n42')
+```
+
+```python
+>>> ScopedId.parse("bare_id")
+ScopedId(scope='', local='bare_id')
+```
 
 ### with_local { #timetoalign.ScopedId.with_local }
 

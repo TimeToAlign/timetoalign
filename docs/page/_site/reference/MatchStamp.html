@@ -855,15 +855,37 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.alignment.MatchStamp" id="toc-timetoalign.alignment.MatchStamp" class="nav-link active" data-scroll-target="#timetoalign.alignment.MatchStamp">MatchStamp</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.alignment.MatchStamp.filter_by_timelines" id="toc-timetoalign.alignment.MatchStamp.filter_by_timelines" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.filter_by_timelines">filter_by_timelines</a></li>
+  <li><a href="#timetoalign.alignment.MatchStamp.filter_by_timelines" id="toc-timetoalign.alignment.MatchStamp.filter_by_timelines" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.filter_by_timelines">filter_by_timelines</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
   <li><a href="#timetoalign.alignment.MatchStamp.from_dict" id="toc-timetoalign.alignment.MatchStamp.from_dict" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.from_dict">from_dict</a></li>
-  <li><a href="#timetoalign.alignment.MatchStamp.get" id="toc-timetoalign.alignment.MatchStamp.get" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.get">get</a></li>
-  <li><a href="#timetoalign.alignment.MatchStamp.get_group_coordinates" id="toc-timetoalign.alignment.MatchStamp.get_group_coordinates" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.get_group_coordinates">get_group_coordinates</a></li>
-  <li><a href="#timetoalign.alignment.MatchStamp.get_unit" id="toc-timetoalign.alignment.MatchStamp.get_unit" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.get_unit">get_unit</a></li>
+  <li><a href="#timetoalign.alignment.MatchStamp.get" id="toc-timetoalign.alignment.MatchStamp.get" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.get">get</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.MatchStamp.get_group_coordinates" id="toc-timetoalign.alignment.MatchStamp.get_group_coordinates" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.get_group_coordinates">get_group_coordinates</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.MatchStamp.get_unit" id="toc-timetoalign.alignment.MatchStamp.get_unit" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.get_unit">get_unit</a>
+  <ul class="collapse">
+  <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
+  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
+  </ul></li>
   <li><a href="#timetoalign.alignment.MatchStamp.has_timeline" id="toc-timetoalign.alignment.MatchStamp.has_timeline" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.has_timeline">has_timeline</a></li>
-  <li><a href="#timetoalign.alignment.MatchStamp.to_dict" id="toc-timetoalign.alignment.MatchStamp.to_dict" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.to_dict">to_dict</a></li>
+  <li><a href="#timetoalign.alignment.MatchStamp.to_dict" id="toc-timetoalign.alignment.MatchStamp.to_dict" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchStamp.to_dict">to_dict</a>
+  <ul class="collapse">
+  <li><a href="#parameters-4" id="toc-parameters-4" class="nav-link" data-scroll-target="#parameters-4">Parameters</a></li>
+  <li><a href="#returns-4" id="toc-returns-4" class="nav-link" data-scroll-target="#returns-4">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -891,40 +913,79 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A synchronized timestamp across multiple timelines.</p>
 <p>A MatchStamp represents a single coordinate (or instant) that has been synchronized across multiple timelines via explicit anchors and/or inferred group membership.</p>
 <p>Contains one coordinate per participating timeline, where coordinates are linked via explicit anchors or inferred group membership.</p>
-<p>Attributes: coordinates: Dict of timeline_id -&gt; coordinate. anchor_edges: List of (tl_a, tl_b) pairs that are explicitly anchored. inferred_edges: List of (tl_a, tl_b) pairs inferred via groups. units: Coordinate unit name for each timeline. axis: Coordinate used to query the stamp. source: Bundle that produced the stamp. source_id: Timeline ID used for the query. is_interpolated: Whether the stamp used interpolated transfer. conversion_maps: Conversion maps available to unit lookup and display. Opt-in: defaults to <code>False</code>.</p>
-<p>Examples: &gt;&gt;&gt; stamp = MatchStamp( … coordinates={“score”: 100.0, “audio”: 45.5, “video”: 1365.0}, … anchor_edges=[(“score”, “audio”)], … inferred_edges=[(“audio”, “video”)], … ) &gt;&gt;&gt; stamp.get(“audio”) 45.5</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 40%">
+<col style="width: 49%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.alignment.MatchStamp.axis_coordinate">axis_coordinate</a></td>
-<td>Get the axis value with its source unit, when an axis exists.</td>
+<td>coordinates</td>
+<td><code>dict</code>[<code>str</code>, <code>float</code>]</td>
+<td>Dict of timeline_id -&gt; coordinate.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.alignment.MatchStamp.n_explicit_edges">n_explicit_edges</a></td>
-<td>Number of explicitly anchored pairs.</td>
+<td>anchor_edges</td>
+<td><code>list</code>[<code>tuple</code>[<code>str</code>, <code>str</code>]]</td>
+<td>List of (tl_a, tl_b) pairs that are explicitly anchored.</td>
 </tr>
 <tr class="odd">
-<td><a href="#timetoalign.alignment.MatchStamp.n_inferred_edges">n_inferred_edges</a></td>
-<td>Number of inferred (via group) pairs.</td>
+<td>inferred_edges</td>
+<td><code>list</code>[<code>tuple</code>[<code>str</code>, <code>str</code>]]</td>
+<td>List of (tl_a, tl_b) pairs inferred via groups.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.alignment.MatchStamp.n_timelines">n_timelines</a></td>
-<td>Number of timelines in this stamp.</td>
+<td>units</td>
+<td><code>dict</code>[<code>str</code>, <code>str</code>]</td>
+<td>Coordinate unit name for each timeline.</td>
 </tr>
 <tr class="odd">
-<td><a href="#timetoalign.alignment.MatchStamp.present_timelines">present_timelines</a></td>
-<td>List of timeline IDs in this stamp.</td>
+<td>axis</td>
+<td><code>float</code> | None</td>
+<td>Coordinate used to query the stamp.</td>
+</tr>
+<tr class="even">
+<td>source</td>
+<td>'AlignmentBundle | None'</td>
+<td>Bundle that produced the stamp.</td>
+</tr>
+<tr class="odd">
+<td>source_id</td>
+<td><code>str</code> | None</td>
+<td>Timeline ID used for the query.</td>
+</tr>
+<tr class="even">
+<td>is_interpolated</td>
+<td><code>bool</code></td>
+<td>Whether the stamp used interpolated transfer.</td>
+</tr>
+<tr class="odd">
+<td>conversion_maps</td>
+<td><code>ConversionMapsSpec</code></td>
+<td>Conversion maps available to unit lookup and display. Opt-in: defaults to <code>False</code>.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamp <span class="op">=</span> MatchStamp(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>...     coordinates<span class="op">=</span>{<span class="st">"score"</span>: <span class="fl">100.0</span>, <span class="st">"audio"</span>: <span class="fl">45.5</span>, <span class="st">"video"</span>: <span class="fl">1365.0</span>},</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     anchor_edges<span class="op">=</span>[(<span class="st">"score"</span>, <span class="st">"audio"</span>)],</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     inferred_edges<span class="op">=</span>[(<span class="st">"audio"</span>, <span class="st">"video"</span>)],</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamp.get(<span class="st">"audio"</span>)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fl">45.5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -968,52 +1029,321 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.alignment.MatchStamp.filter_by_timelines" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchStamp.filter_by_timelines">filter_by_timelines</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.filter_by_timelines(timeline_ids<span class="op">=</span><span class="va">None</span>, id_pattern<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.filter_by_timelines(timeline_ids<span class="op">=</span><span class="va">None</span>, id_pattern<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create filtered stamp with subset of timelines.</p>
-<p>Args: timeline_ids: Only include these timelines (None = all). id_pattern: Regex filter for timeline IDs.</p>
-<p>Returns: New MatchStamp with filtered timelines.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 35%">
+<col style="width: 41%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>timeline_ids</td>
+<td><code>set</code>[<code>str</code>] | None</td>
+<td>Only include these timelines (None = all).</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>id_pattern</td>
+<td><code>str</code> | None</td>
+<td>Regex filter for timeline IDs.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'MatchStamp'</td>
+<td>New MatchStamp with filtered timelines.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.alignment.MatchStamp.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchStamp.from_dict">from_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Deserialize from dictionary.</p>
 </section>
 <section id="timetoalign.alignment.MatchStamp.get" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchStamp.get">get</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.get(timeline_id, default<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.get(timeline_id, default<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get coordinate for a specific timeline.</p>
-<p>Args: timeline_id: The timeline to get coordinate for. default: Value returned when the timeline is absent.</p>
-<p>Returns: The coordinate, or the default if the timeline is absent.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 27%">
+<col style="width: 46%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>timeline_id</td>
+<td><code>str</code></td>
+<td>The timeline to get coordinate for.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>default</td>
+<td><code>float</code> | None</td>
+<td>Value returned when the timeline is absent.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 27%">
+<col style="width: 63%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>float</code> | None</td>
+<td>The coordinate, or the default if the timeline is absent.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.alignment.MatchStamp.get_group_coordinates" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchStamp.get_group_coordinates">get_group_coordinates</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.get_group_coordinates(group)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.get_group_coordinates(group)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get all coordinates for timelines in a specific group.</p>
-<p>Args: group: The TimelineGroup to filter by.</p>
-<p>Returns: Dict of timeline_id -&gt; coordinate for timelines in the group.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 26%">
+<col style="width: 45%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>group</td>
+<td>'TimelineGroup'</td>
+<td>The TimelineGroup to filter by.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 41%">
+<col style="width: 52%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>dict</code>[<code>str</code>, <code>float</code>]</td>
+<td>Dict of timeline_id -&gt; coordinate for timelines in the group.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.alignment.MatchStamp.get_unit" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchStamp.get_unit">get_unit</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.get_unit(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.get_unit(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the query coordinate converted to a unit.</p>
 <p>Unit conversion is delegated to the source timeline’s owning group so the same conversion-map selection rules as <code>TimeStamp</code> apply.</p>
-<p>Args: unit: The target unit.</p>
-<p>Returns: The converted coordinate, or None when it cannot be resolved.</p>
+<section id="parameters-3" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>unit</td>
+<td><a href="../reference/TimeUnit.html#timetoalign.TimeUnit">TimeUnit</a></td>
+<td>The target unit.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-3" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 26%">
+<col style="width: 64%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>float</code> | None</td>
+<td>The converted coordinate, or None when it cannot be resolved.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.alignment.MatchStamp.has_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchStamp.has_timeline">has_timeline</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.has_timeline(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.has_timeline(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Check if timeline is in this stamp.</p>
 </section>
 <section id="timetoalign.alignment.MatchStamp.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchStamp.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.to_dict(<span class="bu">format</span><span class="op">=</span><span class="st">'flat'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchStamp.to_dict(<span class="bu">format</span><span class="op">=</span><span class="st">'flat'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Materialize the stamp in a flat, grouped, or graph representation.</p>
-<p>Args: format: Output representation. <code>"graph"</code> preserves the MatchGraph storage shape.</p>
-<p>Returns: The requested dictionary representation.</p>
-<p>Raises: ValueError: If a grouped format is requested without a source bundle, or if the format is unknown.</p>
+<section id="parameters-4" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-4">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 44%">
+<col style="width: 44%">
+<col style="width: 6%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>format</td>
+<td><code>Literal</code>['flat', 'prefix', 'nested', 'graph']</td>
+<td>Output representation. <code>"graph"</code> preserves the MatchGraph storage shape.</td>
+<td><code>'flat'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-4" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-4">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 51%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>dict</code>[<code>str</code>, <code>Any</code>]</td>
+<td>The requested dictionary representation.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 22%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If a grouped format is requested without a source bundle, or if the format is unknown.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

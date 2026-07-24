@@ -854,9 +854,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.DictStore" id="toc-timetoalign.DictStore" class="nav-link active" data-scroll-target="#timetoalign.DictStore">DictStore</a>
   <ul>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.DictStore.add" id="toc-timetoalign.DictStore.add" class="nav-link" data-scroll-target="#timetoalign.DictStore.add">add</a></li>
+  <li><a href="#timetoalign.DictStore.add" id="toc-timetoalign.DictStore.add" class="nav-link" data-scroll-target="#timetoalign.DictStore.add">add</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  </ul></li>
   <li><a href="#timetoalign.DictStore.items" id="toc-timetoalign.DictStore.items" class="nav-link" data-scroll-target="#timetoalign.DictStore.items">items</a></li>
   <li><a href="#timetoalign.DictStore.keys" id="toc-timetoalign.DictStore.keys" class="nav-link" data-scroll-target="#timetoalign.DictStore.keys">keys</a></li>
   </ul></li>
@@ -876,8 +881,43 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Generic EventStore with arbitrary named EventData tables.</p>
 <p>Used by AlignmentLoaders that produce a variable number of timelines (e.g., MatchfileLoader: 1 score + N performances; TiliaJsonLoader: one table per annotated timeline).</p>
 <p>Maintains the uniform EventStore interface (iteration, keys, items, getitem) while supporting any number of named data sources.</p>
-<p>Args: data: Dictionary mapping names to EventData tables.</p>
-<p>Examples: &gt;&gt;&gt; store = DictStore({ … “score”: score_event_data, … “perf:p01”: perf_01_event_data, … “perf:p02”: perf_02_event_data, … }) &gt;&gt;&gt; for name, events in store.items(): … print(f”{name}: {len(events)} events”)</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 45%">
+<col style="width: 38%">
+<col style="width: 9%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>data</td>
+<td><code>dict</code>[<code>str</code>, 'EventData'] | None</td>
+<td>Dictionary mapping names to EventData tables.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> store <span class="op">=</span> DictStore({</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>...     <span class="st">"score"</span>: score_event_data,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     <span class="st">"perf:p01"</span>: perf_01_event_data,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     <span class="st">"perf:p02"</span>: perf_02_event_data,</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>... })</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> name, events <span class="kw">in</span> store.items():</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span><span class="bu">len</span>(events)<span class="sc">}</span><span class="ss"> events"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <table class="caption-top table">
@@ -904,18 +944,50 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.DictStore.add" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.DictStore.add">add</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>DictStore.add(name, events)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>DictStore.add(name, events)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Add or replace a named EventData table.</p>
-<p>Args: name: The name for this data (e.g., <code>"score"</code>, <code>"perf:p01"</code>). events: The EventData to store.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 15%">
+<col style="width: 63%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>name</td>
+<td><code>str</code></td>
+<td>The name for this data (e.g., <code>"score"</code>, <code>"perf:p01"</code>).</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>events</td>
+<td>'EventData'</td>
+<td>The EventData to store.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.DictStore.items" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.DictStore.items">items</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>DictStore.items()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>DictStore.items()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Iterate over (name, EventData) pairs in insertion order.</p>
 </section>
 <section id="timetoalign.DictStore.keys" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.DictStore.keys">keys</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>DictStore.keys()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>DictStore.keys()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return data names in insertion order.</p>
 
 

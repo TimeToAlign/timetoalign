@@ -12,31 +12,26 @@ without needing to download or load the actual image files.
 
 Supports both IIIF Presentation API 2.x and 3.x formats.
 
-Examples:
-    >>> loader = IIIFManifestLoader()
-    >>> loader.load("manifest.json")
-    >>> loader.dimensions
-    {'width': 4096, 'height': 299400}
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # Access individual canvases
-    >>> for canvas in loader.manifest_info.canvases:
-    ...     print(f"{canvas.label}: {canvas.width}x{canvas.height}")
+```python
+>>> loader = IIIFManifestLoader()
+>>> loader.load("manifest.json")
+>>> loader.dimensions
+{'width': 4096, 'height': 299400}
+```
 
-Attributes:
-    manifest_info: Parsed manifest information (after loading).
+```python
+>>> # Access individual canvases
+>>> for canvas in loader.manifest_info.canvases:
+...     print(f"{canvas.label}: {canvas.width}x{canvas.height}")
+```
 
-## Attributes
+## Attributes {.doc-section .doc-section-attributes}
 
-| Name | Description |
-| --- | --- |
-| [dimensions](#timetoalign.loader.graphical.IIIFManifestLoader.dimensions) | Return dimensions of the first (or only) canvas. |
-| [height](#timetoalign.loader.graphical.IIIFManifestLoader.height) | Height of the first canvas in pixels. |
-| [label](#timetoalign.loader.graphical.IIIFManifestLoader.label) | Human-readable label from the manifest. |
-| [manifest_info](#timetoalign.loader.graphical.IIIFManifestLoader.manifest_info) | Return parsed manifest information. |
-| [n_canvases](#timetoalign.loader.graphical.IIIFManifestLoader.n_canvases) | Number of canvases in the manifest. |
-| [name](#timetoalign.loader.graphical.IIIFManifestLoader.name) | Human-readable name for the loaded image. |
-| [source_path](#timetoalign.loader.graphical.IIIFManifestLoader.source_path) | Path to the loaded manifest file. |
-| [width](#timetoalign.loader.graphical.IIIFManifestLoader.width) | Width of the first canvas in pixels. |
+| Name          | Type                                                                     | Description                                  |
+|---------------|--------------------------------------------------------------------------|----------------------------------------------|
+| manifest_info | [IIIFManifestInfo](`timetoalign.loader.graphical.iiif.IIIFManifestInfo`) | Parsed manifest information (after loading). |
 
 ## Methods
 
@@ -61,24 +56,34 @@ Create a graphical timeline from the loaded IIIF manifest.
 The timeline length is determined by the image dimensions along the
 specified axis (height by default, for vertical piano rolls).
 
-Args:
-    uid: Unique identifier for the timeline. Auto-generated if None.
-    name: Human-readable name. Uses manifest/canvas label if None.
-    axis: Which dimension to use as the timeline axis:
-        - "height" (default): Timeline length = image height
-        - "width": Timeline length = image width
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A DiscreteGraphicalTimeline representing the image.
+| Name   | Type                 | Description                                                                                                                                | Default    |
+|--------|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| uid    | [str](`str`) \| None | Unique identifier for the timeline. Auto-generated if None.                                                                                | `None`     |
+| name   | [str](`str`) \| None | Human-readable name. Uses manifest/canvas label if None.                                                                                   | `None`     |
+| axis   | [str](`str`)         | Which dimension to use as the timeline axis: - "height" (default): Timeline length = image height - "width": Timeline length = image width | `'height'` |
 
-Raises:
-    RuntimeError: If no manifest has been loaded.
-    ValueError: If axis is not "height" or "width".
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> loader = IIIFManifestLoader()
-    >>> loader.load("manifest.json")
-    >>> timeline = loader.create_timeline(uid="dgt1_image")
+| Name   | Type         | Description                                         |
+|--------|--------------|-----------------------------------------------------|
+|        | \'Timeline\' | A DiscreteGraphicalTimeline representing the image. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                         |
+|--------|--------------------------------|-------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If no manifest has been loaded.     |
+|        | [ValueError](`ValueError`)     | If axis is not "height" or "width". |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader = IIIFManifestLoader()
+>>> loader.load("manifest.json")
+>>> timeline = loader.create_timeline(uid="dgt1_image")
+```
 
 ### get_canvas { #timetoalign.loader.graphical.IIIFManifestLoader.get_canvas }
 
@@ -88,14 +93,23 @@ loader.graphical.IIIFManifestLoader.get_canvas(index=0)
 
 Get canvas information by index.
 
-Args:
-    index: Zero-based canvas index.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    IIIFCanvasInfo for the requested canvas.
+| Name   | Type         | Description              | Default   |
+|--------|--------------|--------------------------|-----------|
+| index  | [int](`int`) | Zero-based canvas index. | `0`       |
 
-Raises:
-    IndexError: If index is out of range.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                 | Description                              |
+|--------|----------------------------------------------------------------------|------------------------------------------|
+|        | [IIIFCanvasInfo](`timetoalign.loader.graphical.iiif.IIIFCanvasInfo`) | IIIFCanvasInfo for the requested canvas. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description               |
+|--------|----------------------------|---------------------------|
+|        | [IndexError](`IndexError`) | If index is out of range. |
 
 ### get_metadata { #timetoalign.loader.graphical.IIIFManifestLoader.get_metadata }
 
@@ -105,8 +119,14 @@ loader.graphical.IIIFManifestLoader.get_metadata(key)
 
 Get a metadata value by key.
 
-Args:
-    key: Metadata label to look up.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Metadata value, or None if not found.
+| Name   | Type         | Description                | Default    |
+|--------|--------------|----------------------------|------------|
+| key    | [str](`str`) | Metadata label to look up. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                 | Description                           |
+|--------|----------------------|---------------------------------------|
+|        | [str](`str`) \| None | Metadata value, or None if not found. |

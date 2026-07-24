@@ -49,17 +49,26 @@ Create a loader and load a MIDI file in one step.
 
 Convenience constructor for loading a single file.
 
-Args:
-    path: Path to the MIDI file.
-    parse_durations: Whether to pair note_on/off into intervals.
-    on0_means_off: Treat note_on with velocity 0 as note_off.
-    include_controls: Include Control Change events.
-    include_program_changes: Include Program Change events.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new PerformanceMidiLoader instance with the file already loaded.
+| Name                    | Type                                   | Description                                 | Default    |
+|-------------------------|----------------------------------------|---------------------------------------------|------------|
+| path                    | [Path](`pathlib.Path`) \| [str](`str`) | Path to the MIDI file.                      | _required_ |
+| parse_durations         | [bool](`bool`)                         | Whether to pair note_on/off into intervals. | `True`     |
+| on0_means_off           | [bool](`bool`)                         | Treat note_on with velocity 0 as note_off.  | `True`     |
+| include_controls        | [bool](`bool`)                         | Include Control Change events.              | `True`     |
+| include_program_changes | [bool](`bool`)                         | Include Program Change events.              | `True`     |
 
-Examples:
-    >>> loader = PerformanceMidiLoader.from_file("performance.mid")
-    >>> loader.ticks_per_beat
-    480
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                      | Description                                                        |
+|--------|---------------------------|--------------------------------------------------------------------|
+|        | \'PerformanceMidiLoader\' | A new PerformanceMidiLoader instance with the file already loaded. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader = PerformanceMidiLoader.from_file("performance.mid")
+>>> loader.ticks_per_beat
+480
+```

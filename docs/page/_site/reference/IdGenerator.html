@@ -855,10 +855,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.IdGenerator" id="toc-timetoalign.IdGenerator" class="nav-link active" data-scroll-target="#timetoalign.IdGenerator">IdGenerator</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.IdGenerator.create" id="toc-timetoalign.IdGenerator.create" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.create">create</a></li>
-  <li><a href="#timetoalign.IdGenerator.get_or_create" id="toc-timetoalign.IdGenerator.get_or_create" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.get_or_create">get_or_create</a></li>
+  <li><a href="#timetoalign.IdGenerator.get_or_create" id="toc-timetoalign.IdGenerator.get_or_create" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.get_or_create">get_or_create</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
   <li><a href="#timetoalign.IdGenerator.has_seen" id="toc-timetoalign.IdGenerator.has_seen" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.has_seen">has_seen</a></li>
   <li><a href="#timetoalign.IdGenerator.reset" id="toc-timetoalign.IdGenerator.reset" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.reset">reset</a></li>
   <li><a href="#timetoalign.IdGenerator.reset_counters" id="toc-timetoalign.IdGenerator.reset_counters" class="nav-link" data-scroll-target="#timetoalign.IdGenerator.reset_counters">reset_counters</a></li>
@@ -880,32 +885,39 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Generates unique IDs within a given scope.</p>
 <p>Supports both: 1. Wrapping external IDs with the scope 2. Generating new IDs when none provided</p>
 <p>Tracks seen IDs to detect collisions.</p>
-<p>Attributes: scope: The scope to apply to all generated/wrapped IDs</p>
-<p>Examples: &gt;&gt;&gt; gen = IdGenerator(“midi”)</p>
-<pre><code>&gt;&gt;&gt; gen.get_or_create("n42")  # Wrap external ID
-'midi:n42'
-
-&gt;&gt;&gt; gen.get_or_create(None, type_hint="note")  # Generate
-'midi:note_1'
-
-&gt;&gt;&gt; gen.get_or_create(None, type_hint="note")  # Generate next
-'midi:note_2'</code></pre>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 19%">
+<col style="width: 69%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.IdGenerator.count">count</a></td>
-<td>Total number of IDs generated/wrapped.</td>
+<td>scope</td>
+<td><code>str</code></td>
+<td>The scope to apply to all generated/wrapped IDs</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> gen <span class="op">=</span> IdGenerator(<span class="st">"midi"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> gen.get_or_create(<span class="st">"n42"</span>)  <span class="co"># Wrap external ID</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="co">'midi:n42'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> gen.get_or_create(<span class="va">None</span>, type_hint<span class="op">=</span><span class="st">"note"</span>)  <span class="co"># Generate</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="co">'midi:note_1'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> gen.get_or_create(<span class="va">None</span>, type_hint<span class="op">=</span><span class="st">"note"</span>)  <span class="co"># Generate next</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="co">'midi:note_2'</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -945,34 +957,94 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.IdGenerator.create" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.create">create</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.create(type_hint<span class="op">=</span><span class="st">'event'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.create(type_hint<span class="op">=</span><span class="st">'event'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Generate a new unique ID (no external ID).</p>
 </section>
 <section id="timetoalign.IdGenerator.get_or_create" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.get_or_create">get_or_create</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.get_or_create(external_id<span class="op">=</span><span class="va">None</span>, type_hint<span class="op">=</span><span class="st">'event'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.get_or_create(external_id<span class="op">=</span><span class="va">None</span>, type_hint<span class="op">=</span><span class="st">'event'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a scoped ID string.</p>
-<p>Args: external_id: The ID from the source, if any. Will be wrapped with the scope but otherwise preserved. type_hint: A prefix for generated IDs if external_id is None.</p>
-<p>Returns: A string in “scope:local_id” format (or just “local_id” if scope is empty).</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 15%">
+<col style="width: 67%">
+<col style="width: 7%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>external_id</td>
+<td><code>str</code> | None</td>
+<td>The ID from the source, if any. Will be wrapped with the scope but otherwise preserved.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>type_hint</td>
+<td><code>str</code></td>
+<td>A prefix for generated IDs if external_id is None.</td>
+<td><code>'event'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 17%">
+<col style="width: 73%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>str</code></td>
+<td>A string in “scope:local_id” format (or just “local_id” if</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>str</code></td>
+<td>scope is empty).</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.IdGenerator.has_seen" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.has_seen">has_seen</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.has_seen(id_str)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.has_seen(id_str)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Check if an ID has been generated/wrapped by this generator.</p>
 </section>
 <section id="timetoalign.IdGenerator.reset" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.reset">reset</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.reset()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.reset()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Reset all counters and seen IDs.</p>
 </section>
 <section id="timetoalign.IdGenerator.reset_counters" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.reset_counters">reset_counters</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.reset_counters()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.reset_counters()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Reset counters but keep seen IDs (for continuation).</p>
 </section>
 <section id="timetoalign.IdGenerator.wrap" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.IdGenerator.wrap">wrap</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.wrap(external_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>IdGenerator.wrap(external_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Wrap an external ID with the scope.</p>
 
 

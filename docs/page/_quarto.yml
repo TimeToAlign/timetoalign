@@ -144,6 +144,8 @@ interlinks:
 quartodoc:
   package: timetoalign
   parser: google
+  renderer:
+    style: _renderer.py
   dir: reference
   sidebar: reference/_sidebar.yml
   css: reference/_styles-quartodoc.css

@@ -14,28 +14,27 @@ equivalent regardless of how they were created.
 Only synchronous `MatchClaim` instances produce AlignmentAnchors.
 Non-synchronous claims (conceptual matches, NOMATCH) have no anchors.
 
-Attributes:
-    timeline_a_id: First timeline's unique identifier.
-    coordinate_a: Coordinate in first timeline.
-    timeline_b_id: Second timeline's unique identifier.
-    coordinate_b: Coordinate in second timeline.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> anchor = AlignmentAnchor(
-    ...     timeline_a_id="score:1",
-    ...     coordinate_a=Coordinate(100.0, TimeUnit.quarters),
-    ...     timeline_b_id="recording:1",
-    ...     coordinate_b=Coordinate(45.5, TimeUnit.seconds),
-    ... )
-    >>> anchor.get_coordinate_for("score:1")
-    Coordinate(100.0, quarters)
+| Name          | Type                                        | Description                          |
+|---------------|---------------------------------------------|--------------------------------------|
+| timeline_a_id | [str](`str`)                                | First timeline's unique identifier.  |
+| coordinate_a  | [Coordinate](`timetoalign.core.Coordinate`) | Coordinate in first timeline.        |
+| timeline_b_id | [str](`str`)                                | Second timeline's unique identifier. |
+| coordinate_b  | [Coordinate](`timetoalign.core.Coordinate`) | Coordinate in second timeline.       |
 
-## Attributes
+## Examples {.doc-section .doc-section-examples}
 
-| Name | Description |
-| --- | --- |
-| [coordinates](#timetoalign.alignment.AlignmentAnchor.coordinates) | Return tuple of coordinates. |
-| [timelines](#timetoalign.alignment.AlignmentAnchor.timelines) | Return tuple of timeline IDs. |
+```python
+>>> anchor = AlignmentAnchor(
+...     timeline_a_id="score:1",
+...     coordinate_a=Coordinate(100.0, TimeUnit.quarters),
+...     timeline_b_id="recording:1",
+...     coordinate_b=Coordinate(45.5, TimeUnit.seconds),
+... )
+>>> anchor.get_coordinate_for("score:1")
+Coordinate(100.0, quarters)
+```
 
 ## Methods
 
@@ -55,11 +54,17 @@ alignment.AlignmentAnchor.connects(timeline_id)
 
 Check if this anchor connects to a specific timeline.
 
-Args:
-    timeline_id: The timeline to check.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    True if the anchor involves this timeline.
+| Name        | Type         | Description            | Default    |
+|-------------|--------------|------------------------|------------|
+| timeline_id | [str](`str`) | The timeline to check. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                                |
+|--------|----------------|--------------------------------------------|
+|        | [bool](`bool`) | True if the anchor involves this timeline. |
 
 ### connects_both { #timetoalign.alignment.AlignmentAnchor.connects_both }
 
@@ -69,12 +74,18 @@ alignment.AlignmentAnchor.connects_both(timeline_a_id, timeline_b_id)
 
 Check if this anchor connects two specific timelines.
 
-Args:
-    timeline_a_id: First timeline.
-    timeline_b_id: Second timeline.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    True if the anchor connects exactly these two timelines.
+| Name          | Type         | Description      | Default    |
+|---------------|--------------|------------------|------------|
+| timeline_a_id | [str](`str`) | First timeline.  | _required_ |
+| timeline_b_id | [str](`str`) | Second timeline. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                                              |
+|--------|----------------|----------------------------------------------------------|
+|        | [bool](`bool`) | True if the anchor connects exactly these two timelines. |
 
 ### from_dict { #timetoalign.alignment.AlignmentAnchor.from_dict }
 
@@ -92,11 +103,17 @@ alignment.AlignmentAnchor.get_coordinate_for(timeline_id)
 
 Get the coordinate for a specific timeline.
 
-Args:
-    timeline_id: The timeline to get coordinate for.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The coordinate, or None if timeline not in this anchor.
+| Name        | Type         | Description                         | Default    |
+|-------------|--------------|-------------------------------------|------------|
+| timeline_id | [str](`str`) | The timeline to get coordinate for. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                                             |
+|--------|-----------------------------------------------------|---------------------------------------------------------|
+|        | [Coordinate](`timetoalign.core.Coordinate`) \| None | The coordinate, or None if timeline not in this anchor. |
 
 ### to_dict { #timetoalign.alignment.AlignmentAnchor.to_dict }
 

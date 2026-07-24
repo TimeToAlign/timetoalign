@@ -22,33 +22,32 @@ The ``matches_claim()`` method tests a single MatchClaim against all
 criteria. The ``matches_timeline()`` method tests a single timeline ID
 (used by MatchGraph node-level filtering).
 
-Examples:
-    Filter for claims involving a specific performer::
+## Examples {.doc-section .doc-section-examples}
 
-        f = ClaimFilter(id_pattern=r"^perf:")
-        filtered = [c for c in claims if f.matches_claim(c)]
+Filter for claims involving a specific performer::
 
-    Filter for synchronous claims between score and one performer::
+    f = ClaimFilter(id_pattern=r"^perf:")
+    filtered = [c for c in claims if f.matches_claim(c)]
 
-        f = ClaimFilter(
-            between=("score:clt1", "perf:dlt1"),
-            synchronous_only=True,
-        )
+Filter for synchronous claims between score and one performer::
 
-Attributes:
-    timeline_id: Return claims involving this exact timeline ID.
-    timeline_ids: Return claims involving any of these timeline IDs.
-    id_pattern: Regex pattern matched against timeline IDs via
-        ``re.search()``. Example: ``r"^perf:"`` matches all
-        performance timelines.
-    between: Return claims connecting exactly these two timelines
-        (order-independent).
-    synchronous_only: If True, exclude non-synchronous (NOMATCH) claims.
-    nomatch_only: If True, return only non-synchronous (NOMATCH) claims.
-    include_domains: Only include timelines in these domains.
-        Requires a ``timelines`` dict for resolution.
-    include_units: Only include timelines with these units.
-        Requires a ``timelines`` dict for resolution.
+    f = ClaimFilter(
+        between=("score:clt1", "perf:dlt1"),
+        synchronous_only=True,
+    )
+
+## Attributes {.doc-section .doc-section-attributes}
+
+| Name             | Type                                                                  | Description                                                                                                               |
+|------------------|-----------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| timeline_id      | [str](`str`) \| None                                                  | Return claims involving this exact timeline ID.                                                                           |
+| timeline_ids     | [set](`set`)\[[str](`str`)\] \| None                                  | Return claims involving any of these timeline IDs.                                                                        |
+| id_pattern       | [str](`str`) \| None                                                  | Regex pattern matched against timeline IDs via ``re.search()``. Example: ``r"^perf:"`` matches all performance timelines. |
+| between          | [tuple](`tuple`)\[[str](`str`), [str](`str`)\] \| None                | Return claims connecting exactly these two timelines (order-independent).                                                 |
+| synchronous_only | [bool](`bool`)                                                        | If True, exclude non-synchronous (NOMATCH) claims.                                                                        |
+| nomatch_only     | [bool](`bool`)                                                        | If True, return only non-synchronous (NOMATCH) claims.                                                                    |
+| include_domains  | [set](`set`)\[[Domain](`timetoalign.core.enums.Domain`)\] \| None     | Only include timelines in these domains. Requires a ``timelines`` dict for resolution.                                    |
+| include_units    | [set](`set`)\[[TimeUnit](`timetoalign.core.enums.TimeUnit`)\] \| None | Only include timelines with these units. Requires a ``timelines`` dict for resolution.                                    |
 
 ## Methods
 
@@ -75,13 +74,19 @@ metadata — apply the same restriction vectorized.
 The set carries the same semantics ``matches_claim`` applies: a claim
 passes only when **both** of its timelines are in it.
 
-Args:
-    timelines: Dict of timeline_id -> Timeline for resolution.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    ``None`` when neither criterion is set (no restriction), else the
-    set of timeline ids satisfying both criteria (empty when
-    ``timelines`` is None, mirroring ``matches_claim``).
+| Name      | Type                                                                                 | Description                                     | Default    |
+|-----------|--------------------------------------------------------------------------------------|-------------------------------------------------|------------|
+| timelines | [dict](`dict`)\[[str](`str`), [Timeline](`timetoalign.timelines.Timeline`)\] \| None | Dict of timeline_id -> Timeline for resolution. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                 | Description                                                       |
+|--------|--------------------------------------|-------------------------------------------------------------------|
+|        | [set](`set`)\[[str](`str`)\] \| None | ``None`` when neither criterion is set (no restriction), else the |
+|        | [set](`set`)\[[str](`str`)\] \| None | set of timeline ids satisfying both criteria (empty when          |
+|        | [set](`set`)\[[str](`str`)\] \| None | ``timelines`` is None, mirroring ``matches_claim``).              |
 
 ### from_kwargs { #timetoalign.alignment.ClaimFilter.from_kwargs }
 
@@ -103,18 +108,24 @@ Create a ClaimFilter from keyword arguments.
 Convenience constructor mirroring the canonical filter parameter
 signature used across the API.
 
-Args:
-    timeline_id: Return claims involving this timeline.
-    timeline_ids: Return claims involving any of these timelines.
-    id_pattern: Regex pattern matched against timeline IDs.
-    between: Return claims connecting exactly these two timelines.
-    synchronous_only: Exclude non-synchronous claims.
-    nomatch_only: Return only non-synchronous claims.
-    include_domains: Only timelines in these domains.
-    include_units: Only timelines with these units.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new ClaimFilter.
+| Name             | Type                                                                  | Description                                           | Default   |
+|------------------|-----------------------------------------------------------------------|-------------------------------------------------------|-----------|
+| timeline_id      | [str](`str`) \| None                                                  | Return claims involving this timeline.                | `None`    |
+| timeline_ids     | [set](`set`)\[[str](`str`)\] \| None                                  | Return claims involving any of these timelines.       | `None`    |
+| id_pattern       | [str](`str`) \| None                                                  | Regex pattern matched against timeline IDs.           | `None`    |
+| between          | [tuple](`tuple`)\[[str](`str`), [str](`str`)\] \| None                | Return claims connecting exactly these two timelines. | `None`    |
+| synchronous_only | [bool](`bool`)                                                        | Exclude non-synchronous claims.                       | `False`   |
+| nomatch_only     | [bool](`bool`)                                                        | Return only non-synchronous claims.                   | `False`   |
+| include_domains  | [set](`set`)\[[Domain](`timetoalign.core.enums.Domain`)\] \| None     | Only timelines in these domains.                      | `None`    |
+| include_units    | [set](`set`)\[[TimeUnit](`timetoalign.core.enums.TimeUnit`)\] \| None | Only timelines with these units.                      | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                       | Description        |
+|--------|------------------------------------------------------------|--------------------|
+|        | [ClaimFilter](`timetoalign.alignment.filters.ClaimFilter`) | A new ClaimFilter. |
 
 ### matches_claim { #timetoalign.alignment.ClaimFilter.matches_claim }
 
@@ -124,14 +135,18 @@ alignment.ClaimFilter.matches_claim(claim, *, timelines=None)
 
 Test whether a MatchClaim passes all filter criteria.
 
-Args:
-    claim: The MatchClaim to test.
-    timelines: Dict of timeline_id -> Timeline for resolving
-        domain/unit filters. Required only when ``include_domains``
-        or ``include_units`` are set.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    True if the claim passes all filters.
+| Name      | Type                                                                                 | Description                                                                                                                             | Default    |
+|-----------|--------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------|------------|
+| claim     | [MatchClaim](`timetoalign.alignment.claims.MatchClaim`)                              | The MatchClaim to test.                                                                                                                 | _required_ |
+| timelines | [dict](`dict`)\[[str](`str`), [Timeline](`timetoalign.timelines.Timeline`)\] \| None | Dict of timeline_id -> Timeline for resolving domain/unit filters. Required only when ``include_domains`` or ``include_units`` are set. | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                           |
+|--------|----------------|---------------------------------------|
+|        | [bool](`bool`) | True if the claim passes all filters. |
 
 ### matches_timeline { #timetoalign.alignment.ClaimFilter.matches_timeline }
 
@@ -147,10 +162,15 @@ related filters are applied (``timeline_id``, ``timeline_ids``,
 claim-level filters (``synchronous_only``, ``nomatch_only``,
 ``between``) are ignored.
 
-Args:
-    timeline_id: The timeline ID to test.
-    timelines: Dict of timeline_id -> Timeline for resolving
-        domain/unit filters.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    True if the timeline passes all applicable filters.
+| Name        | Type                                                                                 | Description                                                        | Default    |
+|-------------|--------------------------------------------------------------------------------------|--------------------------------------------------------------------|------------|
+| timeline_id | [str](`str`)                                                                         | The timeline ID to test.                                           | _required_ |
+| timelines   | [dict](`dict`)\[[str](`str`), [Timeline](`timetoalign.timelines.Timeline`)\] \| None | Dict of timeline_id -> Timeline for resolving domain/unit filters. | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                                         |
+|--------|----------------|-----------------------------------------------------|
+|        | [bool](`bool`) | True if the timeline passes all applicable filters. |

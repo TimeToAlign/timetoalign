@@ -854,11 +854,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.timelines.PlaythroughSection" id="toc-timetoalign.timelines.PlaythroughSection" class="nav-link active" data-scroll-target="#timetoalign.timelines.PlaythroughSection">PlaythroughSection</a>
   <ul>
+  <li><a href="#note" id="toc-note" class="nav-link" data-scroll-target="#note">Note</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.timelines.PlaythroughSection.to_dict" id="toc-timetoalign.timelines.PlaythroughSection.to_dict" class="nav-link" data-scroll-target="#timetoalign.timelines.PlaythroughSection.to_dict">to_dict</a></li>
-  <li><a href="#timetoalign.timelines.PlaythroughSection.to_mc_sequence" id="toc-timetoalign.timelines.PlaythroughSection.to_mc_sequence" class="nav-link" data-scroll-target="#timetoalign.timelines.PlaythroughSection.to_mc_sequence">to_mc_sequence</a></li>
+  <li><a href="#timetoalign.timelines.PlaythroughSection.to_mc_sequence" id="toc-timetoalign.timelines.PlaythroughSection.to_mc_sequence" class="nav-link" data-scroll-target="#timetoalign.timelines.PlaythroughSection.to_mc_sequence">to_mc_sequence</a>
+  <ul class="collapse">
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -881,29 +886,51 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A contiguous group of atomic sections in a specific traversal.</p>
 <p>This is what gets written to .flow.csv and compared via is_equivalent(). Each PlaythroughSection represents a contiguous run of MCs in the unfolded sequence.</p>
-<p>Note: MC ranges use the <strong>right-open interval convention</strong> [mc_start, mc_end), consistent with partitura and the TTA manuscript. For example, mc_start=1 and mc_end=9 means measures 1, 2, 3, 4, 5, 6, 7, 8 (eight measures total).</p>
-<p>Attributes: mc_start: First MC of this playthrough section (inclusive). mc_end: First MC AFTER this playthrough section (exclusive, right-open). atomic_section_ids: Which atomic sections this covers.</p>
-<p>Examples: &gt;&gt;&gt; sec = PlaythroughSection(mc_start=1, mc_end=9, atomic_section_ids=(“A”, “B”)) &gt;&gt;&gt; sec.mc_range (1, 9) &gt;&gt;&gt; sec.mc_count 8</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="note" class="level2 doc-section doc-section-note">
+<h2 class="doc-section doc-section-note anchored" data-anchor-id="note">Note</h2>
+<p>MC ranges use the <strong>right-open interval convention</strong> [mc_start, mc_end), consistent with partitura and the TTA manuscript. For example, mc_start=1 and mc_end=9 means measures 1, 2, 3, 4, 5, 6, 7, 8 (eight measures total).</p>
+</section>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 16%">
+<col style="width: 31%">
+<col style="width: 52%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.timelines.PlaythroughSection.mc_count">mc_count</a></td>
-<td>Number of MCs in this section (right-open: end - start).</td>
+<td>mc_start</td>
+<td><code>int</code></td>
+<td>First MC of this playthrough section (inclusive).</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.timelines.PlaythroughSection.mc_range">mc_range</a></td>
-<td>Return (mc_start, mc_end) tuple (right-open interval).</td>
+<td>mc_end</td>
+<td><code>int</code></td>
+<td>First MC AFTER this playthrough section (exclusive, right-open).</td>
+</tr>
+<tr class="odd">
+<td>atomic_section_ids</td>
+<td><code>tuple</code>[<code>str</code>, …]</td>
+<td>Which atomic sections this covers.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> sec <span class="op">=</span> PlaythroughSection(mc_start<span class="op">=</span><span class="dv">1</span>, mc_end<span class="op">=</span><span class="dv">9</span>, atomic_section_ids<span class="op">=</span>(<span class="st">"A"</span>, <span class="st">"B"</span>))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> sec.mc_range</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>(<span class="dv">1</span>, <span class="dv">9</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> sec.mc_count</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="dv">8</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -927,16 +954,39 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.timelines.PlaythroughSection.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.PlaythroughSection.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>timelines.PlaythroughSection.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.PlaythroughSection.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert to dictionary for serialization.</p>
 </section>
 <section id="timetoalign.timelines.PlaythroughSection.to_mc_sequence" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.PlaythroughSection.to_mc_sequence">to_mc_sequence</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.PlaythroughSection.to_mc_sequence()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.PlaythroughSection.to_mc_sequence()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return list of all MCs in this section.</p>
-<p>Returns: List of MC values from mc_start to mc_end (right-open, excludes mc_end).</p>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 28%">
+<col style="width: 64%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>int</code>]</td>
+<td>List of MC values from mc_start to mc_end (right-open, excludes mc_end).</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

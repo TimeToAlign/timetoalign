@@ -854,14 +854,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader">TiliaJsonLoader</a>
   <ul>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear">clear</a></li>
-  <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle">create_bundle</a></li>
-  <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group">create_group</a></li>
-  <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline">create_timeline</a></li>
-  <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines">create_timelines</a></li>
+  <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle">create_bundle</a>
+  <ul class="collapse">
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group">create_group</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline">create_timeline</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  <li><a href="#raises-2" id="toc-raises-2" class="nav-link" data-scroll-target="#raises-2">Raises</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines" id="toc-timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines">create_timelines</a>
+  <ul class="collapse">
+  <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
+  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -892,9 +913,49 @@ loader.store.beat       # all beat tables concatenated</code></pre>
 </ol></li>
 <li><code>bundle = loader.create_bundle()</code></li>
 </ol>
-<p>Args: media_unit: The <code>TimeUnit</code> for all timelines. Default <code>TimeUnit.seconds</code> (TiLiA annotations are time-based).</p>
-<p>Examples: &gt;&gt;&gt; loader = TiliaJsonLoader() &gt;&gt;&gt; loader.load(“Bruckner5_Scherzo.json”) &gt;&gt;&gt; group = loader.create_group() &gt;&gt;&gt; group.n_timelines 7 &gt;&gt;&gt; loader.create_timeline(“BEAT_TIMELINE_3”).n_events 1146 &gt;&gt;&gt; loader.store.hierarchy._table.num_rows 33</p>
-<p>See Also: timetoalign.loader.format.json.JsonLoader timetoalign.timelines.groups.TimelineGroup TiliaDictStore</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 23%">
+<col style="width: 58%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>media_unit</td>
+<td><code>TimeUnit</code></td>
+<td>The <code>TimeUnit</code> for all timelines. Default <code>TimeUnit.seconds</code> (TiLiA annotations are time-based).</td>
+<td><code>TimeUnit.seconds</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> TiliaJsonLoader()</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.load(<span class="st">"Bruckner5_Scherzo.json"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> group <span class="op">=</span> loader.create_group()</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> group.n_timelines</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="dv">7</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.create_timeline(<span class="st">"BEAT_TIMELINE_3"</span>).n_events</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="dv">1146</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.store.hierarchy._table.num_rows</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="dv">33</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="see-also" class="level2 doc-section doc-section-see-also">
+<h2 class="doc-section doc-section-see-also anchored" data-anchor-id="see-also">See Also</h2>
+<p>timetoalign.loader.format.json.JsonLoader timetoalign.timelines.groups.TimelineGroup TiliaDictStore</p>
+</section>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
@@ -958,43 +1019,292 @@ loader.store.beat       # all beat tables concatenated</code></pre>
 </table>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.clear">clear</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.clear()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.clear()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Clear all loaded data, including timeline specs and cache.</p>
 </section>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_bundle">create_bundle</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_bundle()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_bundle()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create an <code>AlignmentBundle</code> wrapping all timelines in one group.</p>
 <p>This is a convenience method. The bundle contains a single <code>TimelineGroup</code> with no cross-group <code>MatchClaim</code> objects.</p>
-<p>Returns: An <code>AlignmentBundle</code> with one group and no claims.</p>
-<p>Raises: RuntimeError: If <code>load()</code> has not been called.</p>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 25%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'AlignmentBundle'</td>
+<td>An <code>AlignmentBundle</code> with one group and no claims.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 42%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>RuntimeError</code></td>
+<td>If <code>load()</code> has not been called.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group">create_group</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_group(uids<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_group(uids<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a <code>TimelineGroup</code> containing all (or selected) timelines.</p>
 <p>This is the primary output method for TiliaJsonLoader. The group is built with all member timelines mapped to the same physical time axis (seconds).</p>
-<p>Args: uids: Timeline identifiers to include. <code>None</code> (default) means all.</p>
-<p>Returns: A <code>TimelineGroup</code> with one member per timeline.</p>
-<p>Raises: RuntimeError: If <code>load()</code> has not been called.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 32%">
+<col style="width: 52%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>uids</td>
+<td><code>list</code>[<code>str</code>] | None</td>
+<td>Timeline identifiers to include. <code>None</code> (default) means all.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 24%">
+<col style="width: 65%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'TimelineGroup'</td>
+<td>A <code>TimelineGroup</code> with one member per timeline.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-1" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 42%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>RuntimeError</code></td>
+<td>If <code>load()</code> has not been called.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline">create_timeline</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_timeline(uid)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_timeline(uid)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a single <code>ContinuousPhysicalTimeline</code> by uid.</p>
 <p>The <em>uid</em> may be a type-based ID from <code>timeline_ids</code> (for example, <code>"cpt4"</code>), the original TiLiA source ID/title, or an integer index.</p>
-<p>Args: uid: Timeline identifier or integer index.</p>
-<p>Returns: A <code>ContinuousPhysicalTimeline</code> with events from the timeline’s components.</p>
-<p>Raises: KeyError: If no timeline with <em>uid</em> exists. RuntimeError: If <code>load()</code> has not been called.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 33%">
+<col style="width: 43%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>uid</td>
+<td><code>str</code> | <code>int</code></td>
+<td>Timeline identifier or integer index.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 18%">
+<col style="width: 71%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'Timeline'</td>
+<td>A <code>ContinuousPhysicalTimeline</code> with events from the</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>'Timeline'</td>
+<td>timeline’s components.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-2" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-2">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 42%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>KeyError</code></td>
+<td>If no timeline with <em>uid</em> exists.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>RuntimeError</code></td>
+<td>If <code>load()</code> has not been called.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines">create_timelines</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_timelines(uids<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.tilia.TiliaJsonLoader.create_timelines(uids<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create multiple timelines.</p>
-<p>Args: uids: List of timeline identifiers to create. If <code>None</code> (the default), all timelines are created.</p>
-<p>Returns: List of <code>ContinuousPhysicalTimeline</code> objects.</p>
+<section id="parameters-3" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 25%">
+<col style="width: 61%">
+<col style="width: 7%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>uids</td>
+<td><code>list</code>[<code>str</code>] | None</td>
+<td>List of timeline identifiers to create. If <code>None</code> (the default), all timelines are created.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-3" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 35%">
+<col style="width: 55%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>['Timeline']</td>
+<td>List of <code>ContinuousPhysicalTimeline</code> objects.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

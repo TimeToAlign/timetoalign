@@ -852,7 +852,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.timelines.load_valid_flows" id="toc-timetoalign.timelines.load_valid_flows" class="nav-link active" data-scroll-target="#timetoalign.timelines.load_valid_flows">load_valid_flows</a></li>
+  <li><a href="#timetoalign.timelines.load_valid_flows" id="toc-timetoalign.timelines.load_valid_flows" class="nav-link active" data-scroll-target="#timetoalign.timelines.load_valid_flows">load_valid_flows</a>
+  <ul>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -866,11 +871,71 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>load_valid_flows</h1>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.load_valid_flows(csv_path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Load all valid flows from a .flow.csv file, grouped by flow_mode.</p>
-<p>Args: csv_path: Path to the .flow.csv file.</p>
-<p>Returns: Dict mapping FlowMode to Flow for each unique flow_mode in the CSV. Skips unknown flow_modes and ERROR entries.</p>
-<p>Examples: &gt;&gt;&gt; flows = load_valid_flows(Path(“tests/data/target_flows/specimen.flow.csv”)) &gt;&gt;&gt; default_flow = flows[FlowMode.default] &gt;&gt;&gt; for mode, flow in flows.items(): … print(f”{mode.value}: {len(flow.sections)} sections”)</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 14%">
+<col style="width: 25%">
+<col style="width: 42%">
+<col style="width: 17%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>csv_path</td>
+<td>'Path | str'</td>
+<td>Path to the .flow.csv file.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 49%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>dict</code>[<code>FlowMode</code>, 'Flow']</td>
+<td>Dict mapping FlowMode to Flow for each unique flow_mode in the CSV.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>dict</code>[<code>FlowMode</code>, 'Flow']</td>
+<td>Skips unknown flow_modes and ERROR entries.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> flows <span class="op">=</span> load_valid_flows(Path(<span class="st">"tests/data/target_flows/specimen.flow.csv"</span>))</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> default_flow <span class="op">=</span> flows[FlowMode.default]</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> mode, flow <span class="kw">in</span> flows.items():</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>mode<span class="sc">.</span>value<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span><span class="bu">len</span>(flow.sections)<span class="sc">}</span><span class="ss"> sections"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

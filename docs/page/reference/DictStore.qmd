@@ -13,17 +13,23 @@ one table per annotated timeline).
 Maintains the uniform EventStore interface (iteration, keys, items,
 getitem) while supporting any number of named data sources.
 
-Args:
-    data: Dictionary mapping names to EventData tables.
+## Parameters {.doc-section .doc-section-parameters}
 
-Examples:
-    >>> store = DictStore({
-    ...     "score": score_event_data,
-    ...     "perf:p01": perf_01_event_data,
-    ...     "perf:p02": perf_02_event_data,
-    ... })
-    >>> for name, events in store.items():
-    ...     print(f"{name}: {len(events)} events")
+| Name   | Type                                                  | Description                                   | Default   |
+|--------|-------------------------------------------------------|-----------------------------------------------|-----------|
+| data   | [dict](`dict`)\[[str](`str`), \'EventData\'\] \| None | Dictionary mapping names to EventData tables. | `None`    |
+
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> store = DictStore({
+...     "score": score_event_data,
+...     "perf:p01": perf_01_event_data,
+...     "perf:p02": perf_02_event_data,
+... })
+>>> for name, events in store.items():
+...     print(f"{name}: {len(events)} events")
+```
 
 ## Methods
 
@@ -41,9 +47,12 @@ DictStore.add(name, events)
 
 Add or replace a named EventData table.
 
-Args:
-    name: The name for this data (e.g., ``"score"``, ``"perf:p01"``).
-    events: The EventData to store.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type          | Description                                                 | Default    |
+|--------|---------------|-------------------------------------------------------------|------------|
+| name   | [str](`str`)  | The name for this data (e.g., ``"score"``, ``"perf:p01"``). | _required_ |
+| events | \'EventData\' | The EventData to store.                                     | _required_ |
 
 ### items { #timetoalign.DictStore.items }
 

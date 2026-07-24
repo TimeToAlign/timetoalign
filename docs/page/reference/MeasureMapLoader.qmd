@@ -14,25 +14,27 @@ The loader handles:
 - Expanded MeasureMap (all fields explicit)
 - Validation of structure (MC unique, qstamp monotonic, next valid)
 
-Attributes:
-    unit: Always TimeUnit.quarters (MeasureMap uses quarter beats).
-    expanded_data: The fully expanded measure list after loading.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> loader = MeasureMapLoader()
-    >>> loader.load("WoO71.measures.mm.json")
-    >>> print(len(loader.store.measures))  # Number of measures
-    240
+| Name          | Type                                                                  | Description                                               |
+|---------------|-----------------------------------------------------------------------|-----------------------------------------------------------|
+| unit          | [TimeUnit](`timetoalign.core.TimeUnit`)                               | Always TimeUnit.quarters (MeasureMap uses quarter beats). |
+| expanded_data | [list](`list`)\[[dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\]\] | The fully expanded measure list after loading.            |
 
-    >>> # Access flow control summary
-    >>> summary = loader.store.measures.get_flow_control_summary()
-    >>> print(f"Repeats: {summary['repeat_starts']} starts, {summary['repeat_ends']} ends")
+## Examples {.doc-section .doc-section-examples}
 
-## Attributes
+```python
+>>> loader = MeasureMapLoader()
+>>> loader.load("WoO71.measures.mm.json")
+>>> print(len(loader.store.measures))  # Number of measures
+240
+```
 
-| Name | Description |
-| --- | --- |
-| [expanded_data](#timetoalign.loader.score.MeasureMapLoader.expanded_data) | The fully expanded measure data after loading. |
+```python
+>>> # Access flow control summary
+>>> summary = loader.store.measures.get_flow_control_summary()
+>>> print(f"Repeats: {summary['repeat_starts']} starts, {summary['repeat_ends']} ends")
+```
 
 ## Methods
 
@@ -69,8 +71,11 @@ while current_mc != -1:
 return TraversalMap(sequence=sequence)
 ```
 
-Returns:
-    List of MC values in traversal order.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                           | Description                           |
+|--------|--------------------------------|---------------------------------------|
+|        | [list](`list`)\[[int](`int`)\] | List of MC values in traversal order. |
 
 ### get_traversal_summary { #timetoalign.loader.score.MeasureMapLoader.get_traversal_summary }
 
@@ -80,5 +85,8 @@ loader.score.MeasureMapLoader.get_traversal_summary()
 
 Get summary of the default traversal.
 
-Returns:
-    Dict with traversal statistics.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                     |
+|--------|-----------------------------------------------------|---------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict with traversal statistics. |

@@ -855,9 +855,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.LinearMap" id="toc-timetoalign.LinearMap" class="nav-link active" data-scroll-target="#timetoalign.LinearMap">LinearMap</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.LinearMap.compose_with" id="toc-timetoalign.LinearMap.compose_with" class="nav-link" data-scroll-target="#timetoalign.LinearMap.compose_with">compose_with</a></li>
+  <li><a href="#timetoalign.LinearMap.compose_with" id="toc-timetoalign.LinearMap.compose_with" class="nav-link" data-scroll-target="#timetoalign.LinearMap.compose_with">compose_with</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
   <li><a href="#timetoalign.LinearMap.from_dict" id="toc-timetoalign.LinearMap.from_dict" class="nav-link" data-scroll-target="#timetoalign.LinearMap.from_dict">from_dict</a></li>
   <li><a href="#timetoalign.LinearMap.inverse" id="toc-timetoalign.LinearMap.inverse" class="nav-link" data-scroll-target="#timetoalign.LinearMap.inverse">inverse</a></li>
   <li><a href="#timetoalign.LinearMap.to_dict" id="toc-timetoalign.LinearMap.to_dict" class="nav-link" data-scroll-target="#timetoalign.LinearMap.to_dict">to_dict</a></li>
@@ -884,43 +889,46 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Affine transformation: y = scalar * x + offset.</p>
 <p>This is the most general linear map, combining scaling and offset.</p>
-<p>Attributes: scalar: The multiplicative factor (default 1.0). offset: The additive offset (default 0.0).</p>
-<p>Examples: &gt;&gt;&gt; # Convert ticks to quarters: y = x / 480 &gt;&gt;&gt; tick_to_quarter = LinearMap(scalar=1/480, source_unit=“ticks”, target_unit=“quarters”) &gt;&gt;&gt; tick_to_quarter(480) 1.0</p>
-<pre><code>&gt;&gt;&gt; # Temperature conversion: Celsius to Fahrenheit: y = 1.8x + 32
-&gt;&gt;&gt; c_to_f = LinearMap(scalar=1.8, offset=32)
-&gt;&gt;&gt; c_to_f(0)
-32.0
-&gt;&gt;&gt; c_to_f(100)
-212.0
-
-&gt;&gt;&gt; # Inverse map
-&gt;&gt;&gt; f_to_c = c_to_f.inverse()
-&gt;&gt;&gt; f_to_c(212.0)
-100.0</code></pre>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.LinearMap.is_identity">is_identity</a></td>
-<td>Whether this map is the identity transformation.</td>
+<td>scalar</td>
+<td><a href="../reference/CoordinateValue.html#timetoalign.CoordinateValue">CoordinateValue</a></td>
+<td>The multiplicative factor (default 1.0).</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.LinearMap.offset">offset</a></td>
-<td>The additive offset.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.LinearMap.scalar">scalar</a></td>
-<td>The multiplicative factor.</td>
+<td>offset</td>
+<td><a href="../reference/CoordinateValue.html#timetoalign.CoordinateValue">CoordinateValue</a></td>
+<td>The additive offset (default 0.0).</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Convert ticks to quarters: y = x / 480</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> tick_to_quarter <span class="op">=</span> LinearMap(scalar<span class="op">=</span><span class="dv">1</span><span class="op">/</span><span class="dv">480</span>, source_unit<span class="op">=</span><span class="st">"ticks"</span>, target_unit<span class="op">=</span><span class="st">"quarters"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> tick_to_quarter(<span class="dv">480</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fl">1.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Temperature conversion: Celsius to Fahrenheit: y = 1.8x + 32</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> c_to_f <span class="op">=</span> LinearMap(scalar<span class="op">=</span><span class="fl">1.8</span>, offset<span class="op">=</span><span class="dv">32</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> c_to_f(<span class="dv">0</span>)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="fl">32.0</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> c_to_f(<span class="dv">100</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="fl">212.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Inverse map</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> f_to_c <span class="op">=</span> c_to_f.inverse()</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> f_to_c(<span class="fl">212.0</span>)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fl">100.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -952,25 +960,63 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.LinearMap.compose_with" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.LinearMap.compose_with">compose_with</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>LinearMap.compose_with(other)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>LinearMap.compose_with(other)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Compose with another LinearMap: (self then other).</p>
 <p>For y1 = a1<em>x + b1 and y2 = a2</em>y1 + b2: y2 = a2<em>(a1</em>x + b1) + b2 = (a1<em>a2)</em>x + (a2*b1 + b2)</p>
-<p>Args: other: The map to apply after this one.</p>
-<p>Returns: A new LinearMap equivalent to applying both in sequence.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>other</td>
+<td><a href="../reference/LinearMap.html#timetoalign.LinearMap">LinearMap</a></td>
+<td>The map to apply after this one.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/LinearMap.html#timetoalign.LinearMap">LinearMap</a></td>
+<td>A new LinearMap equivalent to applying both in sequence.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.LinearMap.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.LinearMap.from_dict">from_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>LinearMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>LinearMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Deserialize from dictionary.</p>
 </section>
 <section id="timetoalign.LinearMap.inverse" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.LinearMap.inverse">inverse</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>LinearMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>LinearMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return the inverse map: y = (x - b) / a.</p>
 </section>
 <section id="timetoalign.LinearMap.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.LinearMap.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>LinearMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>LinearMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Serialize to dictionary.</p>
 
 

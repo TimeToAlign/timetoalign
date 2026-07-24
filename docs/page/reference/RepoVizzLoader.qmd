@@ -24,31 +24,33 @@ RepoVizzLoader supports two modes:
 Both modes create :class:`DiscretePhysicalTimeline` instances with the
 ``samples`` unit and an attached ``SamplesToSeconds`` conversion map.
 
-Examples:
-    XML manifest mode::
+## Examples {.doc-section .doc-section-examples}
 
-        >>> loader = RepoVizzLoader.from_file("StringQuartetEEP_I_Normal.xml")
-        >>> loader.groups
-        ['audio', 'descriptors', 'mocap', 'score']
-        >>> loader.timeline_ids[:5]
-        ['ROOT0_Audi1_Audi0_Ambi0', 'ROOT0_Audi1_Audi0_Ambi1', ...]
+XML manifest mode::
 
-        >>> tl = loader.create_timeline("ROOT0_Audi1_Audi0_Ambi0")
-        >>> tl.length
-        Coordinate(11753638, samples)
+    >>> loader = RepoVizzLoader.from_file("StringQuartetEEP_I_Normal.xml")
+    >>> loader.groups
+    ['audio', 'descriptors', 'mocap', 'score']
+    >>> loader.timeline_ids[:5]
+    ['ROOT0_Audi1_Audi0_Ambi0', 'ROOT0_Audi1_Audi0_Ambi1', ...]
 
-    Legacy CSV mode::
+    >>> tl = loader.create_timeline("ROOT0_Audi1_Audi0_Ambi0")
+    >>> tl.length
+    Coordinate(11753638, samples)
 
-        >>> loader = RepoVizzLoader.from_file("vln1_bb_angle.csv")
-        >>> loader.n_samples
-        63965
-        >>> loader.frame_rate
-        240
+Legacy CSV mode::
 
-See Also:
-    timetoalign.loader.base.ManifestLoader
-    timetoalign.loader.physical.audio.AudioLoader
-    timetoalign.loader.physical.eep_notes.EepNotesLoader
+    >>> loader = RepoVizzLoader.from_file("vln1_bb_angle.csv")
+    >>> loader.n_samples
+    63965
+    >>> loader.frame_rate
+    240
+
+## See Also {.doc-section .doc-section-see-also}
+
+timetoalign.loader.base.ManifestLoader
+timetoalign.loader.physical.audio.AudioLoader
+timetoalign.loader.physical.eep_notes.EepNotesLoader
 
 ## Attributes
 
@@ -104,29 +106,34 @@ loader.RepoVizzLoader.create_group(
 
 Create a TimelineGroup containing timelines.
 
-Args:
-    category: Filter to a specific category ("audio", "mocap", etc.).
-    entries: Specific catalogue entries to include.
-    id: Custom ID for the TimelineGroup. Defaults to
-        ``"repovizz:{category or 'all'}"``.
-    name: Custom name for the TimelineGroup. Defaults to
-        the source filename stem.
-    with_notes: If True, add notes as a child of the first audio
-        timeline using ``use_conversion_map=True``. This enables
-        automatic coordinate transfer from seconds (notes) to
-        samples (audio). Default: False.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type                                   | Description                                                                                                                                                                                      | Default   |
+|------------|----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| category   | [str](`str`) \| None                   | Filter to a specific category ("audio", "mocap", etc.).                                                                                                                                          | `None`    |
+| entries    | [list](`list`)\[[str](`str`)\] \| None | Specific catalogue entries to include.                                                                                                                                                           | `None`    |
+| id         | [str](`str`) \| None                   | Custom ID for the TimelineGroup. Defaults to ``"repovizz:{category or 'all'}"``.                                                                                                                 | `None`    |
+| name       | [str](`str`) \| None                   | Custom name for the TimelineGroup. Defaults to the source filename stem.                                                                                                                         | `None`    |
+| with_notes | [bool](`bool`)                         | If True, add notes as a child of the first audio timeline using ``use_conversion_map=True``. This enables automatic coordinate transfer from seconds (notes) to samples (audio). Default: False. | `False`   |
+
 Returns:
     A TimelineGroup containing the specified timelines.
 
-Raises:
-    ValueError: If category is invalid.
-    RuntimeError: If no XML manifest loaded.
+#### Raises {.doc-section .doc-section-raises}
 
-Examples:
-    Load an EEP recording with all timelines and notes:
+| Name   | Type                           | Description                |
+|--------|--------------------------------|----------------------------|
+|        | [ValueError](`ValueError`)     | If category is invalid.    |
+|        | [RuntimeError](`RuntimeError`) | If no XML manifest loaded. |
 
-    >>> loader = RepoVizzLoader.from_file("recording.xml")
-    >>> group = loader.create_group(id="normal", name="Normal Recording", with_notes=True)
+#### Examples {.doc-section .doc-section-examples}
+
+Load an EEP recording with all timelines and notes:
+
+```python
+>>> loader = RepoVizzLoader.from_file("recording.xml")
+>>> group = loader.create_group(id="normal", name="Normal Recording", with_notes=True)
+```
 
 ### create_timeline { #timetoalign.loader.RepoVizzLoader.create_timeline }
 
@@ -139,23 +146,26 @@ Create a DiscretePhysicalTimeline from a catalogue entry.
 In XML mode: looks up the entry and creates a timeline with its metadata.
 In legacy CSV mode: creates timeline from the loaded CSV.
 
-Args:
-    entry: Entry lookup key. In XML mode, supports:
-        - Audio shorthand: "mono", "binaural", "pickup_vln1"
-        - Descriptor pattern: "tonal.ChordsStrength.mono"
-        - Exact xml_id or name
-        In legacy CSV mode, this is an optional timeline ID.
-    **kwargs: Additional arguments:
-        - name: Override the timeline's name (defaults to entry's name).
-        - attach_cmap: If True (default), attach a SamplesToSeconds C-map.
-    uid: Override the timeline's ID (defaults to entry's xml_id).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A DiscretePhysicalTimeline representing the data.
+| Name     | Type                 | Description                                                                                                                                                                                                                 | Default   |
+|----------|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| entry    | [str](`str`) \| None | Entry lookup key. In XML mode, supports: - Audio shorthand: "mono", "binaural", "pickup_vln1" - Descriptor pattern: "tonal.ChordsStrength.mono" - Exact xml_id or name In legacy CSV mode, this is an optional timeline ID. | `None`    |
+| **kwargs | [Any](`typing.Any`)  | Additional arguments: - name: Override the timeline's name (defaults to entry's name). - attach_cmap: If True (default), attach a SamplesToSeconds C-map.                                                                   | `{}`      |
+| uid      | [str](`str`) \| None | Override the timeline's ID (defaults to entry's xml_id).                                                                                                                                                                    | `None`    |
 
-Raises:
-    RuntimeError: If no file has been loaded.
-    KeyError: If entry doesn't match any catalogue entry (XML mode).
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                         | Description                                       |
+|--------|------------------------------|---------------------------------------------------|
+|        | \'DiscretePhysicalTimeline\' | A DiscretePhysicalTimeline representing the data. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                                            |
+|--------|--------------------------------|--------------------------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If no file has been loaded.                            |
+|        | [KeyError](`KeyError`)         | If entry doesn't match any catalogue entry (XML mode). |
 
 ### create_timelines { #timetoalign.loader.RepoVizzLoader.create_timelines }
 
@@ -165,12 +175,18 @@ loader.RepoVizzLoader.create_timelines(id_pattern=None, *, entries=None)
 
 Create multiple timelines.
 
-Args:
-    id_pattern: Regex pattern to filter timeline IDs.
-    entries: List of catalogue entries to create. If None, all are created.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of Timeline objects.
+| Name       | Type                                   | Description                                                    | Default   |
+|------------|----------------------------------------|----------------------------------------------------------------|-----------|
+| id_pattern | [str](`str`) \| None                   | Regex pattern to filter timeline IDs.                          | `None`    |
+| entries    | [list](`list`)\[[str](`str`)\] \| None | List of catalogue entries to create. If None, all are created. | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                           | Description               |
+|--------|--------------------------------|---------------------------|
+|        | [list](`list`)\[\'Timeline\'\] | List of Timeline objects. |
 
 ### find_audio { #timetoalign.loader.RepoVizzLoader.find_audio }
 
@@ -180,12 +196,17 @@ loader.RepoVizzLoader.find_audio(source)
 
 Find an audio entry by source name.
 
-Args:
-    source: Source name (e.g., "mono", "binaural", "pickup_vln1").
-        For pickup sources, can use "vln1" shorthand.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The matching entry ID, or None if not found.
+| Name   | Type                 | Description                                                                                          | Default    |
+|--------|----------------------|------------------------------------------------------------------------------------------------------|------------|
+| source | [str](`str`) \| None | Source name (e.g., "mono", "binaural", "pickup_vln1"). For pickup sources, can use "vln1" shorthand. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                 | Description                                  |
+|--------|----------------------|----------------------------------------------|
+|        | [str](`str`) \| None | The matching entry ID, or None if not found. |
 
 ### find_audio_descriptor { #timetoalign.loader.RepoVizzLoader.find_audio_descriptor }
 
@@ -203,13 +224,19 @@ Audio descriptors are WAV files with feature data extracted from
 audio by Essentia. They're organized by type (tonal, lowlevel,
 rhythm) and named by the feature (ChordsStrength, Dissonance, etc.).
 
-Args:
-    descriptor_type: Type of descriptor ("tonal", "lowlevel", "rhythm").
-    descriptor_name: Feature name (e.g., "ChordsStrength", "Dissonance").
-    source: Audio source (e.g., "mono", "binaural", "pickup_vln1").
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The matching entry ID, or None if not found.
+| Name            | Type         | Description                                             | Default    |
+|-----------------|--------------|---------------------------------------------------------|------------|
+| descriptor_type | [str](`str`) | Type of descriptor ("tonal", "lowlevel", "rhythm").     | _required_ |
+| descriptor_name | [str](`str`) | Feature name (e.g., "ChordsStrength", "Dissonance").    | _required_ |
+| source          | [str](`str`) | Audio source (e.g., "mono", "binaural", "pickup_vln1"). | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                 | Description                                  |
+|--------|----------------------|----------------------------------------------|
+|        | [str](`str`) \| None | The matching entry ID, or None if not found. |
 
 ### find_descriptor { #timetoalign.loader.RepoVizzLoader.find_descriptor }
 
@@ -224,12 +251,18 @@ instrument filter is checked against the subgroup first, then
 the filename as a fallback (bowing gesture descriptors often
 encode the instrument in the filename, e.g. ``vln1_bb_angle.csv``).
 
-Args:
-    descriptor_name: Descriptor name (e.g., "bb_angle", "bow_vel").
-    instrument: Optional instrument filter (e.g., "vln1", "cello").
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The matching entry ID, or None if not found.
+| Name            | Type                 | Description                                         | Default    |
+|-----------------|----------------------|-----------------------------------------------------|------------|
+| descriptor_name | [str](`str`)         | Descriptor name (e.g., "bb_angle", "bow_vel").      | _required_ |
+| instrument      | [str](`str`) \| None | Optional instrument filter (e.g., "vln1", "cello"). | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                 | Description                                  |
+|--------|----------------------|----------------------------------------------|
+|        | [str](`str`) \| None | The matching entry ID, or None if not found. |
 
 ### find_signal { #timetoalign.loader.RepoVizzLoader.find_signal }
 
@@ -239,12 +272,18 @@ loader.RepoVizzLoader.find_signal(name_pattern, source=None)
 
 Find a signal entry by name pattern.
 
-Args:
-    name_pattern: Regex pattern to match signal names.
-    source: Optional source filter (e.g., "mono", "vln1").
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The matching entry ID, or None if not found.
+| Name         | Type                 | Description                                    | Default    |
+|--------------|----------------------|------------------------------------------------|------------|
+| name_pattern | [str](`str`)         | Regex pattern to match signal names.           | _required_ |
+| source       | [str](`str`) \| None | Optional source filter (e.g., "mono", "vln1"). | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                 | Description                                  |
+|--------|----------------------|----------------------------------------------|
+|        | [str](`str`) \| None | The matching entry ID, or None if not found. |
 
 ### get_entry { #timetoalign.loader.RepoVizzLoader.get_entry }
 
@@ -256,14 +295,23 @@ Get a catalogue entry by ID.
 
 This is the public API for accessing catalogue entries.
 
-Args:
-    id: Entry identifier, name, or partial match.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The CatalogueEntry.
+| Name   | Type         | Description                               | Default    |
+|--------|--------------|-------------------------------------------|------------|
+| id     | [str](`str`) | Entry identifier, name, or partial match. | _required_ |
 
-Raises:
-    KeyError: If not found.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                              | Description         |
+|--------|-----------------------------------------------------------------------------------|---------------------|
+|        | [CatalogueEntry](`timetoalign.loader.physical.repovizz_catalogue.CatalogueEntry`) | The CatalogueEntry. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description   |
+|--------|------------------------|---------------|
+|        | [KeyError](`KeyError`) | If not found. |
 
 ### get_sample_rate_for_descriptor_type { #timetoalign.loader.RepoVizzLoader.get_sample_rate_for_descriptor_type }
 
@@ -273,11 +321,17 @@ loader.RepoVizzLoader.get_sample_rate_for_descriptor_type(descriptor_type)
 
 Get the sample rate for a descriptor type.
 
-Args:
-    descriptor_type: Type of descriptor ("tonal", "lowlevel", "rhythm").
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Sample rate in Hz.
+| Name            | Type         | Description                                         | Default    |
+|-----------------|--------------|-----------------------------------------------------|------------|
+| descriptor_type | [str](`str`) | Type of descriptor ("tonal", "lowlevel", "rhythm"). | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description        |
+|--------|--------------|--------------------|
+|        | [int](`int`) | Sample rate in Hz. |
 
 ### load { #timetoalign.loader.RepoVizzLoader.load }
 
@@ -290,12 +344,21 @@ Load one or more source files.
 If the source is an ``.xml`` file, uses XML manifest mode.
 Otherwise, falls back to legacy CSV mode.
 
-Args:
-    *sources: Paths to XML manifest or CSV files.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name     | Type                                   | Description                         | Default   |
+|----------|----------------------------------------|-------------------------------------|-----------|
+| *sources | [Path](`pathlib.Path`) \| [str](`str`) | Paths to XML manifest or CSV files. | `()`      |
 
-Raises:
-    FileNotFoundError: If any source doesn't exist.
-    ValueError: If any source is invalid.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                     | Description                  |
+|--------|------------------------------------------|------------------------------|
+|        | [FileNotFoundError](`FileNotFoundError`) | If any source doesn't exist. |
+|        | [ValueError](`ValueError`)               | If any source is invalid.    |

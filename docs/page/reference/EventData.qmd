@@ -20,30 +20,26 @@ NOTE: This class was renamed from EventStore to EventData in the 2026-01 API
 refactoring. EventStore now refers to the container class (formerly EventBundle)
 that holds one or more EventData tables.
 
-Attributes:
-    table: The underlying PyArrow table.
-    unit: The time unit for all coordinates.
-    number_type: The number type used for coordinates.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> data = EventData.from_dicts([
-    ...     {"id": "e1", "temporal_type": "instant", "event_type": "Beat",
-    ...      "instant": 0.0},
-    ...     {"id": "e2", "temporal_type": "interval", "event_type": "Note",
-    ...      "start": 0.0, "end": 1.0},
-    ... ], unit=TimeUnit.seconds)
-    >>> len(data)
-    2
+| Name        | Type                                        | Description                           |
+|-------------|---------------------------------------------|---------------------------------------|
+| table       | [pa](`pyarrow`).[Table](`pyarrow.Table`)    | The underlying PyArrow table.         |
+| unit        | [TimeUnit](`timetoalign.core.TimeUnit`)     | The time unit for all coordinates.    |
+| number_type | [NumberType](`timetoalign.core.NumberType`) | The number type used for coordinates. |
 
-## Attributes
+## Examples {.doc-section .doc-section-examples}
 
-| Name | Description |
-| --- | --- |
-| [count](#timetoalign.EventData.count) | The number of events in the store. |
-| [number_type](#timetoalign.EventData.number_type) | The number type for coordinate interpretation. |
-| [schema](#timetoalign.EventData.schema) | The PyArrow schema of the underlying table. |
-| [table](#timetoalign.EventData.table) | The underlying PyArrow table. |
-| [unit](#timetoalign.EventData.unit) | The time unit for coordinates. |
+```python
+>>> data = EventData.from_dicts([
+...     {"id": "e1", "temporal_type": "instant", "event_type": "Beat",
+...      "instant": 0.0},
+...     {"id": "e2", "temporal_type": "interval", "event_type": "Note",
+...      "start": 0.0, "end": 1.0},
+... ], unit=TimeUnit.seconds)
+>>> len(data)
+2
+```
 
 ## Methods
 
@@ -92,14 +88,18 @@ including ``None`` for a null cell -- *default* only substitutes
 for a null rational-shaped struct or a column absent from this
 table entirely.
 
-Args:
-    name: Field name in the underlying table.
-    default: Value substituted for every row when *name* is not a
-        column of this table, and for individual null rational
-        struct cells.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A list of per-row values, one for each event.
+| Name    | Type                | Description                                                                                                               | Default    |
+|---------|---------------------|---------------------------------------------------------------------------------------------------------------------------|------------|
+| name    | [str](`str`)        | Field name in the underlying table.                                                                                       | _required_ |
+| default | [Any](`typing.Any`) | Value substituted for every row when *name* is not a column of this table, and for individual null rational struct cells. | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                  | Description                                   |
+|--------|---------------------------------------|-----------------------------------------------|
+|        | [list](`list`)\[[Any](`typing.Any`)\] | A list of per-row values, one for each event. |
 
 ### concat { #timetoalign.EventData.concat }
 
@@ -109,15 +109,23 @@ EventData.concat(*others)
 
 Concatenate with other EventData, returning a new EventData.
 
-Args:
-    *others: Other EventData to concatenate (extra fields are
-        allowed and will be merged using schema promotion).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new EventData containing all events.
+| Name    | Type          | Description                                                                                          | Default   |
+|---------|---------------|------------------------------------------------------------------------------------------------------|-----------|
+| *others | \'EventData\' | Other EventData to concatenate (extra fields are allowed and will be merged using schema promotion). | `()`      |
 
-Raises:
-    ValueError: If any units don't match.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type          | Description                            |
+|--------|---------------|----------------------------------------|
+|        | \'EventData\' | A new EventData containing all events. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description               |
+|--------|----------------------------|---------------------------|
+|        | [ValueError](`ValueError`) | If any units don't match. |
 
 ### coordinate_range { #timetoalign.EventData.coordinate_range }
 
@@ -127,9 +135,12 @@ EventData.coordinate_range()
 
 Get the min and max coordinates across all events.
 
-Returns:
-    Tuple of (min, max) coordinates, or None if store is empty.
-    Returns Fraction values when number_type is fraction.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                                   | Description                                                 |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------|
+|        | [tuple](`tuple`)\[[float](`float`) \| [Fraction](`fractions.Fraction`), [float](`float`) \| [Fraction](`fractions.Fraction`)\] \| None | Tuple of (min, max) coordinates, or None if store is empty. |
+|        | [tuple](`tuple`)\[[float](`float`) \| [Fraction](`fractions.Fraction`), [float](`float`) \| [Fraction](`fractions.Fraction`)\] \| None | Returns Fraction values when number_type is fraction.       |
 
 ### count_by { #timetoalign.EventData.count_by }
 
@@ -139,11 +150,17 @@ EventData.count_by(field)
 
 Count events grouped by a field's values.
 
-Args:
-    field: The field to group by.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Dict mapping field values to counts.
+| Name   | Type         | Description            | Default    |
+|--------|--------------|------------------------|------------|
+| field  | [str](`str`) | The field to group by. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                         | Description                          |
+|--------|----------------------------------------------|--------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [int](`int`)\] | Dict mapping field values to counts. |
 
 ### create_timeline { #timetoalign.EventData.create_timeline }
 
@@ -157,17 +174,25 @@ This is a convenience method that creates a timeline with the data's
 events directly. The timeline class and number_type are inferred from
 the data's unit (e.g., ticks -> DiscreteLogicalTimeline with int).
 
-Args:
-    uid: Unique ID for the timeline. Auto-generated if None.
-    filters: Filter kwargs to apply before timeline creation.
-        Example: {"event_type": "Note"} to exclude rests.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A Timeline containing the (filtered) events.
+| Name    | Type                                                        | Description                                                                                        | Default   |
+|---------|-------------------------------------------------------------|----------------------------------------------------------------------------------------------------|-----------|
+| uid     | [str](`str`) \| None                                        | Unique ID for the timeline. Auto-generated if None.                                                | `None`    |
+| filters | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] \| None | Filter kwargs to apply before timeline creation. Example: {"event_type": "Note"} to exclude rests. | `None`    |
 
-Examples:
-    >>> timeline = data.create_timeline(uid="notes")
-    >>> filtered = data.create_timeline(filters={"event_type": "Note"})
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                                  |
+|--------|--------------|----------------------------------------------|
+|        | \'Timeline\' | A Timeline containing the (filtered) events. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> timeline = data.create_timeline(uid="notes")
+>>> filtered = data.create_timeline(filters={"event_type": "Note"})
+```
 
 ### empty { #timetoalign.EventData.empty }
 
@@ -177,12 +202,18 @@ EventData.empty(unit, number_type=NumberType.float)
 
 Create an empty EventData.
 
-Args:
-    unit: The time unit for coordinates.
-    number_type: The number type for coordinates.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    An empty EventData with the appropriate schema.
+| Name        | Type                                        | Description                      | Default            |
+|-------------|---------------------------------------------|----------------------------------|--------------------|
+| unit        | [TimeUnit](`timetoalign.core.TimeUnit`)     | The time unit for coordinates.   | _required_         |
+| number_type | [NumberType](`timetoalign.core.NumberType`) | The number type for coordinates. | `NumberType.float` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                                     |
+|--------|----------------------------------|-------------------------------------------------|
+|        | [Self](`typing_extensions.Self`) | An empty EventData with the appropriate schema. |
 
 ### event_types { #timetoalign.EventData.event_types }
 
@@ -192,8 +223,11 @@ EventData.event_types()
 
 Get the list of unique event types.
 
-Returns:
-    List of event type names.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                           | Description               |
+|--------|--------------------------------|---------------------------|
+|        | [list](`list`)\[[str](`str`)\] | List of event type names. |
 
 ### extend { #timetoalign.EventData.extend }
 
@@ -203,12 +237,17 @@ EventData.extend(other)
 
 Extend this data with events from another EventData (in-place).
 
-Args:
-    other: Another EventData with compatible schema (extra fields
-        are allowed and will be merged using schema promotion).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Raises:
-    ValueError: If units don't match.
+| Name   | Type          | Description                                                                                                    | Default    |
+|--------|---------------|----------------------------------------------------------------------------------------------------------------|------------|
+| other  | \'EventData\' | Another EventData with compatible schema (extra fields are allowed and will be merged using schema promotion). | _required_ |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description           |
+|--------|----------------------------|-----------------------|
+|        | [ValueError](`ValueError`) | If units don't match. |
 
 ### field_names { #timetoalign.EventData.field_names }
 
@@ -218,8 +257,11 @@ EventData.field_names()
 
 Get the list of field names for this EventData class.
 
-Returns:
-    List of all field names (base + extra).
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                           | Description                             |
+|--------|--------------------------------|-----------------------------------------|
+|        | [list](`list`)\[[str](`str`)\] | List of all field names (base + extra). |
 
 ### filter { #timetoalign.EventData.filter }
 
@@ -237,20 +279,26 @@ Filter events by criteria, returning a new EventData.
 
 All criteria are AND-ed together.
 
-Args:
-    temporal_type: Filter by "instant" or "interval".
-    event_type: Filter by event type name.
-    min_coord: Minimum coordinate (inclusive), optionally with a unit.
-    max_coord: Maximum coordinate (exclusive), optionally with a unit.
-    **kwargs: Exact match filters for other fields (e.g. event_category="note").
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name          | Type                                                             | Description                                                        | Default   |
+|---------------|------------------------------------------------------------------|--------------------------------------------------------------------|-----------|
+| temporal_type | [Literal](`typing.Literal`)\[\'instant\', \'interval\'\] \| None | Filter by "instant" or "interval".                                 | `None`    |
+| event_type    | [str](`str`) \| None                                             | Filter by event type name.                                         | `None`    |
+| min_coord     | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None      | Minimum coordinate (inclusive), optionally with a unit.            | `None`    |
+| max_coord     | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None      | Maximum coordinate (exclusive), optionally with a unit.            | `None`    |
+| **kwargs      | [Any](`typing.Any`)                                              | Exact match filters for other fields (e.g. event_category="note"). | `{}`      |
 
 Coordinate bounds are compared against the stored float coordinate
 representation. Fraction bounds are converted to float for this
 comparison; integer and float bounds retain their respective types.
 The minimum remains inclusive and the maximum remains exclusive.
 
-Returns:
-    A new EventData with filtered events.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type          | Description                           |
+|--------|---------------|---------------------------------------|
+|        | \'EventData\' | A new EventData with filtered events. |
 
 ### from_arrays { #timetoalign.EventData.from_arrays }
 
@@ -276,42 +324,45 @@ from the other (``end = start + duration`` or
 ``duration = end - start``).  Behaviour when both are present but
 inconsistent is controlled by *interval_policy*.
 
-Args:
-    fields: Dict mapping field names to arrays. Supports:
-        - np.ndarray: NumPy arrays
-        - pa.Array: PyArrow arrays (including StructArray for coords)
-        - list: Python lists (converted to numpy)
+#### Parameters {.doc-section .doc-section-parameters}
 
-        For coordinate fields (start, end, duration):
-        - If pa.StructArray: used directly
-        - If numeric/string array: parsed via CoordinateParser
+| Name            | Type                                                                                                                                                          | Description                                                                                                                                                                                                                                                                                                               | Default               |
+|-----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
+| fields          | [dict](`dict`)\[[str](`str`), [np](`numpy`).[ndarray](`numpy.ndarray`) \| [pa](`pyarrow`).[Array](`pyarrow.Array`) \| [list](`list`)\[[Any](`typing.Any`)\]\] | Dict mapping field names to arrays. Supports: - np.ndarray: NumPy arrays - pa.Array: PyArrow arrays (including StructArray for coords) - list: Python lists (converted to numpy)  For coordinate fields (start, end, duration): - If pa.StructArray: used directly - If numeric/string array: parsed via CoordinateParser | _required_            |
+| unit            | [TimeUnit](`timetoalign.core.TimeUnit`)                                                                                                                       | The time unit for coordinates.                                                                                                                                                                                                                                                                                            | _required_            |
+| number_type     | [NumberType](`timetoalign.core.NumberType`)                                                                                                                   | The number type for coordinates.                                                                                                                                                                                                                                                                                          | `NumberType.float`    |
+| validate        | [bool](`bool`)                                                                                                                                                | Whether to validate arrays before table construction.                                                                                                                                                                                                                                                                     | `True`                |
+| extra_fields    | [list](`list`)\[[pa](`pyarrow`).[Field](`pyarrow.Field`)\] \| None                                                                                            | Optional list of PyArrow fields for extra data. These fields include metadata (e.g., unit for CoordinateFields). If not provided, fields are inferred from the data arrays.                                                                                                                                               | `None`                |
+| interval_policy | [IntervalPolicy](`timetoalign.core.IntervalPolicy`)                                                                                                           | How to handle end/duration inconsistencies. See `IntervalPolicy` for options.                                                                                                                                                                                                                                             | `IntervalPolicy.warn` |
 
-    unit: The time unit for coordinates.
-    number_type: The number type for coordinates.
-    validate: Whether to validate arrays before table construction.
-    extra_fields: Optional list of PyArrow fields for extra data.
-        These fields include metadata (e.g., unit for CoordinateFields).
-        If not provided, fields are inferred from the data arrays.
-    interval_policy: How to handle end/duration inconsistencies.
-        See `IntervalPolicy` for options.
+#### Returns {.doc-section .doc-section-returns}
 
-Returns:
-    A new EventData containing the events.
+| Name   | Type                             | Description                            |
+|--------|----------------------------------|----------------------------------------|
+|        | [Self](`typing_extensions.Self`) | A new EventData containing the events. |
 
-Raises:
-    ValueError: If validation fails (missing fields, length mismatch, etc.)
+#### Raises {.doc-section .doc-section-raises}
 
-Examples:
-    >>> # Vectorized construction from arrays
-    >>> data = EventData.from_arrays({
-    ...     "id": np.array(["e1", "e2"]),
-    ...     "temporal_type": np.array(["instant", "instant"]),
-    ...     "event_type": np.array(["Beat", "Beat"]),
-    ...     "start": CoordinateParser.parse([0, 480], NumberType.int, unit),
-    ... }, unit=TimeUnit.ticks)
+| Name   | Type                       | Description                                                 |
+|--------|----------------------------|-------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If validation fails (missing fields, length mismatch, etc.) |
 
-    >>> # Direct from loader output (StructArrays already parsed)
-    >>> data = EventData.from_arrays(loader_fields, unit=TimeUnit.quarters)
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> # Vectorized construction from arrays
+>>> data = EventData.from_arrays({
+...     "id": np.array(["e1", "e2"]),
+...     "temporal_type": np.array(["instant", "instant"]),
+...     "event_type": np.array(["Beat", "Beat"]),
+...     "start": CoordinateParser.parse([0, 480], NumberType.int, unit),
+... }, unit=TimeUnit.ticks)
+```
+
+```python
+>>> # Direct from loader output (StructArrays already parsed)
+>>> data = EventData.from_arrays(loader_fields, unit=TimeUnit.quarters)
+```
 
 ### from_dataframe { #timetoalign.EventData.from_dataframe }
 
@@ -321,13 +372,19 @@ EventData.from_dataframe(df, unit, number_type=NumberType.float)
 
 Create EventData from a pandas DataFrame.
 
-Args:
-    df: DataFrame with event data. Field names should match the schema.
-    unit: The time unit for coordinates.
-    number_type: The number type for coordinates.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new EventData containing the events.
+| Name        | Type                                           | Description                                                     | Default            |
+|-------------|------------------------------------------------|-----------------------------------------------------------------|--------------------|
+| df          | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | DataFrame with event data. Field names should match the schema. | _required_         |
+| unit        | [TimeUnit](`timetoalign.core.TimeUnit`)        | The time unit for coordinates.                                  | _required_         |
+| number_type | [NumberType](`timetoalign.core.NumberType`)    | The number type for coordinates.                                | `NumberType.float` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                            |
+|--------|----------------------------------|----------------------------------------|
+|        | [Self](`typing_extensions.Self`) | A new EventData containing the events. |
 
 ### from_dicts { #timetoalign.EventData.from_dicts }
 
@@ -360,23 +417,29 @@ from the other (``end = start + duration`` or
 ``duration = end - start``).  Behaviour when both are present but
 inconsistent is controlled by *interval_policy*.
 
-Args:
-    rows: List of event dictionaries. At minimum each dict needs a
-        coordinate (``instant`` *or* ``start``/``end``) and an
-        ``event_type``. All other fields have sensible defaults.
-    unit: The time unit for coordinates.
-    number_type: The number type for coordinates.
-    interval_policy: How to handle end/duration inconsistencies.
-        See `IntervalPolicy` for options.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new EventData containing the events.
+| Name            | Type                                                                  | Description                                                                                                                                                              | Default               |
+|-----------------|-----------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
+| rows            | [list](`list`)\[[dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\]\] | List of event dictionaries. At minimum each dict needs a coordinate (``instant`` *or* ``start``/``end``) and an ``event_type``. All other fields have sensible defaults. | _required_            |
+| unit            | [TimeUnit](`timetoalign.core.TimeUnit`)                               | The time unit for coordinates.                                                                                                                                           | _required_            |
+| number_type     | [NumberType](`timetoalign.core.NumberType`)                           | The number type for coordinates.                                                                                                                                         | `NumberType.float`    |
+| interval_policy | [IntervalPolicy](`timetoalign.core.IntervalPolicy`)                   | How to handle end/duration inconsistencies. See `IntervalPolicy` for options.                                                                                            | `IntervalPolicy.warn` |
 
-Examples:
-    >>> data = EventData.from_dicts([
-    ...     {"event_type": "Beat", "instant": 0},
-    ...     {"event_type": "Note", "start": 0, "end": 0.5},
-    ... ], unit=TimeUnit.seconds)
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                            |
+|--------|----------------------------------|----------------------------------------|
+|        | [Self](`typing_extensions.Self`) | A new EventData containing the events. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> data = EventData.from_dicts([
+...     {"event_type": "Beat", "instant": 0},
+...     {"event_type": "Note", "start": 0, "end": 0.5},
+... ], unit=TimeUnit.seconds)
+```
 
 ### from_parquet { #timetoalign.EventData.from_parquet }
 
@@ -386,14 +449,23 @@ EventData.from_parquet(path)
 
 Load EventData from a Parquet file.
 
-Args:
-    path: Path to the Parquet file.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    An EventData loaded from the file.
+| Name   | Type                                   | Description               | Default    |
+|--------|----------------------------------------|---------------------------|------------|
+| path   | [Path](`pathlib.Path`) \| [str](`str`) | Path to the Parquet file. | _required_ |
 
-Raises:
-    ValueError: If the file lacks required TimeToAlign! metadata.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                        |
+|--------|----------------------------------|------------------------------------|
+|        | [Self](`typing_extensions.Self`) | An EventData loaded from the file. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                       |
+|--------|----------------------------|---------------------------------------------------|
+|        | [ValueError](`ValueError`) | If the file lacks required TimeToAlign! metadata. |
 
 ### get_schema { #timetoalign.EventData.get_schema }
 
@@ -407,12 +479,18 @@ This is a class-level method that returns the schema for a given unit,
 independent of any specific instance. Useful for constructing empty
 tables or validating incoming data.
 
-Args:
-    unit: The time unit for coordinate fields.
-    number_type: The number type for coordinate fields.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The complete schema including base and extra fields.
+| Name        | Type                                                | Description                            | Default    |
+|-------------|-----------------------------------------------------|----------------------------------------|------------|
+| unit        | [TimeUnit](`timetoalign.core.TimeUnit`)             | The time unit for coordinate fields.   | _required_ |
+| number_type | [NumberType](`timetoalign.core.NumberType`) \| None | The number type for coordinate fields. | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                       | Description                                          |
+|--------|--------------------------------------------|------------------------------------------------------|
+|        | [pa](`pyarrow`).[Schema](`pyarrow.Schema`) | The complete schema including base and extra fields. |
 
 ### head { #timetoalign.EventData.head }
 
@@ -427,17 +505,24 @@ as their native numbers — the same conversion :meth:`to_dataframe`
 applies — so ``events.head()`` shows the leading events directly,
 without reaching for the raw PyArrow table.
 
-Args:
-    n: Number of leading events to include. Values larger than the
-        event count return every event; ``n <= 0`` returns an empty
-        frame.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A pandas DataFrame of the first ``n`` events.
+| Name   | Type         | Description                                                                                                                    | Default   |
+|--------|--------------|--------------------------------------------------------------------------------------------------------------------------------|-----------|
+| n      | [int](`int`) | Number of leading events to include. Values larger than the event count return every event; ``n <= 0`` returns an empty frame. | `5`       |
 
-Examples:
-    >>> events.head()      # first five events
-    >>> events.head(3)     # first three events
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                           | Description                                   |
+|--------|------------------------------------------------|-----------------------------------------------|
+|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | A pandas DataFrame of the first ``n`` events. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> events.head()      # first five events
+>>> events.head(3)     # first three events
+```
 
 ### prefix_ids { #timetoalign.EventData.prefix_ids }
 
@@ -453,11 +538,17 @@ e.g. ``clt1:note:000001``.
 
 If the IDs already start with the prefix, they are left unchanged.
 
-Args:
-    prefix: The prefix to prepend (without trailing colon).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new EventData with prefixed IDs.
+| Name   | Type         | Description                                     | Default    |
+|--------|--------------|-------------------------------------------------|------------|
+| prefix | [str](`str`) | The prefix to prepend (without trailing colon). | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type          | Description                        |
+|--------|---------------|------------------------------------|
+|        | \'EventData\' | A new EventData with prefixed IDs. |
 
 ### select { #timetoalign.EventData.select }
 
@@ -467,11 +558,17 @@ EventData.select(fields)
 
 Select specific fields from the table.
 
-Args:
-    fields: List of field names to select.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A PyArrow table with only the selected fields.
+| Name   | Type                           | Description                    | Default    |
+|--------|--------------------------------|--------------------------------|------------|
+| fields | [list](`list`)\[[str](`str`)\] | List of field names to select. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                     | Description                                    |
+|--------|------------------------------------------|------------------------------------------------|
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) | A PyArrow table with only the selected fields. |
 
 ### summary { #timetoalign.EventData.summary }
 
@@ -481,9 +578,12 @@ EventData.summary()
 
 Get a comprehensive summary of the store.
 
-Returns:
-    Dict with count, temporal type counts, event type counts,
-    coordinate range, unit, and number type.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                                               |
+|--------|-----------------------------------------------------|-----------------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict with count, temporal type counts, event type counts, |
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | coordinate range, unit, and number type.                  |
 
 ### to_dataframe { #timetoalign.EventData.to_dataframe }
 
@@ -496,24 +596,36 @@ Convert to a DataFrame in the specified format.
 Higher-level method that dispatches to format-specific implementations.
 Currently supports pandas; polars support can be added later.
 
-Args:
-    format: DataFrame format ("pandas"). Default "pandas".
-    raw: If True, return raw conversion with struct dicts for coordinates.
-    coordinates: If True, wrap values in Coordinate objects with unit info.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A DataFrame in the requested format.
+| Name        | Type           | Description                                                       | Default    |
+|-------------|----------------|-------------------------------------------------------------------|------------|
+| format      | [str](`str`)   | DataFrame format ("pandas"). Default "pandas".                    | `'pandas'` |
+| raw         | [bool](`bool`) | If True, return raw conversion with struct dicts for coordinates. | `False`    |
+| coordinates | [bool](`bool`) | If True, wrap values in Coordinate objects with unit info.        | `False`    |
 
-Raises:
-    ValueError: If format is not supported.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> df = events.to_dataframe()  # pandas DataFrame
-    >>> df.iloc[0]['start']  # Fraction(1, 4) or 0.25
-    >>> df = events.to_dataframe("pandas", raw=True)
-    >>> df.iloc[0]['start']  # {'value': 0.25, 'numerator': 1, 'denominator': 4}
-    >>> df = events.to_dataframe(coordinates=True)
-    >>> df.iloc[0]['start']  # Coordinate(value=Fraction(1, 4), unit=quarters)
+| Name   | Type                                           | Description                          |
+|--------|------------------------------------------------|--------------------------------------|
+|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | A DataFrame in the requested format. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                 |
+|--------|----------------------------|-----------------------------|
+|        | [ValueError](`ValueError`) | If format is not supported. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> df = events.to_dataframe()  # pandas DataFrame
+>>> df.iloc[0]['start']  # Fraction(1, 4) or 0.25
+>>> df = events.to_dataframe("pandas", raw=True)
+>>> df.iloc[0]['start']  # {'value': 0.25, 'numerator': 1, 'denominator': 4}
+>>> df = events.to_dataframe(coordinates=True)
+>>> df.iloc[0]['start']  # Coordinate(value=Fraction(1, 4), unit=quarters)
+```
 
 ### to_parquet { #timetoalign.EventData.to_parquet }
 
@@ -523,8 +635,11 @@ EventData.to_parquet(path)
 
 Save the EventData to a Parquet file.
 
-Args:
-    path: Path to write the Parquet file.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type                                   | Description                     | Default    |
+|--------|----------------------------------------|---------------------------------|------------|
+| path   | [Path](`pathlib.Path`) \| [str](`str`) | Path to write the Parquet file. | _required_ |
 
 ### where { #timetoalign.EventData.where }
 
@@ -534,8 +649,14 @@ EventData.where(expression)
 
 Filter with a custom PyArrow compute expression.
 
-Args:
-    expression: A PyArrow compute expression.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new EventData with filtered events.
+| Name       | Type                                                               | Description                   | Default    |
+|------------|--------------------------------------------------------------------|-------------------------------|------------|
+| expression | [pc](`pyarrow.compute`).[Expression](`pyarrow.compute.Expression`) | A PyArrow compute expression. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type          | Description                           |
+|--------|---------------|---------------------------------------|
+|        | \'EventData\' | A new EventData with filtered events. |

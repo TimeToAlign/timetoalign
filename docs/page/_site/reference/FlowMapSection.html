@@ -871,24 +871,41 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A section mapping in a FlowMap.</p>
 <p>Represents one contiguous section that maps from a source coordinate range to a target coordinate range. Used internally by FlowMap for coordinate transformation.</p>
 <p>In the context of flow control: - Source coordinates: The “folded” timeline (with repeats/jumps compressed) - Target coordinates: The “unfolded” timeline (linear playthrough order)</p>
-<p>Attributes: source_start: Start coordinate in source timeline (inclusive). source_end: End coordinate in source timeline (exclusive). target_start: Start coordinate in target timeline. label: Identity of the section — the source region/section name it was built from, or <code>None</code> when the section names nothing (e.g.&nbsp;built from a bare coordinate pair). Unfolding uses this to name the child timeline and Region it produces for the section.</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 11%">
+<col style="width: 83%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.timelines.FlowMapSection.duration">duration</a></td>
-<td>Duration of this section.</td>
+<td>source_start</td>
+<td><code>Fraction</code></td>
+<td>Start coordinate in source timeline (inclusive).</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.timelines.FlowMapSection.target_end">target_end</a></td>
-<td>End coordinate in target timeline.</td>
+<td>source_end</td>
+<td><code>Fraction</code></td>
+<td>End coordinate in source timeline (exclusive).</td>
+</tr>
+<tr class="odd">
+<td>target_start</td>
+<td><code>Fraction</code></td>
+<td>Start coordinate in target timeline.</td>
+</tr>
+<tr class="even">
+<td>label</td>
+<td><code>str</code> | None</td>
+<td>Identity of the section — the source region/section name it was built from, or <code>None</code> when the section names nothing (e.g.&nbsp;built from a bare coordinate pair). Unfolding uses this to name the child timeline and Region it produces for the section.</td>
 </tr>
 </tbody>
 </table>

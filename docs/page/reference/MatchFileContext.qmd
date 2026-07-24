@@ -24,21 +24,22 @@ This context object bridges the gap between the coordinate-only
 required by the Vienna ``.match`` format.  It is typically constructed
 via :meth:`from_dataframes` or assembled manually.
 
-Attributes:
-    piece: Piece name for the ``info(piece,...)`` header.
-    composer: Composer name for the ``info(composer,...)`` header.
-    performer: Performer name for the ``info(performer,...)`` header.
-    score_filename: Score file name for the header.
-    midi_filename: MIDI file name for the header.
-    midi_clock_units: MIDI clock units (divisions per quarter note).
-    midi_clock_rate: MIDI clock rate in microseconds per quarter note.
-    score_notes: Lookup from score coordinate to list of
-        :class:`SnoteRecord` objects at that coordinate.
-    perf_notes: Lookup from performance coordinate to list of
-        :class:`NoteRecord` objects at that coordinate.
-    score_properties: Pre-formatted ``scoreprop(...)`` lines.
-    deletions: Score notes with no performance match.
-    insertions: Performance notes with no score match.
+## Attributes {.doc-section .doc-section-attributes}
+
+| Name             | Type                                                                                                                  | Description                                                                                   |
+|------------------|-----------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| piece            | [str](`str`)                                                                                                          | Piece name for the ``info(piece,...)`` header.                                                |
+| composer         | [str](`str`)                                                                                                          | Composer name for the ``info(composer,...)`` header.                                          |
+| performer        | [str](`str`)                                                                                                          | Performer name for the ``info(performer,...)`` header.                                        |
+| score_filename   | [str](`str`)                                                                                                          | Score file name for the header.                                                               |
+| midi_filename    | [str](`str`)                                                                                                          | MIDI file name for the header.                                                                |
+| midi_clock_units | [int](`int`)                                                                                                          | MIDI clock units (divisions per quarter note).                                                |
+| midi_clock_rate  | [int](`int`)                                                                                                          | MIDI clock rate in microseconds per quarter note.                                             |
+| score_notes      | [dict](`dict`)\[[float](`float`), [list](`list`)\[[SnoteRecord](`timetoalign.alignment.match_format.SnoteRecord`)\]\] | Lookup from score coordinate to list of :class:`SnoteRecord` objects at that coordinate.      |
+| perf_notes       | [dict](`dict`)\[[float](`float`), [list](`list`)\[[NoteRecord](`timetoalign.alignment.match_format.NoteRecord`)\]\]   | Lookup from performance coordinate to list of :class:`NoteRecord` objects at that coordinate. |
+| score_properties | [list](`list`)\[[str](`str`)\]                                                                                        | Pre-formatted ``scoreprop(...)`` lines.                                                       |
+| deletions        | [list](`list`)\[[SnoteRecord](`timetoalign.alignment.match_format.SnoteRecord`)\]                                     | Score notes with no performance match.                                                        |
+| insertions       | [list](`list`)\[[NoteRecord](`timetoalign.alignment.match_format.NoteRecord`)\]                                       | Performance notes with no score match.                                                        |
 
 ## Methods
 
@@ -80,31 +81,32 @@ performance notes against unfolded ABC score notes.  It constructs
 :class:`SnoteRecord` and :class:`NoteRecord` objects from DataFrame
 columns, keyed by their coordinates for lookup during export.
 
-Args:
-    score_df: Score notes DataFrame (e.g. from ``prepare_abc_notes_for_matching``).
-        Must contain the ``score_coord_column`` and note attribute columns.
-    perf_df: Performance notes DataFrame (e.g. from ``prepare_eep_notes_for_matching``).
-        Must contain the ``perf_coord_column`` and ``pitch`` column.
-    match_result: Optional :class:`~timetoalign.alignment.matching.MatchResult`.
-        If provided, unmatched target notes are recorded as deletions
-        and unmatched source notes as insertions.
-    piece: Piece name for the header.
-    composer: Composer name for the header.
-    performer: Performer name for the header.
-    score_filename: Score file name for the header.
-    midi_filename: MIDI file name for the header.
-    midi_clock_units: MIDI divisions per quarter note.
-    midi_clock_rate: Microseconds per quarter note.
-    score_coord_column: Column in *score_df* with the score coordinate.
-    perf_coord_column: Column in *perf_df* with the performance coordinate.
-    score_pitch_column: Column in *score_df* with the pitch name.
-    perf_pitch_column: Column in *perf_df* with the pitch name.
-    score_staff_column: Column in *score_df* with the staff number.
-    score_duration_column: Column in *score_df* with note duration
-        (in quarter-beats).  Falls back to ``"duration"`` if missing.
-    score_measure_column: Column in *score_df* with measure number.
-    score_beat_column: Column in *score_df* with beat number.
-    score_offset_column: Column in *score_df* with beat offset.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A populated :class:`MatchFileContext`.
+| Name                  | Type                | Description                                                                                                                                                            | Default                      |
+|-----------------------|---------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------|
+| score_df              | \'DataFrame\'       | Score notes DataFrame (e.g. from ``prepare_abc_notes_for_matching``). Must contain the ``score_coord_column`` and note attribute columns.                              | _required_                   |
+| perf_df               | \'DataFrame\'       | Performance notes DataFrame (e.g. from ``prepare_eep_notes_for_matching``). Must contain the ``perf_coord_column`` and ``pitch`` column.                               | _required_                   |
+| match_result          | [Any](`typing.Any`) | Optional :class:`~timetoalign.alignment.matching.MatchResult`. If provided, unmatched target notes are recorded as deletions and unmatched source notes as insertions. | `None`                       |
+| piece                 | [str](`str`)        | Piece name for the header.                                                                                                                                             | `''`                         |
+| composer              | [str](`str`)        | Composer name for the header.                                                                                                                                          | `''`                         |
+| performer             | [str](`str`)        | Performer name for the header.                                                                                                                                         | `''`                         |
+| score_filename        | [str](`str`)        | Score file name for the header.                                                                                                                                        | `''`                         |
+| midi_filename         | [str](`str`)        | MIDI file name for the header.                                                                                                                                         | `''`                         |
+| midi_clock_units      | [int](`int`)        | MIDI divisions per quarter note.                                                                                                                                       | `480`                        |
+| midi_clock_rate       | [int](`int`)        | Microseconds per quarter note.                                                                                                                                         | `500000`                     |
+| score_coord_column    | [str](`str`)        | Column in *score_df* with the score coordinate.                                                                                                                        | `'quarterbeats_playthrough'` |
+| perf_coord_column     | [str](`str`)        | Column in *perf_df* with the performance coordinate.                                                                                                                   | `'start'`                    |
+| score_pitch_column    | [str](`str`)        | Column in *score_df* with the pitch name.                                                                                                                              | `'pitch'`                    |
+| perf_pitch_column     | [str](`str`)        | Column in *perf_df* with the pitch name.                                                                                                                               | `'pitch'`                    |
+| score_staff_column    | [str](`str`)        | Column in *score_df* with the staff number.                                                                                                                            | `'staff'`                    |
+| score_duration_column | [str](`str`)        | Column in *score_df* with note duration (in quarter-beats).  Falls back to ``"duration"`` if missing.                                                                  | `'duration_qb'`              |
+| score_measure_column  | [str](`str`)        | Column in *score_df* with measure number.                                                                                                                              | `'mc'`                       |
+| score_beat_column     | [str](`str`)        | Column in *score_df* with beat number.                                                                                                                                 | `'beat'`                     |
+| score_offset_column   | [str](`str`)        | Column in *score_df* with beat offset.                                                                                                                                 | `'mc_onset'`                 |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                      | Description                            |
+|--------|---------------------------------------------------------------------------|----------------------------------------|
+|        | [MatchFileContext](`timetoalign.alignment.match_format.MatchFileContext`) | A populated :class:`MatchFileContext`. |

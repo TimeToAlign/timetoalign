@@ -869,20 +869,46 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>RepoVizzInfo</h1>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>loader.RepoVizzInfo(n_samples, frame_rate, metadata, source_path<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Parsed metadata from a RepoVizz CSV file (legacy mode).</p>
-<p>Attributes: n_samples: Number of data values on line 2. frame_rate: Sampling rate in Hz (from <code>framerate</code> in the header). duration_seconds: Computed as <code>n_samples / frame_rate</code>. metadata: Full key=value dict from the header line. source_path: Path to the source file.</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 19%">
+<col style="width: 19%">
+<col style="width: 61%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.loader.RepoVizzInfo.duration_seconds">duration_seconds</a></td>
-<td>Duration in seconds.</td>
+<td>n_samples</td>
+<td></td>
+<td>Number of data values on line 2.</td>
+</tr>
+<tr class="even">
+<td>frame_rate</td>
+<td></td>
+<td>Sampling rate in Hz (from <code>framerate</code> in the header).</td>
+</tr>
+<tr class="odd">
+<td>duration_seconds</td>
+<td><code>float</code></td>
+<td>Computed as <code>n_samples / frame_rate</code>.</td>
+</tr>
+<tr class="even">
+<td>metadata</td>
+<td></td>
+<td>Full key=value dict from the header line.</td>
+</tr>
+<tr class="odd">
+<td>source_path</td>
+<td></td>
+<td>Path to the source file.</td>
 </tr>
 </tbody>
 </table>

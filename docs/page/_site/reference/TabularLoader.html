@@ -854,6 +854,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.loader.tabular.TabularLoader" id="toc-timetoalign.loader.tabular.TabularLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.tabular.TabularLoader">TabularLoader</a>
   <ul>
+  <li><a href="#configuration-attributes" id="toc-configuration-attributes" class="nav-link" data-scroll-target="#configuration-attributes">Configuration Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   </ul></li>
   </ul>
@@ -870,8 +872,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>loader.tabular.TabularLoader(unit<span class="op">=</span><span class="va">None</span>, number_type<span class="op">=</span><span class="va">None</span>, <span class="op">**</span>kwargs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Vectorized base class for loading tabular data with column/field specs.</p>
 <p>TabularLoader provides a ZERO ROW ITERATION framework for loading CSV, TSV, and other delimited formats into EventData. All operations use vectorized numpy / pandas / pyarrow operations.</p>
-<p>Configuration Attributes: delimiter: Field delimiter character (default: <code>,</code>). header_row: Row index containing column headers (default: 0). id_column: Source column name for event IDs (auto-generated if <code>None</code>). name_column: Source column name for event names (optional). start_column: Source column name for start coordinate (required). end_column: Source column name for end coordinate (None for instant events). duration_column: Source column name for duration (alternative to <code>end_column</code>). event_type_column: Source column name for event type (optional). default_event_type: Default event type if no column provides one. column_specs: Mapping or sequence describing the per-column translation from source to :class:<code>DataField</code>. See :mod:<code>timetoalign.loader.tabular.field_parsers</code>. field_specs: Optional sequence/mapping of blueprint-mode :class:<code>SemanticField</code> instances that promote raw fields to paired semantic fields. coordinate_unit: TimeUnit for coordinate values. coordinate_type: NumberType for coordinate parsing.</p>
-<p>Examples: &gt;&gt;&gt; from timetoalign.core import IntField &gt;&gt;&gt; class MyLoader(TabularLoader): … delimiter = “ … start_column =”onset” … end_column = “offset” … coordinate_unit = TimeUnit.seconds … column_specs = {“velocity”: IntField(name=“velocity”), “channel”: int}</p>
+<section id="configuration-attributes" class="level2 doc-section doc-section-configuration-attributes">
+<h2 class="doc-section doc-section-configuration-attributes anchored" data-anchor-id="configuration-attributes">Configuration Attributes</h2>
+<p>delimiter: Field delimiter character (default: <code>,</code>). header_row: Row index containing column headers (default: 0). id_column: Source column name for event IDs (auto-generated if <code>None</code>). name_column: Source column name for event names (optional). start_column: Source column name for start coordinate (required). end_column: Source column name for end coordinate (None for instant events). duration_column: Source column name for duration (alternative to <code>end_column</code>). event_type_column: Source column name for event type (optional). default_event_type: Default event type if no column provides one. column_specs: Mapping or sequence describing the per-column translation from source to :class:<code>DataField</code>. See :mod:<code>timetoalign.loader.tabular.field_parsers</code>. field_specs: Optional sequence/mapping of blueprint-mode :class:<code>SemanticField</code> instances that promote raw fields to paired semantic fields. coordinate_unit: TimeUnit for coordinate values. coordinate_type: NumberType for coordinate parsing.</p>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> timetoalign.core <span class="im">import</span> IntField</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="kw">class</span> MyLoader(TabularLoader):</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     delimiter <span class="op">=</span> <span class="st">"</span><span class="ch">\t</span><span class="st">"</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     start_column <span class="op">=</span> <span class="st">"onset"</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>...     end_column <span class="op">=</span> <span class="st">"offset"</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>...     coordinate_unit <span class="op">=</span> TimeUnit.seconds</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>...     column_specs <span class="op">=</span> {<span class="st">"velocity"</span>: IntField(name<span class="op">=</span><span class="st">"velocity"</span>), <span class="st">"channel"</span>: <span class="bu">int</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">

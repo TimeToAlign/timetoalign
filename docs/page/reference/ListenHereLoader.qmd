@@ -58,12 +58,18 @@ vectorized and materialising only the handful of claims at the queried
 coordinate, so a whole-work file (on the order of a million claims)
 never builds a million Python claims.
 
-Returns:
-    An ``AlignmentBundle`` with one group per recording and the
-    cross-group pairwise claim field.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    RuntimeError: If ``load()`` has not been called yet.
+| Name   | Type                | Description                                                 |
+|--------|---------------------|-------------------------------------------------------------|
+|        | \'AlignmentBundle\' | An ``AlignmentBundle`` with one group per recording and the |
+|        | \'AlignmentBundle\' | cross-group pairwise claim field.                           |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                            |
+|--------|--------------------------------|----------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet. |
 
 ### create_timeline { #timetoalign.loader.alignment.listen_here.ListenHereLoader.create_timeline }
 
@@ -76,12 +82,18 @@ loader.alignment.listen_here.ListenHereLoader.create_timeline(
 
 Return a single recording's samples timeline by its uid.
 
-Args:
-    uid: A timeline uid (``"<stem>:dpt1"``).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Raises:
-    KeyError: If no recording matches.
-    RuntimeError: If ``load()`` has not been called yet.
+| Name   | Type                 | Description                         | Default   |
+|--------|----------------------|-------------------------------------|-----------|
+| uid    | [str](`str`) \| None | A timeline uid (``"<stem>:dpt1"``). | `None`    |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                            |
+|--------|--------------------------------|----------------------------------------|
+|        | [KeyError](`KeyError`)         | If no recording matches.               |
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet. |
 
 ### create_timelines { #timetoalign.loader.alignment.listen_here.ListenHereLoader.create_timelines }
 
@@ -91,8 +103,11 @@ loader.alignment.listen_here.ListenHereLoader.create_timelines(id_pattern=None)
 
 Return one samples timeline per recording, in sorted order.
 
-Args:
-    id_pattern: Optional regex pattern to filter timeline IDs.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type                 | Description                                    | Default   |
+|------------|----------------------|------------------------------------------------|-----------|
+| id_pattern | [str](`str`) \| None | Optional regex pattern to filter timeline IDs. | `None`    |
 
 ### get_field { #timetoalign.loader.alignment.listen_here.ListenHereLoader.get_field }
 
@@ -114,16 +129,24 @@ The selector may be the :class:`MatchClaim` scalar class or its paired
 :class:`MatchClaimField` class; both resolve to the single
 ``MatchClaimField`` this loader builds.
 
-Args:
-    selector: ``MatchClaim`` or ``MatchClaimField``.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The :class:`MatchClaimField` of ``C(R, 2) × N`` synchronous claims.
+| Name     | Type                                                                                                                                                                           | Description                            | Default    |
+|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------|------------|
+| selector | [type](`type`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] \| [type](`type`)\[[SemanticField](`timetoalign.core.fields.SemanticField`)\[[Any](`typing.Any`)\]\] | ``MatchClaim`` or ``MatchClaimField``. | _required_ |
 
-Raises:
-    RuntimeError: If ``load()`` has not been called yet.
-    TypeError: If ``selector`` is not ``MatchClaim`` /
-        ``MatchClaimField``.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                              | Description                                                    |
+|--------|-------------------------------------------------------------------|----------------------------------------------------------------|
+| The    | [MatchClaimField](`timetoalign.alignment.claims.MatchClaimField`) | class:`MatchClaimField` of ``C(R, 2) × N`` synchronous claims. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                                                  |
+|--------|--------------------------------|--------------------------------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet.                       |
+|        | [TypeError](`TypeError`)       | If ``selector`` is not ``MatchClaim`` / ``MatchClaimField``. |
 
 ### load { #timetoalign.loader.alignment.listen_here.ListenHereLoader.load }
 
@@ -133,14 +156,20 @@ loader.alignment.listen_here.ListenHereLoader.load(source)
 
 Ingest one Listen Here! alignment JSON file.
 
-Args:
-    source: Path to the ``alignment.json`` file.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name   | Type                                   | Description                          | Default    |
+|--------|----------------------------------------|--------------------------------------|------------|
+| source | [str](`str`) \| [Path](`pathlib.Path`) | Path to the ``alignment.json`` file. | _required_ |
 
-Raises:
-    ValueError: If ``header.ref`` is missing or is not one of the
-        ``body.audio`` keys; if fewer than two recordings are present;
-        or if the per-recording ``times`` arrays are not all the same
-        length.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                                                                                                                                            |
+|--------|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If ``header.ref`` is missing or is not one of the ``body.audio`` keys; if fewer than two recordings are present; or if the per-recording ``times`` arrays are not all the same length. |

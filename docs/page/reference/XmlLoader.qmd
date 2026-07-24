@@ -32,33 +32,35 @@ Follows the standard two-phase pattern:
 1. ``loader.load(*sources)`` -- parse XML files.
 2. ``loader.get_table(tag)`` -- retrieve a normalised table.
 
-Args:
-    principal_tags: List of element tags to normalise.  ``None`` for
-        auto-detect.
-    sep: Separator for flattened nested key names.  Default ``"."``.
-    include_text: Whether to include element text as ``_text`` field.
-        Default ``True``.
-    propagate_ancestors: Whether to propagate ancestor attributes.
-        Default ``True``.
+## Parameters {.doc-section .doc-section-parameters}
 
-Examples:
-    Auto-detect all repeated tags::
+| Name                | Type                                   | Description                                                           | Default   |
+|---------------------|----------------------------------------|-----------------------------------------------------------------------|-----------|
+| principal_tags      | [list](`list`)\[[str](`str`)\] \| None | List of element tags to normalise.  ``None`` for auto-detect.         | `None`    |
+| sep                 | [str](`str`)                           | Separator for flattened nested key names.  Default ``"."``.           | `'.'`     |
+| include_text        | [bool](`bool`)                         | Whether to include element text as ``_text`` field. Default ``True``. | `True`    |
+| propagate_ancestors | [bool](`bool`)                         | Whether to propagate ancestor attributes. Default ``True``.           | `True`    |
 
-        loader = XmlLoader()
-        loader.load("data.xml")
-        for tag in loader.store.keys():
-            print(tag, loader.get_table(tag).num_rows)
+## Examples {.doc-section .doc-section-examples}
 
-    Specify principal tags::
+Auto-detect all repeated tags::
 
-        loader = XmlLoader(principal_tags=["Signal", "Audio"])
-        loader.load("manifest.xml")
-        assert loader.get_table("Signal").num_rows > 0
+    loader = XmlLoader()
+    loader.load("data.xml")
+    for tag in loader.store.keys():
+        print(tag, loader.get_table(tag).num_rows)
 
-See Also:
-    timetoalign.storage.store.DictStore
-    timetoalign.loader.base.Loader
-    timetoalign.loader.format.json.JsonLoader
+Specify principal tags::
+
+    loader = XmlLoader(principal_tags=["Signal", "Audio"])
+    loader.load("manifest.xml")
+    assert loader.get_table("Signal").num_rows > 0
+
+## See Also {.doc-section .doc-section-see-also}
+
+timetoalign.storage.store.DictStore
+timetoalign.loader.base.Loader
+timetoalign.loader.format.json.JsonLoader
 
 ## Attributes
 
@@ -96,14 +98,23 @@ loader.format.XmlLoader.get_table(tag)
 
 Retrieve a normalised table by element tag.
 
-Args:
-    tag: The principal tag name.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A ``pa.Table`` with one row per element.
+| Name   | Type         | Description             | Default    |
+|--------|--------------|-------------------------|------------|
+| tag    | [str](`str`) | The principal tag name. | _required_ |
 
-Raises:
-    KeyError: If *tag* was not normalised.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                     | Description                              |
+|--------|------------------------------------------|------------------------------------------|
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) | A ``pa.Table`` with one row per element. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                  |
+|--------|------------------------|------------------------------|
+|        | [KeyError](`KeyError`) | If *tag* was not normalised. |
 
 ### keys { #timetoalign.loader.format.XmlLoader.keys }
 
@@ -124,11 +135,17 @@ Load one or more XML files.
 For multiple files the tables are concatenated (same tags) or
 added (new tags).
 
-Args:
-    *sources: Paths to XML files.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name     | Type                                   | Description         | Default   |
+|----------|----------------------------------------|---------------------|-----------|
+| *sources | [Path](`pathlib.Path`) \| [str](`str`) | Paths to XML files. | `()`      |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
 
 ### load_element { #timetoalign.loader.format.XmlLoader.load_element }
 
@@ -140,11 +157,17 @@ Load from an already-parsed Element tree.
 
 Convenient for programmatic use or testing.
 
-Args:
-    root: An XML Element.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name   | Type                                                                     | Description     | Default    |
+|--------|--------------------------------------------------------------------------|-----------------|------------|
+| root   | [ET](`xml.etree.ElementTree`).[Element](`xml.etree.ElementTree.Element`) | An XML Element. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
 
 ### load_string { #timetoalign.loader.format.XmlLoader.load_string }
 
@@ -156,8 +179,14 @@ Load from an XML string.
 
 Convenient for programmatic use or testing.
 
-Args:
-    xml_string: A valid XML string.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name       | Type         | Description         | Default    |
+|------------|--------------|---------------------|------------|
+| xml_string | [str](`str`) | A valid XML string. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |

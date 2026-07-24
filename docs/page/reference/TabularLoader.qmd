@@ -10,36 +10,40 @@ TabularLoader provides a ZERO ROW ITERATION framework for loading
 CSV, TSV, and other delimited formats into EventData.  All
 operations use vectorized numpy / pandas / pyarrow operations.
 
-Configuration Attributes:
-    delimiter: Field delimiter character (default: ``,``).
-    header_row: Row index containing column headers (default: 0).
-    id_column: Source column name for event IDs (auto-generated if
-        ``None``).
-    name_column: Source column name for event names (optional).
-    start_column: Source column name for start coordinate (required).
-    end_column: Source column name for end coordinate (None for
-        instant events).
-    duration_column: Source column name for duration (alternative to
-        ``end_column``).
-    event_type_column: Source column name for event type (optional).
-    default_event_type: Default event type if no column provides one.
-    column_specs: Mapping or sequence describing the per-column
-        translation from source to :class:`DataField`.  See
-        :mod:`timetoalign.loader.tabular.field_parsers`.
-    field_specs: Optional sequence/mapping of blueprint-mode
-        :class:`SemanticField` instances that promote raw fields to
-        paired semantic fields.
-    coordinate_unit: TimeUnit for coordinate values.
-    coordinate_type: NumberType for coordinate parsing.
+## Configuration Attributes {.doc-section .doc-section-configuration-attributes}
 
-Examples:
-    >>> from timetoalign.core import IntField
-    >>> class MyLoader(TabularLoader):
-    ...     delimiter = "\t"
-    ...     start_column = "onset"
-    ...     end_column = "offset"
-    ...     coordinate_unit = TimeUnit.seconds
-    ...     column_specs = {"velocity": IntField(name="velocity"), "channel": int}
+delimiter: Field delimiter character (default: ``,``).
+header_row: Row index containing column headers (default: 0).
+id_column: Source column name for event IDs (auto-generated if
+    ``None``).
+name_column: Source column name for event names (optional).
+start_column: Source column name for start coordinate (required).
+end_column: Source column name for end coordinate (None for
+    instant events).
+duration_column: Source column name for duration (alternative to
+    ``end_column``).
+event_type_column: Source column name for event type (optional).
+default_event_type: Default event type if no column provides one.
+column_specs: Mapping or sequence describing the per-column
+    translation from source to :class:`DataField`.  See
+    :mod:`timetoalign.loader.tabular.field_parsers`.
+field_specs: Optional sequence/mapping of blueprint-mode
+    :class:`SemanticField` instances that promote raw fields to
+    paired semantic fields.
+coordinate_unit: TimeUnit for coordinate values.
+coordinate_type: NumberType for coordinate parsing.
+
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> from timetoalign.core import IntField
+>>> class MyLoader(TabularLoader):
+...     delimiter = "\t"
+...     start_column = "onset"
+...     end_column = "offset"
+...     coordinate_unit = TimeUnit.seconds
+...     column_specs = {"velocity": IntField(name="velocity"), "channel": int}
+```
 
 ## Attributes
 

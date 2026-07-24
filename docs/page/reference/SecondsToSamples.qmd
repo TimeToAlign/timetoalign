@@ -8,26 +8,28 @@ Convert seconds to audio samples by multiplying by sample rate.
 
 This is a simple linear map: samples = seconds * sample_rate
 
-Attributes:
-    sample_rate: Audio sample rate in Hz.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> s2s = SecondsToSamples(sample_rate=44100)
-    >>> s2s(1.0)
-    44100.0
-    >>> s2s(2.5)
-    110250.0
+| Name        | Type         | Description              |
+|-------------|--------------|--------------------------|
+| sample_rate | [int](`int`) | Audio sample rate in Hz. |
 
-    >>> # Get inverse map
-    >>> samp2sec = s2s.inverse()
-    >>> samp2sec(44100)
-    1.0
+## Examples {.doc-section .doc-section-examples}
 
-## Attributes
+```python
+>>> s2s = SecondsToSamples(sample_rate=44100)
+>>> s2s(1.0)
+44100.0
+>>> s2s(2.5)
+110250.0
+```
 
-| Name | Description |
-| --- | --- |
-| [sample_rate](#timetoalign.SecondsToSamples.sample_rate) | Audio sample rate in Hz. |
+```python
+>>> # Get inverse map
+>>> samp2sec = s2s.inverse()
+>>> samp2sec(44100)
+1.0
+```
 
 ## Methods
 

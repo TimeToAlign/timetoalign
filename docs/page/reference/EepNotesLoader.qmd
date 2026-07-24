@@ -18,14 +18,19 @@ The loader:
 Chord explosion (splitting ``G3,D4,B4,F5`` into separate rows) is left to
 post-processing, typically during note matching.
 
-Examples:
-    >>> loader = EepNotesLoader.from_file("EEP_Normal_align_vln1.notes")
-    >>> len(loader)
-    1266
-    >>> loader.events.summary()
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # Load all 4 instruments for a recording
-    >>> loader = EepNotesLoader()
-    >>> loader.load(*sorted(eep_dir.glob("*_align_*.notes")))
-    >>> len(loader)
-    4026
+```python
+>>> loader = EepNotesLoader.from_file("EEP_Normal_align_vln1.notes")
+>>> len(loader)
+1266
+>>> loader.events.summary()
+```
+
+```python
+>>> # Load all 4 instruments for a recording
+>>> loader = EepNotesLoader()
+>>> loader.load(*sorted(eep_dir.glob("*_align_*.notes")))
+>>> len(loader)
+4026
+```

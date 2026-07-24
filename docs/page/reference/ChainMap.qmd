@@ -10,23 +10,22 @@ The maps are applied in sequence from first to last.
 The output unit of one map must match the input unit of the next
 (if specified).
 
-Attributes:
-    maps: The sequence of maps to apply.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> # Ticks -> Seconds -> Milliseconds
-    >>> ticks_to_secs = ScalarMap(scalar=1/480, source_unit="ticks", target_unit="seconds")
-    >>> secs_to_ms = ScalarMap(scalar=1000, source_unit="seconds", target_unit="milliseconds")
-    >>> chain = ChainMap([ticks_to_secs, secs_to_ms])
-    >>> chain(480)
-    1000.0
+| Name   | Type                                                                                            | Description                    |
+|--------|-------------------------------------------------------------------------------------------------|--------------------------------|
+| maps   | [list](`list`)\[[ConversionMap](`timetoalign.maps.base.ConversionMap`)\[[Any](`typing.Any`)\]\] | The sequence of maps to apply. |
 
-## Attributes
+## Examples {.doc-section .doc-section-examples}
 
-| Name | Description |
-| --- | --- |
-| [is_invertible](#timetoalign.ChainMap.is_invertible) | Whether the chain is invertible (all sub-maps must be invertible). |
-| [maps](#timetoalign.ChainMap.maps) | The sequence of maps. |
+```python
+>>> # Ticks -> Seconds -> Milliseconds
+>>> ticks_to_secs = ScalarMap(scalar=1/480, source_unit="ticks", target_unit="seconds")
+>>> secs_to_ms = ScalarMap(scalar=1000, source_unit="seconds", target_unit="milliseconds")
+>>> chain = ChainMap([ticks_to_secs, secs_to_ms])
+>>> chain(480)
+1000.0
+```
 
 ## Methods
 

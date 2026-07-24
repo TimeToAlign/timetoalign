@@ -854,6 +854,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.core.ClaimType" id="toc-timetoalign.core.ClaimType" class="nav-link active" data-scroll-target="#timetoalign.core.ClaimType">ClaimType</a>
   <ul>
+  <li><a href="#members" id="toc-members" class="nav-link" data-scroll-target="#members">Members</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   </ul></li>
   </ul>
@@ -870,7 +871,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>core.ClaimType()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The semantic kind of a MatchClaim, derived from its structure.</p>
 <p>A claim’s kind is never stored; it is read from whether the claim is explicit, whether it is synchronous, and how many of its two sides name an event. The members span every shape a pairwise claim can take:</p>
-<p>Members: event_match: Two identified events on different timelines correspond, temporally anchored. projection: One identified event corresponds to a bare coordinate on the other timeline (which names no event of its own). nomatch: An identified event has no counterpart on the other timeline. anchor: Two anonymous coordinates correspond, with no event identity on either side. implicit: A correspondence inferred by graph extension rather than directly asserted. conceptual: A structural correspondence with no temporal commitment — no anchors and no single orphaned event.</p>
+<section id="members" class="level2 doc-section doc-section-members">
+<h2 class="doc-section doc-section-members anchored" data-anchor-id="members">Members</h2>
+<p>event_match: Two identified events on different timelines correspond, temporally anchored. projection: One identified event corresponds to a bare coordinate on the other timeline (which names no event of its own). nomatch: An identified event has no counterpart on the other timeline. anchor: Two anonymous coordinates correspond, with no event identity on either side. implicit: A correspondence inferred by graph extension rather than directly asserted. conceptual: A structural correspondence with no temporal commitment — no anchors and no single orphaned event.</p>
+</section>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">

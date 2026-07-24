@@ -852,7 +852,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.resolve_coordinate_spec" id="toc-timetoalign.resolve_coordinate_spec" class="nav-link active" data-scroll-target="#timetoalign.resolve_coordinate_spec">resolve_coordinate_spec</a></li>
+  <li><a href="#timetoalign.resolve_coordinate_spec" id="toc-timetoalign.resolve_coordinate_spec" class="nav-link active" data-scroll-target="#timetoalign.resolve_coordinate_spec">resolve_coordinate_spec</a>
+  <ul>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -866,11 +871,83 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>resolve_coordinate_spec</h1>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>resolve_coordinate_spec(spec, <span class="op">*</span>, timeline_id<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Decompose a coordinate specification without converting its unit.</p>
-<p>Args: spec: Coordinate specification to decompose. timeline_id: Optional timeline ID for otherwise unqualified input.</p>
-<p>Returns: The numeric value and any timeline or unit metadata.</p>
-<p>Raises: ValueError: If an explicit timeline ID conflicts with an IdCoordinate. TypeError: If spec is not a supported coordinate specification.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>spec</td>
+<td><a href="../reference/CoordinateSpec.html#timetoalign.CoordinateSpec">CoordinateSpec</a></td>
+<td>Coordinate specification to decompose.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Optional timeline ID for otherwise unqualified input.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/ResolvedCoordinate.html#timetoalign.ResolvedCoordinate">ResolvedCoordinate</a></td>
+<td>The numeric value and any timeline or unit metadata.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 29%">
+<col style="width: 62%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If an explicit timeline ID conflicts with an IdCoordinate.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>TypeError</code></td>
+<td>If spec is not a supported coordinate specification.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

@@ -14,15 +14,19 @@ The type of each entry is tracked via a ``kind_map`` that maps store
 keys to short type names (``beat``, ``harmony``, ``hierarchy``,
 ``marker``, ``pdf``).
 
-Examples:
-    >>> loader = TiliaJsonLoader()
-    >>> loader.load("Bruckner5_Scherzo.json")
-    >>> loader.store.hierarchy  # all hierarchy tables concatenated
-    >>> loader.store.marker     # all marker tables concatenated
-    >>> loader.store.beat       # all beat tables concatenated
+## Examples {.doc-section .doc-section-examples}
 
-See Also:
-    timetoalign.storage.store.DictStore
+```python
+>>> loader = TiliaJsonLoader()
+>>> loader.load("Bruckner5_Scherzo.json")
+>>> loader.store.hierarchy  # all hierarchy tables concatenated
+>>> loader.store.marker     # all marker tables concatenated
+>>> loader.store.beat       # all beat tables concatenated
+```
+
+## See Also {.doc-section .doc-section-see-also}
+
+timetoalign.storage.store.DictStore
 
 ## Attributes
 
@@ -49,8 +53,10 @@ loader.alignment.tilia.TiliaDictStore.add(name, events, kind=None)
 
 Add or replace a named EventData table with optional kind tracking.
 
-Args:
-    name: The name for this data (e.g., ``"HIERARCHY_TIMELINE_0"``).
-    events: The EventData to store.
-    kind: The TiLiA type name (``"beat"``, ``"hierarchy"``, etc.).
-        If ``None``, the kind is inferred from the name if possible.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type                                                | Description                                                                                                           | Default    |
+|--------|-----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------|------------|
+| name   | [str](`str`)                                        | The name for this data (e.g., ``"HIERARCHY_TIMELINE_0"``).                                                            | _required_ |
+| events | [EventData](`timetoalign.storage.events.EventData`) | The EventData to store.                                                                                               | _required_ |
+| kind   | [str](`str`) \| None                                | The TiLiA type name (``"beat"``, ``"hierarchy"``, etc.). If ``None``, the kind is inferred from the name if possible. | `None`     |

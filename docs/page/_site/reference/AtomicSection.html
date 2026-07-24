@@ -854,7 +854,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.timelines.AtomicSection" id="toc-timetoalign.timelines.AtomicSection" class="nav-link active" data-scroll-target="#timetoalign.timelines.AtomicSection">AtomicSection</a>
   <ul>
+  <li><a href="#note" id="toc-note" class="nav-link" data-scroll-target="#note">Note</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.timelines.AtomicSection.to_dict" id="toc-timetoalign.timelines.AtomicSection.to_dict" class="nav-link" data-scroll-target="#timetoalign.timelines.AtomicSection.to_dict">to_dict</a></li>
@@ -883,29 +885,67 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Smallest indivisible traversal unit (similar to partitura’s segment model).</p>
 <p>Atomic sections are derived from: - partitura’s add_segments()/get_segments() for MusicXML/MEI - next[] array analysis for TSV/MeasureMap</p>
 <p>Section IDs (A, B, C, …) form a canonical reference for mapping all flow modes. The atomic flow mode defines these canonical sections.</p>
-<p>Note: MC ranges use the <strong>right-open interval convention</strong> [mc_start, mc_end), consistent with partitura and the TTA manuscript. For example, mc_start=1 and mc_end=5 means measures 1, 2, 3, 4 (four measures total).</p>
-<p>Attributes: id: Letter identifier (A, B, C…) from partitura or generated. mc_start: First MC of this section (inclusive). mc_end: First MC AFTER this section (exclusive, right-open). to: List of possible next section IDs. section_type: “default”, “leap_end”, or “leap_start”.</p>
-<p>Examples: &gt;&gt;&gt; sec = AtomicSection( … id=“A”, … mc_start=1, … mc_end=5, # Right-open: includes MCs 1,2,3,4 … to=(“A”, “B”), … section_type=“leap_end”, … ) &gt;&gt;&gt; sec.mc_range (1, 5) &gt;&gt;&gt; sec.mc_count 4</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="note" class="level2 doc-section doc-section-note">
+<h2 class="doc-section doc-section-note anchored" data-anchor-id="note">Note</h2>
+<p>MC ranges use the <strong>right-open interval convention</strong> [mc_start, mc_end), consistent with partitura and the TTA manuscript. For example, mc_start=1 and mc_end=5 means measures 1, 2, 3, 4 (four measures total).</p>
+</section>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 34%">
+<col style="width: 53%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.timelines.AtomicSection.mc_count">mc_count</a></td>
-<td>Number of MCs in this section (right-open: end - start).</td>
+<td>id</td>
+<td><code>str</code></td>
+<td>Letter identifier (A, B, C…) from partitura or generated.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.timelines.AtomicSection.mc_range">mc_range</a></td>
-<td>Return (mc_start, mc_end) tuple (right-open interval).</td>
+<td>mc_start</td>
+<td><code>int</code></td>
+<td>First MC of this section (inclusive).</td>
+</tr>
+<tr class="odd">
+<td>mc_end</td>
+<td><code>int</code></td>
+<td>First MC AFTER this section (exclusive, right-open).</td>
+</tr>
+<tr class="even">
+<td>to</td>
+<td><code>tuple</code>[<code>str</code>, …]</td>
+<td>List of possible next section IDs.</td>
+</tr>
+<tr class="odd">
+<td>section_type</td>
+<td><code>str</code></td>
+<td>“default”, “leap_end”, or “leap_start”.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> sec <span class="op">=</span> AtomicSection(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">id</span><span class="op">=</span><span class="st">"A"</span>,</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     mc_start<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     mc_end<span class="op">=</span><span class="dv">5</span>,  <span class="co"># Right-open: includes MCs 1,2,3,4</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>...     to<span class="op">=</span>(<span class="st">"A"</span>, <span class="st">"B"</span>),</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>...     section_type<span class="op">=</span><span class="st">"leap_end"</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> sec.mc_range</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>(<span class="dv">1</span>, <span class="dv">5</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> sec.mc_count</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="dv">4</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -925,7 +965,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.timelines.AtomicSection.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.AtomicSection.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>timelines.AtomicSection.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.AtomicSection.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert to dictionary for serialization.</p>
 
 

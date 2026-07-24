@@ -15,35 +15,37 @@ Affine transformation: y = scalar * x + offset.
 
 This is the most general linear map, combining scaling and offset.
 
-Attributes:
-    scalar: The multiplicative factor (default 1.0).
-    offset: The additive offset (default 0.0).
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> # Convert ticks to quarters: y = x / 480
-    >>> tick_to_quarter = LinearMap(scalar=1/480, source_unit="ticks", target_unit="quarters")
-    >>> tick_to_quarter(480)
-    1.0
+| Name   | Type                                                       | Description                              |
+|--------|------------------------------------------------------------|------------------------------------------|
+| scalar | [CoordinateValue](`timetoalign.core.time.CoordinateValue`) | The multiplicative factor (default 1.0). |
+| offset | [CoordinateValue](`timetoalign.core.time.CoordinateValue`) | The additive offset (default 0.0).       |
 
-    >>> # Temperature conversion: Celsius to Fahrenheit: y = 1.8x + 32
-    >>> c_to_f = LinearMap(scalar=1.8, offset=32)
-    >>> c_to_f(0)
-    32.0
-    >>> c_to_f(100)
-    212.0
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # Inverse map
-    >>> f_to_c = c_to_f.inverse()
-    >>> f_to_c(212.0)
-    100.0
+```python
+>>> # Convert ticks to quarters: y = x / 480
+>>> tick_to_quarter = LinearMap(scalar=1/480, source_unit="ticks", target_unit="quarters")
+>>> tick_to_quarter(480)
+1.0
+```
 
-## Attributes
+```python
+>>> # Temperature conversion: Celsius to Fahrenheit: y = 1.8x + 32
+>>> c_to_f = LinearMap(scalar=1.8, offset=32)
+>>> c_to_f(0)
+32.0
+>>> c_to_f(100)
+212.0
+```
 
-| Name | Description |
-| --- | --- |
-| [is_identity](#timetoalign.LinearMap.is_identity) | Whether this map is the identity transformation. |
-| [offset](#timetoalign.LinearMap.offset) | The additive offset. |
-| [scalar](#timetoalign.LinearMap.scalar) | The multiplicative factor. |
+```python
+>>> # Inverse map
+>>> f_to_c = c_to_f.inverse()
+>>> f_to_c(212.0)
+100.0
+```
 
 ## Methods
 
@@ -65,11 +67,17 @@ Compose with another LinearMap: (self then other).
 For y1 = a1*x + b1 and y2 = a2*y1 + b2:
 y2 = a2*(a1*x + b1) + b2 = (a1*a2)*x + (a2*b1 + b2)
 
-Args:
-    other: The map to apply after this one.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new LinearMap equivalent to applying both in sequence.
+| Name   | Type                                             | Description                      | Default    |
+|--------|--------------------------------------------------|----------------------------------|------------|
+| other  | [LinearMap](`timetoalign.maps.linear.LinearMap`) | The map to apply after this one. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                             | Description                                              |
+|--------|--------------------------------------------------|----------------------------------------------------------|
+|        | [LinearMap](`timetoalign.maps.linear.LinearMap`) | A new LinearMap equivalent to applying both in sequence. |
 
 ### from_dict { #timetoalign.LinearMap.from_dict }
 

@@ -852,7 +852,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.alignment.NoteRecord" id="toc-timetoalign.alignment.NoteRecord" class="nav-link active" data-scroll-target="#timetoalign.alignment.NoteRecord">NoteRecord</a></li>
+  <li><a href="#timetoalign.alignment.NoteRecord" id="toc-timetoalign.alignment.NoteRecord" class="nav-link active" data-scroll-target="#timetoalign.alignment.NoteRecord">NoteRecord</a>
+  <ul>
+  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -875,9 +878,62 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Performance note record for <code>.match</code> format export.</p>
 <p>Each field corresponds to a positional element in the <code>note(...)</code> Prolog-style term.</p>
-<p>Attributes: id: Performance note identifier (e.g.&nbsp;<code>"n0"</code>). midi_pitch: MIDI pitch number (0–127). onset_tick: MIDI onset tick. offset_tick: MIDI offset tick. velocity: MIDI velocity (0–127). channel: MIDI channel (default 0). track: MIDI track (default 0).</p>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 19%">
+<col style="width: 63%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>id</td>
+<td><code>str</code></td>
+<td>Performance note identifier (e.g.&nbsp;<code>"n0"</code>).</td>
+</tr>
+<tr class="even">
+<td>midi_pitch</td>
+<td><code>int</code></td>
+<td>MIDI pitch number (0–127).</td>
+</tr>
+<tr class="odd">
+<td>onset_tick</td>
+<td><code>int</code></td>
+<td>MIDI onset tick.</td>
+</tr>
+<tr class="even">
+<td>offset_tick</td>
+<td><code>int</code></td>
+<td>MIDI offset tick.</td>
+</tr>
+<tr class="odd">
+<td>velocity</td>
+<td><code>int</code></td>
+<td>MIDI velocity (0–127).</td>
+</tr>
+<tr class="even">
+<td>channel</td>
+<td><code>int</code></td>
+<td>MIDI channel (default 0).</td>
+</tr>
+<tr class="odd">
+<td>track</td>
+<td><code>int</code></td>
+<td>MIDI track (default 0).</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

@@ -855,11 +855,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.timelines.GroupTimestamp" id="toc-timetoalign.timelines.GroupTimestamp" class="nav-link active" data-scroll-target="#timetoalign.timelines.GroupTimestamp">GroupTimestamp</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.timelines.GroupTimestamp.get" id="toc-timetoalign.timelines.GroupTimestamp.get" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.get">get</a></li>
-  <li><a href="#timetoalign.timelines.GroupTimestamp.get_unit" id="toc-timetoalign.timelines.GroupTimestamp.get_unit" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.get_unit">get_unit</a></li>
-  <li><a href="#timetoalign.timelines.GroupTimestamp.to_dict" id="toc-timetoalign.timelines.GroupTimestamp.to_dict" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.to_dict">to_dict</a></li>
+  <li><a href="#timetoalign.timelines.GroupTimestamp.get" id="toc-timetoalign.timelines.GroupTimestamp.get" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.get">get</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.GroupTimestamp.get_unit" id="toc-timetoalign.timelines.GroupTimestamp.get_unit" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.get_unit">get_unit</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.GroupTimestamp.to_dict" id="toc-timetoalign.timelines.GroupTimestamp.to_dict" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.to_dict">to_dict</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -884,29 +898,51 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A synchronized instant across all timelines in a group.</p>
 <p>This is a view object created from a row in the group’s timestamp table. Not stored directly - the table is the source of truth.</p>
-<p>Attributes: coordinates: Dictionary mapping timeline/cmap IDs to coordinates. None values indicate the timeline is not present at this instant. units: Dictionary mapping timeline/cmap IDs to their unit strings. Used for display purposes. row_index: Index of this timestamp in the source table. -1 indicates an interpolated timestamp (not from a table row).</p>
-<p>Examples: &gt;&gt;&gt; ts = group.get_timestamp_at_index(0) &gt;&gt;&gt; ts[“dgt1:1”] # Get coordinate for dgt1 0.0 &gt;&gt;&gt; ts.present_timelines # Which timelines have values here [‘dgt1:1’, ‘audio:1’]</p>
-<p>See Also: TimeStamp: The unified timestamp class from <code>timetoalign.core</code>.</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 30%">
+<col style="width: 62%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.timelines.GroupTimestamp.is_interpolated">is_interpolated</a></td>
-<td>True if this timestamp was interpolated (not from a table row).</td>
+<td>coordinates</td>
+<td><code>dict</code>[<code>str</code>, <code>float</code> | None]</td>
+<td>Dictionary mapping timeline/cmap IDs to coordinates. None values indicate the timeline is not present at this instant.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.timelines.GroupTimestamp.present_timelines">present_timelines</a></td>
-<td>Timeline IDs that have coordinates at this instant.</td>
+<td>units</td>
+<td><code>dict</code>[<code>str</code>, <code>str</code>]</td>
+<td>Dictionary mapping timeline/cmap IDs to their unit strings. Used for display purposes.</td>
+</tr>
+<tr class="odd">
+<td>row_index</td>
+<td><code>int</code></td>
+<td>Index of this timestamp in the source table. -1 indicates an interpolated timestamp (not from a table row).</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts <span class="op">=</span> group.get_timestamp_at_index(<span class="dv">0</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts[<span class="st">"dgt1:1"</span>]  <span class="co"># Get coordinate for dgt1</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fl">0.0</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts.present_timelines  <span class="co"># Which timelines have values here</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>[<span class="st">'dgt1:1'</span>, <span class="st">'audio:1'</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="see-also" class="level2 doc-section doc-section-see-also">
+<h2 class="doc-section doc-section-see-also anchored" data-anchor-id="see-also">See Also</h2>
+<p>TimeStamp: The unified timestamp class from <code>timetoalign.core</code>.</p>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -934,26 +970,173 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.timelines.GroupTimestamp.get" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.GroupTimestamp.get">get</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.get(timeline_id, default<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.get(timeline_id, default<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get coordinate for a timeline.</p>
-<p>Args: timeline_id: The timeline to look up. default: Value to return if timeline not in coordinates.</p>
-<p>Returns: The coordinate value, or default if not found.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 13%">
+<col style="width: 26%">
+<col style="width: 49%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>timeline_id</td>
+<td><code>str</code></td>
+<td>The timeline to look up.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>default</td>
+<td><code>float</code> | None</td>
+<td>Value to return if timeline not in coordinates.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 31%">
+<col style="width: 58%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>float</code> | None</td>
+<td>The coordinate value, or default if not found.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.timelines.GroupTimestamp.get_unit" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.GroupTimestamp.get_unit">get_unit</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.get_unit(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.get_unit(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the row coordinate converted to a specific unit.</p>
-<p>Args: unit: The target unit for conversion.</p>
-<p>Returns: Converted coordinate, or None if no permitted C-Map is available.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>unit</td>
+<td><a href="../reference/TimeUnit.html#timetoalign.TimeUnit">TimeUnit</a></td>
+<td>The target unit for conversion.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 25%">
+<col style="width: 66%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>float</code> | None</td>
+<td>Converted coordinate, or None if no permitted C-Map is available.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.timelines.GroupTimestamp.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.GroupTimestamp.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.to_dict(include_children<span class="op">=</span><span class="va">True</span>, conversion_units<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.to_dict(include_children<span class="op">=</span><span class="va">True</span>, conversion_units<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Materialize the stored row coordinates as a dictionary.</p>
-<p>Args: include_children: Retained for the shared Stamp interface. conversion_units: Retained for the shared Stamp interface.</p>
-<p>Returns: Dictionary mapping timeline IDs to stored coordinate values.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>include_children</td>
+<td><code>bool</code></td>
+<td>Retained for the shared Stamp interface.</td>
+<td><code>True</code></td>
+</tr>
+<tr class="even">
+<td>conversion_units</td>
+<td><code>list</code>[<a href="../reference/TimeUnit.html#timetoalign.TimeUnit">TimeUnit</a>] | <code>Literal</code>['all'] | None</td>
+<td>Retained for the shared Stamp interface.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 45%">
+<col style="width: 48%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>dict</code>[<code>str</code>, <code>float</code> | None]</td>
+<td>Dictionary mapping timeline IDs to stored coordinate values.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

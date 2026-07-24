@@ -38,49 +38,43 @@ IMPORTANT: The resulting bundle structure is order-independent. Adding
 timelines in any order produces the same alignment relationships and
 coordinate transfer results.
 
-Attributes:
-    id: Unique identifier for this bundle.
-    name: Optional human-readable name.
-    timelines: Dictionary mapping bundle UIDs to Timeline objects.
-    groups: Dictionary mapping group IDs to TimelineGroup objects.
-    timeline_to_group: Mapping from bundle UID to its containing group ID.
-    cross_group_claims: MatchClaims connecting timelines across groups
-        (the per-claim Python-list store).
-    cross_group_claim_fields: Columnar ``MatchClaimField`` stores of dense
-        synchronous-instant pairwise claims, queried vectorized without
-        materialising the full claim list.
+## Attributes {.doc-section .doc-section-attributes}
 
-Note:
-    The two claim stores are interchangeable as far as queries are
-    concerned: every reader consults both, so a bundle whose claims live
-    in a ``MatchClaimField`` answers exactly as a bundle holding the same
-    claims in the Python list.  What differs is cost — ``MatchClaimField``
-    queries stay vectorized, and ``get_claim_fields()`` is the accessor
-    that keeps them that way.
+| Name                     | Type                                                                                   | Description                                                                                                                                     |
+|--------------------------|----------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| id                       | [str](`str`)                                                                           | Unique identifier for this bundle.                                                                                                              |
+| name                     | [str](`str`) \| None                                                                   | Optional human-readable name.                                                                                                                   |
+| timelines                | [dict](`dict`)\[[str](`str`), \'Timeline\'\]                                           | Dictionary mapping bundle UIDs to Timeline objects.                                                                                             |
+| groups                   | [dict](`dict`)\[[str](`str`), [TimelineGroup](`timetoalign.timelines.TimelineGroup`)\] | Dictionary mapping group IDs to TimelineGroup objects.                                                                                          |
+| timeline_to_group        | [dict](`dict`)\[[str](`str`), [str](`str`)\]                                           | Mapping from bundle UID to its containing group ID.                                                                                             |
+| cross_group_claims       | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\]              | MatchClaims connecting timelines across groups (the per-claim Python-list store).                                                               |
+| cross_group_claim_fields | [list](`list`)\[[MatchClaimField](`timetoalign.alignment.claims.MatchClaimField`)\]    | Columnar ``MatchClaimField`` stores of dense synchronous-instant pairwise claims, queried vectorized without materialising the full claim list. |
 
-Note:
-    The bundle maintains a UID mapping layer. Users interact with bundle UIDs
-    (e.g., "tl1", "tl2"), while groups internally use the actual timeline.id.
-    The bundle translates between these two namespaces transparently.
+## Note {.doc-section .doc-section-note}
 
-Examples:
-    >>> bundle = AlignmentBundle()
-    >>> bundle.add_timeline(score_timeline, uid="score")
-    >>> bundle.add_timeline(audio_timeline, uid="audio", aligned_to="score")
-    >>> stamp = bundle.get_matchstamp_at(100.0, "score")
-    >>> stamp.get("audio")
-    45.5
+The two claim stores are interchangeable as far as queries are
+concerned: every reader consults both, so a bundle whose claims live
+in a ``MatchClaimField`` answers exactly as a bundle holding the same
+claims in the Python list.  What differs is cost — ``MatchClaimField``
+queries stay vectorized, and ``get_claim_fields()`` is the accessor
+that keeps them that way.
 
-## Attributes
+## Note {.doc-section .doc-section-note}
 
-| Name | Description |
-| --- | --- |
-| [default_group](#timetoalign.alignment.AlignmentBundle.default_group) | Get the single group or primary group. |
-| [group_ids](#timetoalign.alignment.AlignmentBundle.group_ids) | List of all group IDs in the bundle. |
-| [n_cross_group_claims](#timetoalign.alignment.AlignmentBundle.n_cross_group_claims) | Total cross-group claims across BOTH claim stores. |
-| [n_groups](#timetoalign.alignment.AlignmentBundle.n_groups) | Number of groups in this bundle. |
-| [n_timelines](#timetoalign.alignment.AlignmentBundle.n_timelines) | Number of timelines in this bundle. |
-| [timeline_ids](#timetoalign.alignment.AlignmentBundle.timeline_ids) | List of all timeline IDs in the bundle. |
+The bundle maintains a UID mapping layer. Users interact with bundle UIDs
+(e.g., "tl1", "tl2"), while groups internally use the actual timeline.id.
+The bundle translates between these two namespaces transparently.
+
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> bundle = AlignmentBundle()
+>>> bundle.add_timeline(score_timeline, uid="score")
+>>> bundle.add_timeline(audio_timeline, uid="audio", aligned_to="score")
+>>> stamp = bundle.get_matchstamp_at(100.0, "score")
+>>> stamp.get("audio")
+45.5
+```
 
 ## Methods
 
@@ -119,27 +113,35 @@ This is the bulk-registration counterpart of ``add_timeline(..., as_group=...)``
 It registers the group and every timeline it already contains into the
 bundle's bookkeeping (UID mapping, timeline registry, group registry).
 
-Args:
-    group: A ``TimelineGroup`` that already contains timelines.
-    uid_map: Optional mapping from timeline.id to desired bundle UID.
-        If not provided, each timeline's ``id`` is used as its bundle UID.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    self (for method chaining)
+| Name    | Type                                                   | Description                                                                                                                 | Default    |
+|---------|--------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|------------|
+| group   | [TimelineGroup](`timetoalign.timelines.TimelineGroup`) | A ``TimelineGroup`` that already contains timelines.                                                                        | _required_ |
+| uid_map | [dict](`dict`)\[[str](`str`), [str](`str`)\] \| None   | Optional mapping from timeline.id to desired bundle UID. If not provided, each timeline's ``id`` is used as its bundle UID. | `None`     |
 
-Raises:
-    ValueError: If the group ID already exists in the bundle, or
-        if any timeline UID would collide with an existing one.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    Add a recording group with 5 DPTs:
+| Name   | Type                | Description                |
+|--------|---------------------|----------------------------|
+|        | \'AlignmentBundle\' | self (for method chaining) |
 
-        >>> grp = TimelineGroup(id="normal", timelines=[dpt1, dpt2, dpt3])
-        >>> bundle.add_group(grp)
+#### Raises {.doc-section .doc-section-raises}
 
-    With custom UIDs:
+| Name   | Type                       | Description                                                                                              |
+|--------|----------------------------|----------------------------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If the group ID already exists in the bundle, or if any timeline UID would collide with an existing one. |
 
-        >>> bundle.add_group(grp, uid_map={"dpt:1": "audio", "dpt:2": "midi"})
+#### Examples {.doc-section .doc-section-examples}
+
+Add a recording group with 5 DPTs:
+
+    >>> grp = TimelineGroup(id="normal", timelines=[dpt1, dpt2, dpt3])
+    >>> bundle.add_group(grp)
+
+With custom UIDs:
+
+    >>> bundle.add_group(grp, uid_map={"dpt:1": "audio", "dpt:2": "midi"})
 
 ### add_match_claim_field { #timetoalign.alignment.AlignmentBundle.add_match_claim_field }
 
@@ -161,12 +163,17 @@ It complements the per-claim list path: a bundle may hold both a
 Python-list ``cross_group_claims`` and one or more
 ``cross_group_claim_fields`` at once.
 
-Args:
-    claim_field: A :class:`MatchClaimField` of synchronous instant
-        pairwise claims.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    self (for method chaining)
+| Name        | Type                                                              | Description                                                        | Default    |
+|-------------|-------------------------------------------------------------------|--------------------------------------------------------------------|------------|
+| claim_field | [MatchClaimField](`timetoalign.alignment.claims.MatchClaimField`) | A :class:`MatchClaimField` of synchronous instant pairwise claims. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                | Description                |
+|--------|---------------------|----------------------------|
+|        | \'AlignmentBundle\' | self (for method chaining) |
 
 ### add_match_claims { #timetoalign.alignment.AlignmentBundle.add_match_claims }
 
@@ -184,12 +191,17 @@ notes).  They enable cross-group coordinate transfer via
 WarpMaps are built lazily on first ``transfer()`` or
 ``get_matchstamp_at()`` call, so adding claims is cheap.
 
-Args:
-    claims: List of MatchClaim objects.  Each synchronous claim
-        connects two timelines via its ``start_anchor``.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    self (for method chaining)
+| Name   | Type                                                                      | Description                                                                                          | Default    |
+|--------|---------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|------------|
+| claims | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | List of MatchClaim objects.  Each synchronous claim connects two timelines via its ``start_anchor``. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                | Description                |
+|--------|---------------------|----------------------------|
+|        | \'AlignmentBundle\' | self (for method chaining) |
 
 ### add_timeline { #timetoalign.alignment.AlignmentBundle.add_timeline }
 
@@ -210,47 +222,48 @@ Add a timeline, optionally aligned to an existing timeline.
 This is the primary method for adding timelines to the bundle.
 Timelines can be standalone or aligned to existing timelines.
 
-Args:
-    timeline: The Timeline to add.
-    uid: Optional explicit ID. If None, uses timeline.id.
-    aligned_to: ID of existing timeline to align with.
-        If provided, both timelines become part of the same group.
-        If the target timeline is not yet in a group, a new group
-        is created with the target as reference.
-    as_group: Name for the group if creating a new one.
-    start: Where this timeline's 0-origin starts in the group.
-        - CoordinateSpec: Coordinate in the aligned_to timeline
-        - IdCoordinate: Coordinate with explicit timeline_id (preferred)
-        - float: Coordinate in the aligned_to timeline
-        - None: Use group's current start (default for linear alignment)
-    end: Where this timeline's end (length) aligns in the group.
-        - Same options as start
-        - None: Use group's current end (default for linear alignment)
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    self (for method chaining)
+| Name       | Type                                                        | Description                                                                                                                                                                                                                                                                                  | Default    |
+|------------|-------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| timeline   | \'Timeline\'                                                | The Timeline to add.                                                                                                                                                                                                                                                                         | _required_ |
+| uid        | [str](`str`) \| None                                        | Optional explicit ID. If None, uses timeline.id.                                                                                                                                                                                                                                             | `None`     |
+| aligned_to | [str](`str`) \| None                                        | ID of existing timeline to align with. If provided, both timelines become part of the same group. If the target timeline is not yet in a group, a new group is created with the target as reference.                                                                                         | `None`     |
+| as_group   | [str](`str`) \| None                                        | Name for the group if creating a new one.                                                                                                                                                                                                                                                    | `None`     |
+| start      | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Where this timeline's 0-origin starts in the group. - CoordinateSpec: Coordinate in the aligned_to timeline - IdCoordinate: Coordinate with explicit timeline_id (preferred) - float: Coordinate in the aligned_to timeline - None: Use group's current start (default for linear alignment) | `None`     |
+| end        | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Where this timeline's end (length) aligns in the group. - Same options as start - None: Use group's current end (default for linear alignment)                                                                                                                                               | `None`     |
 
-Raises:
-    ValueError: If uid already exists in bundle.
-    KeyError: If aligned_to references a non-existent timeline.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    Linear (full-extent) alignment:
+| Name   | Type                | Description                |
+|--------|---------------------|----------------------------|
+|        | \'AlignmentBundle\' | self (for method chaining) |
 
-        >>> bundle.add_timeline(audio, uid="dgt1")
-        >>> bundle.add_timeline(midi, uid="dlt1", aligned_to="dgt1")
+#### Raises {.doc-section .doc-section-raises}
 
-    Partial alignment (SUPRA piano roll) using IdCoordinate:
+| Name   | Type                       | Description                                       |
+|--------|----------------------------|---------------------------------------------------|
+|        | [ValueError](`ValueError`) | If uid already exists in bundle.                  |
+|        | [KeyError](`KeyError`)     | If aligned_to references a non-existent timeline. |
 
-        >>> from timetoalign import IdCoordinate, TimeUnit
-        >>> bundle.add_timeline(image, uid="dgt1")  # Full image
-        >>> bundle.add_timeline(
-        ...     holes,
-        ...     uid="dgt1_holes",
-        ...     aligned_to="dgt1",
-        ...     start=IdCoordinate(15343.0, TimeUnit.pixels, "dgt1"),
-        ...     end=IdCoordinate(293119.0, TimeUnit.pixels, "dgt1"),
-        ... )
+#### Examples {.doc-section .doc-section-examples}
+
+Linear (full-extent) alignment:
+
+    >>> bundle.add_timeline(audio, uid="dgt1")
+    >>> bundle.add_timeline(midi, uid="dlt1", aligned_to="dgt1")
+
+Partial alignment (SUPRA piano roll) using IdCoordinate:
+
+    >>> from timetoalign import IdCoordinate, TimeUnit
+    >>> bundle.add_timeline(image, uid="dgt1")  # Full image
+    >>> bundle.add_timeline(
+    ...     holes,
+    ...     uid="dgt1_holes",
+    ...     aligned_to="dgt1",
+    ...     start=IdCoordinate(15343.0, TimeUnit.pixels, "dgt1"),
+    ...     end=IdCoordinate(293119.0, TimeUnit.pixels, "dgt1"),
+    ... )
 
 ### are_commensurable { #timetoalign.alignment.AlignmentBundle.are_commensurable }
 
@@ -263,12 +276,18 @@ Check if two timelines can be connected via transfer.
 Two timelines are commensurable if they share the same group
 or if a cross-group path exists via MatchClaims.
 
-Args:
-    timeline_a: First timeline ID (bundle UID).
-    timeline_b: Second timeline ID (bundle UID).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    True if coordinates can be transferred between them.
+| Name       | Type         | Description                      | Default    |
+|------------|--------------|----------------------------------|------------|
+| timeline_a | [str](`str`) | First timeline ID (bundle UID).  | _required_ |
+| timeline_b | [str](`str`) | Second timeline ID (bundle UID). | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                                          |
+|--------|----------------|------------------------------------------------------|
+|        | [bool](`bool`) | True if coordinates can be transferred between them. |
 
 ### create_match_claims { #timetoalign.alignment.AlignmentBundle.create_match_claims }
 
@@ -287,43 +306,40 @@ Create MatchClaims from a list of event pairs.
 Convenience factory for creating multiple MatchClaims from paired
 events. Each tuple specifies two events and their timeline IDs.
 
-Args:
-    event_pairs: List of tuples, each containing:
-        ``(event_a, timeline_a_id, event_b, timeline_b_id)``.
-        ``event_a``/``event_b`` are each one of:
-        an event dict (must have at least a ``start`` key with a
-        coordinate; an ``end`` key on both sides produces an
-        interval match), the ``id`` string of an existing event on
-        the paired timeline (resolved via ``Timeline.get_event()``),
-        or ``None``. Exactly one of ``event_a``/``event_b`` may be
-        ``None``, producing a NOMATCH claim for the other side's
-        event. The forms may be mixed within a pair.
-    synchronous: Whether the matches are temporally synchronous.
-        Ignored for NOMATCH pairs, which are always non-synchronous.
-    agent: Name of the agent creating the claims (for provenance).
-    agent_identifier: The agent's stable identifier — a version string
-        for a software agent or a URI for a human agent (e.g.
-        ``"manual"``, ``"dynamic_time_warping"``). Stored as
-        ``Agent.identifier``.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of MatchClaim objects. Also automatically adds them to
-    the bundle's ``cross_group_claims``.
+| Name             | Type                                                                                                                                             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Default    |
+|------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| event_pairs      | [list](`list`)\[[tuple](`tuple`)\[[dict](`dict`) \| [str](`str`) \| None, [str](`str`), [dict](`dict`) \| [str](`str`) \| None, [str](`str`)\]\] | List of tuples, each containing: ``(event_a, timeline_a_id, event_b, timeline_b_id)``. ``event_a``/``event_b`` are each one of: an event dict (must have at least a ``start`` key with a coordinate; an ``end`` key on both sides produces an interval match), the ``id`` string of an existing event on the paired timeline (resolved via ``Timeline.get_event()``), or ``None``. Exactly one of ``event_a``/``event_b`` may be ``None``, producing a NOMATCH claim for the other side's event. The forms may be mixed within a pair. | _required_ |
+| synchronous      | [bool](`bool`)                                                                                                                                   | Whether the matches are temporally synchronous. Ignored for NOMATCH pairs, which are always non-synchronous.                                                                                                                                                                                                                                                                                                                                                                                                                           | `True`     |
+| agent            | [str](`str`)                                                                                                                                     | Name of the agent creating the claims (for provenance).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | `'user'`   |
+| agent_identifier | [str](`str`)                                                                                                                                     | The agent's stable identifier — a version string for a software agent or a URI for a human agent (e.g. ``"manual"``, ``"dynamic_time_warping"``). Stored as ``Agent.identifier``.                                                                                                                                                                                                                                                                                                                                                      | `'manual'` |
 
-Raises:
-    ValueError: If event dicts are missing required keys, an event
-        id string doesn't resolve to an existing event, or both
-        ``event_a`` and ``event_b`` are ``None``.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> pairs = [
-    ...     ({"start": 0.0}, "score", {"start": 45.5}, "audio"),
-    ...     ("note:000010", "score", "note:000042", "audio"),
-    ...     ("note:000099", "score", None, "audio"),  # NOMATCH
-    ... ]
-    >>> claims = bundle.create_match_claims(pairs, agent="manual_alignment")
-    >>> len(claims)
-    3
+| Name   | Type                                                                      | Description                                                 |
+|--------|---------------------------------------------------------------------------|-------------------------------------------------------------|
+|        | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | List of MatchClaim objects. Also automatically adds them to |
+|        | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | the bundle's ``cross_group_claims``.                        |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                                                                                                          |
+|--------|----------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If event dicts are missing required keys, an event id string doesn't resolve to an existing event, or both ``event_a`` and ``event_b`` are ``None``. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> pairs = [
+...     ({"start": 0.0}, "score", {"start": 45.5}, "audio"),
+...     ("note:000010", "score", "note:000042", "audio"),
+...     ("note:000099", "score", None, "audio"),  # NOMATCH
+... ]
+>>> claims = bundle.create_match_claims(pairs, agent="manual_alignment")
+>>> len(claims)
+3
+```
 
 ### diagram { #timetoalign.alignment.AlignmentBundle.diagram }
 
@@ -339,29 +355,37 @@ alignment.AlignmentBundle.diagram(
 
 Generate ASCII diagram for this bundle.
 
-Args:
-    width: Total width of the diagram in characters.
-    show_children: Whether to expand child timelines.
-    max_children: Maximum children per timeline.
-    max_standalone: Maximum standalone timelines to display
-        before truncating with an ellipsis.
-    unicode: Use Unicode characters (True) or ASCII fallback (False).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+| Name           | Type           | Description                                                                 | Default   |
+|----------------|----------------|-----------------------------------------------------------------------------|-----------|
+| width          | [int](`int`)   | Total width of the diagram in characters.                                   | `80`      |
+| show_children  | [bool](`bool`) | Whether to expand child timelines.                                          | `True`    |
+| max_children   | [int](`int`)   | Maximum children per timeline.                                              | `6`       |
+| max_standalone | [int](`int`)   | Maximum standalone timelines to display before truncating with an ellipsis. | `6`       |
+| unicode        | [bool](`bool`) | Use Unicode characters (True) or ASCII fallback (False).                    | `True`    |
 
-Examples:
-    >>> print(bundle.diagram())
-    AlignmentBundle[thoresen_alignment]
+#### Returns {.doc-section .doc-section-returns}
 
-      TimelineGroup[dgt1_group] (2 timelines, 2 timestamps)
-      ┌──────────────────────────────────────────────────────┐
-      │ DiscreteGraphicalTimeline[dgt1:1] (11 events)        │
-      │ 0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels    │
-      └──────────────────────────────────────────────────────┘
-      Timestamps: 2
+| Name   | Type        | Description                                                           |
+|--------|-------------|-----------------------------------------------------------------------|
+|        | \'Diagram\' | Diagram object (displays as ASCII in terminal, rich HTML in Jupyter). |
 
-      MatchClaims: 5
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> print(bundle.diagram())
+AlignmentBundle[thoresen_alignment]
+```
+
+  TimelineGroup[dgt1_group] (2 timelines, 2 timestamps)
+  ┌──────────────────────────────────────────────────────┐
+  │ DiscreteGraphicalTimeline[dgt1:1] (11 events)        │
+  │ 0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels    │
+  └──────────────────────────────────────────────────────┘
+  Timestamps: 2
+
+  MatchClaims: 5
 
 ### from_bundles { #timetoalign.alignment.AlignmentBundle.from_bundles }
 
@@ -380,23 +404,34 @@ merging does not itself align timelines across bundles. Add
 cross-group MatchClaims (e.g. via :meth:`create_match_claims`)
 afterwards to align them.
 
-Args:
-    bundles: The bundles to merge, in order.
-    id: Explicit ID for the merged bundle. Auto-generated if omitted.
-    name: Optional human-readable name for the merged bundle.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new AlignmentBundle containing every group, standalone
-    timeline, and cross-group claim from ``bundles``.
+| Name    | Type                                  | Description                                                   | Default    |
+|---------|---------------------------------------|---------------------------------------------------------------|------------|
+| bundles | [list](`list`)\[\'AlignmentBundle\'\] | The bundles to merge, in order.                               | _required_ |
+| id      | [str](`str`)                          | Explicit ID for the merged bundle. Auto-generated if omitted. | `''`       |
+| name    | [str](`str`) \| None                  | Optional human-readable name for the merged bundle.           | `None`     |
 
-Raises:
-    ValueError: If two source bundles share a group ID, or a
-        timeline UID collision would occur across bundles.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> merged = AlignmentBundle.from_bundles([score_bundle, audio_bundle])
-    >>> merged.groups.keys() == score_bundle.groups.keys() | audio_bundle.groups.keys()
-    True
+| Name   | Type                | Description                                              |
+|--------|---------------------|----------------------------------------------------------|
+|        | \'AlignmentBundle\' | A new AlignmentBundle containing every group, standalone |
+|        | \'AlignmentBundle\' | timeline, and cross-group claim from ``bundles``.        |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                                                     |
+|--------|----------------------------|-------------------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If two source bundles share a group ID, or a timeline UID collision would occur across bundles. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> merged = AlignmentBundle.from_bundles([score_bundle, audio_bundle])
+>>> merged.groups.keys() == score_bundle.groups.keys() | audio_bundle.groups.keys()
+True
+```
 
 ### get_claim_fields { #timetoalign.alignment.AlignmentBundle.get_claim_fields }
 
@@ -428,24 +463,32 @@ and carry the same meaning.  Because a ``MatchClaimField`` holds
 synchronous claims only, ``synchronous_only`` is a no-op here and
 ``nomatch_only`` returns nothing.
 
-Args:
-    timeline_id: Keep claims involving this bundle UID.
-    timeline_ids: Keep claims involving any of these bundle UIDs.
-    id_pattern: Regex matched against bundle UIDs via ``re.search()``.
-    between: Keep claims connecting exactly these two bundle UIDs
-        (order-independent).
-    synchronous_only: No-op (every stored claim is synchronous).
-    nomatch_only: Returns an empty list.
-    include_domains: Only timelines in these domains.
-    include_units: Only timelines with these units.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Filtered ``MatchClaimField`` objects, empty stores dropped.
+| Name             | Type                                                   | Description                                                               | Default   |
+|------------------|--------------------------------------------------------|---------------------------------------------------------------------------|-----------|
+| timeline_id      | [str](`str`) \| None                                   | Keep claims involving this bundle UID.                                    | `None`    |
+| timeline_ids     | [set](`set`)\[[str](`str`)\] \| None                   | Keep claims involving any of these bundle UIDs.                           | `None`    |
+| id_pattern       | [str](`str`) \| None                                   | Regex matched against bundle UIDs via ``re.search()``.                    | `None`    |
+| between          | [tuple](`tuple`)\[[str](`str`), [str](`str`)\] \| None | Keep claims connecting exactly these two bundle UIDs (order-independent). | `None`    |
+| synchronous_only | [bool](`bool`)                                         | No-op (every stored claim is synchronous).                                | `False`   |
+| nomatch_only     | [bool](`bool`)                                         | Returns an empty list.                                                    | `False`   |
+| include_domains  | [set](`set`)\[\'Domain\'\] \| None                     | Only timelines in these domains.                                          | `None`    |
+| include_units    | [set](`set`)\[\'TimeUnit\'\] \| None                   | Only timelines with these units.                                          | `None`    |
 
-Examples:
-    >>> fields = bundle.get_claim_fields(timeline_id="rec-a:cpt1")
-    >>> sum(len(f) for f in fields)
-    66780
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                | Description                                                 |
+|--------|-------------------------------------------------------------------------------------|-------------------------------------------------------------|
+|        | [list](`list`)\[[MatchClaimField](`timetoalign.alignment.claims.MatchClaimField`)\] | Filtered ``MatchClaimField`` objects, empty stores dropped. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> fields = bundle.get_claim_fields(timeline_id="rec-a:cpt1")
+>>> sum(len(f) for f in fields)
+66780
+```
 
 ### get_group { #timetoalign.alignment.AlignmentBundle.get_group }
 
@@ -462,18 +505,30 @@ Supports partial string and regex matching:
 3. Regex match: If ``uid`` is a valid regex, matches via
    ``re.search()``. Same first-match logic with warning.
 
-Args:
-    uid: The group's unique identifier, or a partial/regex pattern.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The TimelineGroup object.
+| Name   | Type         | Description                                                | Default    |
+|--------|--------------|------------------------------------------------------------|------------|
+| uid    | [str](`str`) | The group's unique identifier, or a partial/regex pattern. | _required_ |
 
-Raises:
-    KeyError: If no group matches the pattern.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> bundle.get_group("score")            # Substring match
-    >>> bundle.get_group(r"^perf")           # Regex match
+| Name   | Type                                                   | Description               |
+|--------|--------------------------------------------------------|---------------------------|
+|        | [TimelineGroup](`timetoalign.timelines.TimelineGroup`) | The TimelineGroup object. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                      |
+|--------|------------------------|----------------------------------|
+|        | [KeyError](`KeyError`) | If no group matches the pattern. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> bundle.get_group("score")            # Substring match
+>>> bundle.get_group(r"^perf")           # Regex match
+```
 
 ### get_group_for_timeline { #timetoalign.alignment.AlignmentBundle.get_group_for_timeline }
 
@@ -483,11 +538,17 @@ alignment.AlignmentBundle.get_group_for_timeline(timeline_id)
 
 Get the group containing a timeline.
 
-Args:
-    timeline_id: The timeline's unique identifier.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The TimelineGroup containing the timeline, or None if standalone.
+| Name        | Type         | Description                       | Default    |
+|-------------|--------------|-----------------------------------|------------|
+| timeline_id | [str](`str`) | The timeline's unique identifier. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                           | Description                                                       |
+|--------|----------------------------------------------------------------|-------------------------------------------------------------------|
+|        | [TimelineGroup](`timetoalign.timelines.TimelineGroup`) \| None | The TimelineGroup containing the timeline, or None if standalone. |
 
 ### get_match_claims { #timetoalign.alignment.AlignmentBundle.get_match_claims }
 
@@ -520,35 +581,39 @@ row — for a dense pairwise alignment that is O(n) Python objects. Use
 :meth:`get_claim_fields` when the columnar answer suffices, or narrow
 the query first.
 
-Args:
-    timeline_id: Return claims involving this bundle UID.
-    timeline_ids: Return claims involving any of these bundle UIDs.
-    id_pattern: Regex pattern matched against bundle UIDs via
-        ``re.search()``. Example: ``r"^perf:"`` matches all
-        performance timelines.
-    between: Return claims connecting exactly these two bundle UIDs
-        (order-independent).
-    synchronous_only: Exclude non-synchronous (NOMATCH) claims.
-    nomatch_only: Return only non-synchronous (NOMATCH) claims.
-    include_domains: Only timelines in these domains.
-    include_units: Only timelines with these units.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Filtered list of MatchClaims.
+| Name             | Type                                                   | Description                                                                                                              | Default   |
+|------------------|--------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|-----------|
+| timeline_id      | [str](`str`) \| None                                   | Return claims involving this bundle UID.                                                                                 | `None`    |
+| timeline_ids     | [set](`set`)\[[str](`str`)\] \| None                   | Return claims involving any of these bundle UIDs.                                                                        | `None`    |
+| id_pattern       | [str](`str`) \| None                                   | Regex pattern matched against bundle UIDs via ``re.search()``. Example: ``r"^perf:"`` matches all performance timelines. | `None`    |
+| between          | [tuple](`tuple`)\[[str](`str`), [str](`str`)\] \| None | Return claims connecting exactly these two bundle UIDs (order-independent).                                              | `None`    |
+| synchronous_only | [bool](`bool`)                                         | Exclude non-synchronous (NOMATCH) claims.                                                                                | `False`   |
+| nomatch_only     | [bool](`bool`)                                         | Return only non-synchronous (NOMATCH) claims.                                                                            | `False`   |
+| include_domains  | [set](`set`)\[\'Domain\'\] \| None                     | Only timelines in these domains.                                                                                         | `None`    |
+| include_units    | [set](`set`)\[\'TimeUnit\'\] \| None                   | Only timelines with these units.                                                                                         | `None`    |
 
-Examples:
-    Get all synchronous claims for a performer::
+#### Returns {.doc-section .doc-section-returns}
 
-        >>> claims = bundle.get_match_claims(
-        ...     id_pattern=r"dlt1$", synchronous_only=True
-        ... )
+| Name   | Type                                                                      | Description                   |
+|--------|---------------------------------------------------------------------------|-------------------------------|
+|        | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | Filtered list of MatchClaims. |
 
-    Get NOMATCH claims for a specific pair::
+#### Examples {.doc-section .doc-section-examples}
 
-        >>> nomatches = bundle.get_match_claims(
-        ...     between=("score:clt1", "perf:dlt5"),
-        ...     nomatch_only=True,
-        ... )
+Get all synchronous claims for a performer::
+
+    >>> claims = bundle.get_match_claims(
+    ...     id_pattern=r"dlt1$", synchronous_only=True
+    ... )
+
+Get NOMATCH claims for a specific pair::
+
+    >>> nomatches = bundle.get_match_claims(
+    ...     between=("score:clt1", "perf:dlt5"),
+    ...     nomatch_only=True,
+    ... )
 
 ### get_matchstamp_at { #timetoalign.alignment.AlignmentBundle.get_matchstamp_at }
 
@@ -586,43 +651,40 @@ WarpMap's source-anchor hull, or the produced coordinate would fall
 outside ``[0, length]`` — is handled by ``support_policy``. No policy
 ever yields a negative coordinate or one beyond a timeline's length.
 
-Args:
-    coordinate: The query coordinate. Can be:
+#### Parameters {.doc-section .doc-section-parameters}
 
-        - int/float/Fraction: Raw value, ``timeline_id`` required.
-        - Coordinate: Value with unit, ``timeline_id`` required.
-        - IdCoordinate: Value with unit AND timeline_id
-          (``timeline_id`` param optional).
-    timeline_id: Bundle UID of the source timeline. Required unless
-        ``coordinate`` is an ``IdCoordinate``, in which case the
-        coordinate's own ``timeline_id`` is used.
-    support_policy: How to treat out-of-support timelines
-        (``omit`` / ``clamp`` / ``extrapolate``). Accepts a
-        :class:`~timetoalign.core.SupportPolicy` or its string name.
-        ``None`` (the default) uses the bundle's ``support_policy``
-        setting, itself ``omit`` by default. The query timeline's own
-        coordinate is never dropped, clamped, or altered.
-    conversion_maps: C-map conversions available through unit lookup
-        and display. Opt-in: defaults to ``False``.
-    timeline_ids: Only include these bundle UIDs in the result.
-    id_pattern: Regex filter for bundle UIDs in the result.
-    include_domains: Only these domains in the result.
-    include_units: Only these units in the result.
+| Name            | Type                                                | Description                                                                                                                                                                                                                                                                                                                        | Default    |
+|-----------------|-----------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| coordinate      | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | The query coordinate. Can be:  - int/float/Fraction: Raw value, ``timeline_id`` required. - Coordinate: Value with unit, ``timeline_id`` required. - IdCoordinate: Value with unit AND timeline_id   (``timeline_id`` param optional).                                                                                             | _required_ |
+| timeline_id     | [str](`str`) \| None                                | Bundle UID of the source timeline. Required unless ``coordinate`` is an ``IdCoordinate``, in which case the coordinate's own ``timeline_id`` is used.                                                                                                                                                                              | `None`     |
+| support_policy  | \'SupportPolicy \| str \| None\'                    | How to treat out-of-support timelines (``omit`` / ``clamp`` / ``extrapolate``). Accepts a :class:`~timetoalign.core.SupportPolicy` or its string name. ``None`` (the default) uses the bundle's ``support_policy`` setting, itself ``omit`` by default. The query timeline's own coordinate is never dropped, clamped, or altered. | `None`     |
+| conversion_maps | \'ConversionMapsSpec\'                              | C-map conversions available through unit lookup and display. Opt-in: defaults to ``False``.                                                                                                                                                                                                                                        | `False`    |
+| timeline_ids    | [set](`set`)\[[str](`str`)\] \| None                | Only include these bundle UIDs in the result.                                                                                                                                                                                                                                                                                      | `None`     |
+| id_pattern      | [str](`str`) \| None                                | Regex filter for bundle UIDs in the result.                                                                                                                                                                                                                                                                                        | `None`     |
+| include_domains | [set](`set`)\[\'Domain\'\] \| None                  | Only these domains in the result.                                                                                                                                                                                                                                                                                                  | `None`     |
+| include_units   | [set](`set`)\[\'TimeUnit\'\] \| None                | Only these units in the result.                                                                                                                                                                                                                                                                                                    | `None`     |
 
-Returns:
-    MatchStamp spanning all connected timelines.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    TypeError: If coordinate is not int/float/Fraction/Coordinate/
-        IdCoordinate.
-    ValueError: If timeline_id is None and coordinate is not an
-        IdCoordinate.
-    KeyError: If timeline_id is not in the bundle.
+| Name   | Type                                                   | Description                                  |
+|--------|--------------------------------------------------------|----------------------------------------------|
+|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) | MatchStamp spanning all connected timelines. |
 
-Examples:
-    >>> ms = bundle.get_matchstamp_at(10.0, "score:clt1")
-    >>> ms.n_timelines
-    23  # score + 22 performers
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                       |
+|--------|----------------------------|-------------------------------------------------------------------|
+|        | [TypeError](`TypeError`)   | If coordinate is not int/float/Fraction/Coordinate/ IdCoordinate. |
+|        | [ValueError](`ValueError`) | If timeline_id is None and coordinate is not an IdCoordinate.     |
+|        | [KeyError](`KeyError`)     | If timeline_id is not in the bundle.                              |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> ms = bundle.get_matchstamp_at(10.0, "score:clt1")
+>>> ms.n_timelines
+23  # score + 22 performers
+```
 
 ### get_matchstamp_table { #timetoalign.alignment.AlignmentBundle.get_matchstamp_table }
 
@@ -664,56 +726,54 @@ row — a full transitive cross-section, every reached timeline filled —
 in input order. ``from_graph`` does not apply on this path (the stamps
 are already collapsed cross-sections) and is ignored.
 
-Args:
-    claims: List of MatchClaims to tabulate.  If None, uses every
-        cross-group claim in the bundle (both stores).  When given,
-        only those claims are tabulated.  Mutually exclusive with
-        ``coordinates``.
-    coordinates: Query coordinates to resolve through
-        :meth:`get_matchstamp_at`, one row per coordinate in input
-        order. Each element is a raw ``int``/``float``/``Fraction`` or
-        ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
-        (carrying its own timeline). Mutually exclusive with ``claims``.
-    timeline_id: Source timeline for the ``coordinates`` batch; may be
-        ``None`` when every element is an ``IdCoordinate``. Ignored on
-        the ``claims`` path.
-    timeline_filter: Only include these timeline fields.
-    from_graph: Collapse claims into one row per connected component
-        instead of one row per claim.  Ignored on the ``coordinates``
-        path.
-    conversion_maps: C-map conversions to add as derived columns, one
-        per (timeline, enabled unit-conversion map). Opt-in: defaults
-        to ``False``. Only numeric unit-conversion maps (a
-        ``target_unit`` set) become columns; label/structured maps
-        appear in stamp display but never as table columns.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    PyArrow Table with one field per timeline.  Non-synchronous claims
-    are excluded.  Empty input yields an empty table.
+| Name            | Type                                                                                                  | Description                                                                                                                                                                                                                                                                                     | Default   |
+|-----------------|-------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| claims          | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] \| None                     | List of MatchClaims to tabulate.  If None, uses every cross-group claim in the bundle (both stores).  When given, only those claims are tabulated.  Mutually exclusive with ``coordinates``.                                                                                                    | `None`    |
+| coordinates     | [Iterable](`collections.abc.Iterable`)\[[CoordinateSpec](`timetoalign.core.CoordinateSpec`)\] \| None | Query coordinates to resolve through :meth:`get_matchstamp_at`, one row per coordinate in input order. Each element is a raw ``int``/``float``/``Fraction`` or ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate`` (carrying its own timeline). Mutually exclusive with ``claims``. | `None`    |
+| timeline_id     | [str](`str`) \| None                                                                                  | Source timeline for the ``coordinates`` batch; may be ``None`` when every element is an ``IdCoordinate``. Ignored on the ``claims`` path.                                                                                                                                                       | `None`    |
+| timeline_filter | [set](`set`)\[[str](`str`)\] \| None                                                                  | Only include these timeline fields.                                                                                                                                                                                                                                                             | `None`    |
+| from_graph      | [bool](`bool`)                                                                                        | Collapse claims into one row per connected component instead of one row per claim.  Ignored on the ``coordinates`` path.                                                                                                                                                                        | `False`   |
+| conversion_maps | \'ConversionMapsSpec\'                                                                                | C-map conversions to add as derived columns, one per (timeline, enabled unit-conversion map). Opt-in: defaults to ``False``. Only numeric unit-conversion maps (a ``target_unit`` set) become columns; label/structured maps appear in stamp display but never as table columns.                | `False`   |
 
-Raises:
-    ValueError: If both ``claims`` and ``coordinates`` are given.
+#### Returns {.doc-section .doc-section-returns}
 
-Note:
-    Collapsed rows are ordered by the coordinate on the
-    lexicographically smallest timeline ID present in the component,
-    then by that ID — a total order, since two components can never
-    share a ``(timeline_id, coordinate)`` node.  A component that
-    somehow carries two coordinates for one timeline (which a
-    well-formed alignment never does) keeps the smaller one.
+| Name   | Type         | Description                                                        |
+|--------|--------------|--------------------------------------------------------------------|
+|        | \'pa.Table\' | PyArrow Table with one field per timeline.  Non-synchronous claims |
+|        | \'pa.Table\' | are excluded.  Empty input yields an empty table.                  |
 
-Examples:
-    >>> table = bundle.get_matchstamp_table()
-    >>> table.num_rows
-    100
-    >>> table.column_names
-    ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
-    >>> bundle.get_matchstamp_table(from_graph=True).num_rows
-    25
-    >>> bundle.get_matchstamp_table(
-    ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
-    ... ).num_rows
-    2
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                       |
+|--------|----------------------------|---------------------------------------------------|
+|        | [ValueError](`ValueError`) | If both ``claims`` and ``coordinates`` are given. |
+
+#### Note {.doc-section .doc-section-note}
+
+Collapsed rows are ordered by the coordinate on the
+lexicographically smallest timeline ID present in the component,
+then by that ID — a total order, since two components can never
+share a ``(timeline_id, coordinate)`` node.  A component that
+somehow carries two coordinates for one timeline (which a
+well-formed alignment never does) keeps the smaller one.
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> table = bundle.get_matchstamp_table()
+>>> table.num_rows
+100
+>>> table.column_names
+['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
+>>> bundle.get_matchstamp_table(from_graph=True).num_rows
+25
+>>> bundle.get_matchstamp_table(
+...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
+... ).num_rows
+2
+```
 
 ### get_matchstamps { #timetoalign.alignment.AlignmentBundle.get_matchstamps }
 
@@ -739,45 +799,43 @@ point for callers who hold coordinates rather than ``MatchClaim``
 objects. Input order is preserved and every coordinate yields exactly
 one stamp (a full transitive cross-section).
 
-Args:
-    claims: List of MatchClaims to get stamps for. If None, uses
-        every cross-group claim in the bundle — the per-claim list
-        and every columnar ``MatchClaimField`` (see
-        :meth:`get_match_claims`, which materialises the columnar
-        rows). Mutually exclusive with ``coordinates``.
-    coordinates: Query coordinates to resolve through
-        :meth:`get_matchstamp_at`, one stamp per coordinate in input
-        order. Each element is a raw ``int``/``float``/``Fraction`` or
-        ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
-        (carrying its own timeline). Mutually exclusive with ``claims``.
-    timeline_id: Source timeline for the ``coordinates`` batch; may be
-        ``None`` when every element is an ``IdCoordinate``. Ignored on
-        the ``claims`` path.
-    from_graph: If True (default), return full MatchStamps from the
-        MatchGraph (all connected timelines). If False, return
-        reduced 2-timeline stamps. Ignored on the ``coordinates``
-        path, where each stamp is already a full cross-section.
-    conversion_maps: C-map conversions available through unit lookup
-        and display. Opt-in: defaults to ``False``.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of MatchStamp objects. Non-synchronous claims yield None
-    entries (filtered out).
+| Name            | Type                                                                                                  | Description                                                                                                                                                                                                                                                                                       | Default   |
+|-----------------|-------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| claims          | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] \| None                     | List of MatchClaims to get stamps for. If None, uses every cross-group claim in the bundle — the per-claim list and every columnar ``MatchClaimField`` (see :meth:`get_match_claims`, which materialises the columnar rows). Mutually exclusive with ``coordinates``.                             | `None`    |
+| coordinates     | [Iterable](`collections.abc.Iterable`)\[[CoordinateSpec](`timetoalign.core.CoordinateSpec`)\] \| None | Query coordinates to resolve through :meth:`get_matchstamp_at`, one stamp per coordinate in input order. Each element is a raw ``int``/``float``/``Fraction`` or ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate`` (carrying its own timeline). Mutually exclusive with ``claims``. | `None`    |
+| timeline_id     | [str](`str`) \| None                                                                                  | Source timeline for the ``coordinates`` batch; may be ``None`` when every element is an ``IdCoordinate``. Ignored on the ``claims`` path.                                                                                                                                                         | `None`    |
+| from_graph      | [bool](`bool`)                                                                                        | If True (default), return full MatchStamps from the MatchGraph (all connected timelines). If False, return reduced 2-timeline stamps. Ignored on the ``coordinates`` path, where each stamp is already a full cross-section.                                                                      | `True`    |
+| conversion_maps | \'ConversionMapsSpec\'                                                                                | C-map conversions available through unit lookup and display. Opt-in: defaults to ``False``.                                                                                                                                                                                                       | `False`   |
 
-Raises:
-    ValueError: If both ``claims`` and ``coordinates`` are given.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> stamps = bundle.get_matchstamps()
-    >>> len(stamps)
-    100
-    >>> stamps[0].n_timelines
-    23
-    >>> coord_stamps = bundle.get_matchstamps(
-    ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
-    ... )
-    >>> coord_stamps[1].get("score:clt1")
-    50.0
+| Name   | Type                                                                     | Description                                                   |
+|--------|--------------------------------------------------------------------------|---------------------------------------------------------------|
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | List of MatchStamp objects. Non-synchronous claims yield None |
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | entries (filtered out).                                       |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                       |
+|--------|----------------------------|---------------------------------------------------|
+|        | [ValueError](`ValueError`) | If both ``claims`` and ``coordinates`` are given. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> stamps = bundle.get_matchstamps()
+>>> len(stamps)
+100
+>>> stamps[0].n_timelines
+23
+>>> coord_stamps = bundle.get_matchstamps(
+...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
+... )
+>>> coord_stamps[1].get("score:clt1")
+50.0
+```
 
 ### get_timeline { #timetoalign.alignment.AlignmentBundle.get_timeline }
 
@@ -794,19 +852,31 @@ Supports partial string and regex matching:
 3. Regex match: If ``uid`` is a valid regex, matches via
    ``re.search()``. Same first-match logic with warning.
 
-Args:
-    uid: The timeline's unique identifier, or a partial/regex pattern.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The Timeline object.
+| Name   | Type         | Description                                                   | Default    |
+|--------|--------------|---------------------------------------------------------------|------------|
+| uid    | [str](`str`) | The timeline's unique identifier, or a partial/regex pattern. | _required_ |
 
-Raises:
-    KeyError: If no timeline matches the pattern.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> bundle.get_timeline("clt1")          # Exact match
-    >>> bundle.get_timeline("score")         # Substring match
-    >>> bundle.get_timeline(r"^perf:")       # Regex match
+| Name   | Type         | Description          |
+|--------|--------------|----------------------|
+|        | \'Timeline\' | The Timeline object. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                         |
+|--------|------------------------|-------------------------------------|
+|        | [KeyError](`KeyError`) | If no timeline matches the pattern. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> bundle.get_timeline("clt1")          # Exact match
+>>> bundle.get_timeline("score")         # Substring match
+>>> bundle.get_timeline(r"^perf:")       # Regex match
+```
 
 ### get_timelines { #timetoalign.alignment.AlignmentBundle.get_timelines }
 
@@ -820,19 +890,31 @@ Convenience method for retrieving several timelines at once.
 Each ID supports partial string and regex matching (via
 ``get_timeline()``).
 
-Args:
-    ids: List of timeline IDs (or partial/regex patterns).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of Timeline objects in the same order as the input IDs.
+| Name   | Type                           | Description                                       | Default    |
+|--------|--------------------------------|---------------------------------------------------|------------|
+| ids    | [list](`list`)\[[str](`str`)\] | List of timeline IDs (or partial/regex patterns). | _required_ |
 
-Raises:
-    KeyError: If any timeline ID is not found.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> timelines = bundle.get_timelines(["score", "audio", "midi"])
-    >>> len(timelines)
-    3
+| Name   | Type                           | Description                                                  |
+|--------|--------------------------------|--------------------------------------------------------------|
+|        | [list](`list`)\[\'Timeline\'\] | List of Timeline objects in the same order as the input IDs. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                      |
+|--------|------------------------|----------------------------------|
+|        | [KeyError](`KeyError`) | If any timeline ID is not found. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> timelines = bundle.get_timelines(["score", "audio", "midi"])
+>>> len(timelines)
+3
+```
 
 ### summary { #timetoalign.alignment.AlignmentBundle.summary }
 
@@ -845,8 +927,11 @@ Get a summary of the bundle contents.
 Returns a deterministic representation suitable for comparison.
 Keys and timeline lists are sorted for order-independence.
 
-Returns:
-    Dictionary with bundle information.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                         |
+|--------|-----------------------------------------------------|-------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dictionary with bundle information. |
 
 ### transfer { #timetoalign.alignment.AlignmentBundle.transfer }
 
@@ -869,16 +954,25 @@ Low-level coordinate transfer utility. For user-facing coordinate
 queries, use ``get_matchstamp_at()`` which returns a full cross-section
 as a MatchStamp.
 
-Args:
-    coord: The coordinate value to transfer.
-    from_timeline: Bundle UID of the source timeline.
-    to_timeline: Bundle UID of the target timeline.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The transferred coordinate, or None if no path exists.
+| Name          | Type                                                | Description                        | Default    |
+|---------------|-----------------------------------------------------|------------------------------------|------------|
+| coord         | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | The coordinate value to transfer.  | _required_ |
+| from_timeline | [str](`str`)                                        | Bundle UID of the source timeline. | _required_ |
+| to_timeline   | [str](`str`)                                        | Bundle UID of the target timeline. | _required_ |
 
-Raises:
-    KeyError: If either timeline is not in the bundle.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                     | Description                                            |
+|--------|--------------------------|--------------------------------------------------------|
+|        | [float](`float`) \| None | The transferred coordinate, or None if no path exists. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                              |
+|--------|------------------------|------------------------------------------|
+|        | [KeyError](`KeyError`) | If either timeline is not in the bundle. |
 
 ### transfer_interval { #timetoalign.alignment.AlignmentBundle.transfer_interval }
 
@@ -893,13 +987,17 @@ alignment.AlignmentBundle.transfer_interval(
 
 Transfer an interval from one timeline to another.
 
-Args:
-    start: Start coordinate in source timeline. Accepts a raw
-        int/float/Fraction, a Coordinate, or an IdCoordinate.
-    end: End coordinate in source timeline. Accepts a raw
-        int/float/Fraction, a Coordinate, or an IdCoordinate.
-    from_timeline: ID of the source timeline.
-    to_timeline: ID of the target timeline.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Tuple of (start, end) in target timeline, or None if no path.
+| Name          | Type                                                | Description                                                                                              | Default    |
+|---------------|-----------------------------------------------------|----------------------------------------------------------------------------------------------------------|------------|
+| start         | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | Start coordinate in source timeline. Accepts a raw int/float/Fraction, a Coordinate, or an IdCoordinate. | _required_ |
+| end           | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | End coordinate in source timeline. Accepts a raw int/float/Fraction, a Coordinate, or an IdCoordinate.   | _required_ |
+| from_timeline | [str](`str`)                                        | ID of the source timeline.                                                                               | _required_ |
+| to_timeline   | [str](`str`)                                        | ID of the target timeline.                                                                               | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                           | Description                                                   |
+|--------|----------------------------------------------------------------|---------------------------------------------------------------|
+|        | [tuple](`tuple`)\[[float](`float`), [float](`float`)\] \| None | Tuple of (start, end) in target timeline, or None if no path. |

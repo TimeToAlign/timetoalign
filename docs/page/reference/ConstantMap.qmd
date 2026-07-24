@@ -14,25 +14,25 @@ pair a numeric conversion (pixels to seconds) with a string label
 The constant value can be of any type, though strings are the most
 common use case. The map has no source or target unit by default.
 
-Attributes:
-    value: The constant value returned for every input.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> cmap = ConstantMap(value="page1.jpeg", name="filename")
-    >>> cmap(42.0)
-    'page1.jpeg'
-    >>> cmap(np.array([1.0, 2.0, 3.0]))
-    array(['page1.jpeg', 'page1.jpeg', 'page1.jpeg'], dtype=object)
+| Name   | Type                | Description                                  |
+|--------|---------------------|----------------------------------------------|
+| value  | [Any](`typing.Any`) | The constant value returned for every input. |
 
-See Also:
-    timetoalign.CombinationMap
+## Examples {.doc-section .doc-section-examples}
 
-## Attributes
+```python
+>>> cmap = ConstantMap(value="page1.jpeg", name="filename")
+>>> cmap(42.0)
+'page1.jpeg'
+>>> cmap(np.array([1.0, 2.0, 3.0]))
+array(['page1.jpeg', 'page1.jpeg', 'page1.jpeg'], dtype=object)
+```
 
-| Name | Description |
-| --- | --- |
-| [is_invertible](#timetoalign.ConstantMap.is_invertible) | ConstantMap is not invertible (many-to-one mapping). |
-| [value](#timetoalign.ConstantMap.value) | The constant value returned for every input. |
+## See Also {.doc-section .doc-section-see-also}
+
+timetoalign.CombinationMap
 
 ## Methods
 
@@ -50,11 +50,17 @@ ConstantMap.from_dict(data)
 
 Deserialize from dictionary.
 
-Args:
-    data: Dictionary representation with at least a 'value' key.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A ConstantMap instance.
+| Name   | Type                                                | Description                                            | Default    |
+|--------|-----------------------------------------------------|--------------------------------------------------------|------------|
+| data   | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dictionary representation with at least a 'value' key. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                   | Description             |
+|--------|--------------------------------------------------------|-------------------------|
+|        | [ConstantMap](`timetoalign.maps.constant.ConstantMap`) | A ConstantMap instance. |
 
 ### inverse { #timetoalign.ConstantMap.inverse }
 
@@ -64,9 +70,11 @@ ConstantMap.inverse()
 
 ConstantMap cannot be inverted.
 
-Raises:
-    NotImplementedError: Always, as a constant function has no
-        well-defined inverse.
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                         | Description                                                 |
+|--------|----------------------------------------------|-------------------------------------------------------------|
+|        | [NotImplementedError](`NotImplementedError`) | Always, as a constant function has no well-defined inverse. |
 
 ### to_dict { #timetoalign.ConstantMap.to_dict }
 

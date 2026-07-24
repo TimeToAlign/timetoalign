@@ -31,25 +31,31 @@ properties for each TiLiA timeline type::
     3. ``tl = loader.create_timeline("BEAT_TIMELINE_3")``
 4. ``bundle = loader.create_bundle()``
 
-Args:
-    media_unit: The ``TimeUnit`` for all timelines.  Default
-        ``TimeUnit.seconds`` (TiLiA annotations are time-based).
+## Parameters {.doc-section .doc-section-parameters}
 
-Examples:
-    >>> loader = TiliaJsonLoader()
-    >>> loader.load("Bruckner5_Scherzo.json")
-    >>> group = loader.create_group()
-    >>> group.n_timelines
-    7
-    >>> loader.create_timeline("BEAT_TIMELINE_3").n_events
-    1146
-    >>> loader.store.hierarchy._table.num_rows
-    33
+| Name       | Type                                    | Description                                                                                           | Default            |
+|------------|-----------------------------------------|-------------------------------------------------------------------------------------------------------|--------------------|
+| media_unit | [TimeUnit](`timetoalign.core.TimeUnit`) | The ``TimeUnit`` for all timelines.  Default ``TimeUnit.seconds`` (TiLiA annotations are time-based). | `TimeUnit.seconds` |
 
-See Also:
-    timetoalign.loader.format.json.JsonLoader
-    timetoalign.timelines.groups.TimelineGroup
-    TiliaDictStore
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader = TiliaJsonLoader()
+>>> loader.load("Bruckner5_Scherzo.json")
+>>> group = loader.create_group()
+>>> group.n_timelines
+7
+>>> loader.create_timeline("BEAT_TIMELINE_3").n_events
+1146
+>>> loader.store.hierarchy._table.num_rows
+33
+```
+
+## See Also {.doc-section .doc-section-see-also}
+
+timetoalign.loader.format.json.JsonLoader
+timetoalign.timelines.groups.TimelineGroup
+TiliaDictStore
 
 ## Attributes
 
@@ -89,11 +95,17 @@ Create an ``AlignmentBundle`` wrapping all timelines in one group.
 This is a convenience method.  The bundle contains a single
 ``TimelineGroup`` with no cross-group ``MatchClaim`` objects.
 
-Returns:
-    An ``AlignmentBundle`` with one group and no claims.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    RuntimeError: If ``load()`` has not been called.
+| Name   | Type                | Description                                          |
+|--------|---------------------|------------------------------------------------------|
+|        | \'AlignmentBundle\' | An ``AlignmentBundle`` with one group and no claims. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                        |
+|--------|--------------------------------|------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called. |
 
 ### create_group { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_group }
 
@@ -107,15 +119,23 @@ This is the primary output method for TiliaJsonLoader.  The
 group is built with all member timelines mapped to the same
 physical time axis (seconds).
 
-Args:
-    uids: Timeline identifiers to include.  ``None`` (default)
-        means all.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A ``TimelineGroup`` with one member per timeline.
+| Name   | Type                                   | Description                                                     | Default   |
+|--------|----------------------------------------|-----------------------------------------------------------------|-----------|
+| uids   | [list](`list`)\[[str](`str`)\] \| None | Timeline identifiers to include.  ``None`` (default) means all. | `None`    |
 
-Raises:
-    RuntimeError: If ``load()`` has not been called.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type              | Description                                       |
+|--------|-------------------|---------------------------------------------------|
+|        | \'TimelineGroup\' | A ``TimelineGroup`` with one member per timeline. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                        |
+|--------|--------------------------------|------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called. |
 
 ### create_timeline { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timeline }
 
@@ -128,16 +148,25 @@ Create a single ``ContinuousPhysicalTimeline`` by uid.
 The *uid* may be a type-based ID from ``timeline_ids`` (for example,
 ``"cpt4"``), the original TiLiA source ID/title, or an integer index.
 
-Args:
-    uid: Timeline identifier or integer index.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A ``ContinuousPhysicalTimeline`` with events from the
-    timeline's components.
+| Name   | Type                         | Description                           | Default    |
+|--------|------------------------------|---------------------------------------|------------|
+| uid    | [str](`str`) \| [int](`int`) | Timeline identifier or integer index. | _required_ |
 
-Raises:
-    KeyError: If no timeline with *uid* exists.
-    RuntimeError: If ``load()`` has not been called.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                                           |
+|--------|--------------|-------------------------------------------------------|
+|        | \'Timeline\' | A ``ContinuousPhysicalTimeline`` with events from the |
+|        | \'Timeline\' | timeline's components.                                |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                        |
+|--------|--------------------------------|------------------------------------|
+|        | [KeyError](`KeyError`)         | If no timeline with *uid* exists.  |
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called. |
 
 ### create_timelines { #timetoalign.loader.alignment.tilia.TiliaJsonLoader.create_timelines }
 
@@ -147,9 +176,14 @@ loader.alignment.tilia.TiliaJsonLoader.create_timelines(uids=None)
 
 Create multiple timelines.
 
-Args:
-    uids: List of timeline identifiers to create.  If ``None``
-        (the default), all timelines are created.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of ``ContinuousPhysicalTimeline`` objects.
+| Name   | Type                                   | Description                                                                                    | Default   |
+|--------|----------------------------------------|------------------------------------------------------------------------------------------------|-----------|
+| uids   | [list](`list`)\[[str](`str`)\] \| None | List of timeline identifiers to create.  If ``None`` (the default), all timelines are created. | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                           | Description                                     |
+|--------|--------------------------------|-------------------------------------------------|
+|        | [list](`list`)\[\'Timeline\'\] | List of ``ContinuousPhysicalTimeline`` objects. |

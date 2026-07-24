@@ -855,10 +855,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.ConstantMap" id="toc-timetoalign.ConstantMap" class="nav-link active" data-scroll-target="#timetoalign.ConstantMap">ConstantMap</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.ConstantMap.from_dict" id="toc-timetoalign.ConstantMap.from_dict" class="nav-link" data-scroll-target="#timetoalign.ConstantMap.from_dict">from_dict</a></li>
-  <li><a href="#timetoalign.ConstantMap.inverse" id="toc-timetoalign.ConstantMap.inverse" class="nav-link" data-scroll-target="#timetoalign.ConstantMap.inverse">inverse</a></li>
+  <li><a href="#timetoalign.ConstantMap.from_dict" id="toc-timetoalign.ConstantMap.from_dict" class="nav-link" data-scroll-target="#timetoalign.ConstantMap.from_dict">from_dict</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.ConstantMap.inverse" id="toc-timetoalign.ConstantMap.inverse" class="nav-link" data-scroll-target="#timetoalign.ConstantMap.inverse">inverse</a>
+  <ul class="collapse">
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
   <li><a href="#timetoalign.ConstantMap.to_dict" id="toc-timetoalign.ConstantMap.to_dict" class="nav-link" data-scroll-target="#timetoalign.ConstantMap.to_dict">to_dict</a></li>
   </ul></li>
   </ul></li>
@@ -877,29 +886,41 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A ConversionMap that returns a constant value for any input.</p>
 <p>Used to associate a fixed label (e.g., a filename) with every coordinate on a timeline. Typically used inside a <code>timetoalign.CombinationMap</code> to pair a numeric conversion (pixels to seconds) with a string label (source image filename).</p>
 <p>The constant value can be of any type, though strings are the most common use case. The map has no source or target unit by default.</p>
-<p>Attributes: value: The constant value returned for every input.</p>
-<p>Examples: &gt;&gt;&gt; cmap = ConstantMap(value=“page1.jpeg”, name=“filename”) &gt;&gt;&gt; cmap(42.0) ‘page1.jpeg’ &gt;&gt;&gt; cmap(np.array([1.0, 2.0, 3.0])) array([‘page1.jpeg’, ‘page1.jpeg’, ‘page1.jpeg’], dtype=object)</p>
-<p>See Also: timetoalign.CombinationMap</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 28%">
+<col style="width: 61%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.ConstantMap.is_invertible">is_invertible</a></td>
-<td>ConstantMap is not invertible (many-to-one mapping).</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.ConstantMap.value">value</a></td>
+<td>value</td>
+<td><code>Any</code></td>
 <td>The constant value returned for every input.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cmap <span class="op">=</span> ConstantMap(value<span class="op">=</span><span class="st">"page1.jpeg"</span>, name<span class="op">=</span><span class="st">"filename"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cmap(<span class="fl">42.0</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">'page1.jpeg'</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cmap(np.array([<span class="fl">1.0</span>, <span class="fl">2.0</span>, <span class="fl">3.0</span>]))</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>array([<span class="st">'page1.jpeg'</span>, <span class="st">'page1.jpeg'</span>, <span class="st">'page1.jpeg'</span>], dtype<span class="op">=</span><span class="bu">object</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="see-also" class="level2 doc-section doc-section-see-also">
+<h2 class="doc-section doc-section-see-also anchored" data-anchor-id="see-also">See Also</h2>
+<p>timetoalign.CombinationMap</p>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -927,20 +948,87 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.ConstantMap.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ConstantMap.from_dict">from_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>ConstantMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ConstantMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Deserialize from dictionary.</p>
-<p>Args: data: Dictionary representation with at least a ‘value’ key.</p>
-<p>Returns: A ConstantMap instance.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 41%">
+<col style="width: 43%">
+<col style="width: 9%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>data</td>
+<td><code>dict</code>[<code>str</code>, <code>Any</code>]</td>
+<td>Dictionary representation with at least a ‘value’ key.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/ConstantMap.html#timetoalign.ConstantMap">ConstantMap</a></td>
+<td>A ConstantMap instance.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.ConstantMap.inverse" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ConstantMap.inverse">inverse</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>ConstantMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ConstantMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>ConstantMap cannot be inverted.</p>
-<p>Raises: NotImplementedError: Always, as a constant function has no well-defined inverse.</p>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 40%">
+<col style="width: 53%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>NotImplementedError</code></td>
+<td>Always, as a constant function has no well-defined inverse.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.ConstantMap.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.ConstantMap.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ConstantMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>ConstantMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Serialize to dictionary.</p>
 <p>A <code>Fraction</code> constant is encoded as the canonical rational wire dict; every other constant (the common case is a string label) is emitted as-is and must therefore already be JSON-native.</p>
 

@@ -854,12 +854,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.loader.graphical.IIIFManifestLoader" id="toc-timetoalign.loader.graphical.IIIFManifestLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.graphical.IIIFManifestLoader">IIIFManifestLoader</a>
   <ul>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.loader.graphical.IIIFManifestLoader.create_timeline" id="toc-timetoalign.loader.graphical.IIIFManifestLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.loader.graphical.IIIFManifestLoader.create_timeline">create_timeline</a></li>
-  <li><a href="#timetoalign.loader.graphical.IIIFManifestLoader.get_canvas" id="toc-timetoalign.loader.graphical.IIIFManifestLoader.get_canvas" class="nav-link" data-scroll-target="#timetoalign.loader.graphical.IIIFManifestLoader.get_canvas">get_canvas</a></li>
-  <li><a href="#timetoalign.loader.graphical.IIIFManifestLoader.get_metadata" id="toc-timetoalign.loader.graphical.IIIFManifestLoader.get_metadata" class="nav-link" data-scroll-target="#timetoalign.loader.graphical.IIIFManifestLoader.get_metadata">get_metadata</a></li>
+  <li><a href="#timetoalign.loader.graphical.IIIFManifestLoader.create_timeline" id="toc-timetoalign.loader.graphical.IIIFManifestLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.loader.graphical.IIIFManifestLoader.create_timeline">create_timeline</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.graphical.IIIFManifestLoader.get_canvas" id="toc-timetoalign.loader.graphical.IIIFManifestLoader.get_canvas" class="nav-link" data-scroll-target="#timetoalign.loader.graphical.IIIFManifestLoader.get_canvas">get_canvas</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.graphical.IIIFManifestLoader.get_metadata" id="toc-timetoalign.loader.graphical.IIIFManifestLoader.get_metadata" class="nav-link" data-scroll-target="#timetoalign.loader.graphical.IIIFManifestLoader.get_metadata">get_metadata</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -877,52 +893,36 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Load image metadata from IIIF Presentation API manifests.</p>
 <p>IIIF manifests contain canvas dimensions that represent image sizes. This loader extracts width/height for use with graphical timelines without needing to download or load the actual image files.</p>
 <p>Supports both IIIF Presentation API 2.x and 3.x formats.</p>
-<p>Examples: &gt;&gt;&gt; loader = IIIFManifestLoader() &gt;&gt;&gt; loader.load(“manifest.json”) &gt;&gt;&gt; loader.dimensions {‘width’: 4096, ‘height’: 299400}</p>
-<pre><code>&gt;&gt;&gt; # Access individual canvases
-&gt;&gt;&gt; for canvas in loader.manifest_info.canvases:
-...     print(f"{canvas.label}: {canvas.width}x{canvas.height}")</code></pre>
-<p>Attributes: manifest_info: Parsed manifest information (after loading).</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> IIIFManifestLoader()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.load(<span class="st">"manifest.json"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.dimensions</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>{<span class="st">'width'</span>: <span class="dv">4096</span>, <span class="st">'height'</span>: <span class="dv">299400</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Access individual canvases</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> canvas <span class="kw">in</span> loader.manifest_info.canvases:</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>canvas<span class="sc">.</span>label<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>canvas<span class="sc">.</span>width<span class="sc">}</span><span class="ss">x</span><span class="sc">{</span>canvas<span class="sc">.</span>height<span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 54%">
+<col style="width: 34%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.loader.graphical.IIIFManifestLoader.dimensions">dimensions</a></td>
-<td>Return dimensions of the first (or only) canvas.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.loader.graphical.IIIFManifestLoader.height">height</a></td>
-<td>Height of the first canvas in pixels.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.loader.graphical.IIIFManifestLoader.label">label</a></td>
-<td>Human-readable label from the manifest.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.loader.graphical.IIIFManifestLoader.manifest_info">manifest_info</a></td>
-<td>Return parsed manifest information.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.loader.graphical.IIIFManifestLoader.n_canvases">n_canvases</a></td>
-<td>Number of canvases in the manifest.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.loader.graphical.IIIFManifestLoader.name">name</a></td>
-<td>Human-readable name for the loaded image.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.loader.graphical.IIIFManifestLoader.source_path">source_path</a></td>
-<td>Path to the loaded manifest file.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.loader.graphical.IIIFManifestLoader.width">width</a></td>
-<td>Width of the first canvas in pixels.</td>
+<td>manifest_info</td>
+<td><code>IIIFManifestInfo</code></td>
+<td>Parsed manifest information (after loading).</td>
 </tr>
 </tbody>
 </table>
@@ -953,34 +953,232 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.loader.graphical.IIIFManifestLoader.create_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.graphical.IIIFManifestLoader.create_timeline">create_timeline</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>loader.graphical.IIIFManifestLoader.create_timeline(</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    axis<span class="op">=</span><span class="st">'height'</span>,</span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.graphical.IIIFManifestLoader.create_timeline(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    name<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    axis<span class="op">=</span><span class="st">'height'</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a graphical timeline from the loaded IIIF manifest.</p>
 <p>The timeline length is determined by the image dimensions along the specified axis (height by default, for vertical piano rolls).</p>
-<p>Args: uid: Unique identifier for the timeline. Auto-generated if None. name: Human-readable name. Uses manifest/canvas label if None. axis: Which dimension to use as the timeline axis: - “height” (default): Timeline length = image height - “width”: Timeline length = image width</p>
-<p>Returns: A DiscreteGraphicalTimeline representing the image.</p>
-<p>Raises: RuntimeError: If no manifest has been loaded. ValueError: If axis is not “height” or “width”.</p>
-<p>Examples: &gt;&gt;&gt; loader = IIIFManifestLoader() &gt;&gt;&gt; loader.load(“manifest.json”) &gt;&gt;&gt; timeline = loader.create_timeline(uid=“dgt1_image”)</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 12%">
+<col style="width: 76%">
+<col style="width: 6%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>uid</td>
+<td><code>str</code> | None</td>
+<td>Unique identifier for the timeline. Auto-generated if None.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>name</td>
+<td><code>str</code> | None</td>
+<td>Human-readable name. Uses manifest/canvas label if None.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>axis</td>
+<td><code>str</code></td>
+<td>Which dimension to use as the timeline axis: - “height” (default): Timeline length = image height - “width”: Timeline length = image width</td>
+<td><code>'height'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 18%">
+<col style="width: 70%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'Timeline'</td>
+<td>A DiscreteGraphicalTimeline representing the image.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 41%">
+<col style="width: 48%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>RuntimeError</code></td>
+<td>If no manifest has been loaded.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If axis is not “height” or “width”.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples-1" class="level4 doc-section doc-section-examples">
+<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-1">Examples</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> IIIFManifestLoader()</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.load(<span class="st">"manifest.json"</span>)</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timeline <span class="op">=</span> loader.create_timeline(uid<span class="op">=</span><span class="st">"dgt1_image"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 </section>
 <section id="timetoalign.loader.graphical.IIIFManifestLoader.get_canvas" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.graphical.IIIFManifestLoader.get_canvas">get_canvas</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.graphical.IIIFManifestLoader.get_canvas(index<span class="op">=</span><span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.graphical.IIIFManifestLoader.get_canvas(index<span class="op">=</span><span class="dv">0</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get canvas information by index.</p>
-<p>Args: index: Zero-based canvas index.</p>
-<p>Returns: IIIFCanvasInfo for the requested canvas.</p>
-<p>Raises: IndexError: If index is out of range.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>index</td>
+<td><code>int</code></td>
+<td>Zero-based canvas index.</td>
+<td><code>0</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 58%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>IIIFCanvasInfo</code></td>
+<td>IIIFCanvasInfo for the requested canvas.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-1" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>IndexError</code></td>
+<td>If index is out of range.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.graphical.IIIFManifestLoader.get_metadata" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.graphical.IIIFManifestLoader.get_metadata">get_metadata</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.graphical.IIIFManifestLoader.get_metadata(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>loader.graphical.IIIFManifestLoader.get_metadata(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a metadata value by key.</p>
-<p>Args: key: Metadata label to look up.</p>
-<p>Returns: Metadata value, or None if not found.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>key</td>
+<td><code>str</code></td>
+<td>Metadata label to look up.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 31%">
+<col style="width: 56%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>str</code> | None</td>
+<td>Metadata value, or None if not found.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

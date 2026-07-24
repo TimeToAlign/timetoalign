@@ -8,24 +8,32 @@ Provenance information for a match claim.
 
 A match claim records who authored it and how confident that author is.
 
-Attributes:
-    agent: The human or software :class:`Agent` that created this match.
-    certainty: Confidence level in [0, 1]. 1.0 = certain.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> meta = MatchMetadata(
-    ...     agent=Agent(
-    ...         name="analyst_jh",
-    ...         type=AgentType.human,
-    ...         identifier="https://orcid.org/0000-0001",
-    ...     ),
-    ...     certainty=1.0,
-    ... )
+| Name      | Type                                          | Description                                                   |
+|-----------|-----------------------------------------------|---------------------------------------------------------------|
+| agent     | [Agent](`timetoalign.alignment.claims.Agent`) | The human or software :class:`Agent` that created this match. |
+| certainty | [float](`float`)                              | Confidence level in [0, 1]. 1.0 = certain.                    |
 
-    >>> meta = MatchMetadata(
-    ...     agent=Agent(name="dtw", type=AgentType.software, identifier="v2"),
-    ...     certainty=0.85,
-    ... )
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> meta = MatchMetadata(
+...     agent=Agent(
+...         name="analyst_jh",
+...         type=AgentType.human,
+...         identifier="https://orcid.org/0000-0001",
+...     ),
+...     certainty=1.0,
+... )
+```
+
+```python
+>>> meta = MatchMetadata(
+...     agent=Agent(name="dtw", type=AgentType.software, identifier="v2"),
+...     certainty=0.85,
+... )
+```
 
 ## Methods
 

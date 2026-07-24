@@ -852,7 +852,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.timelines.create_unfolded_timeline" id="toc-timetoalign.timelines.create_unfolded_timeline" class="nav-link active" data-scroll-target="#timetoalign.timelines.create_unfolded_timeline">create_unfolded_timeline</a></li>
+  <li><a href="#timetoalign.timelines.create_unfolded_timeline" id="toc-timetoalign.timelines.create_unfolded_timeline" class="nav-link active" data-scroll-target="#timetoalign.timelines.create_unfolded_timeline">create_unfolded_timeline</a>
+  <ul>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -884,13 +891,131 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>Events structurally copied via <code>Timeline.get_slice()</code> (including truncation of interval events at section boundaries); the flattened coordinates remain reachable via <code>get_events(include_children=True)</code>.</li>
 </ul>
 <p>Design decision: replaces the earlier FlowMap-based per-event coordinate remapping with structural slicing. The previous approach operated in MC-number space and produced wrong coordinates for scores with non-uniform measure durations.</p>
-<p>Args: source_timeline: The folded source timeline. flow: The computed Flow (sequence of sections). flow_controller: The controller that computed the flow. Required for QB-space boundary computation. If <code>None</code>, the function raises <code>ValueError</code> because no QB-space boundaries can be computed. uid: Optional identifier for the returned timeline. target_unit: Optional unit for the unfolded timeline. When given, <code>Timeline.resolve_subclass(target_unit, number_type)</code> selects the timeline type; otherwise <code>type(source_timeline)</code> is used. include_children: If True (default), child timelines are recursively sliced and included in each section.</p>
-<p>Returns: New Timeline of the source’s concrete type, with one appended child (plus matching Region) per playthrough section, a reverse FlowMap (id <code>"source"</code>), and a forward FlowMap (id <code>f"forward_{flow.id}"</code>).</p>
-<p>Raises: ValueError: If <em>flow_controller</em> is None and QB-space boundaries cannot be computed.</p>
-<p>Examples: &gt;&gt;&gt; controller = ScoreFlowController(measure_data) &gt;&gt;&gt; flow = controller.compute_flow(FlowMode.default) &gt;&gt;&gt; unfolded = create_unfolded_timeline(source_tl, flow, controller) &gt;&gt;&gt; type(unfolded).__name__ # preserves source type ‘ContinuousLogicalTimeline’ &gt;&gt;&gt; unfolded.get_flow_map(“source”) # Reverse map to trace back FlowMap(default_inverse: 5 sections)</p>
-<p>See Also: <code>compute_qb_sections</code>: Computes QB boundaries from Flow + controller. <code>Timeline.get_slice</code>: Extracts a portion of a timeline.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>source_timeline</td>
+<td>'Timeline'</td>
+<td>The folded source timeline.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>flow</td>
+<td><a href="../reference/Flow.html#timetoalign.timelines.Flow">Flow</a></td>
+<td>The computed Flow (sequence of sections).</td>
+<td><em>required</em></td>
+</tr>
+<tr class="odd">
+<td>flow_controller</td>
+<td><a href="../reference/FlowControllerBase.html#timetoalign.timelines.FlowControllerBase">FlowControllerBase</a> | None</td>
+<td>The controller that computed the flow. Required for QB-space boundary computation. If <code>None</code>, the function raises <code>ValueError</code> because no QB-space boundaries can be computed.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>uid</td>
+<td><code>str</code> | None</td>
+<td>Optional identifier for the returned timeline.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>target_unit</td>
+<td>'TimeUnit | str | None'</td>
+<td>Optional unit for the unfolded timeline. When given, <code>Timeline.resolve_subclass(target_unit, number_type)</code> selects the timeline type; otherwise <code>type(source_timeline)</code> is used.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>include_children</td>
+<td><code>bool</code></td>
+<td>If True (default), child timelines are recursively sliced and included in each section.</td>
+<td><code>True</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level2 doc-section doc-section-returns">
+<h2 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 14%">
+<col style="width: 76%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'Timeline'</td>
+<td>New Timeline of the source’s concrete type, with one appended child</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>'Timeline'</td>
+<td>(plus matching Region) per playthrough section, a reverse FlowMap</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>'Timeline'</td>
+<td>(id <code>"source"</code>), and a forward FlowMap (id <code>f"forward_{flow.id}"</code>).</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level2 doc-section doc-section-raises">
+<h2 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 25%">
+<col style="width: 67%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If <em>flow_controller</em> is None and QB-space boundaries cannot be computed.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller <span class="op">=</span> ScoreFlowController(measure_data)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> flow <span class="op">=</span> controller.compute_flow(FlowMode.default)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> unfolded <span class="op">=</span> create_unfolded_timeline(source_tl, flow, controller)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">type</span>(unfolded).<span class="va">__name__</span>  <span class="co"># preserves source type</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co">'ContinuousLogicalTimeline'</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> unfolded.get_flow_map(<span class="st">"source"</span>)  <span class="co"># Reverse map to trace back</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>FlowMap(default_inverse: <span class="dv">5</span> sections)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="see-also" class="level2 doc-section doc-section-see-also">
+<h2 class="doc-section doc-section-see-also anchored" data-anchor-id="see-also">See Also</h2>
+<p><code>compute_qb_sections</code>: Computes QB boundaries from Flow + controller. <code>Timeline.get_slice</code>: Extracts a portion of a timeline.</p>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

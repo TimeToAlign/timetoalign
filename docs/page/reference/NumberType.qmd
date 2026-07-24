@@ -8,11 +8,12 @@ The numeric type used for coordinate values.
 
 Members can be instantiated both via NumberType("name") and NumberType(value).
 
-Example:
-    NumberType(int) is NumberType("int")
-    # True
-    NumberType(int).value(1.4)
-    # 1
+## Example {.doc-section .doc-section-example}
+
+NumberType(int) is NumberType("int")
+# True
+NumberType(int).value(1.4)
+# 1
 
 ## Attributes
 

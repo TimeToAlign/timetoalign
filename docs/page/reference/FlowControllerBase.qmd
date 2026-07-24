@@ -20,10 +20,11 @@ Design Decisions:
 - Sparse sections ARE allowed (atomic sections need not cover entire timeline)
 - Unit independence: Flows are sequences of TimeIntervals in ANY unit
 
-Public API:
-    - iter_atomic_sections(): Iterate atomic (indivisible) sections
-    - compute_flow(mode): Compute Flow for the given mode
-    - create_flow_map(flow): Create FlowMap from computed Flow
+## Public API {.doc-section .doc-section-public-api}
+
+- iter_atomic_sections(): Iterate atomic (indivisible) sections
+- compute_flow(mode): Compute Flow for the given mode
+- create_flow_map(flow): Create FlowMap from computed Flow
 
 ## Methods
 
@@ -41,11 +42,17 @@ timelines.FlowControllerBase.compute_flow(mode=None)
 
 Compute a Flow for the given mode.
 
-Args:
-    mode: The FlowMode to compute. None defaults to ATOMIC.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The computed Flow.
+| Name   | Type                                                  | Description                                       | Default   |
+|--------|-------------------------------------------------------|---------------------------------------------------|-----------|
+| mode   | [FlowMode](`timetoalign.core.enums.FlowMode`) \| None | The FlowMode to compute. None defaults to ATOMIC. | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                               | Description        |
+|--------|----------------------------------------------------|--------------------|
+|        | [Flow](`timetoalign.timelines.flow.sections.Flow`) | The computed Flow. |
 
 ### create_flow_map { #timetoalign.timelines.FlowControllerBase.create_flow_map }
 
@@ -59,11 +66,17 @@ If this controller has MeasureUnit data (i.e. is a ScoreFlowController),
 the FlowMap is built in **quarterbeat space** using `compute_qb_sections`.
 Otherwise falls back to MC-number space (legacy behaviour).
 
-Args:
-    flow: The Flow to create a map from. If None, computes DEFAULT flow.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    FlowMap for coordinate transformation.
+| Name   | Type                                                       | Description                                                    | Default   |
+|--------|------------------------------------------------------------|----------------------------------------------------------------|-----------|
+| flow   | [Flow](`timetoalign.timelines.flow.sections.Flow`) \| None | The Flow to create a map from. If None, computes DEFAULT flow. | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                    | Description                            |
+|--------|---------------------------------------------------------|----------------------------------------|
+|        | [FlowMap](`timetoalign.timelines.flow.flowmap.FlowMap`) | FlowMap for coordinate transformation. |
 
 ### iter_atomic_sections { #timetoalign.timelines.FlowControllerBase.iter_atomic_sections }
 
@@ -76,5 +89,8 @@ Iterate over atomic (indivisible) sections.
 Each section is a tuple (start, end) representing a contiguous
 portion that cannot be split by flow control.
 
-Yields:
-    Tuples of (start_coordinate, end_coordinate).
+#### Yields {.doc-section .doc-section-yields}
+
+| Name   | Type                                                                                   | Description                                   |
+|--------|----------------------------------------------------------------------------------------|-----------------------------------------------|
+|        | [tuple](`tuple`)\[[Fraction](`fractions.Fraction`), [Fraction](`fractions.Fraction`)\] | Tuples of (start_coordinate, end_coordinate). |

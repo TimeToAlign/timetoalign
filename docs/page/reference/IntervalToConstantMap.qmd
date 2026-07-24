@@ -24,29 +24,27 @@ This is useful for:
 - Region/section lookup (coordinate -> section name)
 - Any step-function relationship
 
-Attributes:
-    boundaries: Sorted x-coordinates defining interval starts.
-    values: Value for each interval (len = len(boundaries)).
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> # Map quarters to section names
-    >>> section_map = IntervalToConstantMap(
-    ...     boundaries=[0, 16, 32, 48],
-    ...     values=["Intro", "Verse", "Chorus", "Outro"],
-    ...     source_unit="quarters",
-    ... )
-    >>> section_map(20)
-    'Verse'
-    >>> section_map(40)
-    'Chorus'
+| Name       | Type                                                                                                   | Description                                      |
+|------------|--------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+| boundaries | [NDArray](`numpy.typing.NDArray`)\[[np](`numpy`).[floating](`numpy.floating`)\[[Any](`typing.Any`)\]\] | Sorted x-coordinates defining interval starts.   |
+| values     | [list](`list`)\[[T](`timetoalign.maps.interval.T`)\]                                                   | Value for each interval (len = len(boundaries)). |
 
-## Attributes
+## Examples {.doc-section .doc-section-examples}
 
-| Name | Description |
-| --- | --- |
-| [boundaries](#timetoalign.IntervalToConstantMap.boundaries) | The interval start positions. |
-| [is_invertible](#timetoalign.IntervalToConstantMap.is_invertible) | IntervalToConstantMap is NOT invertible (many-to-one). |
-| [values](#timetoalign.IntervalToConstantMap.values) | The values for each interval. |
+```python
+>>> # Map quarters to section names
+>>> section_map = IntervalToConstantMap(
+...     boundaries=[0, 16, 32, 48],
+...     values=["Intro", "Verse", "Chorus", "Outro"],
+...     source_unit="quarters",
+... )
+>>> section_map(20)
+'Verse'
+>>> section_map(40)
+'Chorus'
+```
 
 ## Methods
 
@@ -73,8 +71,11 @@ IntervalToConstantMap.inverse()
 
 IntervalToConstantMap is not invertible.
 
-Raises:
-    NotImplementedError: Always.
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                         | Description   |
+|--------|----------------------------------------------|---------------|
+|        | [NotImplementedError](`NotImplementedError`) | Always.       |
 
 ### to_dict { #timetoalign.IntervalToConstantMap.to_dict }
 
@@ -95,11 +96,20 @@ Convert to TableMap for numeric values.
 This allows using TableMap operations on interval data when values are
 numeric.
 
-Args:
-    kind: Interpolation kind. Default is "previous" (step function).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    TableMap with the same boundaries and values.
+| Name   | Type                                                            | Description                                                | Default                      |
+|--------|-----------------------------------------------------------------|------------------------------------------------------------|------------------------------|
+| kind   | [InterpolationKind](`timetoalign.core.enums.InterpolationKind`) | Interpolation kind. Default is "previous" (step function). | `InterpolationKind.previous` |
 
-Raises:
-    TypeError: If values are not numeric.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                          | Description                                   |
+|--------|-----------------------------------------------|-----------------------------------------------|
+|        | [TableMap](`timetoalign.maps.table.TableMap`) | TableMap with the same boundaries and values. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                     | Description                |
+|--------|--------------------------|----------------------------|
+|        | [TypeError](`TypeError`) | If values are not numeric. |

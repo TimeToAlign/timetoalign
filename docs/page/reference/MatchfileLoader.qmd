@@ -52,17 +52,17 @@ loader verifies compatibility (matching snote IDs and coordinates) and
 references the supplied timeline in all MatchClaims. MatchClaims are
 never rebound after creation.
 
-See Also:
-    timetoalign.MatchClaim
-    timetoalign.AlignmentBundle
+## See Also {.doc-section .doc-section-see-also}
 
-Args:
-    score_unit: Primary unit for the score timeline.
-        Default ``TimeUnit.quarters``.
-    normalize_anacrusis: If True (default), attach a ``ShiftMap`` that
-        maps raw coordinates to normalised (non-negative) coordinates.
-        Has no effect on the stored event coordinates, which are always
-        the normalised (non-negative) values.
+timetoalign.MatchClaim
+timetoalign.AlignmentBundle
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name                | Type                                    | Description                                                                                                                                                                                                        | Default             |
+|---------------------|-----------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------|
+| score_unit          | [TimeUnit](`timetoalign.core.TimeUnit`) | Primary unit for the score timeline. Default ``TimeUnit.quarters``.                                                                                                                                                | `TimeUnit.quarters` |
+| normalize_anacrusis | [bool](`bool`)                          | If True (default), attach a ``ShiftMap`` that maps raw coordinates to normalised (non-negative) coordinates. Has no effect on the stored event coordinates, which are always the normalised (non-negative) values. | `True`              |
 
 ## Attributes
 
@@ -107,35 +107,36 @@ built score event against the external timeline using
 `Timeline.get_event`. A ``ValueError`` is raised if any event
 coordinates are incompatible.
 
-Args:
-    score_timeline: Optional pre-existing score timeline. When
-        supplied, the bundle uses this timeline instead of the
-        loader's internally built one. MatchClaims are NOT
-        rebound — they still reference the internally built
-        score timeline's uid. For correct cross-referencing,
-        the external timeline should have the same uid.
-    verify: If ``True`` (default) and *score_timeline* is not
-        ``None``, verify that internally built events are
-        compatible with the external timeline. Set to ``False``
-        to skip verification (e.g. when the external timeline
-        is known to be authoritative and you accept any
-        coordinate differences).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    ``AlignmentBundle`` with score group + standalone performances
-    + MatchClaims.
+| Name           | Type                 | Description                                                                                                                                                                                                                                                                                                   | Default   |
+|----------------|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| score_timeline | \'Timeline \| None\' | Optional pre-existing score timeline. When supplied, the bundle uses this timeline instead of the loader's internally built one. MatchClaims are NOT rebound — they still reference the internally built score timeline's uid. For correct cross-referencing, the external timeline should have the same uid. | `None`    |
+| verify         | [bool](`bool`)       | If ``True`` (default) and *score_timeline* is not ``None``, verify that internally built events are compatible with the external timeline. Set to ``False`` to skip verification (e.g. when the external timeline is known to be authoritative and you accept any coordinate differences).                    | `True`    |
 
-Raises:
-    RuntimeError: If ``load()`` has not been called yet.
-    ValueError: If *verify* is ``True`` and the external
-        timeline has incompatible event coordinates.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> loader = MatchfileLoader()
-    >>> loader.load(*match_files)
-    >>> bundle = loader.create_bundle()
-    >>> len(bundle.timelines)  # score + 22 performances
-    23
+| Name   | Type                | Description                                                    |
+|--------|---------------------|----------------------------------------------------------------|
+|        | \'AlignmentBundle\' | ``AlignmentBundle`` with score group + standalone performances |
+|        | \'AlignmentBundle\' | + MatchClaims.                                                 |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                                                                           |
+|--------|--------------------------------|---------------------------------------------------------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet.                                                |
+|        | [ValueError](`ValueError`)     | If *verify* is ``True`` and the external timeline has incompatible event coordinates. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader = MatchfileLoader()
+>>> loader.load(*match_files)
+>>> bundle = loader.create_bundle()
+>>> len(bundle.timelines)  # score + 22 performances
+23
+```
 
 ### create_timeline { #timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timeline }
 
@@ -153,23 +154,33 @@ Matching precedence:
 5. ``"perf:pNN"`` — alternative syntax for performance indexing.
 6. Partial/regex match on any timeline uid.
 
-Args:
-    uid: Timeline uid (e.g. ``"score:clt1"``), role
-        shorthand (``"score"``, ``"perf:1"``), or partial/regex
-        pattern.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The matching Timeline.
+| Name   | Type         | Description                                                                                                 | Default    |
+|--------|--------------|-------------------------------------------------------------------------------------------------------------|------------|
+| uid    | [str](`str`) | Timeline uid (e.g. ``"score:clt1"``), role shorthand (``"score"``, ``"perf:1"``), or partial/regex pattern. | _required_ |
 
-Raises:
-    KeyError: If no timeline with the given uid or role exists.
-    RuntimeError: If ``load()`` has not been called yet.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> loader.create_timeline("score")               # -> score:clt1
-    >>> loader.create_timeline("perf:1")              # First performance
-    >>> loader.create_timeline("perf:p01")            # Same shorthand
-    >>> loader.create_timeline(r"^perf:.*p01:dlt1$")  # Stored-ID regex
+| Name   | Type         | Description            |
+|--------|--------------|------------------------|
+|        | \'Timeline\' | The matching Timeline. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                                       |
+|--------|--------------------------------|---------------------------------------------------|
+|        | [KeyError](`KeyError`)         | If no timeline with the given uid or role exists. |
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet.            |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader.create_timeline("score")               # -> score:clt1
+>>> loader.create_timeline("perf:1")              # First performance
+>>> loader.create_timeline("perf:p01")            # Same shorthand
+>>> loader.create_timeline(r"^perf:.*p01:dlt1$")  # Stored-ID regex
+```
 
 ### create_timelines { #timetoalign.loader.alignment.matchfile.MatchfileLoader.create_timelines }
 
@@ -182,12 +193,18 @@ Return all timelines produced from loaded data.
 For MatchfileLoader: ``[score_timeline, perf_p01, ..., perf_pN]``.
 The score timeline is always first.
 
-Args:
-    id_pattern: Optional regex pattern to filter timeline IDs.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of Timeline objects. Empty if ``load()`` has not been
-    called yet.
+| Name       | Type                 | Description                                    | Default   |
+|------------|----------------------|------------------------------------------------|-----------|
+| id_pattern | [str](`str`) \| None | Optional regex pattern to filter timeline IDs. | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                           | Description                                                |
+|--------|--------------------------------|------------------------------------------------------------|
+|        | [list](`list`)\[\'Timeline\'\] | List of Timeline objects. Empty if ``load()`` has not been |
+|        | [list](`list`)\[\'Timeline\'\] | called yet.                                                |
 
 ### load { #timetoalign.loader.alignment.matchfile.MatchfileLoader.load }
 
@@ -205,18 +222,30 @@ tracked internally.
 This method can be called multiple times to add more files
 incrementally.
 
-Args:
-    *sources: Paths to ``.match`` files.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name     | Type                                   | Description                | Default   |
+|----------|----------------------------------------|----------------------------|-----------|
+| *sources | [Path](`pathlib.Path`) \| [str](`str`) | Paths to ``.match`` files. | `()`      |
 
-Raises:
-    FileNotFoundError: If any source path does not exist.
-    ValueError: If any source is not a ``.match`` file.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> loader = MatchfileLoader()
-    >>> loader.load("Chopin_op10_no3_p01.match")
-    >>> # or load all at once
-    >>> loader.load(*sorted(data_dir.glob("*.match")))
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                     | Description                             |
+|--------|------------------------------------------|-----------------------------------------|
+|        | [FileNotFoundError](`FileNotFoundError`) | If any source path does not exist.      |
+|        | [ValueError](`ValueError`)               | If any source is not a ``.match`` file. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader = MatchfileLoader()
+>>> loader.load("Chopin_op10_no3_p01.match")
+>>> # or load all at once
+>>> loader.load(*sorted(data_dir.glob("*.match")))
+```

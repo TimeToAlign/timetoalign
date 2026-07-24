@@ -15,24 +15,32 @@ items, getitem) to allow uniform access to their constituent data.
 NOTE: This class was renamed from EventBundle to EventStore in the 2026-01 API
 refactoring. EventStore holds one or more EventData tables.
 
-Subclasses:
-    - ScoreStore: notes, measures, controls, annotations
-    - MidiStore: notes, controls
-    - SingleStore: generic wrapper for any single EventData
+## Subclasses {.doc-section .doc-section-subclasses}
 
-Examples:
-    >>> # Iterate over stores
-    >>> for name, store in bundle.items():
-    ...     print(f"{name}: {len(store)} events")
+- ScoreStore: notes, measures, controls, annotations
+- MidiStore: notes, controls
+- SingleStore: generic wrapper for any single EventData
 
-    >>> # Create default timeline with children
-    >>> timeline = bundle.create_timeline(uid="my_score")
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # Create filtered timeline
-    >>> timeline = bundle.create_timeline(
-    ...     store_filters={"notes": {"event_type": "Note"}},
-    ...     exclude_stores=["annotations"],
-    ... )
+```python
+>>> # Iterate over stores
+>>> for name, store in bundle.items():
+...     print(f"{name}: {len(store)} events")
+```
+
+```python
+>>> # Create default timeline with children
+>>> timeline = bundle.create_timeline(uid="my_score")
+```
+
+```python
+>>> # Create filtered timeline
+>>> timeline = bundle.create_timeline(
+...     store_filters={"notes": {"event_type": "Note"}},
+...     exclude_stores=["annotations"],
+... )
+```
 
 ## Attributes
 
@@ -69,34 +77,43 @@ By default, each data becomes a child timeline embedded at offset 0,
 maintaining its own 0-based coordinate system. The parent timeline's
 length equals the maximum length across all children.
 
-Args:
-    uid: Unique ID for the parent timeline. Auto-generated if None.
-    store_filters: Per-data filter kwargs to apply before timeline
-        creation. Example: {"notes": {"event_type": "Note"}} excludes
-        rests from the notes data.
-    include_stores: Only include these data (default: all non-empty).
-    exclude_stores: Exclude these data from the timeline.
-    flatten: If True, merge all events into a single parent timeline
-        without children. If False (default), each data becomes a
-        child timeline at offset 0.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A Timeline with the requested structure.
+| Name           | Type                                                                                        | Description                                                                                                                                   | Default   |
+|----------------|---------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| uid            | [str](`str`) \| None                                                                        | Unique ID for the parent timeline. Auto-generated if None.                                                                                    | `None`    |
+| store_filters  | [dict](`dict`)\[[str](`str`), [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\]\] \| None | Per-data filter kwargs to apply before timeline creation. Example: {"notes": {"event_type": "Note"}} excludes rests from the notes data.      | `None`    |
+| include_stores | [list](`list`)\[[str](`str`)\] \| None                                                      | Only include these data (default: all non-empty).                                                                                             | `None`    |
+| exclude_stores | [list](`list`)\[[str](`str`)\] \| None                                                      | Exclude these data from the timeline.                                                                                                         | `None`    |
+| flatten        | [bool](`bool`)                                                                              | If True, merge all events into a single parent timeline without children. If False (default), each data becomes a child timeline at offset 0. | `False`   |
 
-Raises:
-    ValueError: If no data remain after filtering, or all data
-        are empty.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> # Default: each data as a child
-    >>> timeline = store.create_timeline(uid="my_score")
-    >>> notes = timeline.get_child("notes")
+| Name   | Type         | Description                              |
+|--------|--------------|------------------------------------------|
+|        | \'Timeline\' | A Timeline with the requested structure. |
 
-    >>> # Filtered: only Note events, exclude annotations
-    >>> timeline = store.create_timeline(
-    ...     store_filters={"notes": {"event_type": "Note"}},
-    ...     exclude_stores=["annotations"],
-    ... )
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                               |
+|--------|----------------------------|-----------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If no data remain after filtering, or all data are empty. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> # Default: each data as a child
+>>> timeline = store.create_timeline(uid="my_score")
+>>> notes = timeline.get_child("notes")
+```
+
+```python
+>>> # Filtered: only Note events, exclude annotations
+>>> timeline = store.create_timeline(
+...     store_filters={"notes": {"event_type": "Note"}},
+...     exclude_stores=["annotations"],
+... )
+```
 
 ### get_cmaps { #timetoalign.EventStore.get_cmaps }
 
@@ -111,15 +128,21 @@ that can convert from this bundle's native unit. Subclasses should
 override to provide maps based on available metadata (PPQ, tempo
 events, sample rate, etc.).
 
-Returns:
-    Dict mapping target unit name (e.g., "quarters", "seconds") to
-    ConversionMap instances. Empty dict if no C-Maps can be derived.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> bundle = midi_loader.load("performance.mid")
-    >>> cmaps = bundle.get_cmaps()
-    >>> if "quarters" in cmaps:
-    ...     quarters = cmaps["quarters"](960)  # Convert 960 ticks
+| Name   | Type                                              | Description                                                      |
+|--------|---------------------------------------------------|------------------------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), \'ConversionMap\'\] | Dict mapping target unit name (e.g., "quarters", "seconds") to   |
+|        | [dict](`dict`)\[[str](`str`), \'ConversionMap\'\] | ConversionMap instances. Empty dict if no C-Maps can be derived. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> bundle = midi_loader.load("performance.mid")
+>>> cmaps = bundle.get_cmaps()
+>>> if "quarters" in cmaps:
+...     quarters = cmaps["quarters"](960)  # Convert 960 ticks
+```
 
 ### items { #timetoalign.EventStore.items }
 
@@ -129,8 +152,11 @@ EventStore.items()
 
 Iterate over (name, data) pairs in canonical order.
 
-Yields:
-    Tuples of (data_name, EventData).
+#### Yields {.doc-section .doc-section-yields}
+
+| Name   | Type                                            | Description                       |
+|--------|-------------------------------------------------|-----------------------------------|
+|        | [tuple](`tuple`)\[[str](`str`), \'EventData\'\] | Tuples of (data_name, EventData). |
 
 ### keys { #timetoalign.EventStore.keys }
 
@@ -140,8 +166,11 @@ EventStore.keys()
 
 Return data names in canonical order.
 
-Returns:
-    Tuple of data names.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                  | Description          |
+|--------|---------------------------------------|----------------------|
+|        | [tuple](`tuple`)\[[str](`str`), ...\] | Tuple of data names. |
 
 ### summary { #timetoalign.EventStore.summary }
 
@@ -159,13 +188,19 @@ Returns a dictionary mapping table/data names to summary information:
 Subclasses may override to provide additional domain-specific
 information (e.g., event type breakdown, has_rests for ScoreStore).
 
-Returns:
-    Dict mapping table names to summary dicts.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> store = SomeStore(...)
-    >>> store.summary()
-    {"notes": {"unit": "quarters", "range": (0.0, 120.5), "count": 498}}
+| Name   | Type                                                | Description                                |
+|--------|-----------------------------------------------------|--------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict mapping table names to summary dicts. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> store = SomeStore(...)
+>>> store.summary()
+{"notes": {"unit": "quarters", "range": (0.0, 120.5), "count": 498}}
+```
 
 ### values { #timetoalign.EventStore.values }
 
@@ -175,5 +210,8 @@ EventStore.values()
 
 Iterate over data.
 
-Yields:
-    EventData in canonical order.
+#### Yields {.doc-section .doc-section-yields}
+
+| Name   | Type          | Description                   |
+|--------|---------------|-------------------------------|
+|        | \'EventData\' | EventData in canonical order. |

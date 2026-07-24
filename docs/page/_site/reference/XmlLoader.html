@@ -854,15 +854,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.loader.format.XmlLoader" id="toc-timetoalign.loader.format.XmlLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.format.XmlLoader">XmlLoader</a>
   <ul>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.loader.format.XmlLoader.clear" id="toc-timetoalign.loader.format.XmlLoader.clear" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.clear">clear</a></li>
-  <li><a href="#timetoalign.loader.format.XmlLoader.get_table" id="toc-timetoalign.loader.format.XmlLoader.get_table" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.get_table">get_table</a></li>
+  <li><a href="#timetoalign.loader.format.XmlLoader.get_table" id="toc-timetoalign.loader.format.XmlLoader.get_table" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.get_table">get_table</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
   <li><a href="#timetoalign.loader.format.XmlLoader.keys" id="toc-timetoalign.loader.format.XmlLoader.keys" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.keys">keys</a></li>
-  <li><a href="#timetoalign.loader.format.XmlLoader.load" id="toc-timetoalign.loader.format.XmlLoader.load" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.load">load</a></li>
-  <li><a href="#timetoalign.loader.format.XmlLoader.load_element" id="toc-timetoalign.loader.format.XmlLoader.load_element" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.load_element">load_element</a></li>
-  <li><a href="#timetoalign.loader.format.XmlLoader.load_string" id="toc-timetoalign.loader.format.XmlLoader.load_string" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.load_string">load_string</a></li>
+  <li><a href="#timetoalign.loader.format.XmlLoader.load" id="toc-timetoalign.loader.format.XmlLoader.load" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.load">load</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.format.XmlLoader.load_element" id="toc-timetoalign.loader.format.XmlLoader.load_element" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.load_element">load_element</a>
+  <ul class="collapse">
+  <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.format.XmlLoader.load_string" id="toc-timetoalign.loader.format.XmlLoader.load_string" class="nav-link" data-scroll-target="#timetoalign.loader.format.XmlLoader.load_string">load_string</a>
+  <ul class="collapse">
+  <li><a href="#parameters-4" id="toc-parameters-4" class="nav-link" data-scroll-target="#parameters-4">Parameters</a></li>
+  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -896,19 +916,67 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>loader.load(*sources)</code> – parse XML files.</li>
 <li><code>loader.get_table(tag)</code> – retrieve a normalised table.</li>
 </ol>
-<p>Args: principal_tags: List of element tags to normalise. <code>None</code> for auto-detect. sep: Separator for flattened nested key names. Default <code>"."</code>. include_text: Whether to include element text as <code>_text</code> field. Default <code>True</code>. propagate_ancestors: Whether to propagate ancestor attributes. Default <code>True</code>.</p>
-<p>Examples: Auto-detect all repeated tags::</p>
-<pre><code>    loader = XmlLoader()
-    loader.load("data.xml")
-    for tag in loader.store.keys():
-        print(tag, loader.get_table(tag).num_rows)
-
-Specify principal tags::
-
-    loader = XmlLoader(principal_tags=["Signal", "Audio"])
-    loader.load("manifest.xml")
-    assert loader.get_table("Signal").num_rows &gt; 0</code></pre>
-<p>See Also: timetoalign.storage.store.DictStore timetoalign.loader.base.Loader timetoalign.loader.format.json.JsonLoader</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 14%">
+<col style="width: 27%">
+<col style="width: 49%">
+<col style="width: 7%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>principal_tags</td>
+<td><code>list</code>[<code>str</code>] | None</td>
+<td>List of element tags to normalise. <code>None</code> for auto-detect.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>sep</td>
+<td><code>str</code></td>
+<td>Separator for flattened nested key names. Default <code>"."</code>.</td>
+<td><code>'.'</code></td>
+</tr>
+<tr class="odd">
+<td>include_text</td>
+<td><code>bool</code></td>
+<td>Whether to include element text as <code>_text</code> field. Default <code>True</code>.</td>
+<td><code>True</code></td>
+</tr>
+<tr class="even">
+<td>propagate_ancestors</td>
+<td><code>bool</code></td>
+<td>Whether to propagate ancestor attributes. Default <code>True</code>.</td>
+<td><code>True</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<p>Auto-detect all repeated tags::</p>
+<pre><code>loader = XmlLoader()
+loader.load("data.xml")
+for tag in loader.store.keys():
+    print(tag, loader.get_table(tag).num_rows)</code></pre>
+<p>Specify principal tags::</p>
+<pre><code>loader = XmlLoader(principal_tags=["Signal", "Audio"])
+loader.load("manifest.xml")
+assert loader.get_table("Signal").num_rows &gt; 0</code></pre>
+</section>
+<section id="see-also" class="level2 doc-section doc-section-see-also">
+<h2 class="doc-section doc-section-see-also anchored" data-anchor-id="see-also">See Also</h2>
+<p>timetoalign.storage.store.DictStore timetoalign.loader.base.Loader timetoalign.loader.format.json.JsonLoader</p>
+</section>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
@@ -976,47 +1044,249 @@ Specify principal tags::
 </table>
 <section id="timetoalign.loader.format.XmlLoader.clear" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.XmlLoader.clear">clear</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.clear()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.clear()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Clear all loaded data.</p>
 </section>
 <section id="timetoalign.loader.format.XmlLoader.get_table" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.XmlLoader.get_table">get_table</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.get_table(tag)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.get_table(tag)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Retrieve a normalised table by element tag.</p>
-<p>Args: tag: The principal tag name.</p>
-<p>Returns: A <code>pa.Table</code> with one row per element.</p>
-<p>Raises: KeyError: If <em>tag</em> was not normalised.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>tag</td>
+<td><code>str</code></td>
+<td>The principal tag name.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 45%">
+<col style="width: 45%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>pa</code>.<code>Table</code></td>
+<td>A <code>pa.Table</code> with one row per element.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>KeyError</code></td>
+<td>If <em>tag</em> was not normalised.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.format.XmlLoader.keys" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.XmlLoader.keys">keys</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.keys()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.keys()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return the list of available table tag names.</p>
 </section>
 <section id="timetoalign.loader.format.XmlLoader.load" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.XmlLoader.load">load</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.load(<span class="op">*</span>sources)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.load(<span class="op">*</span>sources)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Load one or more XML files.</p>
 <p>For multiple files the tables are concatenated (same tags) or added (new tags).</p>
-<p>Args: *sources: Paths to XML files.</p>
-<p>Returns: Self, for method chaining.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 48%">
+<col style="width: 25%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>*sources</td>
+<td><code>Path</code> | <code>str</code></td>
+<td>Paths to XML files.</td>
+<td><code>()</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 48%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Self</code></td>
+<td>Self, for method chaining.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.format.XmlLoader.load_element" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.XmlLoader.load_element">load_element</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.load_element(root)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.load_element(root)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Load from an already-parsed Element tree.</p>
 <p>Convenient for programmatic use or testing.</p>
-<p>Args: root: An XML Element.</p>
-<p>Returns: Self, for method chaining.</p>
+<section id="parameters-3" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 66%">
+<col style="width: 15%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>root</td>
+<td><code>ET</code>.<code>Element</code></td>
+<td>An XML Element.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 48%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Self</code></td>
+<td>Self, for method chaining.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.format.XmlLoader.load_string" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.format.XmlLoader.load_string">load_string</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.load_string(xml_string)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>loader.<span class="bu">format</span>.XmlLoader.load_string(xml_string)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Load from an XML string.</p>
 <p>Convenient for programmatic use or testing.</p>
-<p>Args: xml_string: A valid XML string.</p>
-<p>Returns: Self, for method chaining.</p>
+<section id="parameters-4" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-4">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>xml_string</td>
+<td><code>str</code></td>
+<td>A valid XML string.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-3" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 48%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Self</code></td>
+<td>Self, for method chaining.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

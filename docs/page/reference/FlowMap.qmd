@@ -33,16 +33,12 @@ FlowMap stores sections for efficient lookup:
 - ``_target_boundaries``: Sorted list of target section starts for
   binary search
 
-Attributes:
-    flow: The computed Flow, or ``None`` for interval-built maps.
-    id: Identifier for this FlowMap.
+## Attributes {.doc-section .doc-section-attributes}
 
-## Attributes
-
-| Name | Description |
-| --- | --- |
-| [n_sections](#timetoalign.timelines.FlowMap.n_sections) | Number of sections in this FlowMap. |
-| [total_target_length](#timetoalign.timelines.FlowMap.total_target_length) | Total length of the target timeline. |
+| Name   | Type                                                       | Description                                             |
+|--------|------------------------------------------------------------|---------------------------------------------------------|
+| flow   | [Flow](`timetoalign.timelines.flow.sections.Flow`) \| None | The computed Flow, or ``None`` for interval-built maps. |
+| id     | [str](`str`)                                               | Identifier for this FlowMap.                            |
 
 ## Methods
 
@@ -64,19 +60,31 @@ Map target coordinate back to source coordinate.
 The target timeline has unique coordinates, so this always returns
 a single value.
 
-Args:
-    coord: Coordinate in target timeline.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Coordinate in source timeline.
+| Name   | Type                                                                 | Description                    | Default    |
+|--------|----------------------------------------------------------------------|--------------------------------|------------|
+| coord  | [Fraction](`fractions.Fraction`) \| [float](`float`) \| [int](`int`) | Coordinate in target timeline. | _required_ |
 
-Raises:
-    ValueError: If coordinate is outside the flow range.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> # Target coord 6 maps back to source coord 3
-    >>> flow_map.fold(6)
-    Fraction(3)
+| Name   | Type                             | Description                    |
+|--------|----------------------------------|--------------------------------|
+|        | [Fraction](`fractions.Fraction`) | Coordinate in source timeline. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                              |
+|--------|----------------------------|------------------------------------------|
+|        | [ValueError](`ValueError`) | If coordinate is outside the flow range. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> # Target coord 6 maps back to source coord 3
+>>> flow_map.fold(6)
+Fraction(3)
+```
 
 ### from_qb_sections { #timetoalign.timelines.FlowMap.from_qb_sections }
 
@@ -91,22 +99,30 @@ MC numbers (integers), this factory accepts pre-computed quarterbeat
 boundaries.  This is the correct approach for scores with non-uniform
 measure durations, where MC-number space != QB-coordinate space.
 
-Args:
-    flow: The computed Flow (retained for metadata and inverse ops).
-    qb_sections: List of ``(qb_start, qb_end)`` tuples giving the
-        quarterbeat boundaries of each section in the **folded**
-        source timeline.  Must have the same length as ``flow.sections``.
-    id: Optional identifier.  Defaults to ``flow.mode.value``.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    FlowMap with sections in QB-space.
+| Name        | Type                                                                                                     | Description                                                                                                                                                                 | Default    |
+|-------------|----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| flow        | [Flow](`timetoalign.timelines.flow.sections.Flow`)                                                       | The computed Flow (retained for metadata and inverse ops).                                                                                                                  | _required_ |
+| qb_sections | [list](`list`)\[[tuple](`tuple`)\[[Fraction](`fractions.Fraction`), [Fraction](`fractions.Fraction`)\]\] | List of ``(qb_start, qb_end)`` tuples giving the quarterbeat boundaries of each section in the **folded** source timeline.  Must have the same length as ``flow.sections``. | _required_ |
+| id          | [str](`str`)                                                                                             | Optional identifier.  Defaults to ``flow.mode.value``.                                                                                                                      | `''`       |
 
-Raises:
-    ValueError: If ``len(qb_sections) != len(flow.sections)``.
+#### Returns {.doc-section .doc-section-returns}
 
-See Also:
-    `compute_qb_sections`: Computes QB boundaries from a Flow and
-        ScoreFlowController.
+| Name   | Type        | Description                        |
+|--------|-------------|------------------------------------|
+|        | \'FlowMap\' | FlowMap with sections in QB-space. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                    |
+|--------|----------------------------|------------------------------------------------|
+|        | [ValueError](`ValueError`) | If ``len(qb_sections) != len(flow.sections)``. |
+
+#### See Also {.doc-section .doc-section-see-also}
+
+`compute_qb_sections`: Computes QB boundaries from a Flow and
+    ScoreFlowController.
 
 ### inverse { #timetoalign.timelines.FlowMap.inverse }
 
@@ -120,13 +136,17 @@ The inverse FlowMap swaps the source and target coordinate systems.
 This is useful for attaching to a target timeline to enable
 tracing back to the original source.
 
-Note:
-    The inverse FlowMap's unfold_coordinate() returns coordinates in
-    the original source space, which may yield multiple results if the
-    source coord is visited multiple times.
+#### Note {.doc-section .doc-section-note}
 
-Returns:
-    A new FlowMap with inverted sections.
+The inverse FlowMap's unfold_coordinate() returns coordinates in
+the original source space, which may yield multiple results if the
+source coord is visited multiple times.
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type        | Description                           |
+|--------|-------------|---------------------------------------|
+|        | \'FlowMap\' | A new FlowMap with inverted sections. |
 
 ### unfold_coordinate { #timetoalign.timelines.FlowMap.unfold_coordinate }
 
@@ -139,14 +159,23 @@ Map source coordinate to target coordinates.
 Since a source coordinate may be visited multiple times (due to repeats),
 this returns a list of all corresponding target coordinates.
 
-Args:
-    coord: Coordinate in source timeline.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of coordinates in target timeline. Empty list if coord
-    is not within any section.
+| Name   | Type                                                                 | Description                    | Default    |
+|--------|----------------------------------------------------------------------|--------------------------------|------------|
+| coord  | [Fraction](`fractions.Fraction`) \| [float](`float`) \| [int](`int`) | Coordinate in source timeline. | _required_ |
 
-Examples:
-    >>> # Source coord 3 appears twice due to repeat
-    >>> flow_map.unfold_coordinate(3)
-    [Fraction(2), Fraction(6)]
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                               | Description                                                 |
+|--------|----------------------------------------------------|-------------------------------------------------------------|
+|        | [list](`list`)\[[Fraction](`fractions.Fraction`)\] | List of coordinates in target timeline. Empty list if coord |
+|        | [list](`list`)\[[Fraction](`fractions.Fraction`)\] | is not within any section.                                  |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> # Source coord 3 appears twice due to repeat
+>>> flow_map.unfold_coordinate(3)
+[Fraction(2), Fraction(6)]
+```

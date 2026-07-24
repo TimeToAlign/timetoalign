@@ -852,7 +852,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.loader.tabular.TsvLoader" id="toc-timetoalign.loader.tabular.TsvLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.tabular.TsvLoader">TsvLoader</a></li>
+  <li><a href="#timetoalign.loader.tabular.TsvLoader" id="toc-timetoalign.loader.tabular.TsvLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.tabular.TsvLoader">TsvLoader</a>
+  <ul>
+  <li><a href="#default-configuration" id="toc-default-configuration" class="nav-link" data-scroll-target="#default-configuration">Default Configuration</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -867,12 +871,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>loader.tabular.TsvLoader(unit<span class="op">=</span><span class="va">None</span>, number_type<span class="op">=</span><span class="va">None</span>, <span class="op">**</span>kwargs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Loader for TSV (tab-separated values) files.</p>
 <p>TsvLoader is pre-configured for tab-delimited files, common in music annotation datasets.</p>
-<p>Default Configuration: - Delimiter: tab ( - Start column: “start” - End column: “end” (if present) - ID column: “id” (if present, else auto-generated) - Coordinate unit: seconds - Coordinate type: float</p>
-<p>Examples: &gt;&gt;&gt; loader = TsvLoader() &gt;&gt;&gt; loader.load(“annotations.tsv”)</p>
-<pre><code>&gt;&gt;&gt; # For ms3-style TSV files, use Ms3Loader instead
-&gt;&gt;&gt; from timetoalign.loader.score import Ms3Loader</code></pre>
+<section id="default-configuration" class="level2 doc-section doc-section-default-configuration">
+<h2 class="doc-section doc-section-default-configuration anchored" data-anchor-id="default-configuration">Default Configuration</h2>
+<ul>
+<li>Delimiter: tab (</li>
+<li>Start column: “start”</li>
+<li>End column: “end” (if present)</li>
+<li>ID column: “id” (if present, else auto-generated)</li>
+<li>Coordinate unit: seconds</li>
+<li>Coordinate type: float</li>
+</ul>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> TsvLoader()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.load(<span class="st">"annotations.tsv"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># For ms3-style TSV files, use Ms3Loader instead</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> timetoalign.loader.score <span class="im">import</span> Ms3Loader</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

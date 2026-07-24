@@ -855,6 +855,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.SingleStore" id="toc-timetoalign.SingleStore" class="nav-link active" data-scroll-target="#timetoalign.SingleStore">SingleStore</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.SingleStore.items" id="toc-timetoalign.SingleStore.items" class="nav-link" data-scroll-target="#timetoalign.SingleStore.items">items</a></li>
@@ -877,28 +878,35 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Provides EventStore interface compatibility for loaders that naturally produce a single EventData rather than multiple categorized data.</p>
 <p>This is used as the default store type for loaders that don’t have specialized store implementations (e.g., simple audio loaders).</p>
 <p>NOTE: This class was renamed from SingleStoreBundle to SingleStore in the 2026-01 API refactoring.</p>
-<p>Attributes: data: The wrapped EventData. name: The data name.</p>
-<p>Examples: &gt;&gt;&gt; data = EventData.from_dicts([…], unit=TimeUnit.seconds) &gt;&gt;&gt; store = SingleStore(data, name=“beats”) &gt;&gt;&gt; timeline = store.create_timeline()</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.SingleStore.data">data</a></td>
+<td>data</td>
+<td>'EventData'</td>
 <td>The wrapped EventData.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.SingleStore.name">name</a></td>
+<td>name</td>
+<td><code>str</code></td>
 <td>The data name.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> data <span class="op">=</span> EventData.from_dicts([...], unit<span class="op">=</span>TimeUnit.seconds)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> store <span class="op">=</span> SingleStore(data, name<span class="op">=</span><span class="st">"beats"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timeline <span class="op">=</span> store.create_timeline()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -922,12 +930,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.SingleStore.items" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.SingleStore.items">items</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>SingleStore.items()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>SingleStore.items()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Yield (name, data) pair.</p>
 </section>
 <section id="timetoalign.SingleStore.keys" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.SingleStore.keys">keys</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>SingleStore.keys()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>SingleStore.keys()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return tuple with single data name.</p>
 
 

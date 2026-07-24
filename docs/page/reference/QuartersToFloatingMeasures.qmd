@@ -24,20 +24,25 @@ measures (TimeUnit.measures).
 This is useful for visualization (e.g., piano roll x-axis in measures)
 and for interpolating positions within measures.
 
-Examples:
-    >>> cmap = QuartersToFloatingMeasures(
-    ...     x_values=[0, 4, 8, 12],
-    ...     y_values=[1.0, 2.0, 3.0, 4.0],
-    ... )
-    >>> cmap(0.0)    # Start of M1
-    1.0
-    >>> cmap(2.0)    # Halfway through M1 (4 quarters/measure)
-    1.5
-    >>> cmap(4.0)    # Start of M2
-    2.0
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # From MetricMap
-    >>> cmap = QuartersToFloatingMeasures.from_metric_map(meter)
+```python
+>>> cmap = QuartersToFloatingMeasures(
+...     x_values=[0, 4, 8, 12],
+...     y_values=[1.0, 2.0, 3.0, 4.0],
+... )
+>>> cmap(0.0)    # Start of M1
+1.0
+>>> cmap(2.0)    # Halfway through M1 (4 quarters/measure)
+1.5
+>>> cmap(4.0)    # Start of M2
+2.0
+```
+
+```python
+>>> # From MetricMap
+>>> cmap = QuartersToFloatingMeasures.from_metric_map(meter)
+```
 
 ## Methods
 
@@ -66,11 +71,17 @@ QuartersToFloatingMeasures.from_measure_data(measures)
 
 Create from MeasureData (loaded from TSV/JSON).
 
-Args:
-    measures: MeasureData with measure events.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    QuartersToFloatingMeasures map.
+| Name     | Type                                                                  | Description                      | Default    |
+|----------|-----------------------------------------------------------------------|----------------------------------|------------|
+| measures | [MeasureData](`timetoalign.loader.score.stores.measures.MeasureData`) | MeasureData with measure events. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                 | Description                     |
+|--------|--------------------------------------------------------------------------------------|---------------------------------|
+|        | [QuartersToFloatingMeasures](`timetoalign.maps.interval.QuartersToFloatingMeasures`) | QuartersToFloatingMeasures map. |
 
 ### from_metric_map { #timetoalign.QuartersToFloatingMeasures.from_metric_map }
 
@@ -83,11 +94,17 @@ Create from a MetricMap.
 Uses MN integers (or MC if MN not available) as measure numbers.
 Adds a final extrapolation point for the end of the last measure.
 
-Args:
-    meter: MetricMap with measure boundary information.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    QuartersToFloatingMeasures map.
+| Name   | Type                                            | Description                                  | Default    |
+|--------|-------------------------------------------------|----------------------------------------------|------------|
+| meter  | [MetricMap](`timetoalign.maps.meter.MetricMap`) | MetricMap with measure boundary information. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                 | Description                     |
+|--------|--------------------------------------------------------------------------------------|---------------------------------|
+|        | [QuartersToFloatingMeasures](`timetoalign.maps.interval.QuartersToFloatingMeasures`) | QuartersToFloatingMeasures map. |
 
 ### inverse { #timetoalign.QuartersToFloatingMeasures.inverse }
 
@@ -97,11 +114,17 @@ QuartersToFloatingMeasures.inverse()
 
 Return the inverse map (measures -> quarters).
 
-Returns:
-    A TableMap converting measures to quarters.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    NotImplementedError: If not invertible (should not happen for this map).
+| Name   | Type                                          | Description                                 |
+|--------|-----------------------------------------------|---------------------------------------------|
+|        | [TableMap](`timetoalign.maps.table.TableMap`) | A TableMap converting measures to quarters. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                         | Description                                         |
+|--------|----------------------------------------------|-----------------------------------------------------|
+|        | [NotImplementedError](`NotImplementedError`) | If not invertible (should not happen for this map). |
 
 ### to_dict { #timetoalign.QuartersToFloatingMeasures.to_dict }
 
@@ -119,8 +142,14 @@ QuartersToFloatingMeasures.to_measure_number_map(mns=None)
 
 Convert to non-interpolating measure number map.
 
-Args:
-    mns: MN labels to use. If None, uses floor(y_value) as string.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    QuartersToMeasureNumber with the same boundaries.
+| Name   | Type                                                  | Description                                               | Default   |
+|--------|-------------------------------------------------------|-----------------------------------------------------------|-----------|
+| mns    | [Sequence](`typing.Sequence`)\[[str](`str`)\] \| None | MN labels to use. If None, uses floor(y_value) as string. | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                           | Description                                       |
+|--------|--------------------------------------------------------------------------------|---------------------------------------------------|
+|        | [QuartersToMeasureNumber](`timetoalign.maps.interval.QuartersToMeasureNumber`) | QuartersToMeasureNumber with the same boundaries. |

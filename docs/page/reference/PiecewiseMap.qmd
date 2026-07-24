@@ -18,19 +18,12 @@ Defined by a set of break points and the maps to use between them.
 
 Intervals are [start, end).
 
-Attributes:
-    breaks: Sorted list of break points. N breaks define N+1 regions (or N regions).
-            Here we strictly define regions between breaks.
-            If we have breaks [0, 10, 20], we have regions [0, 10) and [10, 20).
-            Anything outside is handled by 'extrapolate' or explicit outer maps.
-    maps: Maps for each interval. len(maps) must be len(breaks) - 1.
+## Attributes {.doc-section .doc-section-attributes}
 
-## Attributes
-
-| Name | Description |
-| --- | --- |
-| [breaks](#timetoalign.PiecewiseMap.breaks) | The interval boundaries. |
-| [maps](#timetoalign.PiecewiseMap.maps) | The maps for each interval. |
+| Name   | Type                                                                                                   | Description                                                                                                                                                                                                                                                                    |
+|--------|--------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| breaks | [NDArray](`numpy.typing.NDArray`)\[[np](`numpy`).[floating](`numpy.floating`)\[[Any](`typing.Any`)\]\] | Sorted list of break points. N breaks define N+1 regions (or N regions).     Here we strictly define regions between breaks.     If we have breaks [0, 10, 20], we have regions [0, 10) and [10, 20).     Anything outside is handled by 'extrapolate' or explicit outer maps. |
+| maps   | [list](`list`)\[[ConversionMap](`timetoalign.maps.base.ConversionMap`)\[[Any](`typing.Any`)\]\]        | Maps for each interval. len(maps) must be len(breaks) - 1.                                                                                                                                                                                                                     |
 
 ## Methods
 

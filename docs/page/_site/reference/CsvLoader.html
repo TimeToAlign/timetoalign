@@ -852,7 +852,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.loader.tabular.CsvLoader" id="toc-timetoalign.loader.tabular.CsvLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.tabular.CsvLoader">CsvLoader</a></li>
+  <li><a href="#timetoalign.loader.tabular.CsvLoader" id="toc-timetoalign.loader.tabular.CsvLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.tabular.CsvLoader">CsvLoader</a>
+  <ul>
+  <li><a href="#default-configuration" id="toc-default-configuration" class="nav-link" data-scroll-target="#default-configuration">Default Configuration</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -867,15 +871,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>loader.tabular.CsvLoader(unit<span class="op">=</span><span class="va">None</span>, number_type<span class="op">=</span><span class="va">None</span>, <span class="op">**</span>kwargs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Loader for CSV (comma-separated values) files.</p>
 <p>CsvLoader provides a general-purpose CSV loader with sensible defaults. Customize by subclassing or by passing configuration to <strong>init</strong>.</p>
-<p>Default Configuration: - Delimiter: comma (,) - Start column: “start” - End column: “end” (if present) - ID column: “id” (if present, else auto-generated) - Coordinate unit: seconds - Coordinate type: float</p>
-<p>Examples: &gt;&gt;&gt; loader = CsvLoader() &gt;&gt;&gt; loader.load(“events.csv”) &gt;&gt;&gt; print(loader.events.count)</p>
-<pre><code>&gt;&gt;&gt; # Custom configuration via subclass
-&gt;&gt;&gt; class MyLoader(CsvLoader):
-...     start_column = "onset_time"
-...     end_column = "offset_time"
-...     column_specs = {"pitch": int, "velocity": int}</code></pre>
+<section id="default-configuration" class="level2 doc-section doc-section-default-configuration">
+<h2 class="doc-section doc-section-default-configuration anchored" data-anchor-id="default-configuration">Default Configuration</h2>
+<ul>
+<li>Delimiter: comma (,)</li>
+<li>Start column: “start”</li>
+<li>End column: “end” (if present)</li>
+<li>ID column: “id” (if present, else auto-generated)</li>
+<li>Coordinate unit: seconds</li>
+<li>Coordinate type: float</li>
+</ul>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> CsvLoader()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.load(<span class="st">"events.csv"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">print</span>(loader.events.count)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Custom configuration via subclass</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="kw">class</span> MyLoader(CsvLoader):</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>...     start_column <span class="op">=</span> <span class="st">"onset_time"</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>...     end_column <span class="op">=</span> <span class="st">"offset_time"</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>...     column_specs <span class="op">=</span> {<span class="st">"pitch"</span>: <span class="bu">int</span>, <span class="st">"velocity"</span>: <span class="bu">int</span>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

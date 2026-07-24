@@ -45,13 +45,19 @@ loader.alignment.parangonada.ParangonadaLoader.create_bundle()
 
 Assemble the AlignmentBundle from the loaded dataset.
 
-Returns:
-    An ``AlignmentBundle`` with one shared ``"score"`` group (two
-    logical timelines), one ``perf:<key>`` group per performance
-    (two physical timelines), and all cross-group MatchClaims.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    RuntimeError: If ``load()`` has not been called yet.
+| Name   | Type                | Description                                                   |
+|--------|---------------------|---------------------------------------------------------------|
+|        | \'AlignmentBundle\' | An ``AlignmentBundle`` with one shared ``"score"`` group (two |
+|        | \'AlignmentBundle\' | logical timelines), one ``perf:<key>`` group per performance  |
+|        | \'AlignmentBundle\' | (two physical timelines), and all cross-group MatchClaims.    |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                            |
+|--------|--------------------------------|----------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet. |
 
 ### create_timeline { #timetoalign.loader.alignment.parangonada.ParangonadaLoader.create_timeline }
 
@@ -64,14 +70,18 @@ loader.alignment.parangonada.ParangonadaLoader.create_timeline(
 
 Return a single timeline by its uid.
 
-Args:
-    uid: A timeline uid — ``"score:clt1"``, ``"score:dlt1"``, or a
-        performer timeline uid (``"perf:<key>:cpt1"`` /
-        ``"perf:<key>:dpt1"``).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Raises:
-    KeyError: If no timeline matches.
-    RuntimeError: If ``load()`` has not been called yet.
+| Name   | Type                 | Description                                                                                                                       | Default   |
+|--------|----------------------|-----------------------------------------------------------------------------------------------------------------------------------|-----------|
+| uid    | [str](`str`) \| None | A timeline uid — ``"score:clt1"``, ``"score:dlt1"``, or a performer timeline uid (``"perf:<key>:cpt1"`` / ``"perf:<key>:dpt1"``). | `None`    |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                            |
+|--------|--------------------------------|----------------------------------------|
+|        | [KeyError](`KeyError`)         | If no timeline matches.                |
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet. |
 
 ### create_timelines { #timetoalign.loader.alignment.parangonada.ParangonadaLoader.create_timelines }
 
@@ -81,8 +91,11 @@ loader.alignment.parangonada.ParangonadaLoader.create_timelines(id_pattern=None)
 
 Return all timelines: the two score timelines then each performer's.
 
-Args:
-    id_pattern: Optional regex pattern to filter timeline IDs.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type                 | Description                                    | Default   |
+|------------|----------------------|------------------------------------------------|-----------|
+| id_pattern | [str](`str`) \| None | Optional regex pattern to filter timeline IDs. | `None`    |
 
 ### load { #timetoalign.loader.alignment.parangonada.ParangonadaLoader.load }
 
@@ -92,13 +105,20 @@ loader.alignment.parangonada.ParangonadaLoader.load(dataset_dir)
 
 Ingest a whole parangonada dataset directory.
 
-Args:
-    dataset_dir: Path to the dataset directory (the one that
-        contains the ``match/`` and ``audio/`` subdirectories).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name        | Type                                   | Description                                                                                         | Default    |
+|-------------|----------------------------------------|-----------------------------------------------------------------------------------------------------|------------|
+| dataset_dir | [str](`str`) \| [Path](`pathlib.Path`) | Path to the dataset directory (the one that contains the ``match/`` and ``audio/`` subdirectories). | _required_ |
 
-Raises:
-    FileNotFoundError: If the directory or a required subdirectory
-        is missing.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                     | Description                                             |
+|--------|------------------------------------------|---------------------------------------------------------|
+|        | [FileNotFoundError](`FileNotFoundError`) | If the directory or a required subdirectory is missing. |

@@ -12,16 +12,13 @@ hull, or when the produced coordinate would fall outside the target
 timeline's ``[0, length]`` span. This policy decides what happens to such a
 timeline when a cross-timeline stamp is assembled.
 
-Attributes:
-    omit: Drop the out-of-support timeline from the stamp entirely. This
-        is the default: a coordinate below the first alignment anchor or
-        beyond the last one has no defined position, so the timeline simply
-        does not appear.
-    clamp: Clamp the entering coordinate to the nearest hull boundary
-        before warping (yielding that boundary anchor's target), then clip
-        the result to ``[0, length]``. The timeline stays present.
-    extrapolate: Keep the linear extrapolation beyond the hull, then clip
-        the result to ``[0, length]``. The timeline stays present.
+## Attributes {.doc-section .doc-section-attributes}
+
+| Name        | Type   | Description                                                                                                                                                                                                          |
+|-------------|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| omit        |        | Drop the out-of-support timeline from the stamp entirely. This is the default: a coordinate below the first alignment anchor or beyond the last one has no defined position, so the timeline simply does not appear. |
+| clamp       |        | Clamp the entering coordinate to the nearest hull boundary before warping (yielding that boundary anchor's target), then clip the result to ``[0, length]``. The timeline stays present.                             |
+| extrapolate |        | Keep the linear extrapolation beyond the hull, then clip the result to ``[0, length]``. The timeline stays present.                                                                                                  |
 
 No policy ever emits a negative coordinate or one exceeding the target
 timeline's length.

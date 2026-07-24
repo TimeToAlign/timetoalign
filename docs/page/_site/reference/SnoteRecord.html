@@ -852,7 +852,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.alignment.SnoteRecord" id="toc-timetoalign.alignment.SnoteRecord" class="nav-link active" data-scroll-target="#timetoalign.alignment.SnoteRecord">SnoteRecord</a></li>
+  <li><a href="#timetoalign.alignment.SnoteRecord" id="toc-timetoalign.alignment.SnoteRecord" class="nav-link active" data-scroll-target="#timetoalign.alignment.SnoteRecord">SnoteRecord</a>
+  <ul>
+  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -879,9 +882,82 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Score note record for <code>.match</code> format export.</p>
 <p>Each field corresponds to a positional element in the <code>snote(...)</code> Prolog-style term. See the Vienna match specification for semantics.</p>
-<p>Attributes: id: Score note identifier (e.g.&nbsp;<code>"n1"</code>). pitch_name: Note name without accidental (e.g.&nbsp;<code>"B"</code>). modifier: Accidental modifier: <code>"n"</code> (natural), <code>"#"</code> (sharp), <code>"b"</code> (flat), <code>"bb"</code> (double flat), <code>"x"</code> (double sharp). octave: Scientific octave number (e.g.&nbsp;3). measure: Measure number (1-indexed). beat: Beat number within the measure (1-indexed). offset: Symbolic offset within the beat (e.g.&nbsp;<code>"0"</code>, <code>"1/16"</code>). duration: Symbolic duration (e.g.&nbsp;<code>"1/8"</code>, <code>"1/4"</code>). onset_in_beats: Onset position in quarter-beats (may be negative for anacrusis). offset_in_beats: End position in quarter-beats. attributes: Extra attributes (e.g.&nbsp;<code>["v1", "staff1"]</code>).</p>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 18%">
+<col style="width: 71%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>id</td>
+<td><code>str</code></td>
+<td>Score note identifier (e.g.&nbsp;<code>"n1"</code>).</td>
+</tr>
+<tr class="even">
+<td>pitch_name</td>
+<td><code>str</code></td>
+<td>Note name without accidental (e.g.&nbsp;<code>"B"</code>).</td>
+</tr>
+<tr class="odd">
+<td>modifier</td>
+<td><code>str</code></td>
+<td>Accidental modifier: <code>"n"</code> (natural), <code>"#"</code> (sharp), <code>"b"</code> (flat), <code>"bb"</code> (double flat), <code>"x"</code> (double sharp).</td>
+</tr>
+<tr class="even">
+<td>octave</td>
+<td><code>int</code></td>
+<td>Scientific octave number (e.g.&nbsp;3).</td>
+</tr>
+<tr class="odd">
+<td>measure</td>
+<td><code>int</code></td>
+<td>Measure number (1-indexed).</td>
+</tr>
+<tr class="even">
+<td>beat</td>
+<td><code>int</code></td>
+<td>Beat number within the measure (1-indexed).</td>
+</tr>
+<tr class="odd">
+<td>offset</td>
+<td><code>str</code></td>
+<td>Symbolic offset within the beat (e.g.&nbsp;<code>"0"</code>, <code>"1/16"</code>).</td>
+</tr>
+<tr class="even">
+<td>duration</td>
+<td><code>str</code></td>
+<td>Symbolic duration (e.g.&nbsp;<code>"1/8"</code>, <code>"1/4"</code>).</td>
+</tr>
+<tr class="odd">
+<td>onset_in_beats</td>
+<td><code>float</code></td>
+<td>Onset position in quarter-beats (may be negative for anacrusis).</td>
+</tr>
+<tr class="even">
+<td>offset_in_beats</td>
+<td><code>float</code></td>
+<td>End position in quarter-beats.</td>
+</tr>
+<tr class="odd">
+<td>attributes</td>
+<td><code>list</code>[<code>str</code>]</td>
+<td>Extra attributes (e.g.&nbsp;<code>["v1", "staff1"]</code>).</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

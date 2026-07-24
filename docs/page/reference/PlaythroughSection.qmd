@@ -16,29 +16,29 @@ This is what gets written to .flow.csv and compared via is_equivalent().
 Each PlaythroughSection represents a contiguous run of MCs in the unfolded
 sequence.
 
-Note:
-    MC ranges use the **right-open interval convention** [mc_start, mc_end),
-    consistent with partitura and the TTA manuscript. For example, mc_start=1
-    and mc_end=9 means measures 1, 2, 3, 4, 5, 6, 7, 8 (eight measures total).
+## Note {.doc-section .doc-section-note}
 
-Attributes:
-    mc_start: First MC of this playthrough section (inclusive).
-    mc_end: First MC AFTER this playthrough section (exclusive, right-open).
-    atomic_section_ids: Which atomic sections this covers.
+MC ranges use the **right-open interval convention** [mc_start, mc_end),
+consistent with partitura and the TTA manuscript. For example, mc_start=1
+and mc_end=9 means measures 1, 2, 3, 4, 5, 6, 7, 8 (eight measures total).
 
-Examples:
-    >>> sec = PlaythroughSection(mc_start=1, mc_end=9, atomic_section_ids=("A", "B"))
-    >>> sec.mc_range
-    (1, 9)
-    >>> sec.mc_count
-    8
+## Attributes {.doc-section .doc-section-attributes}
 
-## Attributes
+| Name               | Type                                  | Description                                                      |
+|--------------------|---------------------------------------|------------------------------------------------------------------|
+| mc_start           | [int](`int`)                          | First MC of this playthrough section (inclusive).                |
+| mc_end             | [int](`int`)                          | First MC AFTER this playthrough section (exclusive, right-open). |
+| atomic_section_ids | [tuple](`tuple`)\[[str](`str`), ...\] | Which atomic sections this covers.                               |
 
-| Name | Description |
-| --- | --- |
-| [mc_count](#timetoalign.timelines.PlaythroughSection.mc_count) | Number of MCs in this section (right-open: end - start). |
-| [mc_range](#timetoalign.timelines.PlaythroughSection.mc_range) | Return (mc_start, mc_end) tuple (right-open interval). |
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> sec = PlaythroughSection(mc_start=1, mc_end=9, atomic_section_ids=("A", "B"))
+>>> sec.mc_range
+(1, 9)
+>>> sec.mc_count
+8
+```
 
 ## Methods
 
@@ -63,5 +63,8 @@ timelines.PlaythroughSection.to_mc_sequence()
 
 Return list of all MCs in this section.
 
-Returns:
-    List of MC values from mc_start to mc_end (right-open, excludes mc_end).
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                           | Description                                                              |
+|--------|--------------------------------|--------------------------------------------------------------------------|
+|        | [list](`list`)\[[int](`int`)\] | List of MC values from mc_start to mc_end (right-open, excludes mc_end). |

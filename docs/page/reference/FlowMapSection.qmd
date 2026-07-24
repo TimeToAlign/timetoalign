@@ -14,18 +14,11 @@ In the context of flow control:
 - Source coordinates: The "folded" timeline (with repeats/jumps compressed)
 - Target coordinates: The "unfolded" timeline (linear playthrough order)
 
-Attributes:
-    source_start: Start coordinate in source timeline (inclusive).
-    source_end: End coordinate in source timeline (exclusive).
-    target_start: Start coordinate in target timeline.
-    label: Identity of the section — the source region/section name it was
-        built from, or ``None`` when the section names nothing (e.g. built
-        from a bare coordinate pair). Unfolding uses this to name the
-        child timeline and Region it produces for the section.
+## Attributes {.doc-section .doc-section-attributes}
 
-## Attributes
-
-| Name | Description |
-| --- | --- |
-| [duration](#timetoalign.timelines.FlowMapSection.duration) | Duration of this section. |
-| [target_end](#timetoalign.timelines.FlowMapSection.target_end) | End coordinate in target timeline. |
+| Name         | Type                             | Description                                                                                                                                                                                                                                             |
+|--------------|----------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| source_start | [Fraction](`fractions.Fraction`) | Start coordinate in source timeline (inclusive).                                                                                                                                                                                                        |
+| source_end   | [Fraction](`fractions.Fraction`) | End coordinate in source timeline (exclusive).                                                                                                                                                                                                          |
+| target_start | [Fraction](`fractions.Fraction`) | Start coordinate in target timeline.                                                                                                                                                                                                                    |
+| label        | [str](`str`) \| None             | Identity of the section — the source region/section name it was built from, or ``None`` when the section names nothing (e.g. built from a bare coordinate pair). Unfolding uses this to name the child timeline and Region it produces for the section. |

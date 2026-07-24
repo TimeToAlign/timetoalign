@@ -23,43 +23,37 @@ This is useful for:
 - Alignment anchors
 - Any non-linear monotonic mapping
 
-Attributes:
-    x_values: The input coordinates (must be strictly increasing).
-    y_values: The corresponding output values.
-    kind: The interpolation method.
-    extrapolate: How to handle out-of-bounds inputs.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> # Simple tempo map: 0 ticks = 0 sec, 480 ticks = 0.5 sec, 960 ticks = 1.5 sec
-    >>> tempo_map = TableMap(
-    ...     x_values=[0, 480, 960],
-    ...     y_values=[0.0, 0.5, 1.5],
-    ...     source_unit="ticks",
-    ...     target_unit="seconds",
-    ... )
-    >>> tempo_map(240)  # Interpolate: 0.25 sec
-    0.25
-    >>> tempo_map(720)  # Interpolate: 1.0 sec
-    1.0
+| Name        | Type                                                                                                   | Description                                          |
+|-------------|--------------------------------------------------------------------------------------------------------|------------------------------------------------------|
+| x_values    | [NDArray](`numpy.typing.NDArray`)\[[np](`numpy`).[floating](`numpy.floating`)\[[Any](`typing.Any`)\]\] | The input coordinates (must be strictly increasing). |
+| y_values    | [NDArray](`numpy.typing.NDArray`)\[[np](`numpy`).[floating](`numpy.floating`)\[[Any](`typing.Any`)\]\] | The corresponding output values.                     |
+| kind        | [InterpolationKind](`timetoalign.core.enums.InterpolationKind`)                                        | The interpolation method.                            |
+| extrapolate | [InterpolationKind](`timetoalign.core.enums.InterpolationKind`)                                        | How to handle out-of-bounds inputs.                  |
 
-    >>> # Inverse map
-    >>> inverse = tempo_map.inverse()
-    >>> inverse(1.0)
-    720.0
+## Examples {.doc-section .doc-section-examples}
 
-## Attributes
+```python
+>>> # Simple tempo map: 0 ticks = 0 sec, 480 ticks = 0.5 sec, 960 ticks = 1.5 sec
+>>> tempo_map = TableMap(
+...     x_values=[0, 480, 960],
+...     y_values=[0.0, 0.5, 1.5],
+...     source_unit="ticks",
+...     target_unit="seconds",
+... )
+>>> tempo_map(240)  # Interpolate: 0.25 sec
+0.25
+>>> tempo_map(720)  # Interpolate: 1.0 sec
+1.0
+```
 
-| Name | Description |
-| --- | --- |
-| [extrapolation](#timetoalign.TableMap.extrapolation) | How out-of-bounds values are handled. |
-| [is_invertible](#timetoalign.TableMap.is_invertible) | Whether this map can be inverted (y values are strictly monotonic). |
-| [kind](#timetoalign.TableMap.kind) | The interpolation method. |
-| [x_max](#timetoalign.TableMap.x_max) | Maximum x value. |
-| [x_min](#timetoalign.TableMap.x_min) | Minimum x value. |
-| [x_values](#timetoalign.TableMap.x_values) | The input anchor points. |
-| [y_max](#timetoalign.TableMap.y_max) | Maximum y value. |
-| [y_min](#timetoalign.TableMap.y_min) | Minimum y value. |
-| [y_values](#timetoalign.TableMap.y_values) | The output anchor points. |
+```python
+>>> # Inverse map
+>>> inverse = tempo_map.inverse()
+>>> inverse(1.0)
+720.0
+```
 
 ## Methods
 
@@ -95,24 +89,32 @@ Create a TableMap from MIDI-style tempo changes.
 This is a convenience constructor for the common case of converting
 MIDI ticks to seconds based on tempo information.
 
-Args:
-    tick_positions: Tick positions where tempo changes occur.
-                   First should typically be 0.
-    tempos_bpm: Tempo in BPM at each position.
-    ticks_per_quarter: MIDI resolution (ticks per quarter note).
-    source_unit: Source unit name.
-    target_unit: Target unit name.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A TableMap for tick-to-second conversion.
+| Name              | Type                                                          | Description                                                                       | Default     |
+|-------------------|---------------------------------------------------------------|-----------------------------------------------------------------------------------|-------------|
+| tick_positions    | [Sequence](`typing.Sequence`)\[[int](`int`)\]                 | Tick positions where tempo changes occur.            First should typically be 0. | _required_  |
+| tempos_bpm        | [Sequence](`typing.Sequence`)\[[float](`float`)\]             | Tempo in BPM at each position.                                                    | _required_  |
+| ticks_per_quarter | [int](`int`)                                                  | MIDI resolution (ticks per quarter note).                                         | `480`       |
+| source_unit       | [TimeUnit](`timetoalign.core.enums.TimeUnit`) \| [str](`str`) | Source unit name.                                                                 | `'ticks'`   |
+| target_unit       | [TimeUnit](`timetoalign.core.enums.TimeUnit`) \| [str](`str`) | Target unit name.                                                                 | `'seconds'` |
 
-Examples:
-    >>> # Tempo starts at 120 BPM, changes to 60 BPM at tick 960
-    >>> tempo_map = TableMap.from_tempo_changes(
-    ...     tick_positions=[0, 960],
-    ...     tempos_bpm=[120.0, 60.0],
-    ...     ticks_per_quarter=480,
-    ... )
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                          | Description                               |
+|--------|-----------------------------------------------|-------------------------------------------|
+|        | [TableMap](`timetoalign.maps.table.TableMap`) | A TableMap for tick-to-second conversion. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> # Tempo starts at 120 BPM, changes to 60 BPM at tick 960
+>>> tempo_map = TableMap.from_tempo_changes(
+...     tick_positions=[0, 960],
+...     tempos_bpm=[120.0, 60.0],
+...     ticks_per_quarter=480,
+... )
+```
 
 ### inverse { #timetoalign.TableMap.inverse }
 
@@ -122,11 +124,17 @@ TableMap.inverse()
 
 Return the inverse map (swap x and y).
 
-Returns:
-    A new TableMap with swapped coordinates.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    NotImplementedError: If y values are not strictly monotonic.
+| Name   | Type                             | Description                              |
+|--------|----------------------------------|------------------------------------------|
+|        | [Self](`typing_extensions.Self`) | A new TableMap with swapped coordinates. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                         | Description                             |
+|--------|----------------------------------------------|-----------------------------------------|
+|        | [NotImplementedError](`NotImplementedError`) | If y values are not strictly monotonic. |
 
 ### to_dict { #timetoalign.TableMap.to_dict }
 

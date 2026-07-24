@@ -12,26 +12,32 @@ Supports both:
 
 Tracks seen IDs to detect collisions.
 
-Attributes:
-    scope: The scope to apply to all generated/wrapped IDs
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> gen = IdGenerator("midi")
+| Name   | Type         | Description                                     |
+|--------|--------------|-------------------------------------------------|
+| scope  | [str](`str`) | The scope to apply to all generated/wrapped IDs |
 
-    >>> gen.get_or_create("n42")  # Wrap external ID
-    'midi:n42'
+## Examples {.doc-section .doc-section-examples}
 
-    >>> gen.get_or_create(None, type_hint="note")  # Generate
-    'midi:note_1'
+```python
+>>> gen = IdGenerator("midi")
+```
 
-    >>> gen.get_or_create(None, type_hint="note")  # Generate next
-    'midi:note_2'
+```python
+>>> gen.get_or_create("n42")  # Wrap external ID
+'midi:n42'
+```
 
-## Attributes
+```python
+>>> gen.get_or_create(None, type_hint="note")  # Generate
+'midi:note_1'
+```
 
-| Name | Description |
-| --- | --- |
-| [count](#timetoalign.IdGenerator.count) | Total number of IDs generated/wrapped. |
+```python
+>>> gen.get_or_create(None, type_hint="note")  # Generate next
+'midi:note_2'
+```
 
 ## Methods
 
@@ -60,14 +66,19 @@ IdGenerator.get_or_create(external_id=None, type_hint='event')
 
 Get a scoped ID string.
 
-Args:
-    external_id: The ID from the source, if any. Will be wrapped
-                with the scope but otherwise preserved.
-    type_hint: A prefix for generated IDs if external_id is None.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A string in "scope:local_id" format (or just "local_id" if
-    scope is empty).
+| Name        | Type                 | Description                                                                                     | Default   |
+|-------------|----------------------|-------------------------------------------------------------------------------------------------|-----------|
+| external_id | [str](`str`) \| None | The ID from the source, if any. Will be wrapped         with the scope but otherwise preserved. | `None`    |
+| type_hint   | [str](`str`)         | A prefix for generated IDs if external_id is None.                                              | `'event'` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                                                |
+|--------|--------------|------------------------------------------------------------|
+|        | [str](`str`) | A string in "scope:local_id" format (or just "local_id" if |
+|        | [str](`str`) | scope is empty).                                           |
 
 ### has_seen { #timetoalign.IdGenerator.has_seen }
 

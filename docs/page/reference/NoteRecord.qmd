@@ -17,11 +17,14 @@ Performance note record for ``.match`` format export.
 Each field corresponds to a positional element in the ``note(...)``
 Prolog-style term.
 
-Attributes:
-    id: Performance note identifier (e.g. ``"n0"``).
-    midi_pitch: MIDI pitch number (0–127).
-    onset_tick: MIDI onset tick.
-    offset_tick: MIDI offset tick.
-    velocity: MIDI velocity (0–127).
-    channel: MIDI channel (default 0).
-    track: MIDI track (default 0).
+## Attributes {.doc-section .doc-section-attributes}
+
+| Name        | Type         | Description                                  |
+|-------------|--------------|----------------------------------------------|
+| id          | [str](`str`) | Performance note identifier (e.g. ``"n0"``). |
+| midi_pitch  | [int](`int`) | MIDI pitch number (0–127).                   |
+| onset_tick  | [int](`int`) | MIDI onset tick.                             |
+| offset_tick | [int](`int`) | MIDI offset tick.                            |
+| velocity    | [int](`int`) | MIDI velocity (0–127).                       |
+| channel     | [int](`int`) | MIDI channel (default 0).                    |
+| track       | [int](`int`) | MIDI track (default 0).                      |

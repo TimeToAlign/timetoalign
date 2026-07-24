@@ -18,39 +18,44 @@ The algorithm follows the 'next' field in measure data, using visit
 counts to choose which branch to take at repeat points. This matches
 the ms3 unfolding algorithm.
 
-Attributes:
-    measures: The source MeasureData.
+## Attributes {.doc-section .doc-section-attributes}
 
-Public API:
-    - get_sections(mode=None): Get sections (None=atomic, else playthrough)
-    - iter_sections(mode=None): Iterate over sections
-    - iter_units(): Iterate over MeasureUnits (folded skeleton)
-    - compute_flow(mode): Compute Flow for the given mode
+| Name     | Type   | Description             |
+|----------|--------|-------------------------|
+| measures |        | The source MeasureData. |
 
-Examples:
-    >>> controller = ScoreFlowController(measure_data)
-    >>> flow = controller.compute_flow()
-    >>> print(f"Unfolded: {flow.unfolded_length} measures")
+## Public API {.doc-section .doc-section-public-api}
 
-    >>> # Get atomic sections (folded structure)
-    >>> for sec in controller.get_sections():
-    ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+- get_sections(mode=None): Get sections (None=atomic, else playthrough)
+- iter_sections(mode=None): Iterate over sections
+- iter_units(): Iterate over MeasureUnits (folded skeleton)
+- compute_flow(mode): Compute Flow for the given mode
 
-    >>> # Get playthrough sections for DEFAULT mode
-    >>> for sec in controller.get_sections(FlowMode.default):
-    ...     print(f"MC [{sec.mc_start},{sec.mc_end})")
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # Iterate over MeasureUnits
-    >>> for unit in controller.iter_units():
-    ...     print(f"MC {unit.mc}: next={unit.next}, jump_from={unit.jump_from}")
+```python
+>>> controller = ScoreFlowController(measure_data)
+>>> flow = controller.compute_flow()
+>>> print(f"Unfolded: {flow.unfolded_length} measures")
+```
 
-## Attributes
+```python
+>>> # Get atomic sections (folded structure)
+>>> for sec in controller.get_sections():
+...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+```
 
-| Name | Description |
-| --- | --- |
-| [breaks](#timetoalign.timelines.ScoreFlowController.breaks) | All `Break` events derived from the score (see `get_breaks()`). |
-| [jumps](#timetoalign.timelines.ScoreFlowController.jumps) | All `Jump` events derived from the score (see `get_jumps()`). |
-| [markers](#timetoalign.timelines.ScoreFlowController.markers) | All named target markers (see `get_markers()`). |
+```python
+>>> # Get playthrough sections for DEFAULT mode
+>>> for sec in controller.get_sections(FlowMode.default):
+...     print(f"MC [{sec.mc_start},{sec.mc_end})")
+```
+
+```python
+>>> # Iterate over MeasureUnits
+>>> for unit in controller.iter_units():
+...     print(f"MC {unit.mc}: next={unit.next}, jump_from={unit.jump_from}")
+```
 
 ## Methods
 
@@ -98,10 +103,13 @@ most often a jump target that resolved to the wrong ending. This is the
 are naturally adjacent in MC order, which is correct; they must not be
 connected by a ``to`` edge.
 
-Returns:
-    One ``FlowDiagnostic(kind="volta_follows_volta", ...)`` per
-    offending edge, naming the source and destination section ids; an
-    empty list when no invariant is violated.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                     | Description                                                       |
+|--------|------------------------------------------------------------------------------------------|-------------------------------------------------------------------|
+|        | [list](`list`)\[[FlowDiagnostic](`timetoalign.timelines.flow.sections.FlowDiagnostic`)\] | One ``FlowDiagnostic(kind="volta_follows_volta", ...)`` per       |
+|        | [list](`list`)\[[FlowDiagnostic](`timetoalign.timelines.flow.sections.FlowDiagnostic`)\] | offending edge, naming the source and destination section ids; an |
+|        | [list](`list`)\[[FlowDiagnostic](`timetoalign.timelines.flow.sections.FlowDiagnostic`)\] | empty list when no invariant is violated.                         |
 
 ### compute_all_flows { #timetoalign.timelines.ScoreFlowController.compute_all_flows }
 
@@ -113,8 +121,11 @@ Compute all possible Flows.
 
 For scores with optional repeats, this computes all valid paths.
 
-Returns:
-    List of Flow objects.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                 | Description           |
+|--------|----------------------------------------------------------------------|-----------------------|
+|        | [list](`list`)\[[Flow](`timetoalign.timelines.flow.sections.Flow`)\] | List of Flow objects. |
 
 ### compute_flow { #timetoalign.timelines.ScoreFlowController.compute_flow }
 
@@ -124,11 +135,17 @@ timelines.ScoreFlowController.compute_flow(mode=None)
 
 Compute a single Flow using the specified mode.
 
-Args:
-    mode: The FlowMode to use. None is equivalent to ATOMIC.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Computed Flow object.
+| Name   | Type                                                  | Description                                        | Default   |
+|--------|-------------------------------------------------------|----------------------------------------------------|-----------|
+| mode   | [FlowMode](`timetoalign.core.enums.FlowMode`) \| None | The FlowMode to use. None is equivalent to ATOMIC. | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                               | Description           |
+|--------|----------------------------------------------------|-----------------------|
+|        | [Flow](`timetoalign.timelines.flow.sections.Flow`) | Computed Flow object. |
 
 ### create_flow_map { #timetoalign.timelines.ScoreFlowController.create_flow_map }
 
@@ -141,11 +158,17 @@ Create a FlowMap in QB-space from a computed Flow.
 Overrides the base class to always use QB-space coordinates,
 since ScoreFlowController has MeasureUnit data.
 
-Args:
-    flow: The Flow to create a map from. If None, computes DEFAULT flow.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    FlowMap with QB-space source coordinates.
+| Name   | Type                                                       | Description                                                    | Default   |
+|--------|------------------------------------------------------------|----------------------------------------------------------------|-----------|
+| flow   | [Flow](`timetoalign.timelines.flow.sections.Flow`) \| None | The Flow to create a map from. If None, computes DEFAULT flow. | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                    | Description                               |
+|--------|---------------------------------------------------------|-------------------------------------------|
+|        | [FlowMap](`timetoalign.timelines.flow.flowmap.FlowMap`) | FlowMap with QB-space source coordinates. |
 
 ### create_flow_map_for_mode { #timetoalign.timelines.ScoreFlowController.create_flow_map_for_mode }
 
@@ -155,11 +178,17 @@ timelines.ScoreFlowController.create_flow_map_for_mode(mode=FlowMode.default)
 
 Convenience method to create a FlowMap for a specific mode.
 
-Args:
-    mode: The FlowMode to use.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    FlowMap wrapping the computed Flow.
+| Name   | Type                                          | Description          | Default            |
+|--------|-----------------------------------------------|----------------------|--------------------|
+| mode   | [FlowMode](`timetoalign.core.enums.FlowMode`) | The FlowMode to use. | `FlowMode.default` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                    | Description                         |
+|--------|---------------------------------------------------------|-------------------------------------|
+|        | [FlowMap](`timetoalign.timelines.flow.flowmap.FlowMap`) | FlowMap wrapping the computed Flow. |
 
 ### diagram { #timetoalign.timelines.ScoreFlowController.diagram }
 
@@ -175,16 +204,21 @@ timelines.ScoreFlowController.diagram(
 
 Show folded score map with atomic sections and flow control markers.
 
-Args:
-    width: Total width of the diagram in characters.
-    unicode: Use Unicode characters (True) or ASCII fallback (False).
-    show_graph: Whether to show section transition graph.
-    show_legend: Whether to show flow control event legend.
-    mode: Rendering mode — ``"auto"``, ``"full"``, ``"sections"``,
-        or ``"table"``. See :func:`flow_control_diagram` for details.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+| Name        | Type           | Description                                                                                                            | Default   |
+|-------------|----------------|------------------------------------------------------------------------------------------------------------------------|-----------|
+| width       | [int](`int`)   | Total width of the diagram in characters.                                                                              | `70`      |
+| unicode     | [bool](`bool`) | Use Unicode characters (True) or ASCII fallback (False).                                                               | `True`    |
+| show_graph  | [bool](`bool`) | Whether to show section transition graph.                                                                              | `True`    |
+| show_legend | [bool](`bool`) | Whether to show flow control event legend.                                                                             | `True`    |
+| mode        | [str](`str`)   | Rendering mode — ``"auto"``, ``"full"``, ``"sections"``, or ``"table"``. See :func:`flow_control_diagram` for details. | `'auto'`  |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type        | Description                                                           |
+|--------|-------------|-----------------------------------------------------------------------|
+|        | \'Diagram\' | Diagram object (displays as ASCII in terminal, rich HTML in Jupyter). |
 
 ### from_atomic_sections { #timetoalign.timelines.ScoreFlowController.from_atomic_sections }
 
@@ -199,16 +233,19 @@ timelines.ScoreFlowController.from_atomic_sections(
 
 Initialize directly from atomic sections (e.g., from partitura).
 
-Args:
-    sections: List of AtomicSection objects.
-    measures: Optional MeasureData for detailed step computation.
-    name_generator: Strategy for labelling atomic sections. Stored for
-        consistency with the regular constructor; the pre-built
-        sections are not relabelled. Defaults to a fresh
-        ``SegmentNameGenerator``.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    ScoreFlowController with pre-built atomic sections.
+| Name           | Type                                                                                     | Description                                                                                                                                                                           | Default    |
+|----------------|------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| sections       | [list](`list`)\[[AtomicSection](`timetoalign.timelines.flow.sections.AtomicSection`)\]   | List of AtomicSection objects.                                                                                                                                                        | _required_ |
+| measures       | [EventData](`timetoalign.storage.EventData`) \| None                                     | Optional MeasureData for detailed step computation.                                                                                                                                   | `None`     |
+| name_generator | [SegmentNameGenerator](`timetoalign.timelines.flow.naming.SegmentNameGenerator`) \| None | Strategy for labelling atomic sections. Stored for consistency with the regular constructor; the pre-built sections are not relabelled. Defaults to a fresh ``SegmentNameGenerator``. | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                    | Description                                         |
+|--------|-------------------------|-----------------------------------------------------|
+|        | \'ScoreFlowController\' | ScoreFlowController with pre-built atomic sections. |
 
 ### get_atomic_section_coordinates { #timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates }
 
@@ -228,25 +265,34 @@ required for cross-group coordinate transfer via an
 matches.  Without *flow*, the folded quarterbeats from the measure
 lookup are returned (the coordinate resets at every repeat start).
 
-Args:
-    flow: A ``Flow`` computed from this controller (e.g. via
-        ``compute_flow(FlowMode.default)``).  If given, unfolded
-        coordinates are returned.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Ordered dict mapping section ID to quarterbeat start coordinate.
+| Name   | Type             | Description                                                                                                                           | Default   |
+|--------|------------------|---------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| flow   | \'Flow \| None\' | A ``Flow`` computed from this controller (e.g. via ``compute_flow(FlowMode.default)``).  If given, unfolded coordinates are returned. | `None`    |
 
-Raises:
-    RuntimeError: If the measure lookup has not been built
-        (controller created without MeasureData).
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> controller = ScoreFlowController(measures)
-    >>> controller.get_atomic_section_coordinates()
-    {'A': Fraction(0, 1), 'B': Fraction(32, 1), ...}
-    >>> flow = controller.compute_flow(FlowMode.default)
-    >>> controller.get_atomic_section_coordinates(flow=flow)
-    {'A': Fraction(0, 1), 'B': Fraction(64, 1), ...}
+| Name   | Type                                                             | Description                                                      |
+|--------|------------------------------------------------------------------|------------------------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Fraction](`fractions.Fraction`)\] | Ordered dict mapping section ID to quarterbeat start coordinate. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                                                                        |
+|--------|--------------------------------|------------------------------------------------------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If the measure lookup has not been built (controller created without MeasureData). |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> controller = ScoreFlowController(measures)
+>>> controller.get_atomic_section_coordinates()
+{'A': Fraction(0, 1), 'B': Fraction(32, 1), ...}
+>>> flow = controller.compute_flow(FlowMode.default)
+>>> controller.get_atomic_section_coordinates(flow=flow)
+{'A': Fraction(0, 1), 'B': Fraction(64, 1), ...}
+```
 
 ### get_breaks { #timetoalign.timelines.ScoreFlowController.get_breaks }
 
@@ -260,9 +306,12 @@ Currently emits one `Break` per measure flagged as a section break.
 Each `Break` is positioned at the START coordinate of its MC and
 carries a label indicating the source MC.
 
-Returns:
-    List of `timetoalign.timelines.flowcontrol.Break` objects, sorted
-    by coordinate.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                        | Description                                                       |
+|--------|-----------------------------|-------------------------------------------------------------------|
+|        | [list](`list`)\[\'Break\'\] | List of `timetoalign.timelines.flowcontrol.Break` objects, sorted |
+|        | [list](`list`)\[\'Break\'\] | by coordinate.                                                    |
 
 ### get_flow_control_registry { #timetoalign.timelines.ScoreFlowController.get_flow_control_registry }
 
@@ -288,9 +337,12 @@ instruction (including the ``_al_coda`` and ``_al_fine`` variants).
 Each jump's `from_coordinate` is the END of the originating MC and
 its `to_coordinate` is the START of the destination MC.
 
-Returns:
-    List of `timetoalign.timelines.flowcontrol.Jump` objects, sorted
-    by their from-coordinate.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                       | Description                                                      |
+|--------|----------------------------|------------------------------------------------------------------|
+|        | [list](`list`)\[\'Jump\'\] | List of `timetoalign.timelines.flowcontrol.Jump` objects, sorted |
+|        | [list](`list`)\[\'Jump\'\] | by their from-coordinate.                                        |
 
 ### get_markers { #timetoalign.timelines.ScoreFlowController.get_markers }
 
@@ -300,10 +352,13 @@ timelines.ScoreFlowController.get_markers()
 
 Return all named target markers (segno / coda / fine instances).
 
-Returns:
-    List of ``(name, mc, coordinate)`` tuples, in MC order. ``name``
-    is the marker instance name (e.g., ``"segno"``, ``"coda"``,
-    ``"codab"``, ``"fine"``); ``coordinate`` is the start of the MC.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                             | Description                                                      |
+|--------|----------------------------------------------------------------------------------|------------------------------------------------------------------|
+|        | [list](`list`)\[[tuple](`tuple`)\[[str](`str`), [int](`int`), \'Coordinate\'\]\] | List of ``(name, mc, coordinate)`` tuples, in MC order. ``name`` |
+|        | [list](`list`)\[[tuple](`tuple`)\[[str](`str`), [int](`int`), \'Coordinate\'\]\] | is the marker instance name (e.g., ``"segno"``, ``"coda"``,      |
+|        | [list](`list`)\[[tuple](`tuple`)\[[str](`str`), [int](`int`), \'Coordinate\'\]\] | ``"codab"``, ``"fine"``); ``coordinate`` is the start of the MC. |
 
 ### get_section_boundary_coordinates { #timetoalign.timelines.ScoreFlowController.get_section_boundary_coordinates }
 
@@ -321,17 +376,25 @@ section begins.
 
 The list does **not** include 0 (start of the piece) nor the end.
 
-Returns:
-    Sorted list of quarterbeat boundary coordinates.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    RuntimeError: If the measure lookup has not been built
-        (controller created without MeasureData).
+| Name   | Type                                               | Description                                      |
+|--------|----------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[Fraction](`fractions.Fraction`)\] | Sorted list of quarterbeat boundary coordinates. |
 
-Examples:
-    >>> controller = ScoreFlowController(measures)
-    >>> controller.get_section_boundary_coordinates()
-    [Fraction(305, 1), Fraction(1291, 1), Fraction(3125, 2)]
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                                                                        |
+|--------|--------------------------------|------------------------------------------------------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If the measure lookup has not been built (controller created without MeasureData). |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> controller = ScoreFlowController(measures)
+>>> controller.get_section_boundary_coordinates()
+[Fraction(305, 1), Fraction(1291, 1), Fraction(3125, 2)]
+```
 
 ### get_sections { #timetoalign.timelines.ScoreFlowController.get_sections }
 
@@ -344,21 +407,31 @@ Get list of sections.
 This is the unified API for retrieving sections. Replaces the old
 get_atomic_sections() method with added support for playthrough sections.
 
-Args:
-    mode: If None, returns AtomicSections (default).
-          If specified, returns PlaythroughSections for that mode.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of AtomicSection if mode is None, otherwise list of PlaythroughSection.
+| Name   | Type                                                  | Description                                                                                           | Default   |
+|--------|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------|-----------|
+| mode   | [FlowMode](`timetoalign.core.enums.FlowMode`) \| None | If None, returns AtomicSections (default).   If specified, returns PlaythroughSections for that mode. | `None`    |
 
-Examples:
-    >>> # Get atomic sections (folded structure)
-    >>> for sec in controller.get_sections():
-    ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+#### Returns {.doc-section .doc-section-returns}
 
-    >>> # Get playthrough sections for DEFAULT mode (unfolded)
-    >>> for sec in controller.get_sections(FlowMode.default):
-    ...     print(f"MC [{sec.mc_start},{sec.mc_end})")
+| Name   | Type                                                                                                                                                                                       | Description                                                                  |
+|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|
+|        | [list](`list`)\[[AtomicSection](`timetoalign.timelines.flow.sections.AtomicSection`)\] \| [list](`list`)\[[PlaythroughSection](`timetoalign.timelines.flow.sections.PlaythroughSection`)\] | List of AtomicSection if mode is None, otherwise list of PlaythroughSection. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> # Get atomic sections (folded structure)
+>>> for sec in controller.get_sections():
+...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+```
+
+```python
+>>> # Get playthrough sections for DEFAULT mode (unfolded)
+>>> for sec in controller.get_sections(FlowMode.default):
+...     print(f"MC [{sec.mc_start},{sec.mc_end})")
+```
 
 ### iter_atomic_sections { #timetoalign.timelines.ScoreFlowController.iter_atomic_sections }
 
@@ -372,8 +445,11 @@ Each section is a tuple (start, end) representing a contiguous
 portion that cannot be split by flow control. For ScoreFlowController,
 these are MC-based coordinates from AtomicSections.
 
-Yields:
-    Tuples of (start_mc, end_mc) as Fractions.
+#### Yields {.doc-section .doc-section-yields}
+
+| Name   | Type                                                                                   | Description                                |
+|--------|----------------------------------------------------------------------------------------|--------------------------------------------|
+|        | [tuple](`tuple`)\[[Fraction](`fractions.Fraction`), [Fraction](`fractions.Fraction`)\] | Tuples of (start_mc, end_mc) as Fractions. |
 
 ### iter_sections { #timetoalign.timelines.ScoreFlowController.iter_sections }
 
@@ -383,21 +459,31 @@ timelines.ScoreFlowController.iter_sections(mode=None)
 
 Iterate over sections.
 
-Args:
-    mode: If None, iterates over AtomicSections (default).
-          If specified, iterates over PlaythroughSections for that mode.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Yields:
-    AtomicSection objects if mode is None, otherwise PlaythroughSection objects.
+| Name   | Type                                                  | Description                                                                                                       | Default   |
+|--------|-------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|-----------|
+| mode   | [FlowMode](`timetoalign.core.enums.FlowMode`) \| None | If None, iterates over AtomicSections (default).   If specified, iterates over PlaythroughSections for that mode. | `None`    |
 
-Examples:
-    >>> # Iterate over atomic sections (folded structure)
-    >>> for sec in controller.iter_sections():
-    ...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+#### Yields {.doc-section .doc-section-yields}
 
-    >>> # Iterate over playthrough sections (unfolded traversal)
-    >>> for sec in controller.iter_sections(FlowMode.default):
-    ...     print(f"MC [{sec.mc_start},{sec.mc_end})")
+| Name   | Type                                                                                                                                                   | Description                                                                  |
+|--------|--------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|
+|        | [AtomicSection](`timetoalign.timelines.flow.sections.AtomicSection`) \| [PlaythroughSection](`timetoalign.timelines.flow.sections.PlaythroughSection`) | AtomicSection objects if mode is None, otherwise PlaythroughSection objects. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> # Iterate over atomic sections (folded structure)
+>>> for sec in controller.iter_sections():
+...     print(f"{sec.id}: MC [{sec.mc_start},{sec.mc_end})")
+```
+
+```python
+>>> # Iterate over playthrough sections (unfolded traversal)
+>>> for sec in controller.iter_sections(FlowMode.default):
+...     print(f"MC [{sec.mc_start},{sec.mc_end})")
+```
 
 ### iter_units { #timetoalign.timelines.ScoreFlowController.iter_units }
 
@@ -407,9 +493,15 @@ timelines.ScoreFlowController.iter_units()
 
 Iterate over MeasureUnits (the folded score skeleton).
 
-Yields:
-    MeasureUnit objects in MC order.
+#### Yields {.doc-section .doc-section-yields}
 
-Examples:
-    >>> for unit in controller.iter_units():
-    ...     print(f"MC {unit.mc}: {unit.mn}, next={unit.next}")
+| Name   | Type                                                             | Description                      |
+|--------|------------------------------------------------------------------|----------------------------------|
+|        | [MeasureUnit](`timetoalign.timelines.flow.measures.MeasureUnit`) | MeasureUnit objects in MC order. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> for unit in controller.iter_units():
+...     print(f"MC {unit.mc}: {unit.mn}, next={unit.next}")
+```

@@ -854,13 +854,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader" id="toc-timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader">PerformancePrecisionLoader</a>
   <ul>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle" id="toc-timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle">create_bundle</a></li>
-  <li><a href="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline" id="toc-timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline">create_timeline</a></li>
-  <li><a href="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines" id="toc-timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines">create_timelines</a></li>
-  <li><a href="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load" id="toc-timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load">load</a></li>
+  <li><a href="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle" id="toc-timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle">create_bundle</a>
+  <ul class="collapse">
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline" id="toc-timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline">create_timeline</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines" id="toc-timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines">create_timelines</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load" id="toc-timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load" class="nav-link" data-scroll-target="#timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load">load</a>
+  <ul class="collapse">
+  <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  <li><a href="#raises-2" id="toc-raises-2" class="nav-link" data-scroll-target="#raises-2">Raises</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -886,7 +903,39 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>loader.create_bundle()</code> — assembles the AlignmentBundle.</li>
 <li><code>loader.create_timeline(uid)</code> / <code>create_timelines()</code> — retrieve individual timelines.</li>
 </ol>
-<p>Args: score_unit: Unit for the score timeline. Default <code>TimeUnit.quarters</code>. media_unit: Unit for the performance timelines. Default <code>TimeUnit.seconds</code>.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 29%">
+<col style="width: 47%">
+<col style="width: 14%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>score_unit</td>
+<td><code>TimeUnit</code></td>
+<td>Unit for the score timeline. Default <code>TimeUnit.quarters</code>.</td>
+<td><code>TimeUnit.quarters</code></td>
+</tr>
+<tr class="even">
+<td>media_unit</td>
+<td><code>TimeUnit</code></td>
+<td>Unit for the performance timelines. Default <code>TimeUnit.seconds</code>.</td>
+<td><code>TimeUnit.seconds</code></td>
+</tr>
+</tbody>
+</table>
+</section>
 <section id="attributes" class="level2">
 <h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
@@ -941,8 +990,64 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>loader.alignment.performance_precision.PerformancePrecisionLoader.create_bundle(</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Assemble an AlignmentBundle from the loaded specimen.</p>
-<p>Returns: An <code>AlignmentBundle</code> with the score timeline in its own <code>"score"</code> group, each performer timeline standalone, and all MatchClaims as cross-group claims.</p>
-<p>Raises: RuntimeError: If <code>load()</code> has not been called yet.</p>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 22%">
+<col style="width: 68%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'AlignmentBundle'</td>
+<td>An <code>AlignmentBundle</code> with the score timeline in its own</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>'AlignmentBundle'</td>
+<td><code>"score"</code> group, each performer timeline standalone, and all</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td>'AlignmentBundle'</td>
+<td>MatchClaims as cross-group claims.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 40%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>RuntimeError</code></td>
+<td>If <code>load()</code> has not been called yet.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timeline">create_timeline</h3>
@@ -951,8 +1056,62 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">**</span>kwargs,</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return a single timeline by uid, role, or performer key.</p>
-<p>Args: uid: <code>"score"</code> (or the score uid) for the score timeline; a performer key (<code>"Chopin_Ashkenazy"</code>) or its uid (<code>"perf:Chopin_Ashkenazy:cpt1"</code>) for a performance timeline.</p>
-<p>Raises: KeyError: If no timeline matches. RuntimeError: If <code>load()</code> has not been called yet.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 3%">
+<col style="width: 10%">
+<col style="width: 80%">
+<col style="width: 5%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>uid</td>
+<td><code>str</code> | None</td>
+<td><code>"score"</code> (or the score uid) for the score timeline; a performer key (<code>"Chopin_Ashkenazy"</code>) or its uid (<code>"perf:Chopin_Ashkenazy:cpt1"</code>) for a performance timeline.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-1" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 40%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>KeyError</code></td>
+<td>If no timeline matches.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>RuntimeError</code></td>
+<td>If <code>load()</code> has not been called yet.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.create_timelines">create_timelines</h3>
@@ -960,7 +1119,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    id_pattern<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return all timelines: <code>[score, performer_1, ..., performer_n]</code>.</p>
-<p>Args: id_pattern: Optional regex pattern to filter timeline IDs.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 23%">
+<col style="width: 51%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>id_pattern</td>
+<td><code>str</code> | None</td>
+<td>Optional regex pattern to filter timeline IDs.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.alignment.performance_precision.PerformancePrecisionLoader.load">load</h3>
@@ -968,11 +1153,88 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    specimen_dir,</span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Ingest a whole Performance Precision specimen directory.</p>
-<p>Args: specimen_dir: Path to the directory containing the <code>.solo</code> file, the Verovio timemap <code>.json</code>, and the <code>Alignments/</code> subdirectory.</p>
-<p>Returns: Self, for method chaining.</p>
-<p>Raises: FileNotFoundError: If the directory or a required artifact is missing. ValueError: If more than one <code>.solo</code> or timemap is present.</p>
+<section id="parameters-3" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 21%">
+<col style="width: 65%">
+<col style="width: 6%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>specimen_dir</td>
+<td><code>str</code> | <code>Path</code></td>
+<td>Path to the directory containing the <code>.solo</code> file, the Verovio timemap <code>.json</code>, and the <code>Alignments/</code> subdirectory.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 48%">
+<col style="width: 40%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Self</code></td>
+<td>Self, for method chaining.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-2" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-2">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 40%">
+<col style="width: 51%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>FileNotFoundError</code></td>
+<td>If the directory or a required artifact is missing.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If more than one <code>.solo</code> or timemap is present.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

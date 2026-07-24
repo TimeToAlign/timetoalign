@@ -13,38 +13,27 @@ including hole punch positions and metadata.
 The loader parses ROLLINFO metadata and HOLE blocks, providing access
 to both individual hole data and aggregate statistics.
 
-Examples:
-    >>> loader = ATONLoader()
-    >>> loader.load("fd660zf8362_analysis.txt")
-    >>> loader.rollinfo['MUSICAL_HOLES']
-    30092
-    >>> len(loader.holes)  # Number of hole blocks parsed
-    30094
-    >>> loader.first_hole
-    15343
-    >>> loader.last_hole
-    293119
+## Examples {.doc-section .doc-section-examples}
 
-Attributes:
-    rollinfo: Dictionary of ROLLINFO metadata.
-    holes: List of parsed ATONHole objects.
+```python
+>>> loader = ATONLoader()
+>>> loader.load("fd660zf8362_analysis.txt")
+>>> loader.rollinfo['MUSICAL_HOLES']
+30092
+>>> len(loader.holes)  # Number of hole blocks parsed
+30094
+>>> loader.first_hole
+15343
+>>> loader.last_hole
+293119
+```
 
-## Attributes
+## Attributes {.doc-section .doc-section-attributes}
 
-| Name | Description |
-| --- | --- |
-| [dpi](#timetoalign.loader.graphical.aton.ATONLoader.dpi) | Scan resolution in DPI (dots per inch). |
-| [first_hole](#timetoalign.loader.graphical.aton.ATONLoader.first_hole) | Pixel coordinate of first musical hole (from ROLLINFO). |
-| [holes](#timetoalign.loader.graphical.aton.ATONLoader.holes) | Return list of parsed hole objects. |
-| [image_dimensions](#timetoalign.loader.graphical.aton.ATONLoader.image_dimensions) | Image dimensions from ROLLINFO. |
-| [last_hole](#timetoalign.loader.graphical.aton.ATONLoader.last_hole) | Pixel coordinate of last musical hole (from ROLLINFO). |
-| [musical_holes](#timetoalign.loader.graphical.aton.ATONLoader.musical_holes) | Number of musical holes declared in ROLLINFO. |
-| [musical_length](#timetoalign.loader.graphical.aton.ATONLoader.musical_length) | Pixel length from first to last hole (from ROLLINFO). |
-| [musical_notes](#timetoalign.loader.graphical.aton.ATONLoader.musical_notes) | Number of musical notes (merged holes) declared in ROLLINFO. |
-| [n_holes](#timetoalign.loader.graphical.aton.ATONLoader.n_holes) | Number of hole blocks parsed. |
-| [name](#timetoalign.loader.graphical.aton.ATONLoader.name) | Human-readable name for the loaded data. |
-| [rollinfo](#timetoalign.loader.graphical.aton.ATONLoader.rollinfo) | Return ROLLINFO metadata dictionary. |
-| [source_path](#timetoalign.loader.graphical.aton.ATONLoader.source_path) | Path to the loaded ATON file. |
+| Name     | Type                                                                       | Description                      |
+|----------|----------------------------------------------------------------------------|----------------------------------|
+| rollinfo | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\]                        | Dictionary of ROLLINFO metadata. |
+| holes    | [list](`list`)\[[ATONHole](`timetoalign.loader.graphical.aton.ATONHole`)\] | List of parsed ATONHole objects. |
 
 ## Methods
 
@@ -72,28 +61,40 @@ This is the primary timeline for the piano roll image. To get a relative
 coordinate view (first hole = 0), create a child timeline at offset
 first_hole using parent.create_child().
 
-Args:
-    uid: Unique identifier for the timeline. Auto-generated if None.
-    name: Human-readable name. Uses source filename if None.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A DiscreteGraphicalTimeline with hole events at absolute coordinates.
+| Name   | Type                 | Description                                                 | Default   |
+|--------|----------------------|-------------------------------------------------------------|-----------|
+| uid    | [str](`str`) \| None | Unique identifier for the timeline. Auto-generated if None. | `None`    |
+| name   | [str](`str`) \| None | Human-readable name. Uses source filename if None.          | `None`    |
 
-Raises:
-    RuntimeError: If no data has been loaded.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> loader = ATONLoader()
-    >>> loader.load("analysis.txt")
-    >>> dgt1 = loader.create_timeline(uid="dgt1")
-    >>> dgt1.n_events
-    30092
-    >>> # Create child for relative coordinates (first hole = 0)
-    >>> dgt_holes = dgt1.create_child(
-    ...     length=loader.musical_length,
-    ...     offset=loader.first_hole,
-    ...     uid="dgt_holes",
-    ... )
+| Name   | Type         | Description                                                           |
+|--------|--------------|-----------------------------------------------------------------------|
+|        | \'Timeline\' | A DiscreteGraphicalTimeline with hole events at absolute coordinates. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                 |
+|--------|--------------------------------|-----------------------------|
+|        | [RuntimeError](`RuntimeError`) | If no data has been loaded. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader = ATONLoader()
+>>> loader.load("analysis.txt")
+>>> dgt1 = loader.create_timeline(uid="dgt1")
+>>> dgt1.n_events
+30092
+>>> # Create child for relative coordinates (first hole = 0)
+>>> dgt_holes = dgt1.create_child(
+...     length=loader.musical_length,
+...     offset=loader.first_hole,
+...     uid="dgt_holes",
+... )
+```
 
 ### from_file { #timetoalign.loader.graphical.aton.ATONLoader.from_file }
 
@@ -105,16 +106,25 @@ Create a loader and load an ATON file in one step.
 
 Convenience constructor for loading a single file.
 
-Args:
-    path: Path to the ATON file.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new ATONLoader instance with the file already loaded.
+| Name   | Type                                   | Description            | Default    |
+|--------|----------------------------------------|------------------------|------------|
+| path   | [Path](`pathlib.Path`) \| [str](`str`) | Path to the ATON file. | _required_ |
 
-Examples:
-    >>> loader = ATONLoader.from_file("analysis.txt")
-    >>> loader.musical_holes
-    30092
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                                             |
+|--------|----------------------------------|---------------------------------------------------------|
+|        | [Self](`typing_extensions.Self`) | A new ATONLoader instance with the file already loaded. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader = ATONLoader.from_file("analysis.txt")
+>>> loader.musical_holes
+30092
+```
 
 ### get_holes_by_tracker { #timetoalign.loader.graphical.aton.ATONLoader.get_holes_by_tracker }
 
@@ -124,11 +134,17 @@ loader.graphical.aton.ATONLoader.get_holes_by_tracker(tracker_hole)
 
 Get all holes for a specific tracker bar position.
 
-Args:
-    tracker_hole: Tracker bar hole number (0-99).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of holes at that tracker position.
+| Name         | Type         | Description                     | Default    |
+|--------------|--------------|---------------------------------|------------|
+| tracker_hole | [int](`int`) | Tracker bar hole number (0-99). | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                       | Description                             |
+|--------|----------------------------------------------------------------------------|-----------------------------------------|
+|        | [list](`list`)\[[ATONHole](`timetoalign.loader.graphical.aton.ATONHole`)\] | List of holes at that tracker position. |
 
 ### get_holes_in_range { #timetoalign.loader.graphical.aton.ATONLoader.get_holes_in_range }
 
@@ -138,12 +154,18 @@ loader.graphical.aton.ATONLoader.get_holes_in_range(start_row, end_row)
 
 Get holes within a pixel row range.
 
-Args:
-    start_row: Starting pixel row (inclusive).
-    end_row: Ending pixel row (inclusive).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of holes with origin_row in range.
+| Name      | Type         | Description                     | Default    |
+|-----------|--------------|---------------------------------|------------|
+| start_row | [int](`int`) | Starting pixel row (inclusive). | _required_ |
+| end_row   | [int](`int`) | Ending pixel row (inclusive).   | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                       | Description                             |
+|--------|----------------------------------------------------------------------------|-----------------------------------------|
+|        | [list](`list`)\[[ATONHole](`timetoalign.loader.graphical.aton.ATONHole`)\] | List of holes with origin_row in range. |
 
 ### get_note_holes { #timetoalign.loader.graphical.aton.ATONLoader.get_note_holes }
 
@@ -153,8 +175,11 @@ loader.graphical.aton.ATONLoader.get_note_holes()
 
 Get holes that represent note attacks.
 
-Returns:
-    List of holes with note_attack set.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                       | Description                         |
+|--------|----------------------------------------------------------------------------|-------------------------------------|
+|        | [list](`list`)\[[ATONHole](`timetoalign.loader.graphical.aton.ATONHole`)\] | List of holes with note_attack set. |
 
 ### load { #timetoalign.loader.graphical.aton.ATONLoader.load }
 
@@ -164,12 +189,21 @@ loader.graphical.aton.ATONLoader.load(path)
 
 Load and parse an ATON file.
 
-Args:
-    path: Path to the ATON file.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name   | Type                                   | Description            | Default    |
+|--------|----------------------------------------|------------------------|------------|
+| path   | [Path](`pathlib.Path`) \| [str](`str`) | Path to the ATON file. | _required_ |
 
-Raises:
-    FileNotFoundError: If the file doesn't exist.
-    ValueError: If the file format is invalid.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                     | Description                    |
+|--------|------------------------------------------|--------------------------------|
+|        | [FileNotFoundError](`FileNotFoundError`) | If the file doesn't exist.     |
+|        | [ValueError](`ValueError`)               | If the file format is invalid. |

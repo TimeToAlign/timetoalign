@@ -857,10 +857,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.timelines.FlowMap.fold" id="toc-timetoalign.timelines.FlowMap.fold" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.fold">fold</a></li>
-  <li><a href="#timetoalign.timelines.FlowMap.from_qb_sections" id="toc-timetoalign.timelines.FlowMap.from_qb_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.from_qb_sections">from_qb_sections</a></li>
-  <li><a href="#timetoalign.timelines.FlowMap.inverse" id="toc-timetoalign.timelines.FlowMap.inverse" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.inverse">inverse</a></li>
-  <li><a href="#timetoalign.timelines.FlowMap.unfold_coordinate" id="toc-timetoalign.timelines.FlowMap.unfold_coordinate" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.unfold_coordinate">unfold_coordinate</a></li>
+  <li><a href="#timetoalign.timelines.FlowMap.fold" id="toc-timetoalign.timelines.FlowMap.fold" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.fold">fold</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.FlowMap.from_qb_sections" id="toc-timetoalign.timelines.FlowMap.from_qb_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.from_qb_sections">from_qb_sections</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
+  <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.FlowMap.inverse" id="toc-timetoalign.timelines.FlowMap.inverse" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.inverse">inverse</a>
+  <ul class="collapse">
+  <li><a href="#note" id="toc-note" class="nav-link" data-scroll-target="#note">Note</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.FlowMap.unfold_coordinate" id="toc-timetoalign.timelines.FlowMap.unfold_coordinate" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.unfold_coordinate">unfold_coordinate</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
+  <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -892,24 +913,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>_sections</code>: List of FlowMapSection objects</li>
 <li><code>_target_boundaries</code>: Sorted list of target section starts for binary search</li>
 </ul>
-<p>Attributes: flow: The computed Flow, or <code>None</code> for interval-built maps. id: Identifier for this FlowMap.</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.timelines.FlowMap.n_sections">n_sections</a></td>
-<td>Number of sections in this FlowMap.</td>
+<td>flow</td>
+<td><a href="../reference/Flow.html#timetoalign.timelines.Flow">Flow</a> | None</td>
+<td>The computed Flow, or <code>None</code> for interval-built maps.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.timelines.FlowMap.total_target_length">total_target_length</a></td>
-<td>Total length of the target timeline.</td>
+<td>id</td>
+<td><code>str</code></td>
+<td>Identifier for this FlowMap.</td>
 </tr>
 </tbody>
 </table>
@@ -947,39 +970,272 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.fold(coord)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Map target coordinate back to source coordinate.</p>
 <p>The target timeline has unique coordinates, so this always returns a single value.</p>
-<p>Args: coord: Coordinate in target timeline.</p>
-<p>Returns: Coordinate in source timeline.</p>
-<p>Raises: ValueError: If coordinate is outside the flow range.</p>
-<p>Examples: &gt;&gt;&gt; # Target coord 6 maps back to source coord 3 &gt;&gt;&gt; flow_map.fold(6) Fraction(3)</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 57%">
+<col style="width: 26%">
+<col style="width: 9%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>coord</td>
+<td><code>Fraction</code> | <code>float</code> | <code>int</code></td>
+<td>Coordinate in target timeline.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 45%">
+<col style="width: 43%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Fraction</code></td>
+<td>Coordinate in source timeline.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 35%">
+<col style="width: 53%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If coordinate is outside the flow range.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples" class="level4 doc-section doc-section-examples">
+<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Target coord 6 maps back to source coord 3</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> flow_map.fold(<span class="dv">6</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>Fraction(<span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 </section>
 <section id="timetoalign.timelines.FlowMap.from_qb_sections" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.from_qb_sections">from_qb_sections</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.from_qb_sections(flow, qb_sections, <span class="op">*</span>, <span class="bu">id</span><span class="op">=</span><span class="st">''</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.from_qb_sections(flow, qb_sections, <span class="op">*</span>, <span class="bu">id</span><span class="op">=</span><span class="st">''</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a FlowMap with QB-space source coordinates.</p>
 <p>Unlike the default constructor which derives source coordinates from MC numbers (integers), this factory accepts pre-computed quarterbeat boundaries. This is the correct approach for scores with non-uniform measure durations, where MC-number space != QB-coordinate space.</p>
-<p>Args: flow: The computed Flow (retained for metadata and inverse ops). qb_sections: List of <code>(qb_start, qb_end)</code> tuples giving the quarterbeat boundaries of each section in the <strong>folded</strong> source timeline. Must have the same length as <code>flow.sections</code>. id: Optional identifier. Defaults to <code>flow.mode.value</code>.</p>
-<p>Returns: FlowMap with sections in QB-space.</p>
-<p>Raises: ValueError: If <code>len(qb_sections) != len(flow.sections)</code>.</p>
-<p>See Also: <code>compute_qb_sections</code>: Computes QB boundaries from a Flow and ScoreFlowController.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>flow</td>
+<td><a href="../reference/Flow.html#timetoalign.timelines.Flow">Flow</a></td>
+<td>The computed Flow (retained for metadata and inverse ops).</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>qb_sections</td>
+<td><code>list</code>[<code>tuple</code>[<code>Fraction</code>, <code>Fraction</code>]]</td>
+<td>List of <code>(qb_start, qb_end)</code> tuples giving the quarterbeat boundaries of each section in the <strong>folded</strong> source timeline. Must have the same length as <code>flow.sections</code>.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="odd">
+<td>id</td>
+<td><code>str</code></td>
+<td>Optional identifier. Defaults to <code>flow.mode.value</code>.</td>
+<td><code>''</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'FlowMap'</td>
+<td>FlowMap with sections in QB-space.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-1" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 33%">
+<col style="width: 57%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If <code>len(qb_sections) != len(flow.sections)</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="see-also" class="level4 doc-section doc-section-see-also">
+<h4 class="doc-section doc-section-see-also anchored" data-anchor-id="see-also">See Also</h4>
+<p><code>compute_qb_sections</code>: Computes QB boundaries from a Flow and ScoreFlowController.</p>
+</section>
 </section>
 <section id="timetoalign.timelines.FlowMap.inverse" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.inverse">inverse</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create the inverse FlowMap (target -&gt; source becomes source -&gt; target).</p>
 <p>The inverse FlowMap swaps the source and target coordinate systems. This is useful for attaching to a target timeline to enable tracing back to the original source.</p>
-<p>Note: The inverse FlowMap’s unfold_coordinate() returns coordinates in the original source space, which may yield multiple results if the source coord is visited multiple times.</p>
-<p>Returns: A new FlowMap with inverted sections.</p>
+<section id="note" class="level4 doc-section doc-section-note">
+<h4 class="doc-section doc-section-note anchored" data-anchor-id="note">Note</h4>
+<p>The inverse FlowMap’s unfold_coordinate() returns coordinates in the original source space, which may yield multiple results if the source coord is visited multiple times.</p>
+</section>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'FlowMap'</td>
+<td>A new FlowMap with inverted sections.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.timelines.FlowMap.unfold_coordinate" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.unfold_coordinate">unfold_coordinate</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.unfold_coordinate(coord)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.unfold_coordinate(coord)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Map source coordinate to target coordinates.</p>
 <p>Since a source coordinate may be visited multiple times (due to repeats), this returns a list of all corresponding target coordinates.</p>
-<p>Args: coord: Coordinate in source timeline.</p>
-<p>Returns: List of coordinates in target timeline. Empty list if coord is not within any section.</p>
-<p>Examples: &gt;&gt;&gt; # Source coord 3 appears twice due to repeat &gt;&gt;&gt; flow_map.unfold_coordinate(3) [Fraction(2), Fraction(6)]</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 57%">
+<col style="width: 26%">
+<col style="width: 9%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>coord</td>
+<td><code>Fraction</code> | <code>float</code> | <code>int</code></td>
+<td>Coordinate in source timeline.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-3" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 42%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>Fraction</code>]</td>
+<td>List of coordinates in target timeline. Empty list if coord</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>list</code>[<code>Fraction</code>]</td>
+<td>is not within any section.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples-1" class="level4 doc-section doc-section-examples">
+<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-1">Examples</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Source coord 3 appears twice due to repeat</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> flow_map.unfold_coordinate(<span class="dv">3</span>)</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>[Fraction(<span class="dv">2</span>), Fraction(<span class="dv">6</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 </section>
 </section>

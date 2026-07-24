@@ -54,14 +54,20 @@ loader.alignment.mpm.MpmLoader.create_bundle()
 
 Assemble the AlignmentBundle from the loaded project.
 
-Returns:
-    An ``AlignmentBundle`` with a shared ``"score"`` group (two
-    logical timelines), a ``"perf"`` group (two physical
-    timelines), and one synchronous cross-group MatchClaim per
-    score note.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    RuntimeError: If ``load()`` has not been called yet.
+| Name   | Type                | Description                                                 |
+|--------|---------------------|-------------------------------------------------------------|
+|        | \'AlignmentBundle\' | An ``AlignmentBundle`` with a shared ``"score"`` group (two |
+|        | \'AlignmentBundle\' | logical timelines), a ``"perf"`` group (two physical        |
+|        | \'AlignmentBundle\' | timelines), and one synchronous cross-group MatchClaim per  |
+|        | \'AlignmentBundle\' | score note.                                                 |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                            |
+|--------|--------------------------------|----------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet. |
 
 ### create_timeline { #timetoalign.loader.alignment.mpm.MpmLoader.create_timeline }
 
@@ -71,14 +77,18 @@ loader.alignment.mpm.MpmLoader.create_timeline(uid=None, **kwargs)
 
 Return a single timeline by its uid.
 
-Args:
-    uid: One of ``"score:clt1"`` / ``"score:dlt1"`` / ``"perf:cpt1"``
-        / ``"perf:dpt1"`` / ``"perf:dgt1"`` (the last present only
-        when the project carries a spectrogram).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Raises:
-    KeyError: If no timeline matches.
-    RuntimeError: If ``load()`` has not been called yet.
+| Name   | Type                 | Description                                                                                                                                                      | Default   |
+|--------|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| uid    | [str](`str`) \| None | One of ``"score:clt1"`` / ``"score:dlt1"`` / ``"perf:cpt1"`` / ``"perf:dpt1"`` / ``"perf:dgt1"`` (the last present only when the project carries a spectrogram). | `None`    |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                            |
+|--------|--------------------------------|----------------------------------------|
+|        | [KeyError](`KeyError`)         | If no timeline matches.                |
+|        | [RuntimeError](`RuntimeError`) | If ``load()`` has not been called yet. |
 
 ### create_timelines { #timetoalign.loader.alignment.mpm.MpmLoader.create_timelines }
 
@@ -92,8 +102,11 @@ The performance group always contributes ``perf:cpt1`` and
 ``perf:dpt1``; ``perf:dgt1`` (the spectrogram graphical axis) is
 appended when the project carries a spectrogram.
 
-Args:
-    id_pattern: Optional regex pattern to filter timeline IDs.
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name       | Type                 | Description                                    | Default   |
+|------------|----------------------|------------------------------------------------|-----------|
+| id_pattern | [str](`str`) \| None | Optional regex pattern to filter timeline IDs. | `None`    |
 
 ### load { #timetoalign.loader.alignment.mpm.MpmLoader.load }
 
@@ -103,17 +116,22 @@ loader.alignment.mpm.MpmLoader.load(mpr_path, *, performance=None)
 
 Ingest a whole MPM-Toolbox project.
 
-Args:
-    mpr_path: Path to the ``.mpr`` project file.  The sibling
-        ``.msm`` / ``.mpm`` are resolved from the bare filenames
-        the project names.
-    performance: Name of the ``<performance>`` block to use.  When
-        ``None`` (the default), the first performance is selected.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Self, for method chaining.
+| Name        | Type                                   | Description                                                                                                                 | Default    |
+|-------------|----------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|------------|
+| mpr_path    | [str](`str`) \| [Path](`pathlib.Path`) | Path to the ``.mpr`` project file.  The sibling ``.msm`` / ``.mpm`` are resolved from the bare filenames the project names. | _required_ |
+| performance | [str](`str`) \| None                   | Name of the ``<performance>`` block to use.  When ``None`` (the default), the first performance is selected.                | `None`     |
 
-Raises:
-    FileNotFoundError: If the ``.mpr`` or a sibling it names is
-        missing.
-    ValueError: If a named performance is not present in the MPM.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Self](`typing_extensions.Self`) | Self, for method chaining. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                     | Description                                       |
+|--------|------------------------------------------|---------------------------------------------------|
+|        | [FileNotFoundError](`FileNotFoundError`) | If the ``.mpr`` or a sibling it names is missing. |
+|        | [ValueError](`ValueError`)               | If a named performance is not present in the MPM. |

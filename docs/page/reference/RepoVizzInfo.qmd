@@ -6,15 +6,12 @@ loader.RepoVizzInfo(n_samples, frame_rate, metadata, source_path=None)
 
 Parsed metadata from a RepoVizz CSV file (legacy mode).
 
-Attributes:
-    n_samples: Number of data values on line 2.
-    frame_rate: Sampling rate in Hz (from ``framerate`` in the header).
-    duration_seconds: Computed as ``n_samples / frame_rate``.
-    metadata: Full key=value dict from the header line.
-    source_path: Path to the source file.
+## Attributes {.doc-section .doc-section-attributes}
 
-## Attributes
-
-| Name | Description |
-| --- | --- |
-| [duration_seconds](#timetoalign.loader.RepoVizzInfo.duration_seconds) | Duration in seconds. |
+| Name             | Type             | Description                                             |
+|------------------|------------------|---------------------------------------------------------|
+| n_samples        |                  | Number of data values on line 2.                        |
+| frame_rate       |                  | Sampling rate in Hz (from ``framerate`` in the header). |
+| duration_seconds | [float](`float`) | Computed as ``n_samples / frame_rate``.                 |
+| metadata         |                  | Full key=value dict from the header line.               |
+| source_path      |                  | Path to the source file.                                |

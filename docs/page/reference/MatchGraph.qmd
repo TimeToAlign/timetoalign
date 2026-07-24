@@ -24,30 +24,28 @@ create nodes or edges.
 Each Hendrix M-box (M1–M15) is a separate MatchGraph. The system
 is NOT a global graph; MatchGraphs are created on demand.
 
-Attributes:
-    claims: List of all MatchClaims in this graph (synchronous and non-synchronous).
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> # Build graph from claims
-    >>> graph = MatchGraph(claims=[claim1, claim2])
+| Name   | Type                                                                      | Description                                                              |
+|--------|---------------------------------------------------------------------------|--------------------------------------------------------------------------|
+| claims | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | List of all MatchClaims in this graph (synchronous and non-synchronous). |
 
-    >>> # Extend via group membership
-    >>> extended = graph.extend_to_groups(groups, timeline_to_group)
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # Get synchronized timestamps
-    >>> stamps = graph.get_stamps()
+```python
+>>> # Build graph from claims
+>>> graph = MatchGraph(claims=[claim1, claim2])
+```
 
-## Attributes
+```python
+>>> # Extend via group membership
+>>> extended = graph.extend_to_groups(groups, timeline_to_group)
+```
 
-| Name | Description |
-| --- | --- |
-| [claims](#timetoalign.alignment.MatchGraph.claims) | List of all MatchClaims in this graph (synchronous and non-synchronous). |
-| [n_claims](#timetoalign.alignment.MatchGraph.n_claims) | Number of claims in this graph. |
-| [n_components](#timetoalign.alignment.MatchGraph.n_components) | Number of connected components in the graph. |
-| [n_edges](#timetoalign.alignment.MatchGraph.n_edges) | Number of edges in the graph. |
-| [n_nodes](#timetoalign.alignment.MatchGraph.n_nodes) | Number of nodes in the graph. |
-| [non_synchronous_claims](#timetoalign.alignment.MatchGraph.non_synchronous_claims) | List of non-synchronous MatchClaims (NOMATCH, conceptual). |
-| [synchronous_claims](#timetoalign.alignment.MatchGraph.synchronous_claims) | List of only synchronous MatchClaims (those with anchors/edges). |
+```python
+>>> # Get synchronized timestamps
+>>> stamps = graph.get_stamps()
+```
 
 ## Methods
 
@@ -88,17 +86,23 @@ Group and adds an implicit ``MatchClaim`` (case d) plus the
 corresponding edge. Filters control which timelines receive
 implicit claims.
 
-Args:
-    groups: Dict of group_id -> TimelineGroup.
-    timeline_to_group: Dict of timeline_id -> group_id.
-    include_inferred: Whether to add inferred edges.
-    timeline_ids: Only extend to these timeline IDs.
-    id_pattern: Regex filter for timeline IDs.
-    include_domains: Only extend to timelines in these domains.
-    include_units: Only extend to timelines with these units.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    New MatchGraph with extended edges (or self if not extending).
+| Name              | Type                                                                  | Description                                | Default    |
+|-------------------|-----------------------------------------------------------------------|--------------------------------------------|------------|
+| groups            | [dict](`dict`)\[[str](`str`), \'TimelineGroup\'\]                     | Dict of group_id -> TimelineGroup.         | _required_ |
+| timeline_to_group | [dict](`dict`)\[[str](`str`), [str](`str`)\]                          | Dict of timeline_id -> group_id.           | _required_ |
+| include_inferred  | [bool](`bool`)                                                        | Whether to add inferred edges.             | `True`     |
+| timeline_ids      | [set](`set`)\[[str](`str`)\] \| None                                  | Only extend to these timeline IDs.         | `None`     |
+| id_pattern        | [str](`str`) \| None                                                  | Regex filter for timeline IDs.             | `None`     |
+| include_domains   | [set](`set`)\[[Domain](`timetoalign.core.enums.Domain`)\] \| None     | Only extend to timelines in these domains. | `None`     |
+| include_units     | [set](`set`)\[[TimeUnit](`timetoalign.core.enums.TimeUnit`)\] \| None | Only extend to timelines with these units. | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                                                    |
+|--------|----------------|----------------------------------------------------------------|
+|        | \'MatchGraph\' | New MatchGraph with extended edges (or self if not extending). |
 
 ### filter { #timetoalign.alignment.MatchGraph.filter }
 
@@ -116,16 +120,22 @@ alignment.MatchGraph.filter(
 
 Create filtered view of the graph.
 
-Args:
-    synchronous_only: Include only synchronous edges.
-    explicit_only: Include only explicit edges (no inferred).
-    timeline_ids: Only include these timeline IDs.
-    id_pattern: Regex filter for timeline IDs.
-    include_domains: Only include timelines in these domains.
-    include_units: Only include timelines with these units.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    New MatchGraph with filtered edges/nodes.
+| Name             | Type                                                                  | Description                                | Default   |
+|------------------|-----------------------------------------------------------------------|--------------------------------------------|-----------|
+| synchronous_only | [bool](`bool`)                                                        | Include only synchronous edges.            | `False`   |
+| explicit_only    | [bool](`bool`)                                                        | Include only explicit edges (no inferred). | `False`   |
+| timeline_ids     | [set](`set`)\[[str](`str`)\] \| None                                  | Only include these timeline IDs.           | `None`    |
+| id_pattern       | [str](`str`) \| None                                                  | Regex filter for timeline IDs.             | `None`    |
+| include_domains  | [set](`set`)\[[Domain](`timetoalign.core.enums.Domain`)\] \| None     | Only include timelines in these domains.   | `None`    |
+| include_units    | [set](`set`)\[[TimeUnit](`timetoalign.core.enums.TimeUnit`)\] \| None | Only include timelines with these units.   | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type           | Description                               |
+|--------|----------------|-------------------------------------------|
+|        | \'MatchGraph\' | New MatchGraph with filtered edges/nodes. |
 
 ### from_dict { #timetoalign.alignment.MatchGraph.from_dict }
 
@@ -143,11 +153,17 @@ alignment.MatchGraph.get_connected_nodes(node)
 
 Get all nodes connected to a given node.
 
-Args:
-    node: The (timeline_id, coordinate) node.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of connected nodes.
+| Name   | Type                                                 | Description                         | Default    |
+|--------|------------------------------------------------------|-------------------------------------|------------|
+| node   | [GraphNode](`timetoalign.alignment.graph.GraphNode`) | The (timeline_id, coordinate) node. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                   | Description              |
+|--------|------------------------------------------------------------------------|--------------------------|
+|        | [list](`list`)\[[GraphNode](`timetoalign.alignment.graph.GraphNode`)\] | List of connected nodes. |
 
 ### get_connected_timelines { #timetoalign.alignment.MatchGraph.get_connected_timelines }
 
@@ -157,11 +173,17 @@ alignment.MatchGraph.get_connected_timelines(timeline_id)
 
 Get all timelines connected to a given timeline.
 
-Args:
-    timeline_id: The timeline to check.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Set of connected timeline IDs.
+| Name        | Type         | Description            | Default    |
+|-------------|--------------|------------------------|------------|
+| timeline_id | [str](`str`) | The timeline to check. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                         | Description                    |
+|--------|------------------------------|--------------------------------|
+|        | [set](`set`)\[[str](`str`)\] | Set of connected timeline IDs. |
 
 ### get_coordinates_for_timeline { #timetoalign.alignment.MatchGraph.get_coordinates_for_timeline }
 
@@ -171,11 +193,17 @@ alignment.MatchGraph.get_coordinates_for_timeline(timeline_id)
 
 Get all coordinates for a specific timeline.
 
-Args:
-    timeline_id: The timeline to get coordinates for.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of coordinates, sorted.
+| Name        | Type         | Description                          | Default    |
+|-------------|--------------|--------------------------------------|------------|
+| timeline_id | [str](`str`) | The timeline to get coordinates for. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                               | Description                  |
+|--------|------------------------------------|------------------------------|
+|        | [list](`list`)\[[float](`float`)\] | List of coordinates, sorted. |
 
 ### get_matchstamp { #timetoalign.alignment.MatchGraph.get_matchstamp }
 
@@ -193,17 +221,24 @@ method raises ``ValueError`` -- each component should be its own
 MatchGraph. Use ``split_components()`` to separate them first, or
 use the multi-component ``get_stamps()`` method.
 
-Returns:
-    Single MatchStamp spanning all timelines in the graph.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    ValueError: If the graph has multiple disconnected components.
-    ValueError: If the graph has no synchronous claims (no nodes).
+| Name   | Type           | Description                                            |
+|--------|----------------|--------------------------------------------------------|
+|        | \'MatchStamp\' | Single MatchStamp spanning all timelines in the graph. |
 
-See Also:
-    `split_components`: Split a multi-component graph into separate
-        MatchGraph objects.
-    `get_stamps`: Multi-component method returning one stamp per component.
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                        |
+|--------|----------------------------|----------------------------------------------------|
+|        | [ValueError](`ValueError`) | If the graph has multiple disconnected components. |
+|        | [ValueError](`ValueError`) | If the graph has no synchronous claims (no nodes). |
+
+#### See Also {.doc-section .doc-section-see-also}
+
+`split_components`: Split a multi-component graph into separate
+    MatchGraph objects.
+`get_stamps`: Multi-component method returning one stamp per component.
 
 ### get_nodes_for_timeline { #timetoalign.alignment.MatchGraph.get_nodes_for_timeline }
 
@@ -213,11 +248,17 @@ alignment.MatchGraph.get_nodes_for_timeline(timeline_id)
 
 Get all nodes for a specific timeline.
 
-Args:
-    timeline_id: The timeline to get nodes for.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    List of (timeline_id, coordinate) nodes.
+| Name        | Type         | Description                    | Default    |
+|-------------|--------------|--------------------------------|------------|
+| timeline_id | [str](`str`) | The timeline to get nodes for. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                   | Description                              |
+|--------|------------------------------------------------------------------------|------------------------------------------|
+|        | [list](`list`)\[[GraphNode](`timetoalign.alignment.graph.GraphNode`)\] | List of (timeline_id, coordinate) nodes. |
 
 ### get_stamps { #timetoalign.alignment.MatchGraph.get_stamps }
 
@@ -230,7 +271,6 @@ Get all MatchStamps from the graph.
 Returns one MatchStamp per connected component, each containing
 all coordinates reachable from that component.
 
-Args:
 Returns:
     List of MatchStamps, one per connected component.
 
@@ -245,9 +285,12 @@ Split this graph into one MatchGraph per connected component.
 Each returned MatchGraph represents a single connected component
 and can be queried with ``get_matchstamp()``.
 
-Returns:
-    List of MatchGraph objects, one per connected component.
-    Empty list if the graph has no synchronous claims.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                                              |
+|--------|----------------------------------|----------------------------------------------------------|
+|        | [list](`list`)\[\'MatchGraph\'\] | List of MatchGraph objects, one per connected component. |
+|        | [list](`list`)\[\'MatchGraph\'\] | Empty list if the graph has no synchronous claims.       |
 
 ### to_dict { #timetoalign.alignment.MatchGraph.to_dict }
 

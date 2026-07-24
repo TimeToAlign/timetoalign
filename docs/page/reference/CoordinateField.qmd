@@ -12,21 +12,24 @@ semantic identity: unit, domain, number_type.
 
 Pairs with :class:`Coordinate`.
 
-Examples:
-    >>> import pyarrow as pa
-    >>> from timetoalign.core.enums import TimeUnit, NumberType
-    >>> from timetoalign.core.time import CoordinateField
-    >>> arr = pa.array(
-    ...     [{"value": 1.5, "numerator": 3, "denominator": 2}],
-    ...     type=pa.struct([
-    ...         pa.field("value", pa.float64()),
-    ...         pa.field("numerator", pa.int64()),
-    ...         pa.field("denominator", pa.int64()),
-    ...     ]),
-    ... )
-    >>> cf = CoordinateField.from_field(arr, unit=TimeUnit.seconds, number_type=NumberType.float)
-    >>> cf[0]
-    Coordinate(1.5, seconds)
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> import pyarrow as pa
+>>> from timetoalign.core.enums import TimeUnit, NumberType
+>>> from timetoalign.core.time import CoordinateField
+>>> arr = pa.array(
+...     [{"value": 1.5, "numerator": 3, "denominator": 2}],
+...     type=pa.struct([
+...         pa.field("value", pa.float64()),
+...         pa.field("numerator", pa.int64()),
+...         pa.field("denominator", pa.int64()),
+...     ]),
+... )
+>>> cf = CoordinateField.from_field(arr, unit=TimeUnit.seconds, number_type=NumberType.float)
+>>> cf[0]
+Coordinate(1.5, seconds)
+```
 
 ## Methods
 

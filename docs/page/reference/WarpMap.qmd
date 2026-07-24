@@ -21,34 +21,31 @@ for O(log n) lookup.  The ``materialise()`` method produces a complete
 copy of a source `timetoalign.Timeline` with all coordinates warped
 to the target's coordinate space.
 
-Attributes:
-    source_timeline_id: ID of the source timeline.
-    target_timeline_id: ID of the target timeline.
-    interpolation_map: The underlying InterpolationMap for coordinate
-        conversion.
-    source_unit: Unit of the source timeline (optional, informational).
-    target_unit: Unit of the target timeline (optional, informational).
-    n_anchors: Number of anchor points used for interpolation.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> warp = WarpMap.from_match_line(match_line, "audio")
-    >>> warp(100.0)           # score coord -> audio coord
-    45.5
-    >>> warp.inverse()(45.5)  # audio coord -> score coord
-    100.0
+| Name               | Type                                                                  | Description                                                |
+|--------------------|-----------------------------------------------------------------------|------------------------------------------------------------|
+| source_timeline_id | [str](`str`)                                                          | ID of the source timeline.                                 |
+| target_timeline_id | [str](`str`)                                                          | ID of the target timeline.                                 |
+| interpolation_map  | [InterpolationMap](`timetoalign.maps.interpolation.InterpolationMap`) | The underlying InterpolationMap for coordinate conversion. |
+| source_unit        | \'TimeUnit \| None\'                                                  | Unit of the source timeline (optional, informational).     |
+| target_unit        | \'TimeUnit \| None\'                                                  | Unit of the target timeline (optional, informational).     |
+| n_anchors          | [int](`int`)                                                          | Number of anchor points used for interpolation.            |
 
-See Also:
-    `timetoalign.MatchLine`
-    `timetoalign.InterpolationMap`
+## Examples {.doc-section .doc-section-examples}
 
-## Attributes
+```python
+>>> warp = WarpMap.from_match_line(match_line, "audio")
+>>> warp(100.0)           # score coord -> audio coord
+45.5
+>>> warp.inverse()(45.5)  # audio coord -> score coord
+100.0
+```
 
-| Name | Description |
-| --- | --- |
-| [is_invertible](#timetoalign.alignment.WarpMap.is_invertible) | Whether the inverse mapping is defined. |
-| [n_anchors](#timetoalign.alignment.WarpMap.n_anchors) | Number of anchor points used for interpolation. |
-| [source_coords](#timetoalign.alignment.WarpMap.source_coords) | The source coordinate anchor points (read-only). |
-| [target_coords](#timetoalign.alignment.WarpMap.target_coords) | The target coordinate anchor points (read-only). |
+## See Also {.doc-section .doc-section-see-also}
+
+`timetoalign.MatchLine`
+`timetoalign.InterpolationMap`
 
 ## Methods
 
@@ -91,24 +88,28 @@ are already available (e.g. from a Parquet file or external
 alignment tool) and do not need to be extracted from a
 MatchLine.
 
-Args:
-    source_timeline_id: ID of the source timeline.
-    target_timeline_id: ID of the target timeline.
-    source_coords: Source coordinates. Duplicate coordinates are
-        averaged when their targets are compatible; otherwise they
-        raise an ambiguity error. Remaining coordinates must be
-        strictly increasing.
-    target_coords: Corresponding target coordinates.
-    source_unit: Unit of the source timeline (optional).
-    target_unit: Unit of the target timeline (optional).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new WarpMap.
+| Name               | Type                                                                                                                                         | Description                                                                                                                                                                           | Default    |
+|--------------------|----------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| source_timeline_id | [str](`str`)                                                                                                                                 | ID of the source timeline.                                                                                                                                                            | _required_ |
+| target_timeline_id | [str](`str`)                                                                                                                                 | ID of the target timeline.                                                                                                                                                            | _required_ |
+| source_coords      | [list](`list`)\[[float](`float`)\] \| [NDArray](`numpy.typing.NDArray`)\[[np](`numpy`).[floating](`numpy.floating`)\[[Any](`typing.Any`)\]\] | Source coordinates. Duplicate coordinates are averaged when their targets are compatible; otherwise they raise an ambiguity error. Remaining coordinates must be strictly increasing. | _required_ |
+| target_coords      | [list](`list`)\[[float](`float`)\] \| [NDArray](`numpy.typing.NDArray`)\[[np](`numpy`).[floating](`numpy.floating`)\[[Any](`typing.Any`)\]\] | Corresponding target coordinates.                                                                                                                                                     | _required_ |
+| source_unit        | \'TimeUnit \| None\'                                                                                                                         | Unit of the source timeline (optional).                                                                                                                                               | `None`     |
+| target_unit        | \'TimeUnit \| None\'                                                                                                                         | Unit of the target timeline (optional).                                                                                                                                               | `None`     |
 
-Raises:
-    ValueError: If fewer than 2 coordinate pairs, if source
-        coordinates are ambiguous, or if the remaining source
-        coordinates are not strictly increasing.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type        | Description    |
+|--------|-------------|----------------|
+|        | \'WarpMap\' | A new WarpMap. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                                                                                                |
+|--------|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If fewer than 2 coordinate pairs, if source coordinates are ambiguous, or if the remaining source coordinates are not strictly increasing. |
 
 ### from_dict { #timetoalign.alignment.WarpMap.from_dict }
 
@@ -118,11 +119,17 @@ alignment.WarpMap.from_dict(data)
 
 Deserialize from dictionary.
 
-Args:
-    data: Dict as produced by ``to_dict()``.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new WarpMap.
+| Name   | Type                                                | Description                        | Default    |
+|--------|-----------------------------------------------------|------------------------------------|------------|
+| data   | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict as produced by ``to_dict()``. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type        | Description    |
+|--------|-------------|----------------|
+|        | \'WarpMap\' | A new WarpMap. |
 
 ### from_match_line { #timetoalign.alignment.WarpMap.from_match_line }
 
@@ -143,19 +150,27 @@ MatchLine for the given target timeline, deduplicates compatible
 chord coordinates, and constructs the interpolation map. A repeated
 source coordinate with materially different targets is rejected.
 
-Args:
-    match_line: The MatchLine providing ordered stamps.
-    target_timeline_id: The target timeline to warp towards.
-    source_unit: Unit of the source timeline (optional).
-    target_unit: Unit of the target timeline (optional).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new WarpMap.
+| Name               | Type                 | Description                             | Default    |
+|--------------------|----------------------|-----------------------------------------|------------|
+| match_line         | \'MatchLine\'        | The MatchLine providing ordered stamps. | _required_ |
+| target_timeline_id | [str](`str`)         | The target timeline to warp towards.    | _required_ |
+| source_unit        | \'TimeUnit \| None\' | Unit of the source timeline (optional). | `None`     |
+| target_unit        | \'TimeUnit \| None\' | Unit of the target timeline (optional). | `None`     |
 
-Raises:
-    ValueError: If fewer than 2 coordinate pairs are available.
-    ValueError: If ``target_timeline_id`` is not in the
-        MatchLine's target timelines.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type        | Description    |
+|--------|-------------|----------------|
+|        | \'WarpMap\' | A new WarpMap. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                           |
+|--------|----------------------------|-----------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If fewer than 2 coordinate pairs are available.                       |
+|        | [ValueError](`ValueError`) | If ``target_timeline_id`` is not in the MatchLine's target timelines. |
 
 ### inverse { #timetoalign.alignment.WarpMap.inverse }
 
@@ -165,12 +180,17 @@ alignment.WarpMap.inverse()
 
 Return the cached inverse map with source and target swapped.
 
-Returns:
-    A WarpMap converting target coordinates back to source coordinates.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    ValueError: If the target coordinates are not strictly
-        monotonic (map is not invertible).
+| Name   | Type        | Description                                                         |
+|--------|-------------|---------------------------------------------------------------------|
+|        | \'WarpMap\' | A WarpMap converting target coordinates back to source coordinates. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                                   |
+|--------|----------------------------|-------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If the target coordinates are not strictly monotonic (map is not invertible). |
 
 ### materialise { #timetoalign.alignment.WarpMap.materialise }
 
@@ -191,15 +211,23 @@ map. The resulting timeline:
 - Contains warped copies of all regions
 - Carries an inverse WarpMap as a ConversionMap for traceability
 
-Args:
-    source_timeline: The timeline to warp.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new Timeline with warped coordinates.
+| Name            | Type         | Description           | Default    |
+|-----------------|--------------|-----------------------|------------|
+| source_timeline | \'Timeline\' | The timeline to warp. | _required_ |
 
-Raises:
-    ValueError: If ``source_timeline.id`` does not match
-        ``self.source_timeline_id``.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                             |
+|--------|--------------|-----------------------------------------|
+|        | \'Timeline\' | A new Timeline with warped coordinates. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                           |
+|--------|----------------------------|-----------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If ``source_timeline.id`` does not match ``self.source_timeline_id``. |
 
 ### to_dict { #timetoalign.alignment.WarpMap.to_dict }
 
@@ -209,5 +237,8 @@ alignment.WarpMap.to_dict()
 
 Serialize to dictionary.
 
-Returns:
-    Dict with timeline IDs, units, and coordinate arrays.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                                           |
+|--------|-----------------------------------------------------|-------------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict with timeline IDs, units, and coordinate arrays. |

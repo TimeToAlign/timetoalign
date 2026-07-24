@@ -852,7 +852,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.loader.EepNotesLoader" id="toc-timetoalign.loader.EepNotesLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.EepNotesLoader">EepNotesLoader</a></li>
+  <li><a href="#timetoalign.loader.EepNotesLoader" id="toc-timetoalign.loader.EepNotesLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.EepNotesLoader">EepNotesLoader</a>
+  <ul>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -869,14 +872,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Subclasses :class:<code>CsvLoader</code> with configuration for the whitespace-separated, headerless <code>.notes</code> format. Each line contains onset (seconds), offset (seconds), and pitch (note name, “rest”, or comma-separated chord).</p>
 <p>The loader: - Assigns column names <code>start</code>, <code>end</code>, <code>pitch</code> - Infers the <code>staff</code> number from the filename (e.g., <code>*_vln1.notes</code> -&gt; staff 1) - Preserves “rest” entries and comma-separated chords as-is</p>
 <p>Chord explosion (splitting <code>G3,D4,B4,F5</code> into separate rows) is left to post-processing, typically during note matching.</p>
-<p>Examples: &gt;&gt;&gt; loader = EepNotesLoader.from_file(“EEP_Normal_align_vln1.notes”) &gt;&gt;&gt; len(loader) 1266 &gt;&gt;&gt; loader.events.summary()</p>
-<pre><code>&gt;&gt;&gt; # Load all 4 instruments for a recording
-&gt;&gt;&gt; loader = EepNotesLoader()
-&gt;&gt;&gt; loader.load(*sorted(eep_dir.glob("*_align_*.notes")))
-&gt;&gt;&gt; len(loader)
-4026</code></pre>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> EepNotesLoader.from_file(<span class="st">"EEP_Normal_align_vln1.notes"</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">len</span>(loader)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="dv">1266</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.events.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Load all 4 instruments for a recording</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> EepNotesLoader()</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.load(<span class="op">*</span><span class="bu">sorted</span>(eep_dir.glob(<span class="st">"*_align_*.notes"</span>)))</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">len</span>(loader)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="dv">4026</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

@@ -42,48 +42,39 @@ where domain constraints are intentionally relaxed.
 If you have a ``Timeline`` instance and need the appropriate typed
 subclass, use :meth:`to_typed`.
 
-Attributes:
-    id: Unique identifier for this timeline.
-    unit: The time unit for coordinates (e.g., seconds, quarters, pixels).
-    number_type: The numeric type for coordinates (int, float, Fraction).
-    domain: The temporal domain (derived from unit).
-    origin: The start coordinate (always 0).
-    length: The end coordinate.
-    is_locked: Whether the timeline can be modified.
-    is_discrete: Whether the timeline uses discrete coordinates.
-    is_continuous: Whether the timeline uses continuous coordinates.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> # Preferred: use concrete subclasses
-    >>> from timetoalign.timelines import ContinuousPhysicalTimeline
-    >>> audio = ContinuousPhysicalTimeline(length=180.0)
+| Name          | Type                                        | Description                                                      |
+|---------------|---------------------------------------------|------------------------------------------------------------------|
+| id            | [str](`str`)                                | Unique identifier for this timeline.                             |
+| unit          | [TimeUnit](`timetoalign.core.TimeUnit`)     | The time unit for coordinates (e.g., seconds, quarters, pixels). |
+| number_type   | [NumberType](`timetoalign.core.NumberType`) | The numeric type for coordinates (int, float, Fraction).         |
+| domain        | [Domain](`timetoalign.core.Domain`)         | The temporal domain (derived from unit).                         |
+| origin        | [Coordinate](`timetoalign.core.Coordinate`) | The start coordinate (always 0).                                 |
+| length        | [Coordinate](`timetoalign.core.Coordinate`) | The end coordinate.                                              |
+| is_locked     | [bool](`bool`)                              | Whether the timeline can be modified.                            |
+| is_discrete   | [bool](`bool`)                              | Whether the timeline uses discrete coordinates.                  |
+| is_continuous | [bool](`bool`)                              | Whether the timeline uses continuous coordinates.                |
 
-    >>> # Or use the factory to auto-select the right subclass
-    >>> from timetoalign.timelines import create_timeline
-    >>> tl = create_timeline(loader)
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # Direct base class (internal/advanced use)
-    >>> from timetoalign.core import TimeUnit
-    >>> tl = Timeline(length=100, unit=TimeUnit.seconds)
+```python
+>>> # Preferred: use concrete subclasses
+>>> from timetoalign.timelines import ContinuousPhysicalTimeline
+>>> audio = ContinuousPhysicalTimeline(length=180.0)
+```
 
-## Attributes
+```python
+>>> # Or use the factory to auto-select the right subclass
+>>> from timetoalign.timelines import create_timeline
+>>> tl = create_timeline(loader)
+```
 
-| Name | Description |
-| --- | --- |
-| [class_name](#timetoalign.timelines.Timeline.class_name) | The class name of this timeline. |
-| [domain](#timetoalign.timelines.Timeline.domain) | The temporal domain (derived from unit). |
-| [end](#timetoalign.timelines.Timeline.end) | Alias for length. |
-| [id](#timetoalign.timelines.Timeline.id) | Unique identifier for this timeline. |
-| [is_continuous](#timetoalign.timelines.Timeline.is_continuous) | Whether this timeline uses continuous (real-valued) coordinates. |
-| [is_discrete](#timetoalign.timelines.Timeline.is_discrete) | Whether this timeline uses discrete (integer) coordinates. |
-| [is_locked](#timetoalign.timelines.Timeline.is_locked) | Whether this timeline is locked (cannot expand). |
-| [length](#timetoalign.timelines.Timeline.length) | The end coordinate (length of the timeline). |
-| [meta](#timetoalign.timelines.Timeline.meta) | Metadata dictionary. |
-| [name](#timetoalign.timelines.Timeline.name) | Human-readable name for display. |
-| [number_type](#timetoalign.timelines.Timeline.number_type) | The number type for coordinates. |
-| [origin](#timetoalign.timelines.Timeline.origin) | The start coordinate (always 0). |
-| [start](#timetoalign.timelines.Timeline.start) | Alias for origin. |
-| [unit](#timetoalign.timelines.Timeline.unit) | The time unit for coordinates. |
+```python
+>>> # Direct base class (internal/advanced use)
+>>> from timetoalign.core import TimeUnit
+>>> tl = Timeline(length=100, unit=TimeUnit.seconds)
+```
 
 ## Methods
 
@@ -114,26 +105,32 @@ timelines.Timeline.diagram(
 
 Generate ASCII diagram for this timeline.
 
-Args:
-    width: Total width of the diagram in characters.
-    show_children: Whether to show child timelines (one per row).
-    max_children: Maximum children to show before truncating.
-    unicode: Use Unicode characters (True) or ASCII fallback (False).
-    show: Optional set controlling which elements appear. Supported
-        values: ``"children"``, ``"regions"``, and ``"cmaps"``
-        (attached conversion maps). When ``None``, behaviour is
-        exactly as before.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+| Name          | Type                                 | Description                                                                                                                                                                                 | Default   |
+|---------------|--------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| width         | [int](`int`)                         | Total width of the diagram in characters.                                                                                                                                                   | `70`      |
+| show_children | [bool](`bool`)                       | Whether to show child timelines (one per row).                                                                                                                                              | `True`    |
+| max_children  | [int](`int`)                         | Maximum children to show before truncating.                                                                                                                                                 | `6`       |
+| unicode       | [bool](`bool`)                       | Use Unicode characters (True) or ASCII fallback (False).                                                                                                                                    | `True`    |
+| show          | [set](`set`)\[[str](`str`)\] \| None | Optional set controlling which elements appear. Supported values: ``"children"``, ``"regions"``, and ``"cmaps"`` (attached conversion maps). When ``None``, behaviour is exactly as before. | `None`    |
 
-Examples:
-    >>> print(timeline.diagram())
-    DiscreteGraphicalTimeline[dgt1:1] (11 events, 5 children)
-    0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels
-      ├─ system_1     0   ∶∶∶∶∶∶∶                        967
-      ├─ system_2   967          ∶∶∶∶∶∶∶∶               1934
-      └─ ...
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type        | Description                                                           |
+|--------|-------------|-----------------------------------------------------------------------|
+|        | \'Diagram\' | Diagram object (displays as ASCII in terminal, rich HTML in Jupyter). |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> print(timeline.diagram())
+DiscreteGraphicalTimeline[dgt1:1] (11 events, 5 children)
+0 ∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶∶ 4835 pixels
+  ├─ system_1     0   ∶∶∶∶∶∶∶                        967
+  ├─ system_2   967          ∶∶∶∶∶∶∶∶               1934
+  └─ ...
+```
 
 ### empty { #timetoalign.timelines.Timeline.empty }
 
@@ -143,13 +140,19 @@ timelines.Timeline.empty(unit=None, number_type=None, **kwargs)
 
 Create an empty Timeline with length 0.
 
-Args:
-    unit: The time unit. Defaults to class default.
-    number_type: The number type. Defaults to class default.
-    **kwargs: Additional arguments passed to __init__.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new empty Timeline.
+| Name        | Type                                                                | Description                                 | Default   |
+|-------------|---------------------------------------------------------------------|---------------------------------------------|-----------|
+| unit        | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`) \| None     | The time unit. Defaults to class default.   | `None`    |
+| number_type | [NumberType](`timetoalign.core.NumberType`) \| [str](`str`) \| None | The number type. Defaults to class default. | `None`    |
+| **kwargs    | [Any](`typing.Any`)                                                 | Additional arguments passed to __init__.    | `{}`      |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description           |
+|--------|----------------------------------|-----------------------|
+|        | [Self](`typing_extensions.Self`) | A new empty Timeline. |
 
 ### from_dict { #timetoalign.timelines.Timeline.from_dict }
 
@@ -172,11 +175,17 @@ zero events and an empty reference table. External references are
 restored without event validation, so a payload carrying
 references but no events round-trips intact.
 
-Args:
-    data: Dictionary from to_dict().
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new Timeline instance.
+| Name   | Type                                                | Description                | Default    |
+|--------|-----------------------------------------------------|----------------------------|------------|
+| data   | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dictionary from to_dict(). | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description              |
+|--------|----------------------------------|--------------------------|
+|        | [Self](`typing_extensions.Self`) | A new Timeline instance. |
 
 ### from_event_data { #timetoalign.timelines.Timeline.from_event_data }
 
@@ -186,12 +195,18 @@ timelines.Timeline.from_event_data(data, **kwargs)
 
 Create a Timeline from an existing EventData.
 
-Args:
-    data: The EventData containing events.
-    **kwargs: Additional arguments passed to __init__ (except unit/number_type).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new Timeline wrapping the EventData.
+| Name     | Type                                         | Description                                                        | Default    |
+|----------|----------------------------------------------|--------------------------------------------------------------------|------------|
+| data     | [EventData](`timetoalign.storage.EventData`) | The EventData containing events.                                   | _required_ |
+| **kwargs | [Any](`typing.Any`)                          | Additional arguments passed to __init__ (except unit/number_type). | `{}`       |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                            |
+|--------|----------------------------------|----------------------------------------|
+|        | [Self](`typing_extensions.Self`) | A new Timeline wrapping the EventData. |
 
 ### from_events { #timetoalign.timelines.Timeline.from_events }
 
@@ -203,19 +218,20 @@ Create a Timeline from event dictionaries.
 
 The timeline length is automatically set to accommodate all events.
 
-Args:
-    rows: List of event dictionaries with keys:
-        - id: unique identifier
-        - temporal_type: "instant" or "interval"
-        - event_type: class name (e.g., "Note", "Beat")
-        - instant: coordinate (for instant events)
-        - start, end: coordinates (for interval events)
-    unit: The time unit. Defaults to class default.
-    number_type: The number type. Defaults to class default.
-    **kwargs: Additional arguments passed to __init__.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new Timeline containing the events.
+| Name        | Type                                                                  | Description                                                                                                                                                                                                                                       | Default    |
+|-------------|-----------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| rows        | [list](`list`)\[[dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\]\] | List of event dictionaries with keys: - id: unique identifier - temporal_type: "instant" or "interval" - event_type: class name (e.g., "Note", "Beat") - instant: coordinate (for instant events) - start, end: coordinates (for interval events) | _required_ |
+| unit        | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`) \| None       | The time unit. Defaults to class default.                                                                                                                                                                                                         | `None`     |
+| number_type | [NumberType](`timetoalign.core.NumberType`) \| [str](`str`) \| None   | The number type. Defaults to class default.                                                                                                                                                                                                       | `None`     |
+| **kwargs    | [Any](`typing.Any`)                                                   | Additional arguments passed to __init__.                                                                                                                                                                                                          | `{}`       |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                           |
+|--------|----------------------------------|---------------------------------------|
+|        | [Self](`typing_extensions.Self`) | A new Timeline containing the events. |
 
 ### make_coordinate { #timetoalign.timelines.Timeline.make_coordinate }
 
@@ -227,11 +243,17 @@ Create a Coordinate in this timeline's unit.
 
 Public API for creating coordinates compatible with this timeline.
 
-Args:
-    value: The numeric value for the coordinate.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A Coordinate with this timeline's unit.
+| Name   | Type                                                  | Description                           | Default    |
+|--------|-------------------------------------------------------|---------------------------------------|------------|
+| value  | [CoordinateValue](`timetoalign.core.CoordinateValue`) | The numeric value for the coordinate. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                        | Description                             |
+|--------|---------------------------------------------|-----------------------------------------|
+|        | [Coordinate](`timetoalign.core.Coordinate`) | A Coordinate with this timeline's unit. |
 
 ### resolve_subclass { #timetoalign.timelines.Timeline.resolve_subclass }
 
@@ -256,20 +278,27 @@ are returned rather than further-derived specialisations like
 
 Falls back to the base ``Timeline`` if no subclass claims the unit.
 
-Args:
-    unit: The time unit to look up.
-    number_type: Optional number type for disambiguation
-        (e.g. ``NumberType.fraction`` selects ``ContinuousLogicalTimeline``
-        over ``DiscreteLogicalTimeline``).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The canonical Timeline subclass that accepts *unit*.
+| Name        | Type                                                                | Description                                                                                                                                    | Default    |
+|-------------|---------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| unit        | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`)             | The time unit to look up.                                                                                                                      | _required_ |
+| number_type | [NumberType](`timetoalign.core.NumberType`) \| [str](`str`) \| None | Optional number type for disambiguation (e.g. ``NumberType.fraction`` selects ``ContinuousLogicalTimeline`` over ``DiscreteLogicalTimeline``). | `None`     |
 
-Examples:
-    >>> Timeline.resolve_subclass(TimeUnit.quarters, NumberType.fraction)
-    <class '...ContinuousLogicalTimeline'>
-    >>> Timeline.resolve_subclass(TimeUnit.pixels)
-    <class '...DiscreteGraphicalTimeline'>
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                | Description                                          |
+|--------|---------------------------------------------------------------------|------------------------------------------------------|
+|        | [type](`type`)\[[Timeline](`timetoalign.timelines.base.Timeline`)\] | The canonical Timeline subclass that accepts *unit*. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> Timeline.resolve_subclass(TimeUnit.quarters, NumberType.fraction)
+<class '...ContinuousLogicalTimeline'>
+>>> Timeline.resolve_subclass(TimeUnit.pixels)
+<class '...DiscreteGraphicalTimeline'>
+```
 
 ### summary { #timetoalign.timelines.Timeline.summary }
 
@@ -279,8 +308,11 @@ timelines.Timeline.summary()
 
 Get a summary of the timeline.
 
-Returns:
-    Dict with timeline information.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                     |
+|--------|-----------------------------------------------------|---------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict with timeline information. |
 
 ### to_dict { #timetoalign.timelines.Timeline.to_dict }
 
@@ -301,23 +333,27 @@ Coordinate-valued members — ``length`` and every child
 JSON-serializable whatever the timeline's number type, and
 ``Fraction`` coordinates survive the round trip exactly.
 
-Args:
-    events: If True, include an ``"events"`` key holding this
-        timeline's event rows.
-    external_references: If True, include an
-        ``"external_references"`` key holding the reference table
-        as a list of row dicts (``access_points`` as a nested list
-        of ``{"uri": ..., "kind": ...}`` dicts). Included even
-        when the table is empty.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A JSON-serializable dictionary representation of the timeline.
+| Name                | Type           | Description                                                                                                                                                                                                              | Default   |
+|---------------------|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| events              | [bool](`bool`) | If True, include an ``"events"`` key holding this timeline's event rows.                                                                                                                                                 | `False`   |
+| external_references | [bool](`bool`) | If True, include an ``"external_references"`` key holding the reference table as a list of row dicts (``access_points`` as a nested list of ``{"uri": ..., "kind": ...}`` dicts). Included even when the table is empty. | `False`   |
 
-Examples:
-    >>> "events" in tl.to_dict()
-    False
-    >>> "events" in tl.to_dict(events=True)
-    True
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                                                    |
+|--------|-----------------------------------------------------|----------------------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | A JSON-serializable dictionary representation of the timeline. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> "events" in tl.to_dict()
+False
+>>> "events" in tl.to_dict(events=True)
+True
+```
 
 ### to_typed { #timetoalign.timelines.Timeline.to_typed }
 
@@ -340,19 +376,27 @@ Note: Only the timeline object itself is re-typed. Events, external
 references, children, conversion maps, regions, and metadata are
 preserved. Children are transferred as-is (not recursively re-typed).
 
-Returns:
-    A Timeline instance of the appropriate typed subclass, or ``self``
-    if it is already the correct type.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> tl = Timeline(length=10.0, unit=TimeUnit.seconds)
-    >>> typed = tl.to_typed()
-    >>> type(typed).__name__
-    'ContinuousPhysicalTimeline'
-    >>> typed.is_continuous
-    True
+| Name   | Type         | Description                                                        |
+|--------|--------------|--------------------------------------------------------------------|
+|        | \'Timeline\' | A Timeline instance of the appropriate typed subclass, or ``self`` |
+|        | \'Timeline\' | if it is already the correct type.                                 |
 
-    >>> # Already typed -- returns self
-    >>> cpt = ContinuousPhysicalTimeline(length=10.0)
-    >>> cpt.to_typed() is cpt
-    True
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> tl = Timeline(length=10.0, unit=TimeUnit.seconds)
+>>> typed = tl.to_typed()
+>>> type(typed).__name__
+'ContinuousPhysicalTimeline'
+>>> typed.is_continuous
+True
+```
+
+```python
+>>> # Already typed -- returns self
+>>> cpt = ContinuousPhysicalTimeline(length=10.0)
+>>> cpt.to_typed() is cpt
+True
+```

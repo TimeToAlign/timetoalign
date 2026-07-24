@@ -9,21 +9,27 @@ Loader for CSV (comma-separated values) files.
 CsvLoader provides a general-purpose CSV loader with sensible defaults.
 Customize by subclassing or by passing configuration to __init__.
 
-Default Configuration:
-    - Delimiter: comma (,)
-    - Start column: "start"
-    - End column: "end" (if present)
-    - ID column: "id" (if present, else auto-generated)
-    - Coordinate unit: seconds
-    - Coordinate type: float
+## Default Configuration {.doc-section .doc-section-default-configuration}
 
-Examples:
-    >>> loader = CsvLoader()
-    >>> loader.load("events.csv")
-    >>> print(loader.events.count)
+- Delimiter: comma (,)
+- Start column: "start"
+- End column: "end" (if present)
+- ID column: "id" (if present, else auto-generated)
+- Coordinate unit: seconds
+- Coordinate type: float
 
-    >>> # Custom configuration via subclass
-    >>> class MyLoader(CsvLoader):
-    ...     start_column = "onset_time"
-    ...     end_column = "offset_time"
-    ...     column_specs = {"pitch": int, "velocity": int}
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> loader = CsvLoader()
+>>> loader.load("events.csv")
+>>> print(loader.events.count)
+```
+
+```python
+>>> # Custom configuration via subclass
+>>> class MyLoader(CsvLoader):
+...     start_column = "onset_time"
+...     end_column = "offset_time"
+...     column_specs = {"pitch": int, "velocity": int}
+```

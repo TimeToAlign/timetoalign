@@ -855,12 +855,29 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.TimeStamp" id="toc-timetoalign.TimeStamp" class="nav-link active" data-scroll-target="#timetoalign.TimeStamp">TimeStamp</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.TimeStamp.get" id="toc-timetoalign.TimeStamp.get" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.get">get</a></li>
-  <li><a href="#timetoalign.TimeStamp.get_conversion" id="toc-timetoalign.TimeStamp.get_conversion" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.get_conversion">get_conversion</a></li>
-  <li><a href="#timetoalign.TimeStamp.get_unit" id="toc-timetoalign.TimeStamp.get_unit" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.get_unit">get_unit</a></li>
-  <li><a href="#timetoalign.TimeStamp.to_dict" id="toc-timetoalign.TimeStamp.to_dict" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.to_dict">to_dict</a></li>
+  <li><a href="#timetoalign.TimeStamp.get" id="toc-timetoalign.TimeStamp.get" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.get">get</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.TimeStamp.get_conversion" id="toc-timetoalign.TimeStamp.get_conversion" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.get_conversion">get_conversion</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.TimeStamp.get_unit" id="toc-timetoalign.TimeStamp.get_unit" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.get_unit">get_unit</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.TimeStamp.to_dict" id="toc-timetoalign.TimeStamp.to_dict" class="nav-link" data-scroll-target="#timetoalign.TimeStamp.to_dict">to_dict</a>
+  <ul class="collapse">
+  <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
+  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -878,31 +895,57 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A synchronized instant across a timeline hierarchy.</p>
 <p>Lightweight object that computes coordinates on access via InterpolationMaps. Works identically for Timeline (with children) and TimelineGroup (with members).</p>
 <p>The TimeStamp represents a cross-section through the timeline structure at a specific axis coordinate. All related timelines’ coordinates can be retrieved via get() or subscript access.</p>
-<p>Attributes: axis: The root/reference coordinate value. source: The Timeline or TimelineGroup this timestamp belongs to. source_id: ID of the source (for serialization). row_index: If from a table row, the index. -1 if interpolated.</p>
-<p>Examples: &gt;&gt;&gt; ts = timeline.get_timestamp(5.0) &gt;&gt;&gt; ts.axis # The root coordinate 5.0 &gt;&gt;&gt; ts[“child:1”] # Get coordinate on child timeline 2.5 &gt;&gt;&gt; ts.get(“child:2”, default=0.0) # With default 0.0</p>
-<pre><code>&gt;&gt;&gt; # Convert to different unit
-&gt;&gt;&gt; ts.get_unit(TimeUnit.seconds)
-10.5</code></pre>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 48%">
+<col style="width: 43%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.TimeStamp.is_interpolated">is_interpolated</a></td>
-<td>True if this timestamp was computed via interpolation.</td>
+<td>axis</td>
+<td><code>float</code></td>
+<td>The root/reference coordinate value.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.TimeStamp.present_timelines">present_timelines</a></td>
-<td>Timeline IDs that have coordinates at this instant.</td>
+<td>source</td>
+<td><code>TimeStampSource</code></td>
+<td>The Timeline or TimelineGroup this timestamp belongs to.</td>
+</tr>
+<tr class="odd">
+<td>source_id</td>
+<td><code>str</code></td>
+<td>ID of the source (for serialization).</td>
+</tr>
+<tr class="even">
+<td>row_index</td>
+<td><code>int</code></td>
+<td>If from a table row, the index. -1 if interpolated.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts <span class="op">=</span> timeline.get_timestamp(<span class="fl">5.0</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts.axis  <span class="co"># The root coordinate</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fl">5.0</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts[<span class="st">"child:1"</span>]  <span class="co"># Get coordinate on child timeline</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fl">2.5</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts.get(<span class="st">"child:2"</span>, default<span class="op">=</span><span class="fl">0.0</span>)  <span class="co"># With default</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fl">0.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Convert to different unit</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts.get_unit(TimeUnit.seconds)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="fl">10.5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -934,38 +977,245 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.TimeStamp.get" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.TimeStamp.get">get</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.get(timeline_id, default<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.get(timeline_id, default<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get coordinate on another timeline.</p>
 <p>Returns <code>default</code> (None) when the queried coordinate falls outside the related timeline’s span – for instance, asking a child whose parent-side interval is <code>[10, 30)</code> for the coordinate at axis 5.</p>
 <p>For <code>Timeline</code> sources, child coordinates are resolved via exact offset arithmetic (no interpolation). For <code>TimelineGroup</code> sources, coordinates are resolved via <code>InterpolationMap</code>.</p>
-<p>Args: timeline_id: The timeline to get coordinate for. default: Value to return if timeline not reachable or out of span.</p>
-<p>Returns: Coordinate on the target timeline, or <em>default</em> if not reachable or the axis is outside the target’s span.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 23%">
+<col style="width: 53%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>timeline_id</td>
+<td><code>str</code></td>
+<td>The timeline to get coordinate for.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>default</td>
+<td><code>float</code> | None</td>
+<td>Value to return if timeline not reachable or out of span.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 28%">
+<col style="width: 62%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>float</code> | None</td>
+<td>Coordinate on the target timeline, or <em>default</em> if not</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>float</code> | None</td>
+<td>reachable or the axis is outside the target’s span.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.TimeStamp.get_conversion" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.TimeStamp.get_conversion">get_conversion</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.get_conversion(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.get_conversion(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the raw output of a conversion map addressed by name/selector.</p>
 <p>Searches the source and every descendant/member present at this axis for a C-Map whose name, id, selector, or target-unit name is <em>key</em>, and evaluates it at that timeline’s coordinate.</p>
-<p>Args: key: A conversion-map name, id, selector, or target-unit name.</p>
-<p>Returns: The C-Map’s output at this instant, or None if unreachable.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 15%">
+<col style="width: 63%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>key</td>
+<td><code>str</code></td>
+<td>A conversion-map name, id, selector, or target-unit name.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 23%">
+<col style="width: 67%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Any</code></td>
+<td>The C-Map’s output at this instant, or None if unreachable.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.TimeStamp.get_unit" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.TimeStamp.get_unit">get_unit</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.get_unit(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.get_unit(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get coordinate converted to a specific unit.</p>
 <p>Works with any map registered by <code>add_conversion_map</code>, called directly regardless of concrete type (<code>TableMap</code>, <code>ScalarMap</code>, <code>LinearMap</code>, <code>InterpolationMap</code>, …).</p>
 <p>Searches the source and every descendant/member timeline for a C-Map with this target unit, evaluating it at the timeline’s own coordinate. A timestamp therefore surfaces unit conversions registered at any depth of the hierarchy, not just on the queried timeline.</p>
-<p>Args: unit: The target unit for conversion.</p>
-<p>Returns: Converted coordinate, or None if no C-Map available.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>unit</td>
+<td>'TimeUnit'</td>
+<td>The target unit for conversion.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 29%">
+<col style="width: 61%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>float</code> | None</td>
+<td>Converted coordinate, or None if no C-Map available.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.TimeStamp.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.TimeStamp.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.to_dict(include_children<span class="op">=</span><span class="va">True</span>, conversion_units<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>TimeStamp.to_dict(include_children<span class="op">=</span><span class="va">True</span>, conversion_units<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Materialize all coordinates as a dictionary.</p>
-<p>Args: include_children: Include child/member timeline coordinates. conversion_units: C-Map conversions to include. - None: No C-Map conversions - “all”: Every C-Map across the subtree, of every kind (unit conversions, labels, structured values) - list: Specific units only</p>
-<p>Returns: Dict mapping timeline_id/unit_name/cmap-label to value.</p>
+<section id="parameters-3" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 27%">
+<col style="width: 63%">
+<col style="width: 3%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>include_children</td>
+<td><code>bool</code></td>
+<td>Include child/member timeline coordinates.</td>
+<td><code>True</code></td>
+</tr>
+<tr class="even">
+<td>conversion_units</td>
+<td><code>list</code>['TimeUnit'] | <code>Literal</code>['all'] | None</td>
+<td>C-Map conversions to include. - None: No C-Map conversions - “all”: Every C-Map across the subtree, of every kind (unit conversions, labels, structured values) - list: Specific units only</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-3" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 44%">
+<col style="width: 48%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>dict</code>[<code>str</code>, <code>Any</code>]</td>
+<td>Dict mapping timeline_id/unit_name/cmap-label to value.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

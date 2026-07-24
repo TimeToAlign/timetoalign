@@ -27,57 +27,48 @@ conversion model. Irregular measures, anacrusis, and meter changes modeled
 by ``MetricMap.from_boundaries()`` are intended to become available through
 BeatGrid as that model develops.
 
-Attributes:
-    beats_per_measure: Number of beats per measure.
-    beat_unit: The note value of one beat (e.g., Fraction(1, 4) for quarter note).
-    start_measure: The number of the first measure (default 1).
-    quarters_per_measure: Derived: quarters per measure.
+## Attributes {.doc-section .doc-section-attributes}
+
+| Name                 | Type                             | Description                                                         |
+|----------------------|----------------------------------|---------------------------------------------------------------------|
+| beats_per_measure    | [int](`int`)                     | Number of beats per measure.                                        |
+| beat_unit            | [Fraction](`fractions.Fraction`) | The note value of one beat (e.g., Fraction(1, 4) for quarter note). |
+| start_measure        | [int](`int`)                     | The number of the first measure (default 1).                        |
+| quarters_per_measure | [Fraction](`fractions.Fraction`) | Derived: quarters per measure.                                      |
 
 C-Maps (automatically created):
     - quarters -> mc (MetricMap): Integer measure count.
     - quarters -> beat (BeatInMeasureMap): Beat position as Fraction.
     - quarters -> {mc, beat} (MetricalPositionMap): Combined output.
 
-Examples:
-    >>> from fractions import Fraction
-    >>> from timetoalign import ContinuousPhysicalTimeline, TimeUnit
-    >>>
-    >>> # Create a beat grid for 4/4 time, 222 measures
-    >>> grid = BeatGrid(
-    ...     length=Fraction(888, 1),  # 888 quarter notes
-    ...     beats_per_measure=4,
-    ... )
-    >>>
-    >>> # Query measure and beat at quarter 100
-    >>> grid.measure_at(100)  # -> 26 (integer!)
-    >>> grid.beat_at(100)     # -> Fraction(1, 1) (proper Fraction!)
-    >>> grid.metrical_position(100)  # -> {"mc": 26, "beat": Fraction(1, 1)}
-    >>>
-    >>> # Attach to audio timeline
-    >>> audio = ContinuousPhysicalTimeline(length=300.0, unit=TimeUnit.seconds)
-    >>> audio.add_child(grid, offset=1.3)  # First beat at 1.3 seconds
-    >>>
-    >>> # Create from tempo
-    >>> grid2 = BeatGrid.from_tempo(
-    ...     tempo_bpm=120.0,
-    ...     beats_per_measure=4,
-    ...     length_quarters=Fraction(888, 1),
-    ... )
+## Examples {.doc-section .doc-section-examples}
 
-## Attributes
-
-| Name | Description |
-| --- | --- |
-| [beat_unit](#timetoalign.timelines.BeatGrid.beat_unit) | Note value of one beat (fraction of whole note). |
-| [beats_per_measure](#timetoalign.timelines.BeatGrid.beats_per_measure) | Number of beats per measure. |
-| [meter_map](#timetoalign.timelines.BeatGrid.meter_map) | The underlying MetricMap (for advanced access). |
-| [n_beats](#timetoalign.timelines.BeatGrid.n_beats) | Total number of beats in this grid. |
-| [n_measures](#timetoalign.timelines.BeatGrid.n_measures) | Number of complete measures in this grid. |
-| [quarters_per_beat](#timetoalign.timelines.BeatGrid.quarters_per_beat) | Quarter notes per beat. |
-| [quarters_per_measure](#timetoalign.timelines.BeatGrid.quarters_per_measure) | Quarter notes per measure. |
-| [start_measure](#timetoalign.timelines.BeatGrid.start_measure) | MC (measure count) of the first measure. |
-| [start_mn](#timetoalign.timelines.BeatGrid.start_mn) | MN (measure number label) of the first measure. |
-| [tempo_bpm](#timetoalign.timelines.BeatGrid.tempo_bpm) | Tempo in BPM, if created via from_tempo(). |
+```python
+>>> from fractions import Fraction
+>>> from timetoalign import ContinuousPhysicalTimeline, TimeUnit
+>>>
+>>> # Create a beat grid for 4/4 time, 222 measures
+>>> grid = BeatGrid(
+...     length=Fraction(888, 1),  # 888 quarter notes
+...     beats_per_measure=4,
+... )
+>>>
+>>> # Query measure and beat at quarter 100
+>>> grid.measure_at(100)  # -> 26 (integer!)
+>>> grid.beat_at(100)     # -> Fraction(1, 1) (proper Fraction!)
+>>> grid.metrical_position(100)  # -> {"mc": 26, "beat": Fraction(1, 1)}
+>>>
+>>> # Attach to audio timeline
+>>> audio = ContinuousPhysicalTimeline(length=300.0, unit=TimeUnit.seconds)
+>>> audio.add_child(grid, offset=1.3)  # First beat at 1.3 seconds
+>>>
+>>> # Create from tempo
+>>> grid2 = BeatGrid.from_tempo(
+...     tempo_bpm=120.0,
+...     beats_per_measure=4,
+...     length_quarters=Fraction(888, 1),
+... )
+```
 
 ## Methods
 
@@ -110,11 +101,17 @@ timelines.BeatGrid.beat_at(quarters)
 
 Get the beat position within the measure at a given quarter-note position.
 
-Args:
-    quarters: Position in quarter notes.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The beat position as Fraction (1-indexed, e.g., Fraction(3, 2) for beat 1.5).
+| Name     | Type                                                | Description                | Default    |
+|----------|-----------------------------------------------------|----------------------------|------------|
+| quarters | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | Position in quarter notes. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                                                                   |
+|--------|----------------------------------|-------------------------------------------------------------------------------|
+|        | [Fraction](`fractions.Fraction`) | The beat position as Fraction (1-indexed, e.g., Fraction(3, 2) for beat 1.5). |
 
 ### beat_at_seconds { #timetoalign.timelines.BeatGrid.beat_at_seconds }
 
@@ -124,15 +121,24 @@ timelines.BeatGrid.beat_at_seconds(seconds)
 
 Get the beat number within the measure at a given time in seconds.
 
-Args:
-    seconds: Time position in seconds.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Beat number (1-indexed).
+| Name    | Type             | Description               | Default    |
+|---------|------------------|---------------------------|------------|
+| seconds | [float](`float`) | Time position in seconds. | _required_ |
 
-Raises:
-    RuntimeError: If no tempo information is available.
-    ValueError: If seconds is before the first beat.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description              |
+|--------|--------------|--------------------------|
+|        | [int](`int`) | Beat number (1-indexed). |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                           |
+|--------|--------------------------------|---------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If no tempo information is available. |
+|        | [ValueError](`ValueError`)     | If seconds is before the first beat.  |
 
 ### beat_quarters { #timetoalign.timelines.BeatGrid.beat_quarters }
 
@@ -142,13 +148,19 @@ timelines.BeatGrid.beat_quarters()
 
 All beat positions in quarters. Vectorized O(1).
 
-Returns:
-    numpy array of beat positions in quarter notes.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> grid = BeatGrid(length=16, beats_per_measure=4)
-    >>> grid.beat_quarters()
-    array([ 0.,  1.,  2.,  3.,  4.,  5., ...])
+| Name   | Type                              | Description                                     |
+|--------|-----------------------------------|-------------------------------------------------|
+|        | \'NDArray\[np.floating\[Any\]\]\' | numpy array of beat positions in quarter notes. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> grid = BeatGrid(length=16, beats_per_measure=4)
+>>> grid.beat_quarters()
+array([ 0.,  1.,  2.,  3.,  4.,  5., ...])
+```
 
 ### beat_seconds { #timetoalign.timelines.BeatGrid.beat_seconds }
 
@@ -161,16 +173,25 @@ All beat times in seconds. Vectorized O(1).
 Requires the grid to have been created with from_tempo() and start_seconds,
 or to have a tempo_map attached.
 
-Returns:
-    numpy array of beat times in seconds.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    RuntimeError: If no tempo information is available.
+| Name   | Type                              | Description                           |
+|--------|-----------------------------------|---------------------------------------|
+|        | \'NDArray\[np.floating\[Any\]\]\' | numpy array of beat times in seconds. |
 
-Examples:
-    >>> grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60, start_seconds=0.5)
-    >>> grid.beat_seconds()[:4]
-    array([0.5 , 1.0 , 1.5 , 2.0 ])
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                           |
+|--------|--------------------------------|---------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If no tempo information is available. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60, start_seconds=0.5)
+>>> grid.beat_seconds()[:4]
+array([0.5 , 1.0 , 1.5 , 2.0 ])
+```
 
 ### downbeat_seconds { #timetoalign.timelines.BeatGrid.downbeat_seconds }
 
@@ -197,42 +218,51 @@ Export BeatGrid data to a CSV file.
 Extends the base Timeline.export_to_csv() with special formats for
 audio annotation tools.
 
-Args:
-    filepath: Output CSV file path.
-    format: Output format. Options:
-        - "default": Standard timestamp table (inherited behavior).
-        - "sonic_visualiser": Sonic Visualiser / Audacity label track.
-          Two fields (TIME, LABEL) with header row.
-        - "tilia": Tilia beat track format.
-          Four fields (time, measure, beat, is_first_in_measure).
-    labels: What to export when using "sonic_visualiser" format:
-        - "beats": All beat positions with labels like "M1B1", "M1B2".
-        - "measures": Measure start positions with labels like "M1", "M2".
-        - "both": Both beats and measures.
-    **kwargs: Additional arguments passed to base export_to_csv() when
-        using "default" format.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Number of rows written.
+| Name     | Type                | Description                                                                                                                                                                                                                                                                                  | Default     |
+|----------|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
+| filepath | [str](`str`)        | Output CSV file path.                                                                                                                                                                                                                                                                        | _required_  |
+| format   | [str](`str`)        | Output format. Options: - "default": Standard timestamp table (inherited behavior). - "sonic_visualiser": Sonic Visualiser / Audacity label track.   Two fields (TIME, LABEL) with header row. - "tilia": Tilia beat track format.   Four fields (time, measure, beat, is_first_in_measure). | `'default'` |
+| labels   | [str](`str`)        | What to export when using "sonic_visualiser" format: - "beats": All beat positions with labels like "M1B1", "M1B2". - "measures": Measure start positions with labels like "M1", "M2". - "both": Both beats and measures.                                                                    | `'beats'`   |
+| **kwargs | [Any](`typing.Any`) | Additional arguments passed to base export_to_csv() when using "default" format.                                                                                                                                                                                                             | `{}`        |
 
-Raises:
-    RuntimeError: If format requires tempo but none is available.
-    ValueError: If format is not recognized.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60)
+| Name   | Type         | Description             |
+|--------|--------------|-------------------------|
+|        | [int](`int`) | Number of rows written. |
 
-    >>> # Export for Sonic Visualiser
-    >>> grid.export_to_csv("beats.csv", format="sonic_visualiser")
-    120
+#### Raises {.doc-section .doc-section-raises}
 
-    >>> # Export for Tilia
-    >>> grid.export_to_csv("beats.csv", format="tilia")
-    120
+| Name   | Type                           | Description                                     |
+|--------|--------------------------------|-------------------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If format requires tempo but none is available. |
+|        | [ValueError](`ValueError`)     | If format is not recognized.                    |
 
-    >>> # Standard timestamp table
-    >>> grid.export_to_csv("data.csv", format="default")
-    120
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60)
+```
+
+```python
+>>> # Export for Sonic Visualiser
+>>> grid.export_to_csv("beats.csv", format="sonic_visualiser")
+120
+```
+
+```python
+>>> # Export for Tilia
+>>> grid.export_to_csv("beats.csv", format="tilia")
+120
+```
+
+```python
+>>> # Standard timestamp table
+>>> grid.export_to_csv("data.csv", format="default")
+120
+```
 
 ### from_dict { #timetoalign.timelines.BeatGrid.from_dict }
 
@@ -247,11 +277,17 @@ The constructor recreates the meter-map family; the serialized
 family (for example, a ``from_tempo`` tempo map or a user-attached
 map), so every entry is restored via ``ConversionMap.from_dict``.
 
-Args:
-    data: Dictionary created by :meth:`to_dict`.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The reconstructed BeatGrid.
+| Name   | Type                                                | Description                            | Default    |
+|--------|-----------------------------------------------------|----------------------------------------|------------|
+| data   | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dictionary created by :meth:`to_dict`. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                  | Description                 |
+|--------|-------------------------------------------------------|-----------------------------|
+|        | [BeatGrid](`timetoalign.timelines.beatgrid.BeatGrid`) | The reconstructed BeatGrid. |
 
 ### from_tempo { #timetoalign.timelines.BeatGrid.from_tempo }
 
@@ -275,43 +311,52 @@ Create a BeatGrid from tempo information.
 
 You must provide either length_seconds or length_quarters.
 
-Args:
-    tempo_bpm: Tempo in beats per minute.
-    beats_per_measure: Number of beats per measure. Default 4.
-    beat_unit: Note value of one beat. Default 1/4 (quarter note).
-    length_seconds: Duration in seconds (converted using tempo).
-        If start_seconds > 0, this should be the TOTAL audio duration;
-        the grid will span from start_seconds to length_seconds.
-    length_quarters: Duration in quarter notes.
-    start_seconds: Offset in seconds where the first beat occurs.
-        Default 0.0. Used by beat_seconds() and measure_seconds().
-    start_measure: MC of the first measure. Default 1.
-    start_mn: MN label of the first measure. Default: same as start_measure.
-    anacrusis_quarters: If set, first measure is shorter (pickup).
-    uid: Explicit unique identifier.
-    name: Human-readable name.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A new BeatGrid instance with vectorized accessors for beat/measure times.
+| Name               | Type                                                     | Description                                                                                                                                                          | Default          |
+|--------------------|----------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------|
+| tempo_bpm          | [float](`float`)                                         | Tempo in beats per minute.                                                                                                                                           | _required_       |
+| beats_per_measure  | [int](`int`)                                             | Number of beats per measure. Default 4.                                                                                                                              | `4`              |
+| beat_unit          | [Fraction](`fractions.Fraction`)                         | Note value of one beat. Default 1/4 (quarter note).                                                                                                                  | `Fraction(1, 4)` |
+| length_seconds     | [float](`float`) \| None                                 | Duration in seconds (converted using tempo). If start_seconds > 0, this should be the TOTAL audio duration; the grid will span from start_seconds to length_seconds. | `None`           |
+| length_quarters    | [Fraction](`fractions.Fraction`) \| [int](`int`) \| None | Duration in quarter notes.                                                                                                                                           | `None`           |
+| start_seconds      | [float](`float`)                                         | Offset in seconds where the first beat occurs. Default 0.0. Used by beat_seconds() and measure_seconds().                                                            | `0.0`            |
+| start_measure      | [int](`int`)                                             | MC of the first measure. Default 1.                                                                                                                                  | `1`              |
+| start_mn           | [str](`str`) \| None                                     | MN label of the first measure. Default: same as start_measure.                                                                                                       | `None`           |
+| anacrusis_quarters | [Fraction](`fractions.Fraction`) \| None                 | If set, first measure is shorter (pickup).                                                                                                                           | `None`           |
+| uid                | [str](`str`) \| None                                     | Explicit unique identifier.                                                                                                                                          | `None`           |
+| name               | [str](`str`) \| None                                     | Human-readable name.                                                                                                                                                 | `None`           |
 
-Raises:
-    ValueError: If neither length_seconds nor length_quarters is provided.
-    ValueError: If both length_seconds and length_quarters are provided.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> # Audio track: 279 seconds, first beat at 0.092s, 160 BPM, 4/4
-    >>> grid = BeatGrid.from_tempo(
-    ...     tempo_bpm=160.0,
-    ...     beats_per_measure=4,
-    ...     length_seconds=279.0,
-    ...     start_seconds=0.092,
-    ... )
-    >>> grid.n_measures
-    186
-    >>> grid.beat_seconds()[:4]
-    array([0.092, 0.467, 0.842, 1.217])
-    >>> grid.measure_seconds()[:4]
-    array([0.092, 1.592, 3.092, 4.592])
+| Name   | Type                                                  | Description                                                               |
+|--------|-------------------------------------------------------|---------------------------------------------------------------------------|
+|        | [BeatGrid](`timetoalign.timelines.beatgrid.BeatGrid`) | A new BeatGrid instance with vectorized accessors for beat/measure times. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                |
+|--------|----------------------------|------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If neither length_seconds nor length_quarters is provided. |
+|        | [ValueError](`ValueError`) | If both length_seconds and length_quarters are provided.   |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> # Audio track: 279 seconds, first beat at 0.092s, 160 BPM, 4/4
+>>> grid = BeatGrid.from_tempo(
+...     tempo_bpm=160.0,
+...     beats_per_measure=4,
+...     length_seconds=279.0,
+...     start_seconds=0.092,
+... )
+>>> grid.n_measures
+186
+>>> grid.beat_seconds()[:4]
+array([0.092, 0.467, 0.842, 1.217])
+>>> grid.measure_seconds()[:4]
+array([0.092, 1.592, 3.092, 4.592])
+```
 
 ### materialize_beats { #timetoalign.timelines.BeatGrid.materialize_beats }
 
@@ -321,11 +366,17 @@ timelines.BeatGrid.materialize_beats(include_downbeats_only=False)
 
 Add Beat events to this timeline at each beat position.
 
-Args:
-    include_downbeats_only: If True, only create events for beat 1 (downbeats).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Number of beat events created.
+| Name                   | Type           | Description                                         | Default   |
+|------------------------|----------------|-----------------------------------------------------|-----------|
+| include_downbeats_only | [bool](`bool`) | If True, only create events for beat 1 (downbeats). | `False`   |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                    |
+|--------|--------------|--------------------------------|
+|        | [int](`int`) | Number of beat events created. |
 
 ### materialize_measures { #timetoalign.timelines.BeatGrid.materialize_measures }
 
@@ -337,8 +388,11 @@ Add Measure events to this timeline at each measure boundary.
 
 Creates IntervalEvents for each complete measure.
 
-Returns:
-    Number of measure events created.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                       |
+|--------|--------------|-----------------------------------|
+|        | [int](`int`) | Number of measure events created. |
 
 ### measure_at { #timetoalign.timelines.BeatGrid.measure_at }
 
@@ -348,11 +402,17 @@ timelines.BeatGrid.measure_at(quarters)
 
 Get the measure count (MC) at a given quarter-note position.
 
-Args:
-    quarters: Position in quarter notes.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The measure count (integer, 1-indexed by default).
+| Name     | Type                                                | Description                | Default    |
+|----------|-----------------------------------------------------|----------------------------|------------|
+| quarters | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | Position in quarter notes. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                                        |
+|--------|--------------|----------------------------------------------------|
+|        | [int](`int`) | The measure count (integer, 1-indexed by default). |
 
 ### measure_at_seconds { #timetoalign.timelines.BeatGrid.measure_at_seconds }
 
@@ -362,15 +422,24 @@ timelines.BeatGrid.measure_at_seconds(seconds)
 
 Get the measure number at a given time in seconds.
 
-Args:
-    seconds: Time position in seconds.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Measure count (MC, 1-indexed by default).
+| Name    | Type             | Description               | Default    |
+|---------|------------------|---------------------------|------------|
+| seconds | [float](`float`) | Time position in seconds. | _required_ |
 
-Raises:
-    RuntimeError: If no tempo information is available.
-    ValueError: If seconds is before the first beat.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                               |
+|--------|--------------|-------------------------------------------|
+|        | [int](`int`) | Measure count (MC, 1-indexed by default). |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                           |
+|--------|--------------------------------|---------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If no tempo information is available. |
+|        | [ValueError](`ValueError`)     | If seconds is before the first beat.  |
 
 ### measure_quarters { #timetoalign.timelines.BeatGrid.measure_quarters }
 
@@ -380,13 +449,19 @@ timelines.BeatGrid.measure_quarters()
 
 All measure start positions in quarters. Vectorized O(1).
 
-Returns:
-    numpy array of measure start positions in quarter notes.
+#### Returns {.doc-section .doc-section-returns}
 
-Examples:
-    >>> grid = BeatGrid(length=16, beats_per_measure=4)
-    >>> grid.measure_quarters()
-    array([ 0.,  4.,  8., 12.])
+| Name   | Type                              | Description                                              |
+|--------|-----------------------------------|----------------------------------------------------------|
+|        | \'NDArray\[np.floating\[Any\]\]\' | numpy array of measure start positions in quarter notes. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> grid = BeatGrid(length=16, beats_per_measure=4)
+>>> grid.measure_quarters()
+array([ 0.,  4.,  8., 12.])
+```
 
 ### measure_seconds { #timetoalign.timelines.BeatGrid.measure_seconds }
 
@@ -399,17 +474,26 @@ All measure start times in seconds. Vectorized O(1).
 Requires the grid to have been created with from_tempo() and start_seconds,
 or to have a tempo_map attached.
 
-Returns:
-    numpy array of measure start times in seconds.
+#### Returns {.doc-section .doc-section-returns}
 
-Raises:
-    RuntimeError: If no tempo information is available.
+| Name   | Type                              | Description                                    |
+|--------|-----------------------------------|------------------------------------------------|
+|        | \'NDArray\[np.floating\[Any\]\]\' | numpy array of measure start times in seconds. |
 
-Examples:
-    >>> grid = BeatGrid.from_tempo(tempo_bpm=120, beats_per_measure=4,
-    ...                            length_seconds=60, start_seconds=0.5)
-    >>> grid.measure_seconds()[:4]
-    array([0.5 , 2.5 , 4.5 , 6.5 ])
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                           | Description                           |
+|--------|--------------------------------|---------------------------------------|
+|        | [RuntimeError](`RuntimeError`) | If no tempo information is available. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> grid = BeatGrid.from_tempo(tempo_bpm=120, beats_per_measure=4,
+...                            length_seconds=60, start_seconds=0.5)
+>>> grid.measure_seconds()[:4]
+array([0.5 , 2.5 , 4.5 , 6.5 ])
+```
 
 ### metrical_position { #timetoalign.timelines.BeatGrid.metrical_position }
 
@@ -419,11 +503,17 @@ timelines.BeatGrid.metrical_position(quarters)
 
 Get the full metrical position (mc and beat) at a given quarter position.
 
-Args:
-    quarters: Position in quarter notes.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Dictionary with 'mc' (int), 'beat' (Fraction), and 'mn' (str) keys.
+| Name     | Type                                                | Description                | Default    |
+|----------|-----------------------------------------------------|----------------------------|------------|
+| quarters | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | Position in quarter notes. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                                                         |
+|--------|-----------------------------------------------------|---------------------------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dictionary with 'mc' (int), 'beat' (Fraction), and 'mn' (str) keys. |
 
 ### mn_at { #timetoalign.timelines.BeatGrid.mn_at }
 
@@ -433,11 +523,17 @@ timelines.BeatGrid.mn_at(quarters)
 
 Get the measure number label (MN) at a given quarter-note position.
 
-Args:
-    quarters: Position in quarter notes.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The measure number label (string like "1", "0", "1a").
+| Name     | Type                                                | Description                | Default    |
+|----------|-----------------------------------------------------|----------------------------|------------|
+| quarters | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | Position in quarter notes. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                 | Description                                            |
+|--------|----------------------|--------------------------------------------------------|
+|        | [str](`str`) \| None | The measure number label (string like "1", "0", "1a"). |
 
 ### quarter_at { #timetoalign.timelines.BeatGrid.quarter_at }
 
@@ -447,15 +543,24 @@ timelines.BeatGrid.quarter_at(measure, beat=Fraction(1, 1))
 
 Get the quarter-note position for a given measure and beat.
 
-Args:
-    measure: Measure count (MC, uses start_measure as reference).
-    beat: Beat within the measure (1-indexed). Default Fraction(1, 1).
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Position in quarter notes.
+| Name    | Type                                                 | Description                                                  | Default          |
+|---------|------------------------------------------------------|--------------------------------------------------------------|------------------|
+| measure | [int](`int`)                                         | Measure count (MC, uses start_measure as reference).         | _required_       |
+| beat    | [float](`float`) \| [Fraction](`fractions.Fraction`) | Beat within the measure (1-indexed). Default Fraction(1, 1). | `Fraction(1, 1)` |
 
-Raises:
-    ValueError: If measure < start_measure or beat < 1.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                             | Description                |
+|--------|----------------------------------|----------------------------|
+|        | [Fraction](`fractions.Fraction`) | Position in quarter notes. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                             |
+|--------|----------------------------|-----------------------------------------|
+|        | [ValueError](`ValueError`) | If measure < start_measure or beat < 1. |
 
 ### to_dict { #timetoalign.timelines.BeatGrid.to_dict }
 
@@ -472,11 +577,15 @@ them from the construction parameters instead. Any other attached
 conversion map (for example, a tempo map from ``from_tempo`` or a
 user-attached map) is serialized normally.
 
-Args:
-    events: If True, include the ``"events"`` key (beat events and
-        any other events added to the grid).
-    external_references: If True, include the
-        ``"external_references"`` key, even when empty.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    A dictionary representation that reconstructs the attached meter maps.
+| Name                | Type           | Description                                                                                 | Default   |
+|---------------------|----------------|---------------------------------------------------------------------------------------------|-----------|
+| events              | [bool](`bool`) | If True, include the ``"events"`` key (beat events and any other events added to the grid). | `False`   |
+| external_references | [bool](`bool`) | If True, include the ``"external_references"`` key, even when empty.                        | `False`   |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                | Description                                                            |
+|--------|-----------------------------------------------------|------------------------------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | A dictionary representation that reconstructs the attached meter maps. |

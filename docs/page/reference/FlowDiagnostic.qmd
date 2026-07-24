@@ -12,19 +12,24 @@ well-formed score must satisfy. The controller never raises on a malformed
 flow — it reports. Each diagnostic names the kind of violation and, where
 applicable, the section(s) and measure involved.
 
-Attributes:
-    kind: Short machine-readable violation tag (e.g. ``"volta_follows_volta"``).
-    message: Human-readable explanation, including a remediation hint.
-    section_id: The offending source section's id, if the violation is
-        attributable to a single section. ``None`` otherwise.
-    mc: The measure count most relevant to the violation, if any.
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> diag = FlowDiagnostic(
-    ...     kind="volta_follows_volta",
-    ...     message="section 'B' flows directly to volta section 'C'",
-    ...     section_id="B",
-    ...     mc=5,
-    ... )
-    >>> diag.kind
-    'volta_follows_volta'
+| Name       | Type                 | Description                                                                                                  |
+|------------|----------------------|--------------------------------------------------------------------------------------------------------------|
+| kind       | [str](`str`)         | Short machine-readable violation tag (e.g. ``"volta_follows_volta"``).                                       |
+| message    | [str](`str`)         | Human-readable explanation, including a remediation hint.                                                    |
+| section_id | [str](`str`) \| None | The offending source section's id, if the violation is attributable to a single section. ``None`` otherwise. |
+| mc         | [int](`int`) \| None | The measure count most relevant to the violation, if any.                                                    |
+
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> diag = FlowDiagnostic(
+...     kind="volta_follows_volta",
+...     message="section 'B' flows directly to volta section 'C'",
+...     section_id="B",
+...     mc=5,
+... )
+>>> diag.kind
+'volta_follows_volta'
+```

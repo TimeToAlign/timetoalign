@@ -854,11 +854,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.timelines.FlowControllerBase" id="toc-timetoalign.timelines.FlowControllerBase" class="nav-link active" data-scroll-target="#timetoalign.timelines.FlowControllerBase">FlowControllerBase</a>
   <ul>
+  <li><a href="#public-api" id="toc-public-api" class="nav-link" data-scroll-target="#public-api">Public API</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.timelines.FlowControllerBase.compute_flow" id="toc-timetoalign.timelines.FlowControllerBase.compute_flow" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowControllerBase.compute_flow">compute_flow</a></li>
-  <li><a href="#timetoalign.timelines.FlowControllerBase.create_flow_map" id="toc-timetoalign.timelines.FlowControllerBase.create_flow_map" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowControllerBase.create_flow_map">create_flow_map</a></li>
-  <li><a href="#timetoalign.timelines.FlowControllerBase.iter_atomic_sections" id="toc-timetoalign.timelines.FlowControllerBase.iter_atomic_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowControllerBase.iter_atomic_sections">iter_atomic_sections</a></li>
+  <li><a href="#timetoalign.timelines.FlowControllerBase.compute_flow" id="toc-timetoalign.timelines.FlowControllerBase.compute_flow" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowControllerBase.compute_flow">compute_flow</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.FlowControllerBase.create_flow_map" id="toc-timetoalign.timelines.FlowControllerBase.create_flow_map" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowControllerBase.create_flow_map">create_flow_map</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.FlowControllerBase.iter_atomic_sections" id="toc-timetoalign.timelines.FlowControllerBase.iter_atomic_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowControllerBase.iter_atomic_sections">iter_atomic_sections</a>
+  <ul class="collapse">
+  <li><a href="#yields" id="toc-yields" class="nav-link" data-scroll-target="#yields">Yields</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -877,7 +889,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>A flow controller is a factory for producing Flows and FlowMaps. It operates as a background processor that computes flow control transformations but is NOT stored on the Timeline itself. Instead, the FlowMaps it produces are attached to Timelines.</p>
 <p>Subclasses implement the specific logic for different data sources: - ScoreFlowController: Works with MeasureData (mc, mn, next[], volta, etc.) - Future: AudioFlowController, VideoFlowController for other media types.</p>
 <p>Design Decisions: - A flow controller is a factory, NOT stored on Timeline - Sparse sections ARE allowed (atomic sections need not cover entire timeline) - Unit independence: Flows are sequences of TimeIntervals in ANY unit</p>
-<p>Public API: - iter_atomic_sections(): Iterate atomic (indivisible) sections - compute_flow(mode): Compute Flow for the given mode - create_flow_map(flow): Create FlowMap from computed Flow</p>
+<section id="public-api" class="level2 doc-section doc-section-public-api">
+<h2 class="doc-section doc-section-public-api anchored" data-anchor-id="public-api">Public API</h2>
+<ul>
+<li>iter_atomic_sections(): Iterate atomic (indivisible) sections</li>
+<li>compute_flow(mode): Compute Flow for the given mode</li>
+<li>create_flow_map(flow): Create FlowMap from computed Flow</li>
+</ul>
+</section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <table class="caption-top table">
@@ -906,25 +925,130 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowControllerBase.compute_flow">compute_flow</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowControllerBase.compute_flow(mode<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Compute a Flow for the given mode.</p>
-<p>Args: mode: The FlowMode to compute. None defaults to ATOMIC.</p>
-<p>Returns: The computed Flow.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 44%">
+<col style="width: 40%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>mode</td>
+<td><code>FlowMode</code> | None</td>
+<td>The FlowMode to compute. None defaults to ATOMIC.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/Flow.html#timetoalign.timelines.Flow">Flow</a></td>
+<td>The computed Flow.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.timelines.FlowControllerBase.create_flow_map" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowControllerBase.create_flow_map">create_flow_map</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowControllerBase.create_flow_map(flow<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a FlowMap from a computed Flow.</p>
 <p>If this controller has MeasureUnit data (i.e.&nbsp;is a ScoreFlowController), the FlowMap is built in <strong>quarterbeat space</strong> using <code>compute_qb_sections</code>. Otherwise falls back to MC-number space (legacy behaviour).</p>
-<p>Args: flow: The Flow to create a map from. If None, computes DEFAULT flow.</p>
-<p>Returns: FlowMap for coordinate transformation.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>flow</td>
+<td><a href="../reference/Flow.html#timetoalign.timelines.Flow">Flow</a> | None</td>
+<td>The Flow to create a map from. If None, computes DEFAULT flow.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/FlowMap.html#timetoalign.timelines.FlowMap">FlowMap</a></td>
+<td>FlowMap for coordinate transformation.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.timelines.FlowControllerBase.iter_atomic_sections" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowControllerBase.iter_atomic_sections">iter_atomic_sections</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowControllerBase.iter_atomic_sections()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Iterate over atomic (indivisible) sections.</p>
 <p>Each section is a tuple (start, end) representing a contiguous portion that cannot be split by flow control.</p>
-<p>Yields: Tuples of (start_coordinate, end_coordinate).</p>
+<section id="yields" class="level4 doc-section doc-section-yields">
+<h4 class="doc-section doc-section-yields anchored" data-anchor-id="yields">Yields</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 61%">
+<col style="width: 32%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>tuple</code>[<code>Fraction</code>, <code>Fraction</code>]</td>
+<td>Tuples of (start_coordinate, end_coordinate).</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

@@ -852,7 +852,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <h2 id="toc-title">On this page</h2>
 
   <ul>
-  <li><a href="#timetoalign.loader.tabular.LabLoader" id="toc-timetoalign.loader.tabular.LabLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.tabular.LabLoader">LabLoader</a></li>
+  <li><a href="#timetoalign.loader.tabular.LabLoader" id="toc-timetoalign.loader.tabular.LabLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.tabular.LabLoader">LabLoader</a>
+  <ul>
+  <li><a href="#file-format" id="toc-file-format" class="nav-link" data-scroll-target="#file-format">File Format</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -867,10 +871,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>loader.tabular.LabLoader(unit<span class="op">=</span><span class="va">None</span>, number_type<span class="op">=</span><span class="va">None</span>, <span class="op">**</span>kwargs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Loader for Audacity/Praat label files (.lab, .txt).</p>
 <p>Lab files are tab-separated with columns: start, end, label. Common in speech/music annotation workflows.</p>
-<p>File Format: start_time_time.5.0</p>
-<p>Examples: &gt;&gt;&gt; loader = LabLoader() &gt;&gt;&gt; loader.load(“regions.lab”)</p>
+<section id="file-format" class="level2 doc-section doc-section-file-format">
+<h2 class="doc-section doc-section-file-format anchored" data-anchor-id="file-format">File Format</h2>
+<p>start_time_time.5.0</p>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> LabLoader()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.load(<span class="st">"regions.lab"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 
 </main> <!-- /main -->

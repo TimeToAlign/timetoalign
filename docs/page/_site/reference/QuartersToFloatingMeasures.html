@@ -854,14 +854,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.QuartersToFloatingMeasures" id="toc-timetoalign.QuartersToFloatingMeasures" class="nav-link active" data-scroll-target="#timetoalign.QuartersToFloatingMeasures">QuartersToFloatingMeasures</a>
   <ul>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.QuartersToFloatingMeasures.from_dict" id="toc-timetoalign.QuartersToFloatingMeasures.from_dict" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.from_dict">from_dict</a></li>
-  <li><a href="#timetoalign.QuartersToFloatingMeasures.from_measure_data" id="toc-timetoalign.QuartersToFloatingMeasures.from_measure_data" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.from_measure_data">from_measure_data</a></li>
-  <li><a href="#timetoalign.QuartersToFloatingMeasures.from_metric_map" id="toc-timetoalign.QuartersToFloatingMeasures.from_metric_map" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.from_metric_map">from_metric_map</a></li>
-  <li><a href="#timetoalign.QuartersToFloatingMeasures.inverse" id="toc-timetoalign.QuartersToFloatingMeasures.inverse" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.inverse">inverse</a></li>
+  <li><a href="#timetoalign.QuartersToFloatingMeasures.from_measure_data" id="toc-timetoalign.QuartersToFloatingMeasures.from_measure_data" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.from_measure_data">from_measure_data</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.QuartersToFloatingMeasures.from_metric_map" id="toc-timetoalign.QuartersToFloatingMeasures.from_metric_map" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.from_metric_map">from_metric_map</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.QuartersToFloatingMeasures.inverse" id="toc-timetoalign.QuartersToFloatingMeasures.inverse" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.inverse">inverse</a>
+  <ul class="collapse">
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
   <li><a href="#timetoalign.QuartersToFloatingMeasures.to_dict" id="toc-timetoalign.QuartersToFloatingMeasures.to_dict" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.to_dict">to_dict</a></li>
-  <li><a href="#timetoalign.QuartersToFloatingMeasures.to_measure_number_map" id="toc-timetoalign.QuartersToFloatingMeasures.to_measure_number_map" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.to_measure_number_map">to_measure_number_map</a></li>
+  <li><a href="#timetoalign.QuartersToFloatingMeasures.to_measure_number_map" id="toc-timetoalign.QuartersToFloatingMeasures.to_measure_number_map" class="nav-link" data-scroll-target="#timetoalign.QuartersToFloatingMeasures.to_measure_number_map">to_measure_number_map</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -887,9 +904,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Returns continuous measure coordinates where: - 1.0 = start of measure 1 - 1.5 = halfway through measure 1 - 2.0 = start of measure 2</p>
 <p>This IS a coordinate conversion map: it converts from quarters to measures (TimeUnit.measures).</p>
 <p>This is useful for visualization (e.g., piano roll x-axis in measures) and for interpolating positions within measures.</p>
-<p>Examples: &gt;&gt;&gt; cmap = QuartersToFloatingMeasures( … x_values=[0, 4, 8, 12], … y_values=[1.0, 2.0, 3.0, 4.0], … ) &gt;&gt;&gt; cmap(0.0) # Start of M1 1.0 &gt;&gt;&gt; cmap(2.0) # Halfway through M1 (4 quarters/measure) 1.5 &gt;&gt;&gt; cmap(4.0) # Start of M2 2.0</p>
-<pre><code>&gt;&gt;&gt; # From MetricMap
-&gt;&gt;&gt; cmap = QuartersToFloatingMeasures.from_metric_map(meter)</code></pre>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cmap <span class="op">=</span> QuartersToFloatingMeasures(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>...     x_values<span class="op">=</span>[<span class="dv">0</span>, <span class="dv">4</span>, <span class="dv">8</span>, <span class="dv">12</span>],</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     y_values<span class="op">=</span>[<span class="fl">1.0</span>, <span class="fl">2.0</span>, <span class="fl">3.0</span>, <span class="fl">4.0</span>],</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cmap(<span class="fl">0.0</span>)    <span class="co"># Start of M1</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fl">1.0</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cmap(<span class="fl">2.0</span>)    <span class="co"># Halfway through M1 (4 quarters/measure)</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fl">1.5</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cmap(<span class="fl">4.0</span>)    <span class="co"># Start of M2</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="fl">2.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># From MetricMap</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cmap <span class="op">=</span> QuartersToFloatingMeasures.from_metric_map(meter)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <table class="caption-top table">
@@ -928,44 +957,217 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.QuartersToFloatingMeasures.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.QuartersToFloatingMeasures.from_dict">from_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Deserialize from dictionary.</p>
 </section>
 <section id="timetoalign.QuartersToFloatingMeasures.from_measure_data" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.QuartersToFloatingMeasures.from_measure_data">from_measure_data</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.from_measure_data(measures)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.from_measure_data(measures)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create from MeasureData (loaded from TSV/JSON).</p>
-<p>Args: measures: MeasureData with measure events.</p>
-<p>Returns: QuartersToFloatingMeasures map.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 55%">
+<col style="width: 26%">
+<col style="width: 9%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>measures</td>
+<td><code>MeasureData</code></td>
+<td>MeasureData with measure events.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/QuartersToFloatingMeasures.html#timetoalign.QuartersToFloatingMeasures">QuartersToFloatingMeasures</a></td>
+<td>QuartersToFloatingMeasures map.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.QuartersToFloatingMeasures.from_metric_map" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.QuartersToFloatingMeasures.from_metric_map">from_metric_map</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.from_metric_map(meter)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.from_metric_map(meter)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create from a MetricMap.</p>
 <p>Uses MN integers (or MC if MN not available) as measure numbers. Adds a final extrapolation point for the end of the last measure.</p>
-<p>Args: meter: MetricMap with measure boundary information.</p>
-<p>Returns: QuartersToFloatingMeasures map.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 42%">
+<col style="width: 40%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>meter</td>
+<td><code>MetricMap</code></td>
+<td>MetricMap with measure boundary information.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/QuartersToFloatingMeasures.html#timetoalign.QuartersToFloatingMeasures">QuartersToFloatingMeasures</a></td>
+<td>QuartersToFloatingMeasures map.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.QuartersToFloatingMeasures.inverse" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.QuartersToFloatingMeasures.inverse">inverse</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return the inverse map (measures -&gt; quarters).</p>
-<p>Returns: A TableMap converting measures to quarters.</p>
-<p>Raises: NotImplementedError: If not invertible (should not happen for this map).</p>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/TableMap.html#timetoalign.TableMap">TableMap</a></td>
+<td>A TableMap converting measures to quarters.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 42%">
+<col style="width: 49%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>NotImplementedError</code></td>
+<td>If not invertible (should not happen for this map).</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.QuartersToFloatingMeasures.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.QuartersToFloatingMeasures.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Serialize to dictionary.</p>
 </section>
 <section id="timetoalign.QuartersToFloatingMeasures.to_measure_number_map" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.QuartersToFloatingMeasures.to_measure_number_map">to_measure_number_map</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.to_measure_number_map(mns<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>QuartersToFloatingMeasures.to_measure_number_map(mns<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Convert to non-interpolating measure number map.</p>
-<p>Args: mns: MN labels to use. If None, uses floor(y_value) as string.</p>
-<p>Returns: QuartersToMeasureNumber with the same boundaries.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 6%">
+<col style="width: 41%">
+<col style="width: 44%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>mns</td>
+<td><code>Sequence</code>[<code>str</code>] | None</td>
+<td>MN labels to use. If None, uses floor(y_value) as string.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-3" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/QuartersToMeasureNumber.html#timetoalign.QuartersToMeasureNumber">QuartersToMeasureNumber</a></td>
+<td>QuartersToMeasureNumber with the same boundaries.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

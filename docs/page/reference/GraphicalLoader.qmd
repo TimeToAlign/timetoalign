@@ -9,31 +9,30 @@ Factory for building GraphicalStore objects.
 The loader accumulates sources and segments, then builds a store.
 This provides a fluent interface for constructing graphical timelines.
 
-Examples:
-    >>> loader = GraphicalLoader()
-    >>> idx = loader.add_image("score.png")
-    >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
-    >>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
-    >>> store = loader.store
+## Examples {.doc-section .doc-section-examples}
 
-    >>> # From PDF
-    >>> import pymupdf
-    >>> doc = pymupdf.open("score.pdf")
-    >>> loader = GraphicalLoader()
-    >>> idx = loader.add_pdf_page(doc, 0)
-    >>> loader.add_horizontal_segment(idx, x0=50, x1=550, y=100, name="page1")
+```python
+>>> loader = GraphicalLoader()
+>>> idx = loader.add_image("score.png")
+>>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=100, name="system_1")
+>>> loader.add_horizontal_segment(idx, x0=10, x1=500, y=200, name="system_2")
+>>> store = loader.store
+```
 
-Attributes:
-    metadata: Optional metadata dictionary attached to the store.
+```python
+>>> # From PDF
+>>> import pymupdf
+>>> doc = pymupdf.open("score.pdf")
+>>> loader = GraphicalLoader()
+>>> idx = loader.add_pdf_page(doc, 0)
+>>> loader.add_horizontal_segment(idx, x0=50, x1=550, y=100, name="page1")
+```
 
-## Attributes
+## Attributes {.doc-section .doc-section-attributes}
 
-| Name | Description |
-| --- | --- |
-| [current_offset](#timetoalign.loader.graphical.GraphicalLoader.current_offset) | Current offset for the next contiguous segment. |
-| [n_segments](#timetoalign.loader.graphical.GraphicalLoader.n_segments) | Number of segments added. |
-| [n_sources](#timetoalign.loader.graphical.GraphicalLoader.n_sources) | Number of sources added. |
-| [store](#timetoalign.loader.graphical.GraphicalLoader.store) | Build and return a new ``GraphicalStore``. |
+| Name     | Type                                                | Description                                         |
+|----------|-----------------------------------------------------|-----------------------------------------------------|
+| metadata | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Optional metadata dictionary attached to the store. |
 
 ## Methods
 
@@ -68,17 +67,23 @@ Add a horizontal line segment (convenience method).
 
 This is the most common case for musical scores and spectrograms.
 
-Args:
-    source_index: Index of the source image.
-    x0: Starting x coordinate (left edge).
-    x1: Ending x coordinate (right edge).
-    y: Fixed y coordinate (vertical position).
-    name: Optional human-readable name.
-    offset: Timeline offset. If None, appends contiguously.
-    tolerance: Distance tolerance for coordinate conversion.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The created GraphicalSegment.
+| Name         | Type                     | Description                                     | Default    |
+|--------------|--------------------------|-------------------------------------------------|------------|
+| source_index | [int](`int`)             | Index of the source image.                      | _required_ |
+| x0           | [float](`float`)         | Starting x coordinate (left edge).              | _required_ |
+| x1           | [float](`float`)         | Ending x coordinate (right edge).               | _required_ |
+| y            | [float](`float`)         | Fixed y coordinate (vertical position).         | _required_ |
+| name         | [str](`str`) \| None     | Optional human-readable name.                   | `None`     |
+| offset       | [float](`float`) \| None | Timeline offset. If None, appends contiguously. | `None`     |
+| tolerance    | [float](`float`)         | Distance tolerance for coordinate conversion.   | `10.0`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                        | Description                   |
+|--------|-----------------------------------------------------------------------------|-------------------------------|
+|        | [GraphicalSegment](`timetoalign.loader.graphical.segment.GraphicalSegment`) | The created GraphicalSegment. |
 
 ### add_image { #timetoalign.loader.graphical.GraphicalLoader.add_image }
 
@@ -88,15 +93,24 @@ loader.graphical.GraphicalLoader.add_image(path)
 
 Add an image file as a source.
 
-Args:
-    path: Path to the image file.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Index of the added source (for use in add_segment).
+| Name   | Type                                   | Description             | Default    |
+|--------|----------------------------------------|-------------------------|------------|
+| path   | [Path](`pathlib.Path`) \| [str](`str`) | Path to the image file. | _required_ |
 
-Raises:
-    FileNotFoundError: If file doesn't exist.
-    ValueError: If format is not supported.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                                         |
+|--------|--------------|-----------------------------------------------------|
+|        | [int](`int`) | Index of the added source (for use in add_segment). |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                                     | Description                 |
+|--------|------------------------------------------|-----------------------------|
+|        | [FileNotFoundError](`FileNotFoundError`) | If file doesn't exist.      |
+|        | [ValueError](`ValueError`)               | If format is not supported. |
 
 ### add_image_source { #timetoalign.loader.graphical.GraphicalLoader.add_image_source }
 
@@ -106,11 +120,17 @@ loader.graphical.GraphicalLoader.add_image_source(source)
 
 Add a pre-constructed ImageSource.
 
-Args:
-    source: The ImageSource to add.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Index of the added source.
+| Name   | Type                                                             | Description             | Default    |
+|--------|------------------------------------------------------------------|-------------------------|------------|
+| source | [ImageSource](`timetoalign.loader.graphical.source.ImageSource`) | The ImageSource to add. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                |
+|--------|--------------|----------------------------|
+|        | [int](`int`) | Index of the added source. |
 
 ### add_pdf_embedded_image { #timetoalign.loader.graphical.GraphicalLoader.add_pdf_embedded_image }
 
@@ -120,12 +140,18 @@ loader.graphical.GraphicalLoader.add_pdf_embedded_image(doc, xref)
 
 Add an embedded PDF image as a source.
 
-Args:
-    doc: An open pymupdf Document.
-    xref: Cross-reference number of the image.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Index of the added source.
+| Name   | Type                 | Description                          | Default    |
+|--------|----------------------|--------------------------------------|------------|
+| doc    | \'pymupdf.Document\' | An open pymupdf Document.            | _required_ |
+| xref   | [int](`int`)         | Cross-reference number of the image. | _required_ |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                |
+|--------|--------------|----------------------------|
+|        | [int](`int`) | Index of the added source. |
 
 ### add_pdf_page { #timetoalign.loader.graphical.GraphicalLoader.add_pdf_page }
 
@@ -135,13 +161,19 @@ loader.graphical.GraphicalLoader.add_pdf_page(doc, page_index, dpi=150)
 
 Add a PDF page (rendered as image) as a source.
 
-Args:
-    doc: An open pymupdf Document.
-    page_index: Zero-based page index.
-    dpi: Resolution for rendering.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    Index of the added source.
+| Name       | Type                 | Description               | Default    |
+|------------|----------------------|---------------------------|------------|
+| doc        | \'pymupdf.Document\' | An open pymupdf Document. | _required_ |
+| page_index | [int](`int`)         | Zero-based page index.    | _required_ |
+| dpi        | [int](`int`)         | Resolution for rendering. | `150`      |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type         | Description                |
+|--------|--------------|----------------------------|
+|        | [int](`int`) | Index of the added source. |
 
 ### add_segment { #timetoalign.loader.graphical.GraphicalLoader.add_segment }
 
@@ -156,17 +188,26 @@ loader.graphical.GraphicalLoader.add_segment(
 
 Add a segment with arbitrary path.
 
-Args:
-    source_index: Index of the source image.
-    path: TimeAxisPath defining the time axis geometry.
-    name: Optional human-readable name.
-    offset: Timeline offset. If None, appends contiguously.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The created GraphicalSegment.
+| Name         | Type                                                              | Description                                     | Default    |
+|--------------|-------------------------------------------------------------------|-------------------------------------------------|------------|
+| source_index | [int](`int`)                                                      | Index of the source image.                      | _required_ |
+| path         | [TimeAxisPath](`timetoalign.loader.graphical.paths.TimeAxisPath`) | TimeAxisPath defining the time axis geometry.   | _required_ |
+| name         | [str](`str`) \| None                                              | Optional human-readable name.                   | `None`     |
+| offset       | [float](`float`) \| None                                          | Timeline offset. If None, appends contiguously. | `None`     |
 
-Raises:
-    IndexError: If source_index is invalid.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                        | Description                   |
+|--------|-----------------------------------------------------------------------------|-------------------------------|
+|        | [GraphicalSegment](`timetoalign.loader.graphical.segment.GraphicalSegment`) | The created GraphicalSegment. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                 |
+|--------|----------------------------|-----------------------------|
+|        | [IndexError](`IndexError`) | If source_index is invalid. |
 
 ### add_vertical_segment { #timetoalign.loader.graphical.GraphicalLoader.add_vertical_segment }
 
@@ -184,17 +225,23 @@ loader.graphical.GraphicalLoader.add_vertical_segment(
 
 Add a vertical line segment (convenience method).
 
-Args:
-    source_index: Index of the source image.
-    x: Fixed x coordinate.
-    y0: Starting y coordinate (top).
-    y1: Ending y coordinate (bottom).
-    name: Optional human-readable name.
-    offset: Timeline offset. If None, appends contiguously.
-    tolerance: Distance tolerance for coordinate conversion.
+#### Parameters {.doc-section .doc-section-parameters}
 
-Returns:
-    The created GraphicalSegment.
+| Name         | Type                     | Description                                     | Default    |
+|--------------|--------------------------|-------------------------------------------------|------------|
+| source_index | [int](`int`)             | Index of the source image.                      | _required_ |
+| x            | [float](`float`)         | Fixed x coordinate.                             | _required_ |
+| y0           | [float](`float`)         | Starting y coordinate (top).                    | _required_ |
+| y1           | [float](`float`)         | Ending y coordinate (bottom).                   | _required_ |
+| name         | [str](`str`) \| None     | Optional human-readable name.                   | `None`     |
+| offset       | [float](`float`) \| None | Timeline offset. If None, appends contiguously. | `None`     |
+| tolerance    | [float](`float`)         | Distance tolerance for coordinate conversion.   | `10.0`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                        | Description                   |
+|--------|-----------------------------------------------------------------------------|-------------------------------|
+|        | [GraphicalSegment](`timetoalign.loader.graphical.segment.GraphicalSegment`) | The created GraphicalSegment. |
 
 ### build { #timetoalign.loader.graphical.GraphicalLoader.build }
 
@@ -204,8 +251,11 @@ loader.graphical.GraphicalLoader.build()
 
 Alias for :pyattr:`store`.
 
-Returns:
-    GraphicalStore containing all sources and segments.
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                  | Description                                         |
+|--------|-----------------------------------------------------------------------|-----------------------------------------------------|
+|        | [GraphicalStore](`timetoalign.loader.graphical.store.GraphicalStore`) | GraphicalStore containing all sources and segments. |
 
 ### clear { #timetoalign.loader.graphical.GraphicalLoader.clear }
 
@@ -223,5 +273,8 @@ loader.graphical.GraphicalLoader.reset_offset(offset=0.0)
 
 Reset the current offset for contiguous segment addition.
 
-Args:
-    offset: New offset value (default 0.0).
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type             | Description                     | Default   |
+|--------|------------------|---------------------------------|-----------|
+| offset | [float](`float`) | New offset value (default 0.0). | `0.0`     |

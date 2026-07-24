@@ -884,24 +884,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Map defined by different maps on different intervals.</p>
 <p>Also known as ConcatenationMap. Defined by a set of break points and the maps to use between them.</p>
 <p>Intervals are [start, end).</p>
-<p>Attributes: breaks: Sorted list of break points. N breaks define N+1 regions (or N regions). Here we strictly define regions between breaks. If we have breaks [0, 10, 20], we have regions [0, 10) and [10, 20). Anything outside is handled by ‘extrapolate’ or explicit outer maps. maps: Maps for each interval. len(maps) must be len(breaks) - 1.</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.PiecewiseMap.breaks">breaks</a></td>
-<td>The interval boundaries.</td>
+<td>breaks</td>
+<td><code>NDArray</code>[<code>np</code>.<code>floating</code>[<code>Any</code>]]</td>
+<td>Sorted list of break points. N breaks define N+1 regions (or N regions). Here we strictly define regions between breaks. If we have breaks [0, 10, 20], we have regions [0, 10) and [10, 20). Anything outside is handled by ‘extrapolate’ or explicit outer maps.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.PiecewiseMap.maps">maps</a></td>
-<td>The maps for each interval.</td>
+<td>maps</td>
+<td><code>list</code>[<a href="../reference/ConversionMap.html#timetoalign.ConversionMap">ConversionMap</a>[<code>Any</code>]]</td>
+<td>Maps for each interval. len(maps) must be len(breaks) - 1.</td>
 </tr>
 </tbody>
 </table>

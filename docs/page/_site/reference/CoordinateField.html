@@ -854,6 +854,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.CoordinateField" id="toc-timetoalign.CoordinateField" class="nav-link active" data-scroll-target="#timetoalign.CoordinateField">CoordinateField</a>
   <ul>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
   <li><a href="#timetoalign.CoordinateField.matches_pa_field" id="toc-timetoalign.CoordinateField.matches_pa_field" class="nav-link" data-scroll-target="#timetoalign.CoordinateField.matches_pa_field">matches_pa_field</a></li>
@@ -874,7 +875,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Semantic field for coordinate fields.</p>
 <p>Wraps a <code>StructField</code> containing the coordinate struct <code>{value: float64, numerator: int64, denominator: int64}</code> and adds semantic identity: unit, domain, number_type.</p>
 <p>Pairs with :class:<code>Coordinate</code>.</p>
-<p>Examples: &gt;&gt;&gt; import pyarrow as pa &gt;&gt;&gt; from timetoalign.core.enums import TimeUnit, NumberType &gt;&gt;&gt; from timetoalign.core.time import CoordinateField &gt;&gt;&gt; arr = pa.array( … [{“value”: 1.5, “numerator”: 3, “denominator”: 2}], … type=pa.struct([ … pa.field(“value”, pa.float64()), … pa.field(“numerator”, pa.int64()), … pa.field(“denominator”, pa.int64()), … ]), … ) &gt;&gt;&gt; cf = CoordinateField.from_field(arr, unit=TimeUnit.seconds, number_type=NumberType.float) &gt;&gt;&gt; cf[0] Coordinate(1.5, seconds)</p>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">import</span> pyarrow <span class="im">as</span> pa</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> timetoalign.core.enums <span class="im">import</span> TimeUnit, NumberType</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> timetoalign.core.time <span class="im">import</span> CoordinateField</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> arr <span class="op">=</span> pa.array(</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>...     [{<span class="st">"value"</span>: <span class="fl">1.5</span>, <span class="st">"numerator"</span>: <span class="dv">3</span>, <span class="st">"denominator"</span>: <span class="dv">2</span>}],</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">type</span><span class="op">=</span>pa.struct([</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>...         pa.field(<span class="st">"value"</span>, pa.float64()),</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>...         pa.field(<span class="st">"numerator"</span>, pa.int64()),</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>...         pa.field(<span class="st">"denominator"</span>, pa.int64()),</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>...     ]),</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cf <span class="op">=</span> CoordinateField.from_field(arr, unit<span class="op">=</span>TimeUnit.seconds, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> cf[<span class="dv">0</span>]</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>Coordinate(<span class="fl">1.5</span>, seconds)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <table class="caption-top table">
@@ -893,7 +910,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.CoordinateField.matches_pa_field" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.CoordinateField.matches_pa_field">matches_pa_field</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>CoordinateField.matches_pa_field(pa_field)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>CoordinateField.matches_pa_field(pa_field)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Reject <code>IdCoordinateField</code> shapes — they live in a sibling class.</p>
 <p>The base <code>SemanticField.matches_pa_field</code> is shape-OR-metadata. Since <code>IdCoordinateField</code> has the same struct shape, this method explicitly rejects <code>pa.Field</code> whose metadata advertises <code>"IdCoordinateField"</code>; structural shape matches still resolve to <code>CoordinateField</code> for backward compatibility with non-Id fields.</p>
 

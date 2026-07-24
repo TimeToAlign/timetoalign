@@ -855,13 +855,33 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.InterpolationMap" id="toc-timetoalign.InterpolationMap" class="nav-link active" data-scroll-target="#timetoalign.InterpolationMap">InterpolationMap</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.InterpolationMap.from_dict" id="toc-timetoalign.InterpolationMap.from_dict" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.from_dict">from_dict</a></li>
-  <li><a href="#timetoalign.InterpolationMap.identity" id="toc-timetoalign.InterpolationMap.identity" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.identity">identity</a></li>
-  <li><a href="#timetoalign.InterpolationMap.inverse" id="toc-timetoalign.InterpolationMap.inverse" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.inverse">inverse</a></li>
-  <li><a href="#timetoalign.InterpolationMap.matches_selector" id="toc-timetoalign.InterpolationMap.matches_selector" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.matches_selector">matches_selector</a></li>
-  <li><a href="#timetoalign.InterpolationMap.to_dict" id="toc-timetoalign.InterpolationMap.to_dict" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.to_dict">to_dict</a></li>
+  <li><a href="#timetoalign.InterpolationMap.from_dict" id="toc-timetoalign.InterpolationMap.from_dict" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.from_dict">from_dict</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.InterpolationMap.identity" id="toc-timetoalign.InterpolationMap.identity" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.identity">identity</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.InterpolationMap.inverse" id="toc-timetoalign.InterpolationMap.inverse" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.inverse">inverse</a>
+  <ul class="collapse">
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.InterpolationMap.matches_selector" id="toc-timetoalign.InterpolationMap.matches_selector" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.matches_selector">matches_selector</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.InterpolationMap.to_dict" id="toc-timetoalign.InterpolationMap.to_dict" class="nav-link" data-scroll-target="#timetoalign.InterpolationMap.to_dict">to_dict</a>
+  <ul class="collapse">
+  <li><a href="#returns-4" id="toc-returns-4" class="nav-link" data-scroll-target="#returns-4">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -888,53 +908,67 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>Bidirectional coordinate mapping using numpy.interp.</p>
 <p>Provides O(log n) coordinate conversion without table lookup. Used for: - Timeline &lt;-&gt; Group relationships - WarpMap alignment warping</p>
 <p>The map is bidirectional: calling the map converts source -&gt; target, and <code>inverse()</code> returns a new map that converts target -&gt; source.</p>
-<p>Attributes: source_coords: Sorted source axis coordinates (float64). Read-only: the array is copied on construction and marked non-writable, so in-place mutation raises <code>ValueError</code> instead of silently desynchronizing the cached inverse. target_coords: Corresponding target values (float64). Read-only, for the same reason as source_coords. source_id: Timeline/C-Map ID for source. target_id: Timeline/C-Map ID for target.</p>
-<p>Examples: &gt;&gt;&gt; # Simple offset relationship: child at offset 10 in parent &gt;&gt;&gt; imap = InterpolationMap( … source_coords=np.array([0.0, 100.0]), # child coords … target_coords=np.array([10.0, 110.0]), # parent coords … source_id=“child:1”, … target_id=“parent:1”, … ) &gt;&gt;&gt; imap(50.0) # child 50 -&gt; parent 60 60.0 &gt;&gt;&gt; imap.inverse()(60.0) # parent 60 -&gt; child 50 50.0</p>
-<pre><code>&gt;&gt;&gt; # Tempo map: ticks to seconds
-&gt;&gt;&gt; imap = InterpolationMap(
-...     source_coords=np.array([0.0, 480.0, 960.0]),
-...     target_coords=np.array([0.0, 0.5, 1.5]),
-...     source_id="ticks",
-...     target_id="seconds",
-... )
-&gt;&gt;&gt; imap(240.0)  # 240 ticks -&gt; 0.25 seconds
-0.25</code></pre>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 31%">
+<col style="width: 64%">
+</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.InterpolationMap.is_invertible">is_invertible</a></td>
-<td>Whether this map can be inverted.</td>
+<td>source_coords</td>
+<td><code>NDArray</code>[<code>np</code>.<code>floating</code>[<code>Any</code>]]</td>
+<td>Sorted source axis coordinates (float64). Read-only: the array is copied on construction and marked non-writable, so in-place mutation raises <code>ValueError</code> instead of silently desynchronizing the cached inverse.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.InterpolationMap.n_anchors">n_anchors</a></td>
-<td>Number of anchor points.</td>
+<td>target_coords</td>
+<td><code>NDArray</code>[<code>np</code>.<code>floating</code>[<code>Any</code>]]</td>
+<td>Corresponding target values (float64). Read-only, for the same reason as source_coords.</td>
 </tr>
 <tr class="odd">
-<td><a href="#timetoalign.InterpolationMap.source_max">source_max</a></td>
-<td>Maximum source coordinate.</td>
+<td>source_id</td>
+<td></td>
+<td>Timeline/C-Map ID for source.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.InterpolationMap.source_min">source_min</a></td>
-<td>Minimum source coordinate.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.InterpolationMap.target_max">target_max</a></td>
-<td>Maximum target coordinate.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.InterpolationMap.target_min">target_min</a></td>
-<td>Minimum target coordinate.</td>
+<td>target_id</td>
+<td></td>
+<td>Timeline/C-Map ID for target.</td>
 </tr>
 </tbody>
 </table>
+</section>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Simple offset relationship: child at offset 10 in parent</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> imap <span class="op">=</span> InterpolationMap(</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     source_coords<span class="op">=</span>np.array([<span class="fl">0.0</span>, <span class="fl">100.0</span>]),  <span class="co"># child coords</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>...     target_coords<span class="op">=</span>np.array([<span class="fl">10.0</span>, <span class="fl">110.0</span>]),  <span class="co"># parent coords</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>...     source_id<span class="op">=</span><span class="st">"child:1"</span>,</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>...     target_id<span class="op">=</span><span class="st">"parent:1"</span>,</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> imap(<span class="fl">50.0</span>)  <span class="co"># child 50 -&gt; parent 60</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="fl">60.0</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> imap.inverse()(<span class="fl">60.0</span>)  <span class="co"># parent 60 -&gt; child 50</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fl">50.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Tempo map: ticks to seconds</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> imap <span class="op">=</span> InterpolationMap(</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>...     source_coords<span class="op">=</span>np.array([<span class="fl">0.0</span>, <span class="fl">480.0</span>, <span class="fl">960.0</span>]),</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>...     target_coords<span class="op">=</span>np.array([<span class="fl">0.0</span>, <span class="fl">0.5</span>, <span class="fl">1.5</span>]),</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>...     source_id<span class="op">=</span><span class="st">"ticks"</span>,</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>...     target_id<span class="op">=</span><span class="st">"seconds"</span>,</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> imap(<span class="fl">240.0</span>)  <span class="co"># 240 ticks -&gt; 0.25 seconds</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="fl">0.25</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -970,42 +1004,260 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 <section id="timetoalign.InterpolationMap.from_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.InterpolationMap.from_dict">from_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.from_dict(data)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Deserialize from dictionary.</p>
-<p>Args: data: Dictionary representation.</p>
-<p>Returns: A new InterpolationMap instance.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 7%">
+<col style="width: 52%">
+<col style="width: 27%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>data</td>
+<td><code>dict</code>[<code>str</code>, <code>Any</code>]</td>
+<td>Dictionary representation.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/InterpolationMap.html#timetoalign.InterpolationMap">InterpolationMap</a></td>
+<td>A new InterpolationMap instance.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.InterpolationMap.identity" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.InterpolationMap.identity">identity</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.identity(start<span class="op">=</span><span class="fl">0.0</span>, end<span class="op">=</span><span class="fl">1.0</span>, timeline_id<span class="op">=</span><span class="st">'identity'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.identity(start<span class="op">=</span><span class="fl">0.0</span>, end<span class="op">=</span><span class="fl">1.0</span>, timeline_id<span class="op">=</span><span class="st">'identity'</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create an identity map (output = input).</p>
 <p>Useful for testing or placeholder mappings.</p>
-<p>Args: start: Start coordinate. end: End coordinate. timeline_id: ID to use for both source and target.</p>
-<p>Returns: InterpolationMap where map(x) == x.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 15%">
+<col style="width: 21%">
+<col style="width: 46%">
+<col style="width: 16%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>start</td>
+<td><code>float</code></td>
+<td>Start coordinate.</td>
+<td><code>0.0</code></td>
+</tr>
+<tr class="even">
+<td>end</td>
+<td><code>float</code></td>
+<td>End coordinate.</td>
+<td><code>1.0</code></td>
+</tr>
+<tr class="odd">
+<td>timeline_id</td>
+<td><code>str</code></td>
+<td>ID to use for both source and target.</td>
+<td><code>'identity'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/InterpolationMap.html#timetoalign.InterpolationMap">InterpolationMap</a></td>
+<td>InterpolationMap where map(x) == x.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.InterpolationMap.inverse" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.InterpolationMap.inverse">inverse</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return the inverse map (target -&gt; source).</p>
 <p>The inverse is cached: repeated calls return the same instance, and the returned map’s own <code>inverse()</code> returns back the original.</p>
-<p>Returns: A new InterpolationMap with source and target swapped.</p>
-<p>Raises: ValueError: If target_coords are not strictly monotonic.</p>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 34%">
+<col style="width: 57%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>Self</code></td>
+<td>A new InterpolationMap with source and target swapped.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 34%">
+<col style="width: 56%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If target_coords are not strictly monotonic.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.InterpolationMap.matches_selector" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.InterpolationMap.matches_selector">matches_selector</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.matches_selector(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.matches_selector(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return whether a user conversion-map selector addresses this map.</p>
 <p>In addition to the id/name match provided by the family base class, group converter maps are addressed by their source timeline id in conversion-map specifications, since InterpolationMap instances are auto-generated and have no meaningful user-facing id or name.</p>
-<p>Args: key: A selector string from a conversion-map specification.</p>
-<p>Returns: True if key equals this map’s id, name, or source_id.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 15%">
+<col style="width: 62%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>key</td>
+<td><code>str</code></td>
+<td>A selector string from a conversion-map specification.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-3" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 20%">
+<col style="width: 69%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>bool</code></td>
+<td>True if key equals this map’s id, name, or source_id.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.InterpolationMap.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.InterpolationMap.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>InterpolationMap.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Serialize the map to a dictionary.</p>
-<p>Returns: Dictionary representation of the map.</p>
+<section id="returns-4" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-4">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 53%">
+<col style="width: 39%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>dict</code>[<code>str</code>, <code>Any</code>]</td>
+<td>Dictionary representation of the map.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

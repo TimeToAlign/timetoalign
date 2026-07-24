@@ -854,9 +854,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.alignment.MatchFileContext" id="toc-timetoalign.alignment.MatchFileContext" class="nav-link active" data-scroll-target="#timetoalign.alignment.MatchFileContext">MatchFileContext</a>
   <ul>
+  <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.alignment.MatchFileContext.from_dataframes" id="toc-timetoalign.alignment.MatchFileContext.from_dataframes" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchFileContext.from_dataframes">from_dataframes</a></li>
+  <li><a href="#timetoalign.alignment.MatchFileContext.from_dataframes" id="toc-timetoalign.alignment.MatchFileContext.from_dataframes" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchFileContext.from_dataframes">from_dataframes</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -886,7 +891,80 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Supplementary data required for <code>.match</code> file export.</p>
 <p>This context object bridges the gap between the coordinate-only :class:<code>~timetoalign.MatchStamp</code> data and the rich note-level data required by the Vienna <code>.match</code> format. It is typically constructed via :meth:<code>from_dataframes</code> or assembled manually.</p>
-<p>Attributes: piece: Piece name for the <code>info(piece,...)</code> header. composer: Composer name for the <code>info(composer,...)</code> header. performer: Performer name for the <code>info(performer,...)</code> header. score_filename: Score file name for the header. midi_filename: MIDI file name for the header. midi_clock_units: MIDI clock units (divisions per quarter note). midi_clock_rate: MIDI clock rate in microseconds per quarter note. score_notes: Lookup from score coordinate to list of :class:<code>SnoteRecord</code> objects at that coordinate. perf_notes: Lookup from performance coordinate to list of :class:<code>NoteRecord</code> objects at that coordinate. score_properties: Pre-formatted <code>scoreprop(...)</code> lines. deletions: Score notes with no performance match. insertions: Performance notes with no score match.</p>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>piece</td>
+<td><code>str</code></td>
+<td>Piece name for the <code>info(piece,...)</code> header.</td>
+</tr>
+<tr class="even">
+<td>composer</td>
+<td><code>str</code></td>
+<td>Composer name for the <code>info(composer,...)</code> header.</td>
+</tr>
+<tr class="odd">
+<td>performer</td>
+<td><code>str</code></td>
+<td>Performer name for the <code>info(performer,...)</code> header.</td>
+</tr>
+<tr class="even">
+<td>score_filename</td>
+<td><code>str</code></td>
+<td>Score file name for the header.</td>
+</tr>
+<tr class="odd">
+<td>midi_filename</td>
+<td><code>str</code></td>
+<td>MIDI file name for the header.</td>
+</tr>
+<tr class="even">
+<td>midi_clock_units</td>
+<td><code>int</code></td>
+<td>MIDI clock units (divisions per quarter note).</td>
+</tr>
+<tr class="odd">
+<td>midi_clock_rate</td>
+<td><code>int</code></td>
+<td>MIDI clock rate in microseconds per quarter note.</td>
+</tr>
+<tr class="even">
+<td>score_notes</td>
+<td><code>dict</code>[<code>float</code>, <code>list</code>[<a href="../reference/SnoteRecord.html#timetoalign.alignment.SnoteRecord">SnoteRecord</a>]]</td>
+<td>Lookup from score coordinate to list of :class:<code>SnoteRecord</code> objects at that coordinate.</td>
+</tr>
+<tr class="odd">
+<td>perf_notes</td>
+<td><code>dict</code>[<code>float</code>, <code>list</code>[<a href="../reference/NoteRecord.html#timetoalign.alignment.NoteRecord">NoteRecord</a>]]</td>
+<td>Lookup from performance coordinate to list of :class:<code>NoteRecord</code> objects at that coordinate.</td>
+</tr>
+<tr class="even">
+<td>score_properties</td>
+<td><code>list</code>[<code>str</code>]</td>
+<td>Pre-formatted <code>scoreprop(...)</code> lines.</td>
+</tr>
+<tr class="odd">
+<td>deletions</td>
+<td><code>list</code>[<a href="../reference/SnoteRecord.html#timetoalign.alignment.SnoteRecord">SnoteRecord</a>]</td>
+<td>Score notes with no performance match.</td>
+</tr>
+<tr class="even">
+<td>insertions</td>
+<td><code>list</code>[<a href="../reference/NoteRecord.html#timetoalign.alignment.NoteRecord">NoteRecord</a>]</td>
+<td>Performance notes with no score match.</td>
+</tr>
+</tbody>
+</table>
+</section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
 <table class="caption-top table">
@@ -929,10 +1007,162 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Build a :class:<code>MatchFileContext</code> from score and performance DataFrames.</p>
 <p>This factory is designed for the how03 use case: matching EEP performance notes against unfolded ABC score notes. It constructs :class:<code>SnoteRecord</code> and :class:<code>NoteRecord</code> objects from DataFrame columns, keyed by their coordinates for lookup during export.</p>
-<p>Args: score_df: Score notes DataFrame (e.g.&nbsp;from <code>prepare_abc_notes_for_matching</code>). Must contain the <code>score_coord_column</code> and note attribute columns. perf_df: Performance notes DataFrame (e.g.&nbsp;from <code>prepare_eep_notes_for_matching</code>). Must contain the <code>perf_coord_column</code> and <code>pitch</code> column. match_result: Optional :class:<code>~timetoalign.alignment.matching.MatchResult</code>. If provided, unmatched target notes are recorded as deletions and unmatched source notes as insertions. piece: Piece name for the header. composer: Composer name for the header. performer: Performer name for the header. score_filename: Score file name for the header. midi_filename: MIDI file name for the header. midi_clock_units: MIDI divisions per quarter note. midi_clock_rate: Microseconds per quarter note. score_coord_column: Column in <em>score_df</em> with the score coordinate. perf_coord_column: Column in <em>perf_df</em> with the performance coordinate. score_pitch_column: Column in <em>score_df</em> with the pitch name. perf_pitch_column: Column in <em>perf_df</em> with the pitch name. score_staff_column: Column in <em>score_df</em> with the staff number. score_duration_column: Column in <em>score_df</em> with note duration (in quarter-beats). Falls back to <code>"duration"</code> if missing. score_measure_column: Column in <em>score_df</em> with measure number. score_beat_column: Column in <em>score_df</em> with beat number. score_offset_column: Column in <em>score_df</em> with beat offset.</p>
-<p>Returns: A populated :class:<code>MatchFileContext</code>.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 8%">
+<col style="width: 69%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>score_df</td>
+<td>'DataFrame'</td>
+<td>Score notes DataFrame (e.g.&nbsp;from <code>prepare_abc_notes_for_matching</code>). Must contain the <code>score_coord_column</code> and note attribute columns.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>perf_df</td>
+<td>'DataFrame'</td>
+<td>Performance notes DataFrame (e.g.&nbsp;from <code>prepare_eep_notes_for_matching</code>). Must contain the <code>perf_coord_column</code> and <code>pitch</code> column.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="odd">
+<td>match_result</td>
+<td><code>Any</code></td>
+<td>Optional :class:<code>~timetoalign.alignment.matching.MatchResult</code>. If provided, unmatched target notes are recorded as deletions and unmatched source notes as insertions.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>piece</td>
+<td><code>str</code></td>
+<td>Piece name for the header.</td>
+<td><code>''</code></td>
+</tr>
+<tr class="odd">
+<td>composer</td>
+<td><code>str</code></td>
+<td>Composer name for the header.</td>
+<td><code>''</code></td>
+</tr>
+<tr class="even">
+<td>performer</td>
+<td><code>str</code></td>
+<td>Performer name for the header.</td>
+<td><code>''</code></td>
+</tr>
+<tr class="odd">
+<td>score_filename</td>
+<td><code>str</code></td>
+<td>Score file name for the header.</td>
+<td><code>''</code></td>
+</tr>
+<tr class="even">
+<td>midi_filename</td>
+<td><code>str</code></td>
+<td>MIDI file name for the header.</td>
+<td><code>''</code></td>
+</tr>
+<tr class="odd">
+<td>midi_clock_units</td>
+<td><code>int</code></td>
+<td>MIDI divisions per quarter note.</td>
+<td><code>480</code></td>
+</tr>
+<tr class="even">
+<td>midi_clock_rate</td>
+<td><code>int</code></td>
+<td>Microseconds per quarter note.</td>
+<td><code>500000</code></td>
+</tr>
+<tr class="odd">
+<td>score_coord_column</td>
+<td><code>str</code></td>
+<td>Column in <em>score_df</em> with the score coordinate.</td>
+<td><code>'quarterbeats_playthrough'</code></td>
+</tr>
+<tr class="even">
+<td>perf_coord_column</td>
+<td><code>str</code></td>
+<td>Column in <em>perf_df</em> with the performance coordinate.</td>
+<td><code>'start'</code></td>
+</tr>
+<tr class="odd">
+<td>score_pitch_column</td>
+<td><code>str</code></td>
+<td>Column in <em>score_df</em> with the pitch name.</td>
+<td><code>'pitch'</code></td>
+</tr>
+<tr class="even">
+<td>perf_pitch_column</td>
+<td><code>str</code></td>
+<td>Column in <em>perf_df</em> with the pitch name.</td>
+<td><code>'pitch'</code></td>
+</tr>
+<tr class="odd">
+<td>score_staff_column</td>
+<td><code>str</code></td>
+<td>Column in <em>score_df</em> with the staff number.</td>
+<td><code>'staff'</code></td>
+</tr>
+<tr class="even">
+<td>score_duration_column</td>
+<td><code>str</code></td>
+<td>Column in <em>score_df</em> with note duration (in quarter-beats). Falls back to <code>"duration"</code> if missing.</td>
+<td><code>'duration_qb'</code></td>
+</tr>
+<tr class="odd">
+<td>score_measure_column</td>
+<td><code>str</code></td>
+<td>Column in <em>score_df</em> with measure number.</td>
+<td><code>'mc'</code></td>
+</tr>
+<tr class="even">
+<td>score_beat_column</td>
+<td><code>str</code></td>
+<td>Column in <em>score_df</em> with beat number.</td>
+<td><code>'beat'</code></td>
+</tr>
+<tr class="odd">
+<td>score_offset_column</td>
+<td><code>str</code></td>
+<td>Column in <em>score_df</em> with beat offset.</td>
+<td><code>'mc_onset'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/MatchFileContext.html#timetoalign.alignment.MatchFileContext">MatchFileContext</a></td>
+<td>A populated :class:<code>MatchFileContext</code>.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
 </section>
 </section>
 </section>

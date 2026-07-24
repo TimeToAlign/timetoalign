@@ -854,12 +854,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.loader.AudioLoader" id="toc-timetoalign.loader.AudioLoader" class="nav-link active" data-scroll-target="#timetoalign.loader.AudioLoader">AudioLoader</a>
   <ul>
+  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.loader.AudioLoader.create_samples_to_seconds_map" id="toc-timetoalign.loader.AudioLoader.create_samples_to_seconds_map" class="nav-link" data-scroll-target="#timetoalign.loader.AudioLoader.create_samples_to_seconds_map">create_samples_to_seconds_map</a></li>
-  <li><a href="#timetoalign.loader.AudioLoader.create_timeline" id="toc-timetoalign.loader.AudioLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.loader.AudioLoader.create_timeline">create_timeline</a></li>
-  <li><a href="#timetoalign.loader.AudioLoader.from_file" id="toc-timetoalign.loader.AudioLoader.from_file" class="nav-link" data-scroll-target="#timetoalign.loader.AudioLoader.from_file">from_file</a></li>
+  <li><a href="#timetoalign.loader.AudioLoader.create_samples_to_seconds_map" id="toc-timetoalign.loader.AudioLoader.create_samples_to_seconds_map" class="nav-link" data-scroll-target="#timetoalign.loader.AudioLoader.create_samples_to_seconds_map">create_samples_to_seconds_map</a>
+  <ul class="collapse">
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.AudioLoader.create_timeline" id="toc-timetoalign.loader.AudioLoader.create_timeline" class="nav-link" data-scroll-target="#timetoalign.loader.AudioLoader.create_timeline">create_timeline</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
+  <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.loader.AudioLoader.from_file" id="toc-timetoalign.loader.AudioLoader.from_file" class="nav-link" data-scroll-target="#timetoalign.loader.AudioLoader.from_file">from_file</a>
+  <ul class="collapse">
+  <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  <li><a href="#examples-2" id="toc-examples-2" class="nav-link" data-scroll-target="#examples-2">Examples</a></li>
+  </ul></li>
   </ul></li>
   </ul></li>
   </ul>
@@ -878,56 +894,42 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>AudioLoader extracts metadata from audio files without loading the actual sample data. This is efficient for creating DiscretePhysicalTimelines that represent audio files in the TimeToAlign! framework.</p>
 <p>The loader automatically: - Detects the best available backend (soundfile &gt; mutagen &gt; wave) - Extracts sample count, sample rate, channels, and format info - Provides methods to create timelines with appropriate C-maps</p>
 <p>Supported formats depend on installed backends: - soundfile: WAV, FLAC, OGG, AIFF, and many more (via libsndfile) - mutagen: MP3, M4A, FLAC, OGG (metadata only, may not have exact sample count) - wave (builtin): WAV only</p>
-<p>Examples: &gt;&gt;&gt; loader = AudioLoader() &gt;&gt;&gt; loader.load(“recording.wav”) &gt;&gt;&gt; loader.n_samples 7938048 &gt;&gt;&gt; loader.sample_rate 44100 &gt;&gt;&gt; loader.duration_seconds 180.0</p>
-<pre><code>&gt;&gt;&gt; # Create a timeline
-&gt;&gt;&gt; timeline = loader.create_timeline(uid="my_audio")
-&gt;&gt;&gt; timeline.unit
-&lt;TimeUnit.samples: 'samples'&gt;
-&gt;&gt;&gt; timeline.length
-Coordinate(7938048, samples)
-
-&gt;&gt;&gt; # The timeline has a SamplesToSeconds C-map attached
-&gt;&gt;&gt; from timetoalign.core import TimeUnit
-&gt;&gt;&gt; timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
-1.0</code></pre>
-<p>Attributes: audio_info: Parsed audio metadata (after loading).</p>
-<section id="attributes" class="level2">
-<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<section id="examples" class="level2 doc-section doc-section-examples">
+<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> AudioLoader()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.load(<span class="st">"recording.wav"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.n_samples</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="dv">7938048</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.sample_rate</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="dv">44100</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader.duration_seconds</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="fl">180.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Create a timeline</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timeline <span class="op">=</span> loader.create_timeline(uid<span class="op">=</span><span class="st">"my_audio"</span>)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timeline.unit</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;</span>TimeUnit.samples: <span class="st">'samples'</span><span class="op">&gt;</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timeline.length</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>Coordinate(<span class="dv">7938048</span>, samples)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># The timeline has a SamplesToSeconds C-map attached</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> timetoalign.core <span class="im">import</span> TimeUnit</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timeline.get_timestamp(<span class="dv">44100</span>).get_unit(TimeUnit.seconds)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fl">1.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="attributes" class="level2 doc-section doc-section-attributes">
+<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
 <th>Name</th>
+<th>Type</th>
 <th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.loader.AudioLoader.audio_info">audio_info</a></td>
-<td>Return parsed audio metadata.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.loader.AudioLoader.channels">channels</a></td>
-<td>Number of audio channels.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.loader.AudioLoader.duration_seconds">duration_seconds</a></td>
-<td>Duration in seconds.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.loader.AudioLoader.format">format</a></td>
-<td>Audio format (e.g., ‘WAV’, ‘FLAC’, ‘MP3’).</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.loader.AudioLoader.n_samples">n_samples</a></td>
-<td>Total number of samples (frames) in the audio file.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.loader.AudioLoader.sample_rate">sample_rate</a></td>
-<td>Sample rate in Hz.</td>
-</tr>
-<tr class="odd">
-<td><a href="#timetoalign.loader.AudioLoader.source_path">source_path</a></td>
-<td>Path to the loaded audio file.</td>
+<td>audio_info</td>
+<td><a href="../reference/AudioInfo.html#timetoalign.loader.AudioInfo">AudioInfo</a></td>
+<td>Parsed audio metadata (after loading).</td>
 </tr>
 </tbody>
 </table>
@@ -958,34 +960,223 @@ Coordinate(7938048, samples)
 </table>
 <section id="timetoalign.loader.AudioLoader.create_samples_to_seconds_map" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.AudioLoader.create_samples_to_seconds_map">create_samples_to_seconds_map</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>loader.AudioLoader.create_samples_to_seconds_map()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>loader.AudioLoader.create_samples_to_seconds_map()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a SamplesToSeconds conversion map for this audio.</p>
-<p>Returns: A SamplesToSeconds C-map configured with this audio’s sample rate.</p>
-<p>Raises: RuntimeError: If no audio file has been loaded.</p>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 22%">
+<col style="width: 69%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'SamplesToSeconds'</td>
+<td>A SamplesToSeconds C-map configured with this audio’s sample rate.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 42%">
+<col style="width: 46%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>RuntimeError</code></td>
+<td>If no audio file has been loaded.</td>
+</tr>
+</tbody>
+</table>
+</section>
 </section>
 <section id="timetoalign.loader.AudioLoader.create_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.AudioLoader.create_timeline">create_timeline</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>loader.AudioLoader.create_timeline(uid<span class="op">=</span><span class="va">None</span>, name<span class="op">=</span><span class="va">None</span>, attach_cmap<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.AudioLoader.create_timeline(uid<span class="op">=</span><span class="va">None</span>, name<span class="op">=</span><span class="va">None</span>, attach_cmap<span class="op">=</span><span class="va">True</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create a DiscretePhysicalTimeline from the loaded audio.</p>
 <p>The timeline is created with: - unit=TimeUnit.samples - length=n_samples - Optionally, a SamplesToSeconds C-map for coordinate conversion</p>
-<p>Args: uid: Unique identifier for the timeline. If None, uses filename. name: Human-readable name. If None, uses filename. attach_cmap: If True, attach a SamplesToSeconds conversion map.</p>
-<p>Returns: A DiscretePhysicalTimeline representing the audio file.</p>
-<p>Raises: RuntimeError: If no audio file has been loaded.</p>
-<p>Examples: &gt;&gt;&gt; loader = AudioLoader().load(“song.wav”) &gt;&gt;&gt; timeline = loader.create_timeline() &gt;&gt;&gt; timeline.unit &lt;TimeUnit.samples: ‘samples’&gt;</p>
-<pre><code>&gt;&gt;&gt; # Convert sample coordinates to seconds
-&gt;&gt;&gt; from timetoalign.core import TimeUnit
-&gt;&gt;&gt; timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
-1.0</code></pre>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 12%">
+<col style="width: 20%">
+<col style="width: 57%">
+<col style="width: 10%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>uid</td>
+<td><code>str</code> | None</td>
+<td>Unique identifier for the timeline. If None, uses filename.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>name</td>
+<td><code>str</code> | None</td>
+<td>Human-readable name. If None, uses filename.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>attach_cmap</td>
+<td><code>bool</code></td>
+<td>If True, attach a SamplesToSeconds conversion map.</td>
+<td><code>True</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 31%">
+<col style="width: 60%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'DiscretePhysicalTimeline'</td>
+<td>A DiscretePhysicalTimeline representing the audio file.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-1" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 42%">
+<col style="width: 46%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>RuntimeError</code></td>
+<td>If no audio file has been loaded.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples-1" class="level4 doc-section doc-section-examples">
+<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-1">Examples</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> AudioLoader().load(<span class="st">"song.wav"</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timeline <span class="op">=</span> loader.create_timeline()</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timeline.unit</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;</span>TimeUnit.samples: <span class="st">'samples'</span><span class="op">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Convert sample coordinates to seconds</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="im">from</span> timetoalign.core <span class="im">import</span> TimeUnit</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timeline.get_timestamp(<span class="dv">44100</span>).get_unit(TimeUnit.seconds)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="fl">1.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 </section>
 <section id="timetoalign.loader.AudioLoader.from_file" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.loader.AudioLoader.from_file">from_file</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>loader.AudioLoader.from_file(path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>loader.AudioLoader.from_file(path)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Load an audio file and return the loader (convenience constructor).</p>
-<p>Args: path: Path to the audio file.</p>
-<p>Returns: An AudioLoader with the file already loaded.</p>
-<p>Examples: &gt;&gt;&gt; loader = AudioLoader.from_file(“song.wav”) &gt;&gt;&gt; print(loader.duration_seconds)</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 47%">
+<col style="width: 29%">
+<col style="width: 14%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>path</td>
+<td><code>Path</code> | <code>str</code></td>
+<td>Path to the audio file.</td>
+<td><em>required</em></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 23%">
+<col style="width: 64%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'AudioLoader'</td>
+<td>An AudioLoader with the file already loaded.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples-2" class="level4 doc-section doc-section-examples">
+<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-2">Examples</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> loader <span class="op">=</span> AudioLoader.from_file(<span class="st">"song.wav"</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">print</span>(loader.duration_seconds)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
+</section>
 </section>
 </section>
 </section>

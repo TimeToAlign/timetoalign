@@ -10,15 +10,21 @@ Coordinates are immutable and support arithmetic operations when
 units match.  They preserve the native numeric type (int, float, or
 Fraction) for precision.
 
-Attributes:
-    value: The numeric position (int, float, or Fraction).
-    unit: The time unit (e.g., seconds, quarters, pixels).
+## Attributes {.doc-section .doc-section-attributes}
 
-Examples:
-    >>> c1 = Coordinate(120, TimeUnit.ticks)
-    >>> c2 = Coordinate(240, TimeUnit.ticks)
-    >>> c2 - c1
-    Duration(120, ticks)
+| Name   | Type                                                       | Description                                      |
+|--------|------------------------------------------------------------|--------------------------------------------------|
+| value  | [TimeScalarValue](`timetoalign.core.time.TimeScalarValue`) | The numeric position (int, float, or Fraction).  |
+| unit   | [TimeUnit](`timetoalign.core.enums.TimeUnit`)              | The time unit (e.g., seconds, quarters, pixels). |
+
+## Examples {.doc-section .doc-section-examples}
+
+```python
+>>> c1 = Coordinate(120, TimeUnit.ticks)
+>>> c2 = Coordinate(240, TimeUnit.ticks)
+>>> c2 - c1
+Duration(120, ticks)
+```
 
 ## Methods
 
