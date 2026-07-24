@@ -9,7 +9,7 @@ authors = [
     {name = "TTA Team"}
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -43,7 +43,7 @@ partitura = [
     "setuptools<82" # due to partitura's using pkg_resources
 ]                                             # Score parsing via partitura (PartituraLoader, ScoreMidiLoader)
 music21 = ["music21>=9.0"]                    # Score parsing via music21 (Music21Loader)
-ms3 = ["ms3>=2.6.0"]                          # DCML TSV score parsing (TSVLoader)
+ms3 = ["ms3>=2.6.0"]                          # DCML TSV score parsing (Ms3Loader)
 audio = ["soundfile>=0.12", "mutagen>=1.47"]  # Audio file loading + MP3/M4A metadata
 graphical = ["pymupdf>=1.24", "pillow>=10.0"] # PDF/image loading & drawing
 plot = ["matplotlib>=3.5"]                    # Visualisation
@@ -91,6 +91,8 @@ dev = [                                       # Testing + docs + lint/format too
 [project.urls]
 Homepage = "https://github.com/timetoalign/timetoalign"
 Documentation = "https://timetoalign.github.io/"
+Repository = "https://github.com/timetoalign/timetoalign"
+Changelog = "https://github.com/timetoalign/timetoalign/blob/main/CHANGELOG.md"
 
 [build-system]
 requires = ["hatchling"]

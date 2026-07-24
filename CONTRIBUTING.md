@@ -23,7 +23,7 @@ The full **Developers' Reference** lives on the documentation site at
 To preview the developers' reference locally:
 
 ```bash
-cd timetoalign/docs/page
+cd docs/page
 quartodoc build
 quarto render
 # open _site/contributing.html

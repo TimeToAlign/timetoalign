@@ -14,9 +14,9 @@ A Python library for representing and aligning musical timelines.
 pip install timetoalign         # Core only — lightweight
 ```
 
-The core install pulls in only PyArrow, pandas, NetworkX, and
-typing\_extensions.  This gives you the full timeline / map / alignment
-framework but no file-format-specific loaders.  If you need loaders,
+The core install pulls in only PyArrow, pandas, NetworkX,
+typing_extensions, and pydantic.  This gives you the full timeline / map /
+alignment framework but no file-format-specific loaders.  If you need loaders,
 plotting, or Jupyter support, install one of the [optional extras](#optional-dependencies)
 described below.  To run the **tutorial notebooks** (see below), for example:
 
@@ -40,32 +40,38 @@ Each atomic extra adds support for a single loader backend or feature.
 | `midi` | `mido` | MIDI file loading (`PerformanceMidiLoader`) |
 | `partitura` | `partitura` | Score parsing via partitura (`PartituraLoader`, `ScoreMidiLoader`) |
 | `music21` | `music21` | Score parsing via music21 (`Music21Loader`) |
-| `ms3` | `ms3` | DCML TSV score parsing (`TSVLoader`) |
+| `ms3` | `ms3` | DCML TSV score parsing (`Ms3Loader`) |
 | `audio` | `soundfile`, `mutagen` | Audio file loading + MP3/M4A metadata |
 | `graphical` | `pymupdf`, `pillow` | PDF/image loading & drawing |
 | `plot` | `matplotlib` | Visualisation |
 | `delta` | `deltalake` | Delta Lake columnar storage (future) |
 | `rdf` | `rdflib` | RDF / linked-data export (future) |
+| `examples` | `pooch` | On-demand fetching of bundled corpora |
 
 #### Composite extras
 
 Composite extras are convenience bundles that pull in several atomic
-extras at once.  Each level includes everything below it.
+extras at once.  Runtime levels include everything below them; `docs`
+and `testing` target documentation builds and test-suite execution.
 
 | Extra | Includes | Purpose |
 |---|---|---|
 | `scores` | `partitura`, `music21`, `ms3` | All score-loader backends |
 | `loaders` | `midi`, `scores`, `audio`, `graphical` | Every loader dependency |
-| `tutorial` | `loaders`, `plot`, plus `jupytext`, `jupyter` | Everything needed for the tutorial notebooks |
+| `tutorial` | `loaders`, `plot`, `examples`, plus `jupytext`, `jupyter` | Everything needed for the tutorial notebooks |
+| `docs` | `tutorial`, plus `quartodoc`, `griffe` | Documentation site building |
 | `all` | `tutorial`, `delta`, `rdf` | All runtime features |
-| `dev` | `all`, plus `pre-commit`, `pytest`, `pytest-cov`, `pytest-benchmark`, `hypothesis`, `ruff` | All features + development / CI tooling |
+| `testing` | `all`, `examples`, plus `pytest`, `pytest-cov`, `pytest-xdist`, `pytest-benchmark`, `hypothesis` | Test-suite execution |
 
 The inclusion chain is:
 
 ```
-dev  ⊃  all  ⊃  tutorial  ⊃  loaders  ⊃  { midi, scores, audio, graphical }
-                                        +  plot, jupytext, jupyter
-                            +  delta, rdf
+all  ⊃  tutorial  ⊃  loaders  ⊃  { midi, scores, audio, graphical }
+                                 +  plot, examples, jupytext, jupyter
+                   +  delta, rdf
+
+docs     ⊃  tutorial, quartodoc, griffe
+testing  ⊃  all, examples, pytest, pytest-cov, pytest-xdist, pytest-benchmark, hypothesis
 ```
 
 #### Examples
@@ -77,6 +83,8 @@ pip install "timetoalign[partitura]"     # Core + partitura score parsing
 pip install "timetoalign[scores]"        # Core + all score-loader backends
 pip install "timetoalign[loaders]"       # Core + every loader
 pip install "timetoalign[tutorial]"      # Loaders + plotting + Jupyter
+pip install "timetoalign[docs]"          # Tutorial stack + documentation build tools
+pip install "timetoalign[testing]"       # Runtime features + test tools
 pip install "timetoalign[all]"           # All runtime features
 ```
 
@@ -121,7 +129,7 @@ print(audio.diagram())
 ```
 
 ```
-ContinuousPhysicalTimeline[audio] (5 events, 3 children)
+ContinuousPhysicalTimeline[audio] (5 events, 3 children, 2 cmaps)
                       0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 60 seconds
   ├─ Intro            0 ~~~~~                               10
   ├─ Verse           10      ~~~~~~~~~~~~                   30
@@ -139,8 +147,8 @@ print(ts)
 TimeStamp @25 seconds
   audio         25 seconds
   verse         15 seconds
-  milliseconds  25000
-  samples       1200000
+  milliseconds  25000 milliseconds
+  samples       1200000 samples
 ```
 
 ```python
@@ -163,8 +171,9 @@ TimeIntervalStamp [8, 12) seconds
 
 ## Tutorial Notebooks
 
-The `docs/notebooks/` directory contains Jupytext percent-script notebooks
-covering the library from first principles to full alignment workflows.
+The `docs/tuto-notebooks/` and `docs/howto-notebooks/` directories contain
+Jupytext percent-script notebooks covering the library from first principles
+to full alignment workflows.
 Make sure you have installed the `tutorial` extra (see
 [Installation](#installation)), then generate the paired `.ipynb` files
 and launch Jupyter:
@@ -186,90 +195,50 @@ tox -e lint
 
 ## Glossary
 
-### Gemini
-
-| Term                | Definition                                                                                                                                                                                            |
-|---------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| AlignmentAnchor     | A set of TimeStamps corresponding to matched events, representing their temporal equivalence across timelines. From a Match of TimeIntervalEvents, we derive a StartAnchor and EndAnchor.             |
-| AlignmentBundle     | The primary container object in the implementation that manages a collection of timelines, their groupings, and the coordination of transfers between them.                                           |
-| BeatGrid            | A specialized \textit{ContinuousLogicalTimeline} representing metrical structure (measures and beats) using quarter notes as the underlying coordinate unit.                                          |
-| Break               | A control event that voids contiguity at its Instant. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals.                                                   |
-| ChainMap            | A MultiMap that applies multiple ConversionMaps in sequence, creating a conversion path from source to target unit.                                                                                   |
-| Child               | A timeline nested within a parent timeline, sharing the same measuring unit. Children are locked upon insertion to prevent side effects from modifications.                                           |
-| CombinationMap      | A MultiMap yielding outputs from multiple ConversionMaps simultaneously (e.g., $(x, y)$ coordinate pairs).                                                                                            |
-| Commensurable       | Two timelines are commensurable when connected by a Match path or ConversionMap chain, enabling coordinate translation between them.                                                                  |
-| ConcatenationMap    | A MultiMap combining bounded ConversionMaps such that each coordinate region is handled by a specific map. Implemented as \textit{PiecewiseMap}.                                                      |
-| Contiguity          | A TimeInterval is contiguous if it monotonically spans all coordinates between its start and end. An Instant is contiguous with a TimeInterval if it is synchronous with its EndInstant.              |
-| Control Event       | An event affecting flow control: either a Break (voiding contiguity) or a Jump (creating new contiguity).                                                                                             |
-| ConversionMap       | A function mapping any coordinate to at most one value (another coordinate, specifier, or constant). Also called C-map.                                                                               |
-| Coordinate          | A position on a timeline, expressed as the distance from the origin in the timeline's measuring unit.                                                                                                 |
-| Discrete/Continuous | A timeline is discrete when coordinates exist only at discrete points (e.g., pixels, samples); continuous otherwise (e.g., seconds, quarters).                                                        |
-| Domain              | One of three temporal categories: Graphical (visual/spatial), Logical (symbolic/musical), or Physical (audio/sound).                                                                                  |
-| Event               | Anything associated with a timeline via Instants. An InstantEvent has zero duration; a TimeIntervalEvent has duration defined by start and end coordinates.                                           |
-| FlowControlElement     | A taxonomy of control events distinguishing between structural markers (e.g., \textit{repeat\_start}, \textit{double\_barline}) and jump instructions (e.g., \textit{dal\_segno}, \textit{to\_coda}). |
-| GroupTimestamp      | A view object representing a synchronized instant across all commensurable timelines within a \textit{TimelineGroup}.                                                                                 |
-| IdCoordinate        | A coordinate specification that explicitly includes the unique identifier of the timeline to which it belongs, preventing ambiguity in multi-timeline contexts.                                       |
-| Instant             | Associates a coordinate with a signification such as \enquote{start of event $e$}. Instants sharing a coordinate are synchronous.                                                                     |
-| InterpolationMap    | A \textit{ConversionMap} that performs coordinate conversion via linear interpolation between a set of known correspondence points.                                                                   |
-| InverseMap          | The reverse transformation of a bijective ConversionMap.                                                                                                                                              |
-| Jump                | A control event with JumpFrom and JumpTo Instants. When active, makes events at JumpTo contiguous with those ending at JumpFrom (e.g., repeats, \textit{dal segno}).                                  |
-| Length              | The distance between a timeline's origin and its last Instant. A locked timeline cannot extend its length.                                                                                            |
-| LinearMap           | A \textit{ConversionMap} implementing an affine transformation ($f(x) = ax + b$). Includes \textit{ScalarMap} ($b=0$) and \textit{ShiftMap} ($a=1$) as special cases.                                 |
-| Match               | A claim---issued by a human or algorithmic agent---that events from disparate timelines are synchronous or equivalent, with associated metadata (agent, criteria, certainty).                         |
-| MatchClaim          | The implementation class for a \textit{Match}, representing a specific claim of equivalence between two events, comprising one (instant) or two (interval) \textit{AlignmentAnchor}s.                 |
-| MatchLine           | A linked list of Match objects preserving their order, enabling selection and alignment of temporal correspondences.                                                                                  |
-| MatchMetadata       | Structured provenance information attached to a \textit{MatchClaim}, recording the agent, decision criteria, and certainty level of the match.                                                        |
-| MatchPath           | A graph traversal connecting matched events across multiple timelines (e.g., $A \rightarrow B \rightarrow C$).                                                                                        |
-| MetricMap           | A specialized \textit{ConversionMap} that handles complex metrical conversions (e.g., quarter notes to measure count) accounting for time signatures and anacrusis.                                   |
-| MultiMap            | An umbrella term for composed ConversionMaps (ChainMap, CombinationMap, ConcatenationMap).                                                                                                            |
-| Origin              | The zero coordinate of a timeline, from which all positions are measured.                                                                                                                             |
-| PiecewiseMap        | The implementation of a \textit{ConcatenationMap}, applying different sub-maps to disjoint coordinate intervals.                                                                                      |
-| Region              | A named part of a timeline defined by a TimeInterval (e.g., \enquote{Chorus}, \enquote{Verse}). Regions are not timelines and cannot hold events or maps directly.                                    |
-| RotationMap         | A \textit{ConversionMap} that implements periodic or cyclic transformations using modular arithmetic.                                                                                                 |
-| Segment             | A Child timeline that is contiguous with its siblings. A SegmentLine is a parent containing only contiguous Segments.                                                                                 |
-| Synchrony           | Strict synchrony: Instants sharing identical coordinates. Pragmatic synchrony: Instants binned together based on a threshold (e.g., for quantisation).                                                |
-| TimeInterval        | Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive $[s, e)$. The EndInstant's coordinate must be $\geq$ the StartInstant's.                                                 |
-| Timeline            | A positive coordinate axis minimally defined by its origin and measuring unit. Accommodates events and potentially Children.                                                                          |
-| TimelineGroup       | A container for a set of commensurable timelines that are bijectively mapped to each other (e.g., via linear interpolation) and share a common timestamp table.                                       |
-| TimeStamp           | A cross-section through a timeline hierarchy, comprising the root coordinate, synchronous Child coordinates, and all ConversionMap results.                                                           |
-| TraversalMap        | A sequence of TimeIntervals representing a specific traversal path through a timeline (handling Jumps and repeats). Also called T-map.                                                                |
-| WarpMap             | A derived timeline where coordinates are re-adjusted based on AlignmentAnchors to align with another timeline.                                                                                        |
-
-### Claude
-
-| Term                | Definition                                                                                                                                                                                |
-|---------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| AlignmentAnchor     | A set of TimeStamps corresponding to matched events, representing their temporal equivalence across timelines. From a Match of TimeIntervalEvents, we derive a StartAnchor and EndAnchor. |
-| Break               | A control event that voids contiguity at its Instant. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals.                                       |
-| Child               | A timeline nested within a parent timeline, sharing the same measuring unit. Children are locked upon insertion to prevent side effects from modifications.                               |
-| ChainMap            | A MultiMap that applies multiple ConversionMaps in sequence, creating a conversion path from source to target unit.                                                                       |
-| CombinationMap      | A MultiMap yielding outputs from multiple ConversionMaps simultaneously (e.g., $(x, y)$ coordinate pairs).                                                                                |
-| Commensurable       | Two timelines are commensurable when connected by a Match path or ConversionMap chain, enabling coordinate translation between them.                                                      |
-| ConcatenationMap    | A MultiMap combining bounded ConversionMaps such that each coordinate region is handled by a specific map.                                                                                |
-| Contiguity          | A TimeInterval is contiguous if it monotonically spans all coordinates between its start and end. An Instant is contiguous with a TimeInterval if it is synchronous with its EndInstant.  |
-| Control Event       | An event affecting flow control: either a Break (voiding contiguity) or a Jump (creating new contiguity).                                                                                 |
-| ConversionMap       | A function mapping any coordinate to at most one value (another coordinate, specifier, or constant). Also called C-map.                                                                   |
-| Coordinate          | A position on a timeline, expressed as the distance from the origin in the timeline's measuring unit.                                                                                     |
-| Discrete/Continuous | A timeline is discrete when coordinates exist only at discrete points (e.g., pixels, samples); continuous otherwise (e.g., seconds, quarters).                                            |
-| Domain              | One of three temporal categories: Graphical (visual/spatial), Logical (symbolic/musical), or Physical (audio/sound).                                                                      |
-| Event               | Anything associated with a timeline via Instants. An InstantEvent has zero duration; a TimeIntervalEvent has duration defined by start and end coordinates.                               |
-| Instant             | Associates a coordinate with a signification such as \enquote{start of event $e$}. Instants sharing a coordinate are synchronous.                                                         |
-| InverseMap          | The reverse transformation of a bijective ConversionMap.                                                                                                                                  |
-| Jump                | A control event with JumpFrom and JumpTo Instants. When active, makes events at JumpTo contiguous with those ending at JumpFrom (e.g., repeats, \textit{dal segno}).                      |
-| Length              | The distance between a timeline's origin and its last Instant. A locked timeline cannot extend its length.                                                                                |
-| Match               | A claim---issued by a human or algorithmic agent---that events from disparate timelines are synchronous or equivalent, with associated metadata (agent, criteria, certainty).             |
-| MatchLine           | A linked list of Match objects preserving their order, enabling selection and alignment of temporal correspondences.                                                                      |
-| MatchPath           | A graph traversal connecting matched events across multiple timelines (e.g., $A \rightarrow B \rightarrow C$).                                                                            |
-| MultiMap            | An umbrella term for composed ConversionMaps (ChainMap, CombinationMap, ConcatenationMap).                                                                                                |
-| Origin              | The zero coordinate of a timeline, from which all positions are measured.                                                                                                                 |
-| Region              | A named part of a timeline defined by a TimeInterval (e.g., \enquote{Chorus}, \enquote{Verse}). Regions are not timelines and cannot hold events or maps directly.                        |
-| Segment             | A Child timeline that is contiguous with its siblings. A SegmentLine is a parent containing only contiguous Segments.                                                                     |
-| Synchrony           | Strict synchrony: Instants sharing identical coordinates. Pragmatic synchrony: Instants binned together based on a threshold (e.g., for quantisation).                                    |
-| TimeInterval        | Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive $[s, e)$. The EndInstant's coordinate must be $\geq$ the StartInstant's.                                     |
-| Timeline            | A positive coordinate axis minimally defined by its origin and measuring unit. Accommodates events and potentially Children.                                                              |
-| TimeStamp           | A cross-section through a timeline hierarchy, comprising the root coordinate, synchronous Child coordinates, and all ConversionMap results.                                               |
-| TraversalMap        | A sequence of TimeIntervals representing a specific traversal path through a timeline (handling Jumps and repeats). Also called T-map.                                                    |
-| WarpMap             | A derived timeline where coordinates are re-adjusted based on AlignmentAnchors to align with another timeline.                                                                            |
+| Term | Definition |
+|---|---|
+| AlignmentAnchor | A set of TimeStamps corresponding to matched events, representing their temporal equivalence across timelines. From a MatchClaim for TimeIntervalEvents, the library derives a start anchor and end anchor. |
+| AlignmentBundle | The primary container object that manages a collection of timelines, their groupings, and transfers between them. |
+| BeatGrid | A specialized *ContinuousLogicalTimeline* representing metrical structure (measures and beats) using quarter notes as the underlying coordinate unit. |
+| Break | A control event that voids contiguity at its Instant. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals. |
+| ChainMap | A composed ConversionMap that applies multiple ConversionMaps in sequence, creating a conversion path from source to target unit. |
+| Child | A timeline nested within a parent timeline, sharing the same measuring unit. Children are locked upon insertion to prevent side effects from modifications. |
+| CombinationMap | A ConversionMap that yields outputs from multiple ConversionMaps simultaneously, such as (x, y) coordinate pairs. |
+| Commensurable | Two timelines are commensurable when connected by a match path or ConversionMap chain, enabling coordinate translation between them. |
+| Composite map | An umbrella concept for ConversionMaps composed from other maps, including ChainMap, CombinationMap, and PiecewiseMap. |
+| Contiguity | A TimeInterval is contiguous if it monotonically spans all coordinates between its start and end. An Instant is contiguous with a TimeInterval if it is synchronous with its EndInstant. |
+| Control Event | An event affecting flow control: either a Break (voiding contiguity) or a Jump (creating new contiguity). |
+| ConversionMap | A function mapping any coordinate to at most one value (another coordinate, specifier, or constant). Also called C-map. |
+| Coordinate | A position on a timeline, expressed as the distance from the origin in the timeline's measuring unit. |
+| Discrete/Continuous | A timeline is discrete when coordinates exist only at discrete points (e.g., pixels, samples); continuous otherwise (e.g., seconds, quarters). |
+| Domain | One of three temporal categories: Graphical (visual/spatial), Logical (symbolic/musical), or Physical (audio/sound). |
+| Event | Anything associated with a timeline via Instants. An InstantEvent has zero duration; a TimeIntervalEvent has duration defined by start and end coordinates. |
+| FlowControlElement | A taxonomy of control events distinguishing between structural markers (e.g., *repeat_start*, *double_barline*) and jump instructions (e.g., *dal_segno*, *to_coda*). |
+| FlowMap | A sequence of TimeIntervals representing a specific traversal path through a timeline, handling Jumps and repeats. |
+| GroupTimestamp | A view object representing a synchronized instant across all commensurable timelines within a *TimelineGroup*. |
+| IdCoordinate | A coordinate specification that explicitly includes the unique identifier of the timeline to which it belongs, preventing ambiguity in multi-timeline contexts. |
+| Instant | Associates a coordinate with a signification such as "start of event e". Instants sharing a coordinate are synchronous. |
+| InterpolationMap | A *ConversionMap* that performs coordinate conversion via linear interpolation between a set of known correspondence points. |
+| Inverse map | The reverse transformation of a bijective ConversionMap. |
+| Jump | A control event with JumpFrom and JumpTo Instants. When active, makes events at JumpTo contiguous with those ending at JumpFrom (e.g., repeats, *dal segno*). |
+| Length | The distance between a timeline's origin and its last Instant. A locked timeline cannot extend its length. |
+| LinearMap | A *ConversionMap* implementing an affine transformation, f(x) = ax + b. Includes *ScalarMap* (b=0) and *ShiftMap* (a=1) as special cases. |
+| MatchClaim | A claim — issued by a human or algorithmic agent — that events from disparate timelines are synchronous or equivalent, carrying provenance metadata (agent, criteria, certainty) and comprising one (instant) or two (interval) AlignmentAnchors. |
+| MatchLine | An ordered line that links MatchClaim objects through MatchStamps, enabling selection and alignment of temporal correspondences. |
+| MatchMetadata | Structured provenance information attached to a *MatchClaim*, recording the agent, decision criteria, and certainty level of the match. |
+| Match path | A graph traversal connecting matched events across multiple timelines, for example A -> B -> C. |
+| MetricMap | A specialized *ConversionMap* that handles complex metrical conversions (e.g., quarter notes to measure count) accounting for time signatures and anacrusis. |
+| Origin | The zero coordinate of a timeline, from which all positions are measured. |
+| PiecewiseMap | A ConversionMap that applies different sub-maps to disjoint coordinate intervals. |
+| Region | A named part of a timeline defined by a TimeInterval (e.g., "Chorus", "Verse"). Regions are not timelines and cannot hold events or maps directly. |
+| RotationMap | A *ConversionMap* that implements periodic or cyclic transformations using modular arithmetic. |
+| Segment | A Child timeline that is contiguous with its siblings. A SegmentLine is a parent containing only contiguous Segments. |
+| Synchrony | Strict synchrony: Instants sharing identical coordinates. Pragmatic synchrony: Instants binned together based on a threshold (e.g., for quantisation). |
+| Time interval | Defined by a StartInstant and EndInstant; left-inclusive and right-exclusive [s, e). The EndInstant's coordinate must be >= the StartInstant's. |
+| Timeline | A positive coordinate axis minimally defined by its origin and measuring unit. Accommodates events and potentially Children. |
+| TimelineGroup | A container for a set of commensurable timelines that are bijectively mapped to each other (e.g., via linear interpolation) and share a common timestamp table. |
+| TimeStamp | A cross-section through a timeline hierarchy, comprising the root coordinate, synchronous Child coordinates, and all ConversionMap results. |
+| WarpMap | A derived timeline where coordinates are re-adjusted based on AlignmentAnchors to align with another timeline. |
 
 ## Citing
 
