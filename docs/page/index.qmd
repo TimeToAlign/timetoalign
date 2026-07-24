@@ -131,15 +131,15 @@ The library requires Python 3.11 or later.
 ## Project Links
 
 - **Source Code**: [GitHub](https://github.com/timetoalign/timetoalign)
-- **Specimen Collection**: Real-world datasets used in the tutorials and
-  the accompanying TISMIR article.
+- **Notebooks**: [[README]](https://github.com/TimeToAlign/timetoalign/tree/main/docs)
+- **Specimen Collection**: Forthcoming. Watch this space!
 - **TISMIR Article**: [Time to Align! Modelling Musical Timelines for Music
-  Information Retrieval and Digital Musicology](https://doi.org/10.5334/tismir.296),
-  TISMIR 9(1), 384-404, 2026.
+  Information Retrieval and Digital Musicology](https://doi.org/10.5334/tismir.296)
 
 ::: {.callout-note title="How to cite"}
-Please cite the published TISMIR article,
-[Time to Align! Modelling Musical Timelines for Music Information Retrieval
-and Digital Musicology](https://doi.org/10.5334/tismir.296); a BibTeX entry
-ships in the repository via the README Citing section and `CITATION.cff`.
+Please cite the published TISMIR article:
+
+    Hentschel, Johannes; Berndt, Axel; Cancino-Chacón, Carlos; Dixon, Simon; Foo, Anne; Gotham, Mark; Hu, Patricia; Köster, Maik; Martins, Felipe D.; Mauro, Davide A.; Müller, Meinard; Neuwirth, Markus; Pacha, Alexander; Page, Kevin R.; Peter, Silvan; Polyakov, Egor; Pugin, Laurent; Weigl, David M.; Weiß, Christof; and Widmer, Gerhard. 2026. "Time to Align! Modelling Musical Timelines for Music Information Retrieval and Digital Musicology." *Transactions of the International Society for Music Information Retrieval* 9 (1): 384--404. https://doi.org/10.5334/tismir.296.
+
+A BibTeX entry ships in the repository via the [README Citing section](https://github.com/TimeToAlign/timetoalign/tree/main#citing) and `CITATION.cff`.
 :::
