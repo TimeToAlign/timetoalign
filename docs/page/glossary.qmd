@@ -238,7 +238,7 @@ to the relevant section of the conceptual model.
 
 **MatchfileLoader**
 :   Loader for Vienna Match (`.match`) alignment files. Uses the standard
-    two-phase `load()` → `create_*()` pattern. A single instance processes
+    two-step `load()` → `create_*()` pattern. A single instance processes
     all `.match` files that share the same score, building a shared score
     timeline on the first file and verifying subsequent files against it.
     Returns an {{< glossary AlignmentBundle >}} directly via
@@ -329,7 +329,7 @@ to the relevant section of the conceptual model.
 **MpmLoader**
 :   Loader for an MPM-Toolbox project: a sibling `.msm` score, `.mpm` modelled
     performance, and `.mpr` project file (carrying an observed audio-to-score
-    alignment) for one work. Uses the standard two-phase `load()` →
+    alignment) for one work. Uses the standard two-step `load()` →
     `create_*()` pattern. Builds a shared logical `"score"` group holding the
     notes in two units — a ticks {{< glossary Timeline >}} (also carrying every
     MPM markup event: `Tempo`, `Dynamics`, `Articulation`, …) and a quarters
@@ -375,7 +375,7 @@ to the relevant section of the conceptual model.
 **PerformancePrecisionLoader**
 :   Loader for audio-to-score alignment specimens: a directory bundling a
     `.solo` score, a Verovio timemap, and per-performer alignment files at the
-    note, bar, and beat granularities. Uses the standard two-phase `load()` →
+    note, bar, and beat granularities. Uses the standard two-step `load()` →
     `create_*()` pattern. Resolves every `"<measure>+<offset>"` label to
     absolute quarters via a {{< glossary MetricMap >}}, builds one logical score
     {{< glossary Timeline >}} (quarters) and one physical performance
@@ -388,7 +388,7 @@ to the relevant section of the conceptual model.
 **ParangonadaLoader**
 :   Loader for a *parangonar* *parangonada* export: per-performance CSV triples
     (score notes, performed notes, note-level correspondences) for one work.
-    Uses the standard two-phase `load()` → `create_*()` pattern. Parses the
+    Uses the standard two-step `load()` → `create_*()` pattern. Parses the
     shared score once into two logical {{< glossary Timeline >}}s (quarters and
     division-grid ticks, linked by a divs→quarters `LinearMap`), builds one
     performance group per recording with two physical {{< glossary Timeline >}}s
@@ -435,9 +435,15 @@ to the relevant section of the conceptual model.
     See [Nested timelines](concepts.qmd#nested-timelines).
 
 **SegmentLine**
-:   A parent {{< glossary Timeline >}} containing only contiguous
-    {{< glossary Segment >}}s. Enables cumulative coordinate conversion
-    across all segments.
+:   A runtime class parameterized by its segment class, such as
+    `SegmentLine[DiscreteGraphicalTimeline]`, whose contiguous
+    {{< glossary Segment >}}s tile its full length. A line is also an instance
+    of that segment class. Any timeline can check the structure with
+    `is_segment_line()` and adopt enforcement with `as_segment_line()`; a line
+    returns to an unenforced timeline with `to_timeline()`. Use
+    `create_children_from_boundaries()` for boundary-driven tiling. Appending
+    extends an unlocked line, while appending to an embedded, length-locked
+    line raises `RuntimeError`.
     See [Nested timelines](concepts.qmd#nested-timelines).
 
 **StartInstant**

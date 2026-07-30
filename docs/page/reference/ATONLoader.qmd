@@ -58,8 +58,8 @@ Creates a graphical timeline (in pixels) spanning the full image height,
 with all parsed holes as InstantEvents at their absolute pixel coordinates.
 
 This is the primary timeline for the piano roll image. To get a relative
-coordinate view (first hole = 0), create a child timeline at offset
-first_hole using parent.create_child().
+coordinate view (first hole = 0), create an inherited
+DiscreteGraphicalTimeline child at ``first_hole``.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
@@ -70,9 +70,9 @@ first_hole using parent.create_child().
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type         | Description                                                           |
-|--------|--------------|-----------------------------------------------------------------------|
-|        | \'Timeline\' | A DiscreteGraphicalTimeline with hole events at absolute coordinates. |
+| Name   | Type                                                                           | Description                                                           |
+|--------|--------------------------------------------------------------------------------|-----------------------------------------------------------------------|
+|        | [DiscreteGraphicalTimeline](`timetoalign.timelines.DiscreteGraphicalTimeline`) | A DiscreteGraphicalTimeline with hole events at absolute coordinates. |
 
 #### Raises {.doc-section .doc-section-raises}
 
@@ -88,7 +88,7 @@ first_hole using parent.create_child().
 >>> dgt1 = loader.create_timeline(uid="dgt1")
 >>> dgt1.n_events
 30092
->>> # Create child for relative coordinates (first hole = 0)
+>>> # Child inherits DiscreteGraphicalTimeline; its origin is the first hole
 >>> dgt_holes = dgt1.create_child(
 ...     length=loader.musical_length,
 ...     offset=loader.first_hole,

@@ -1,0 +1,43 @@
+# SegmentLine { #timetoalign.timelines.SegmentLine }
+
+```python
+timelines.SegmentLine(**kwargs)
+```
+
+A timeline whose cached parameterized classes inherit the segment API.
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_segmentation](#timetoalign.timelines.SegmentLine.from_segmentation) | Create a parameterized line from slices of an unchanged source. |
+
+### from_segmentation { #timetoalign.timelines.SegmentLine.from_segmentation }
+
+```python
+timelines.SegmentLine.from_segmentation(source, split_coords, copy_events=True)
+```
+
+Create a parameterized line from slices of an unchanged source.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name         | Type                                                                  | Description                                                                 | Default    |
+|--------------|-----------------------------------------------------------------------|-----------------------------------------------------------------------------|------------|
+| source       | [Timeline](`timetoalign.timelines.base.Timeline`)                     | Timeline to segment (not modified).                                         | _required_ |
+| split_coords | [list](`list`)\[[CoordinateSpec](`timetoalign.core.CoordinateSpec`)\] | Coordinates defining segment boundaries. k+1 coordinates create k segments. | _required_ |
+| copy_events  | [bool](`bool`)                                                        | If True, copy events to their respective segments.                          | `True`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type            | Description                                              |
+|--------|-----------------|----------------------------------------------------------|
+|        | \'SegmentLine\' | New SegmentLine with segments typed to match ``source``. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                            |
+|--------|----------------------------|--------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If source already has children (ambiguous nesting).    |
+|        | [ValueError](`ValueError`) | If fewer than 2 split coordinates provided.            |
+|        | [TypeError](`TypeError`)   | If a parameterized receiver does not match the source. |

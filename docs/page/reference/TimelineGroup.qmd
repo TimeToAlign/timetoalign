@@ -280,6 +280,7 @@ timelines.TimelineGroup.diagram(
     show_children=True,
     max_children=6,
     unicode=True,
+    depth=True,
 )
 ```
 
@@ -287,18 +288,25 @@ Generate ASCII diagram for this group.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name          | Type           | Description                                              | Default   |
-|---------------|----------------|----------------------------------------------------------|-----------|
-| width         | [int](`int`)   | Total width of the diagram in characters.                | `70`      |
-| show_children | [bool](`bool`) | Whether to expand child timelines.                       | `True`    |
-| max_children  | [int](`int`)   | Maximum children per timeline.                           | `6`       |
-| unicode       | [bool](`bool`) | Use Unicode characters (True) or ASCII fallback (False). | `True`    |
+| Name          | Type                           | Description                                                                                                                                                                                                                    | Default   |
+|---------------|--------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| width         | [int](`int`)                   | Total width of the diagram in characters.                                                                                                                                                                                      | `70`      |
+| show_children | [bool](`bool`)                 | Whether to expand child timelines.                                                                                                                                                                                             | `True`    |
+| max_children  | [int](`int`)                   | Maximum children per timeline.                                                                                                                                                                                                 | `6`       |
+| unicode       | [bool](`bool`)                 | Use Unicode characters (True) or ASCII fallback (False).                                                                                                                                                                       | `True`    |
+| depth         | [bool](`bool`) \| [int](`int`) | Child levels to render for each member timeline. ``True`` renders all levels, ``False`` renders direct children only, and a non-negative integer renders at most that many levels. In particular, ``0`` renders no child rows. | `True`    |
 
 #### Returns {.doc-section .doc-section-returns}
 
 | Name   | Type        | Description                                                           |
 |--------|-------------|-----------------------------------------------------------------------|
 |        | \'Diagram\' | Diagram object (displays as ASCII in terminal, rich HTML in Jupyter). |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                         |
+|--------|----------------------------|-------------------------------------|
+|        | [ValueError](`ValueError`) | If ``depth`` is a negative integer. |
 
 #### Examples {.doc-section .doc-section-examples}
 
@@ -582,7 +590,7 @@ Get the timestamp table (or a filtered subset).
 ```python
 timelines.TimelineGroup.get_timestamps_at(
     coordinates,
-    timeline_id,
+    timeline_id=None,
     *,
     conversion_maps=True,
     units=True,
@@ -599,7 +607,7 @@ coordinates and get back a DataFrame with one field per timeline and per C-Map.
 | Name            | Type                                                                                 | Description                                                                                                                                  | Default    |
 |-----------------|--------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|------------|
 | coordinates     | [Sequence](`typing.Sequence`)\[[CoordinateSpec](`timetoalign.core.CoordinateSpec`)\] | Sequence of CoordinateSpec to query.                                                                                                         | _required_ |
-| timeline_id     | [str](`str`)                                                                         | Which timeline the coordinates refer to.                                                                                                     | _required_ |
+| timeline_id     | [str](`str`) \| None                                                                 | Which timeline the coordinates refer to. Required for entries without an embedded timeline ID.                                               | `None`     |
 | conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`)                | Whether to include C-Map fields from member timelines. - True (default): Include all attached C-Maps - False/None: Only timeline coordinates | `True`     |
 | units           | [bool](`bool`)                                                                       | If True (default), append units to field names.                                                                                              | `True`     |
 

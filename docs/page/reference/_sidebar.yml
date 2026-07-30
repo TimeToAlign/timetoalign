@@ -36,6 +36,7 @@ website:
       - reference/PhysicalTimeline.qmd
       - reference/GraphicalTimeline.qmd
       - reference/BeatGrid.qmd
+      - reference/SegmentLine.qmd
       section: Timelines
     - contents:
       - reference/Flow.qmd

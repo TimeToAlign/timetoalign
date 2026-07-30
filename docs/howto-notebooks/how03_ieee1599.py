@@ -76,7 +76,7 @@ document_path = base / "SatiePetriNets" / "ieee1599" / "gymnopedie_01.xml"
 # `Ieee1599Loader` parses the whole document — spine, LOS, every graphical
 # edition, every audio track, and the structural analysis — into curated
 # tables, then assembles them into timelines and a claim field.
-# `from_file()` is the one-line form of the standard two-phase loader
+# `from_file()` is the one-line form of the standard two-step loader
 # pattern: parse, then build.
 
 # %%

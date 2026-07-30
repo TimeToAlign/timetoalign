@@ -44,6 +44,7 @@ Timeline classes for all six domain/modality combinations.
 | [PhysicalTimeline](PhysicalTimeline.qmd#timetoalign.timelines.PhysicalTimeline) | A timeline representing physical/acoustic time. |
 | [GraphicalTimeline](GraphicalTimeline.qmd#timetoalign.timelines.GraphicalTimeline) | A timeline representing graphical/spatial coordinates. |
 | [BeatGrid](BeatGrid.qmd#timetoalign.timelines.BeatGrid) | A metrical timeline whose native coordinate axis is quarter notes. |
+| [SegmentLine](SegmentLine.qmd#timetoalign.timelines.SegmentLine) | A timeline whose cached parameterized classes inherit the segment API. |
 
 ## Flow Control
 

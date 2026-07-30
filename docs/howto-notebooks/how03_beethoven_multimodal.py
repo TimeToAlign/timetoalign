@@ -320,12 +320,10 @@ noteheads = pd.DataFrame(
     }
 )
 
-dgt1 = SegmentLine(
+dgt1 = SegmentLine[SegmentLine[DiscreteGraphicalTimeline]](
     length=0,
     unit=TimeUnit.pixels,
     number_type=NumberType.int,
-    segment_type=SegmentLine,
-    inner_segment_type=DiscreteGraphicalTimeline,
     uid="dgt1",
 )
 
@@ -334,11 +332,10 @@ for page_idx, page_data in noteheads.groupby("page", sort=True):
     sys_top = page_data.groupby("spacing_run_id")["top"].min()
     sys_order = sys_top.sort_values().index
 
-    page = SegmentLine(
+    page = SegmentLine[DiscreteGraphicalTimeline](
         length=0,
         unit=TimeUnit.pixels,
         number_type=NumberType.int,
-        segment_type=DiscreteGraphicalTimeline,
     )
 
     for sys_rank, sys_id in enumerate(sys_order):
@@ -374,7 +371,7 @@ for page_idx, page_data in noteheads.groupby("page", sort=True):
 
     dgt1.append_segment(page, name=f"page_{page_idx}")
 
-dgt1
+dgt1.diagram(depth=True)
 
 # %% [markdown]
 # ## 8. OpenScore (4th Movement Only)
@@ -410,7 +407,7 @@ openscore
 # The four movement regions and the extracted child timeline:
 
 # %%
-os_full.diagram(show={"regions", "children"})
+os_full.diagram(show={"regions", "children"}, depth=1)
 
 # %% [markdown]
 # ## 9. Score Group (Group 4)
@@ -487,7 +484,7 @@ score_group_unfolded
 # %%
 clt1_unfolded = score_group_unfolded.get_timeline("clt1")
 abc_notes_df = clt1_unfolded.get_events(
-    event_type="Note", include_children=False
+    event_type="Note", include_children=True
 ).to_dataframe()
 
 # Cast types restored from string (EventData stores extra columns as strings)

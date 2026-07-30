@@ -141,8 +141,7 @@ IMAGE_TO_SEGMENT = {name: i for i, name in enumerate(DGT2_IMAGE_FILES)}
 # ### Create the SegmentLine by concatenation
 
 # %%
-dgt2 = SegmentLine(
-    segment_type=DiscreteGraphicalTimeline,
+dgt2 = SegmentLine[DiscreteGraphicalTimeline](
     length=0,
     unit="pixels",
     uid="dgt2",

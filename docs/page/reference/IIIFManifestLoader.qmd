@@ -66,9 +66,9 @@ specified axis (height by default, for vertical piano rolls).
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type         | Description                                         |
-|--------|--------------|-----------------------------------------------------|
-|        | \'Timeline\' | A DiscreteGraphicalTimeline representing the image. |
+| Name   | Type                                                                           | Description                                         |
+|--------|--------------------------------------------------------------------------------|-----------------------------------------------------|
+|        | [DiscreteGraphicalTimeline](`timetoalign.timelines.DiscreteGraphicalTimeline`) | A DiscreteGraphicalTimeline representing the image. |
 
 #### Raises {.doc-section .doc-section-raises}
 

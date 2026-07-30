@@ -158,7 +158,7 @@ Locked: |
   embedded in a parent.
 
 MatchfileLoader: |
-  Loader for Vienna Match (.match) alignment files. Uses the standard two-phase
+  Loader for Vienna Match (.match) alignment files. Uses the standard two-step
   load() → create_*() pattern. A single instance processes all .match files that
   share the same score, building a shared score timeline on the first file and
   verifying subsequent files against it. Returns an AlignmentBundle directly via
@@ -218,7 +218,7 @@ MetricalPositionMap: |
 MpmLoader: |
   Loader for an MPM-Toolbox project: a sibling .msm score, .mpm modelled
   performance, and .mpr project file (carrying an observed audio-to-score
-  alignment) for one work. Uses the standard two-phase load() → create_*()
+  alignment) for one work. Uses the standard two-step load() → create_*()
   pattern. Builds a shared logical "score" group holding the notes in two units
   — a ticks DiscreteLogicalTimeline (also carrying every MPM markup event:
   Tempo, Dynamics, Articulation, …) and a quarters ContinuousLogicalTimeline —
@@ -243,7 +243,7 @@ Origin: "The zero coordinate of a timeline, from which all positions are measure
 PerformancePrecisionLoader: |
   Loader for audio-to-score alignment specimens: a directory bundling a .solo
   score, a Verovio timemap, and per-performer alignment files at the note, bar,
-  and beat granularities. Uses the standard two-phase load() → create_*()
+  and beat granularities. Uses the standard two-step load() → create_*()
   pattern. Resolves every "<measure>+<offset>" label to absolute quarters via a
   MetricMap, builds one logical score timeline (quarters) and one physical
   performance timeline per recording (seconds), and emits a MatchClaim per
@@ -253,7 +253,7 @@ PerformancePrecisionLoader: |
 ParangonadaLoader: |
   Loader for a parangonar parangonada export: per-performance CSV triples (score
   notes, performed notes, note-level correspondences) for one work. Uses the
-  standard two-phase load() → create_*() pattern. Parses the shared score once
+  standard two-step load() → create_*() pattern. Parses the shared score once
   into two logical timelines (quarters and division-grid ticks, linked by a
   divs→quarters LinearMap), builds one performance group per recording with two
   physical timelines (seconds and samples, linked by a SamplesToSeconds map),
@@ -293,8 +293,14 @@ Segment: |
   concatenation of local coordinate systems.
 
 SegmentLine: |
-  A parent timeline containing only contiguous Segments. Enables cumulative
-  coordinate conversion across all segments.
+  A runtime class parameterized by its segment class, such as
+  SegmentLine[DiscreteGraphicalTimeline], whose contiguous Segments tile its
+  full length. A line is also an instance of that segment class. Any timeline
+  can check this structure with is_segment_line() and adopt enforcement with
+  as_segment_line(); a line returns to an unenforced timeline with
+  to_timeline(). create_children_from_boundaries() creates boundary-driven
+  tilings. Appending extends an unlocked line, while appending to an embedded,
+  length-locked line raises RuntimeError.
 
 StartAnchor: "The first AlignmentAnchor of a synchronous MatchClaim, derived from the start coordinates."
 

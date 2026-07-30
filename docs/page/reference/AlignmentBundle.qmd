@@ -350,6 +350,7 @@ alignment.AlignmentBundle.diagram(
     max_children=6,
     max_standalone=6,
     unicode=True,
+    depth=True,
 )
 ```
 
@@ -357,19 +358,26 @@ Generate ASCII diagram for this bundle.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name           | Type           | Description                                                                 | Default   |
-|----------------|----------------|-----------------------------------------------------------------------------|-----------|
-| width          | [int](`int`)   | Total width of the diagram in characters.                                   | `80`      |
-| show_children  | [bool](`bool`) | Whether to expand child timelines.                                          | `True`    |
-| max_children   | [int](`int`)   | Maximum children per timeline.                                              | `6`       |
-| max_standalone | [int](`int`)   | Maximum standalone timelines to display before truncating with an ellipsis. | `6`       |
-| unicode        | [bool](`bool`) | Use Unicode characters (True) or ASCII fallback (False).                    | `True`    |
+| Name           | Type                           | Description                                                                                                                                                                                                                       | Default   |
+|----------------|--------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| width          | [int](`int`)                   | Total width of the diagram in characters.                                                                                                                                                                                         | `80`      |
+| show_children  | [bool](`bool`)                 | Whether to expand child timelines.                                                                                                                                                                                                | `True`    |
+| max_children   | [int](`int`)                   | Maximum children per timeline.                                                                                                                                                                                                    | `6`       |
+| max_standalone | [int](`int`)                   | Maximum standalone timelines to display before truncating with an ellipsis.                                                                                                                                                       | `6`       |
+| unicode        | [bool](`bool`)                 | Use Unicode characters (True) or ASCII fallback (False).                                                                                                                                                                          | `True`    |
+| depth          | [bool](`bool`) \| [int](`int`) | Child levels to render in nested timeline diagrams. ``True`` renders all levels, ``False`` renders direct children only, and a non-negative integer renders at most that many levels. In particular, ``0`` renders no child rows. | `True`    |
 
 #### Returns {.doc-section .doc-section-returns}
 
 | Name   | Type        | Description                                                           |
 |--------|-------------|-----------------------------------------------------------------------|
 |        | \'Diagram\' | Diagram object (displays as ASCII in terminal, rich HTML in Jupyter). |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                         |
+|--------|----------------------------|-------------------------------------|
+|        | [ValueError](`ValueError`) | If ``depth`` is a negative integer. |
 
 #### Examples {.doc-section .doc-section-examples}
 
