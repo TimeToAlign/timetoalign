@@ -46,6 +46,11 @@
 # 6. Recognise that FlowMap construction takes **one** argument in many shapes:
 #    region names, `Region` objects, coordinate pairs, a `Timeline`, or a
 #    collection of any of these
+# 7. **Place** the spans instead of concatenating them — with `Gap` entries,
+#    with `at` coordinates, or with a `{coordinate: span}` mapping — so the
+#    assembled timeline can hold holes
+# 8. Invert a cut: `apply_flow("source")` puts the music back where it came
+#    from, restoring a timeline laid out like the score
 #
 # **Prerequisites:** `how01_manual_timeline_construction`, `how01_coordinate_math`
 
@@ -294,6 +299,145 @@ one_span = FlowMap((0, before_end), id="opening_only")
 probe(one_span, [downbeat(11), downbeat(46)])
 
 # %% [markdown]
+# ## Placing spans instead of concatenating them
+#
+# Everything so far **concatenates**: each span starts where the previous one
+# ended, which is how a performance runs. Undoing a performance needs the
+# opposite. To put the cut music back on the page, the second span has to
+# return to measure 44 and the six removed quarters have to reopen as a hole.
+#
+# Three constructions state that placement. They build the identical map, so
+# pick whichever reads best for what you know:
+#
+# | You know | Write |
+# |----------|-------|
+# | *what is missing* — two measures, 6 QB | `[a, Gap(6), b]` |
+# | *where things go* — QB 0 and QB 129 | `at=[0, 129]` |
+# | *both, paired* — e.g. from a table | `{0: a, 129: b}` |
+#
+# Take the performance as the source this time: a 144 QB timeline whose two
+# spans meet at QB 123. Restoring it means placing the second span at QB 129.
+
+# %%
+from timetoalign.timelines import Gap  # noqa: E402
+
+performance = build_score(n_measures=48)  # 144 QB: the cut playthrough
+performance.create_region("before_cut", start=0, end=before_end)
+performance.create_region("after_cut", start=before_end, end=performance.length)
+
+restored_gaps = performance.create_flow_map(
+    ["before_cut", Gap(6), "after_cut"], id="restored_gaps"
+)
+restored_at = performance.create_flow_map(
+    ["before_cut", "after_cut"], at=[0, after_start], id="restored_at"
+)
+restored_dict = performance.create_flow_map(
+    {0: "before_cut", after_start: "after_cut"}, id="restored_dict"
+)
+
+{
+    "gaps": repr(restored_gaps),
+    "at": repr(restored_at),
+    "dict": repr(restored_dict),
+    "all_identical": restored_gaps._sections
+    == restored_at._sections
+    == restored_dict._sections,
+}
+
+# %% [markdown]
+# The map now reports a **gap**: a stretch of the target axis that no source
+# material fills. `iter_gaps()` lists them, whether you wrote them as `Gap`
+# entries or left them implied by the coordinates:
+
+# %%
+[(float(start), float(end)) for start, end, _label in restored_gaps.iter_gaps()]
+
+# %% [markdown]
+# A coordinate inside the hole belongs to no span, so `fold()` rejects it
+# rather than inventing a source position:
+
+# %%
+try:
+    folded_from_hole = float(restored_gaps.fold(downbeat(43)))
+except ValueError as exc:
+    folded_from_hole = str(exc)
+
+folded_from_hole
+
+# %% [markdown]
+# ### `Gap()` sizes itself
+#
+# Written against the **folded** score, whose spans already sit six quarters
+# apart, a bare `Gap()` measures the hole its neighbours leave and needs no
+# arithmetic from you:
+
+# %%
+auto = score.create_flow_map(["before_cut", Gap(), "after_cut"], id="auto")
+{
+    "gap_qb": [float(end - start) for start, end, _ in auto.iter_gaps()],
+    "reproduces_the_page": all(
+        auto.unfold_coordinate(c) == [c] for c in (0, 50, after_start, 140)
+    ),
+}
+
+# %% [markdown]
+# ## Inverting a cut
+#
+# You rarely have to write any of that by hand. `apply_flow()` attaches a
+# reverse map under the id `"source"`, and inverting a FlowMap simply swaps its
+# two axes — so the inverse already carries each span's original coordinates.
+# Applying it rebuilds a timeline laid out like the score it came from.
+#
+# Unfold the cut, then unfold the result back along `"source"`:
+
+# %%
+unfolded = score.apply_flow("cut")
+restored = unfolded.apply_flow("source")
+
+{
+    "performance_qb": float(unfolded.length.value),
+    "restored_qb": float(restored.length.value),
+    "after_cut_at": float(restored.get_child_offset("after_cut").value),
+    "measure": int(restored.get_child_offset("after_cut").value) // QB_PER_MEASURE + 1,
+}
+
+# %% [markdown]
+# Measures 1–41 sit at QB 0 and measures 44–50 are back at QB 129 — the
+# downbeat of measure 44 — with the two omitted measures empty between them.
+# The full 150 QB extent returns as well: the FlowMap records the length of the
+# axis it was built on, so nothing is lost off the end.
+#
+# The omitted music itself does **not** come back. The cut discarded it, and no
+# inverse can recover what a flow dropped — the restoration is of the *layout*,
+# not of the material:
+
+# %%
+restored_downbeats = {e["id"] for e in restored.get_events(include_children=True)}
+{
+    "children": restored.list_children(),
+    "n_downbeats": len(restored_downbeats),  # 48 of the score's 50
+    "m42_and_m43_gone": {"m42", "m43"}.isdisjoint(restored_downbeats),
+}
+
+# %% [markdown]
+# ### Filling the holes
+#
+# By default a hole is plain empty space. Pass `fill_gaps=True` to close it
+# with an **empty child** instead, so the result tiles its axis contiguously.
+# That is required when the timeline is a {{< glossary SegmentLine >}}, which
+# admits no space between its segments:
+
+# %%
+filled = unfolded.apply_flow("source", fill_gaps=True)
+{
+    "children": filled.list_children(),
+    "offsets": [
+        float(filled.get_child_offset(name).value) for name in filled.list_children()
+    ],
+    "gap_length_qb": float(filled.get_child("gap_1").length.value),
+}
+
+# %% [markdown]
 # ## Summary
 #
 # | Task | API |
@@ -307,6 +451,12 @@ probe(one_span, [downbeat(11), downbeat(46)])
 # | Map a coordinate performance → folded (N → 1) | `flow_map.fold(coord)` · `timeline.fold(coord, id=...)` |
 # | Assemble the whole unfolded timeline | `timeline.apply_flow(id)` → one child + Region per span |
 # | Inspect / flatten the result | `.list_children()` · `.get_events(include_children=True)` |
+# | Leave a hole of a known size | `Gap(6)` in the span list · `Gap()` to auto-size it |
+# | Place spans at known coordinates | `at=[0, 129]` · `{0: span, 129: span}` · `FlowMap.from_dict(...)` |
+# | List the holes in a map | `flow_map.iter_gaps()` · `flow_map.n_gaps` |
+# | Fold a coordinate inside a hole | `fold()` raises — it belongs to no span |
+# | Restore the source layout from a performance | `unfolded.apply_flow("source")` |
+# | Close the holes with empty children | `apply_flow(id, fill_gaps=True)` |
 #
 # The same {{< glossary FlowMap >}} also unfolds *repeats* — a span listed twice
 # plays twice, and `unfold_coordinate()` then returns two positions. In the
