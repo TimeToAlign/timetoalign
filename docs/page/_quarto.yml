@@ -183,6 +183,7 @@ quartodoc:
       contents:
         - name: Timeline
           package: timetoalign.timelines
+          include_inherited: true
         - name: ContinuousLogicalTimeline
           package: timetoalign.timelines
         - name: DiscreteLogicalTimeline
@@ -202,6 +203,8 @@ quartodoc:
         - name: GraphicalTimeline
           package: timetoalign.timelines
         - name: BeatGrid
+          package: timetoalign.timelines
+        - name: SegmentLine
           package: timetoalign.timelines
 
     - title: Flow Control
