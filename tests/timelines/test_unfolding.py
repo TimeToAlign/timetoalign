@@ -685,8 +685,7 @@ class TestSegmentLineAssembly:
             (Fraction(80), Fraction(120)),
         ]
 
-        sl = SegmentLine(
-            segment_type=ContinuousLogicalTimeline,
+        sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
@@ -720,8 +719,7 @@ class TestSegmentLineAssembly:
         )
 
         # Simulate unfolding: two passes through [0, 100)
-        sl = SegmentLine(
-            segment_type=ContinuousLogicalTimeline,
+        sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
@@ -751,8 +749,7 @@ class TestSegmentLineAssembly:
         )
 
         # Slice at [0, 30), [30, 60)
-        sl = SegmentLine(
-            segment_type=ContinuousLogicalTimeline,
+        sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
@@ -778,8 +775,7 @@ class TestSegmentLineAssembly:
             number_type=NumberType.fraction,
         )
 
-        sl = SegmentLine(
-            segment_type=ContinuousLogicalTimeline,
+        sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
@@ -808,8 +804,7 @@ class TestSegmentLineAssembly:
             ]
         )
 
-        sl = SegmentLine(
-            segment_type=ContinuousLogicalTimeline,
+        sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
@@ -1096,23 +1091,21 @@ def _build_dgt1(data_dir: Path) -> SegmentLine:
         }
     )
 
-    dgt1 = SegmentLine(
+    page_class = SegmentLine[DiscreteGraphicalTimeline]
+    dgt1 = SegmentLine[page_class](
         length=0,
         unit=TimeUnit.pixels,
         number_type=NumberType.int,
-        segment_type=SegmentLine,
-        inner_segment_type=DiscreteGraphicalTimeline,
     )
 
     for page_idx, page_data in noteheads.groupby("page", sort=True):
         sys_top = page_data.groupby("spacing_run_id")["top"].min()
         sys_order = sys_top.sort_values().index
 
-        page = SegmentLine(
+        page = page_class(
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=DiscreteGraphicalTimeline,
         )
 
         for sys_rank, sys_id in enumerate(sys_order):
@@ -1263,8 +1256,7 @@ def _unfold_group(
     # Create empty SegmentLines for each timeline
     unfolded: dict[str, SegmentLine] = {}
     for tl_id, tl in timelines.items():
-        unfolded[tl_id] = SegmentLine(
-            segment_type=type(tl),
+        unfolded[tl_id] = SegmentLine[type(tl)](
             length=0,
             unit=tl.unit,
             number_type=tl.number_type,
@@ -1419,9 +1411,12 @@ class TestGroupUnfolding:
             is ContinuousLogicalTimeline
         )
 
-        # DGT1 segments should be SegmentLine
-        # (each segment is a slice of the nested SegmentLine[SegmentLine[DGT]])
-        assert beethoven_unfolded_group[dgt1_id].segment_type is SegmentLine
+        # DGT1 segments are slices of the nested source line, so they carry its
+        # exact parameterized class.
+        assert (
+            beethoven_unfolded_group[dgt1_id].segment_type
+            is SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]
+        )
 
     def test_clt1_segment_lengths_match_qb_sections(
         self,

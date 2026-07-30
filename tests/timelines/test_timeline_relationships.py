@@ -26,6 +26,8 @@ Validity Rationale:
 
 from __future__ import annotations
 
+from fractions import Fraction
+
 import pytest
 
 from timetoalign.core import Coordinate, NumberType, TimeUnit
@@ -618,9 +620,8 @@ class TestSegmentLineParameterized:
     """Test parameterized SegmentLine (segment_type tracking and enforcement)."""
 
     def test_explicit_segment_type_at_construction(self):
-        """SegmentLine with explicit segment_type records it."""
-        sl = SegmentLine(
-            segment_type=ContinuousLogicalTimeline,
+        """SegmentLine parameter records its enforced segment class."""
+        sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
             unit=TimeUnit.quarters,
         )
@@ -636,16 +637,13 @@ class TestSegmentLineParameterized:
 
     def test_segment_type_enforced_on_add(self):
         """Adding a segment of wrong type raises TypeError."""
-        sl = SegmentLine(
-            segment_type=ContinuousLogicalTimeline,
+        sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
-            unit=TimeUnit.seconds,
+            unit=TimeUnit.quarters,
         )
-        wrong_type = ContinuousPhysicalTimeline(length=4.0)
+        wrong_type = Timeline(length=4, unit=TimeUnit.quarters)
 
-        with pytest.raises(
-            (TypeError, ValueError),
-        ):
+        with pytest.raises(TypeError, match="expects segments of type"):
             sl.append_segment(wrong_type)
 
     def test_segment_type_enforced_after_inference(self):
@@ -665,8 +663,7 @@ class TestSegmentLineParameterized:
         from timetoalign.timelines import BeatGrid
 
         # BeatGrid is a subclass of ContinuousLogicalTimeline
-        sl = SegmentLine(
-            segment_type=ContinuousLogicalTimeline,
+        sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
             unit=TimeUnit.quarters,
         )
@@ -702,121 +699,110 @@ class TestSegmentLineParameterized:
 
     # -- Recursive SegmentLine parameterization --
 
-    def test_explicit_inner_segment_type(self):
-        """SegmentLine[SegmentLine[DGT]] can be set explicitly at construction."""
-        sl = SegmentLine(
+    def test_explicit_nested_parameter(self):
+        """Nested parameterization records the complete inner dynamic class."""
+        inner_class = SegmentLine[DiscreteGraphicalTimeline]
+        sl = SegmentLine[inner_class](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=SegmentLine,
-            inner_segment_type=DiscreteGraphicalTimeline,
         )
-        assert sl.segment_type is SegmentLine
-        assert sl._inner_segment_type is DiscreteGraphicalTimeline
+        assert sl.segment_type is inner_class
+        assert isinstance(sl, inner_class)
 
-    def test_inner_segment_type_inferred_from_first_child(self):
-        """inner_segment_type is inferred from the first child SegmentLine."""
+    def test_bare_line_infers_dynamic_child_class(self):
+        """A bare line infers the exact dynamic class of its first child."""
         parent = SegmentLine(
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=SegmentLine,
         )
-        page = SegmentLine(
+        page = SegmentLine[DiscreteGraphicalTimeline](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=DiscreteGraphicalTimeline,
         )
         page.append_segment(DiscreteGraphicalTimeline(length=100))
         parent.append_segment(page, name="page_0")
 
-        assert parent._inner_segment_type is DiscreteGraphicalTimeline
+        assert parent.segment_type is SegmentLine[DiscreteGraphicalTimeline]
 
-    def test_inner_segment_type_rejects_mismatched_child(self):
+    def test_nested_parameter_rejects_mismatched_child(self):
         """Differently-parameterized SegmentLine children are rejected."""
-        parent = SegmentLine(
+
+        class InferredAlternateGraphicalTimeline(DiscreteGraphicalTimeline):
+            pass
+
+        inner_class = SegmentLine[DiscreteGraphicalTimeline]
+        parent = SegmentLine[inner_class](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=SegmentLine,
-            inner_segment_type=DiscreteGraphicalTimeline,
         )
-        good_page = SegmentLine(
+        good_page = inner_class(
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=DiscreteGraphicalTimeline,
         )
         good_page.append_segment(DiscreteGraphicalTimeline(length=100))
         parent.append_segment(good_page, name="page_0")
 
-        bad_page = SegmentLine(
+        bad_page = SegmentLine[InferredAlternateGraphicalTimeline](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=ContinuousLogicalTimeline,
         )
-        with pytest.raises(
-            TypeError, match="SegmentLine\\[DiscreteGraphicalTimeline\\]"
-        ):
+        with pytest.raises(TypeError, match="expects segments of type"):
             parent.append_segment(bad_page, name="page_1")
 
-    def test_inner_segment_type_rejects_after_inference(self):
-        """After inferring inner type, mismatched children are rejected."""
+    def test_bare_inference_rejects_mismatched_dynamic_child(self):
+        """After bare inference, a different dynamic child class is rejected."""
+
+        class AlternateGraphicalTimeline(DiscreteGraphicalTimeline):
+            pass
+
         parent = SegmentLine(
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=SegmentLine,
         )
-        good_page = SegmentLine(
+        good_page = SegmentLine[DiscreteGraphicalTimeline](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=DiscreteGraphicalTimeline,
         )
         good_page.append_segment(DiscreteGraphicalTimeline(length=100))
         parent.append_segment(good_page, name="page_0")
 
-        bad_page = SegmentLine(
+        bad_page = SegmentLine[AlternateGraphicalTimeline](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=ContinuousPhysicalTimeline,
         )
-        with pytest.raises(
-            TypeError, match="SegmentLine\\[DiscreteGraphicalTimeline\\]"
-        ):
+        with pytest.raises(TypeError, match="expects segments of type"):
             parent.append_segment(bad_page, name="page_1")
 
     def test_unparameterized_child_segmentline_rejected_when_inner_type_set(self):
-        """A SegmentLine with segment_type=None is rejected when inner type is set."""
-        parent = SegmentLine(
+        """A bare SegmentLine is not an instance of a nested parameter class."""
+        parent = SegmentLine[SegmentLine[DiscreteGraphicalTimeline]](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=SegmentLine,
-            inner_segment_type=DiscreteGraphicalTimeline,
         )
         unparameterized = SegmentLine(
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
         )
-        with pytest.raises(
-            TypeError, match="SegmentLine\\[DiscreteGraphicalTimeline\\]"
-        ):
+        with pytest.raises(TypeError, match="expects segments of type"):
             parent.append_segment(unparameterized, name="page_0")
 
     def test_class_name_recursive_display(self):
         """class_name shows SegmentLine[SegmentLine[DGT]] for nested types."""
-        sl = SegmentLine(
+        sl = SegmentLine[SegmentLine[DiscreteGraphicalTimeline]](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=SegmentLine,
-            inner_segment_type=DiscreteGraphicalTimeline,
         )
         assert sl.class_name == "SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]"
 
@@ -826,15 +812,13 @@ class TestSegmentLineParameterized:
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=SegmentLine,
         )
-        assert parent.class_name == "SegmentLine[SegmentLine]"
+        assert parent.class_name == "SegmentLine"
 
-        page = SegmentLine(
+        page = SegmentLine[DiscreteGraphicalTimeline](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=DiscreteGraphicalTimeline,
         )
         page.append_segment(DiscreteGraphicalTimeline(length=100))
         parent.append_segment(page, name="page_0")
@@ -847,32 +831,28 @@ class TestSegmentLineParameterized:
 
     def test_defaults_from_continuous_logical_segment_type(self):
         """segment_type supplies unit and number_type when both are omitted."""
-        sl = SegmentLine(segment_type=ContinuousLogicalTimeline)
+        sl = SegmentLine[ContinuousLogicalTimeline]()
 
         assert sl.unit == TimeUnit.quarters
         assert sl.number_type == NumberType.fraction
 
     def test_defaults_from_discrete_logical_segment_type(self):
         """A discrete logical segment type yields its own default unit."""
-        sl = SegmentLine(segment_type=DiscreteLogicalTimeline)
+        sl = SegmentLine[DiscreteLogicalTimeline]()
 
         assert sl.unit == TimeUnit.ticks
         assert sl.number_type == NumberType.int
 
-    def test_defaults_from_inner_segment_type_when_nested(self):
-        """Nested SegmentLine takes its defaults from inner_segment_type."""
-        sl = SegmentLine(
-            segment_type=SegmentLine,
-            inner_segment_type=DiscreteGraphicalTimeline,
-        )
+    def test_defaults_from_nested_parameter(self):
+        """A nested SegmentLine inherits defaults through its parameter class."""
+        sl = SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]()
 
         assert sl.unit == TimeUnit.pixels
         assert sl.number_type == NumberType.int
 
     def test_explicit_unit_overrides_segment_type_default(self):
         """An explicitly passed unit is never overridden by the segment type."""
-        sl = SegmentLine(
-            segment_type=ContinuousLogicalTimeline,
+        sl = SegmentLine[ContinuousLogicalTimeline](
             unit=TimeUnit.beats,
         )
 
@@ -888,24 +868,162 @@ class TestSegmentLineParameterized:
 
     def test_class_name_non_segmentline_type_unchanged(self):
         """class_name for non-SegmentLine segment_type is unaffected."""
-        sl = SegmentLine(
+        sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
             unit=TimeUnit.quarters,
-            segment_type=ContinuousLogicalTimeline,
         )
         assert sl.class_name == "SegmentLine[ContinuousLogicalTimeline]"
 
     def test_repr_includes_recursive_type(self):
         """__repr__ includes the full recursive parameterization."""
-        sl = SegmentLine(
+        sl = SegmentLine[SegmentLine[DiscreteGraphicalTimeline]](
             length=0,
             unit=TimeUnit.pixels,
             number_type=NumberType.int,
-            segment_type=SegmentLine,
-            inner_segment_type=DiscreteGraphicalTimeline,
         )
         r = repr(sl)
         assert r.startswith("SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]")
+
+
+class TestSegmentLineCasting:
+    """Test structural predicates and casts between timelines and segment lines."""
+
+    def test_is_segment_line_exact_empty_and_zero_length_semantics(self):
+        """Coverage uses exact arithmetic; empty differs from one zero child."""
+        empty = Timeline(length=0.0, unit=TimeUnit.seconds)
+        assert empty.is_segment_line() is False
+
+        zero_child = Timeline(length=0.0, unit=TimeUnit.seconds, uid="zero")
+        empty.add_child(zero_child, offset=0.0)
+        assert empty.is_segment_line() is True
+
+        exact = Timeline(
+            length=Fraction(3, 10),
+            unit=TimeUnit.quarters,
+            number_type=NumberType.fraction,
+        )
+        exact.add_child(
+            Timeline(
+                length=Fraction(1, 10),
+                unit=TimeUnit.quarters,
+                number_type=NumberType.fraction,
+                uid="first",
+            ),
+            offset=Fraction(0),
+        )
+        exact.add_child(
+            Timeline(
+                length=Fraction(1, 5),
+                unit=TimeUnit.quarters,
+                number_type=NumberType.fraction,
+                uid="second",
+            ),
+            offset=Fraction(1, 10),
+        )
+        assert exact.is_segment_line() is True
+
+    def test_as_segment_line_preserves_content_and_child_identity(self):
+        """A valid homogeneous hierarchy casts to its dynamic line class."""
+        parent = Timeline(
+            length=4.0,
+            unit=TimeUnit.seconds,
+            uid="parent",
+            name="Parent",
+            meta={"source": "fixture"},
+        )
+        parent.add_events([{"id": "marker", "event_type": "Marker", "instant": 1.0}])
+        parent.add_region("whole", 0.0, 4.0)
+        cmap = LinearMap(
+            scalar=1000.0,
+            offset=0.0,
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.milliseconds,
+            uid="milliseconds",
+        )
+        parent.add_conversion_map(cmap)
+        flow_marker = object()
+        parent._flow_maps["flow"] = flow_marker
+        first = ContinuousPhysicalTimeline(length=1.5, uid="first")
+        second = ContinuousPhysicalTimeline(length=2.5, uid="second")
+        parent.add_child(first, offset=0.0)
+        parent.add_child(second, offset=1.5)
+
+        cast = parent.as_segment_line()
+
+        assert type(cast) is SegmentLine[ContinuousPhysicalTimeline]
+        assert cast.id == "parent"
+        assert cast.name == "Parent"
+        assert cast.meta == {"source": "fixture"}
+        assert cast.get_segment_by_index(0)[1] is first
+        assert cast.get_segment_by_index(1)[1] is second
+        assert len(cast.get_events(include_children=False)) == 1
+        assert cast.get_conversion_map(TimeUnit.milliseconds) is cmap
+        assert cast.get_region("whole").end.value == 4.0
+        assert cast._flow_maps["flow"] is flow_marker
+        assert cast.as_segment_line() is cast
+
+    def test_as_segment_line_gap_names_first_offending_pair(self):
+        """A gap reports both adjacent child IDs and exact offsets."""
+        timeline = Timeline(length=3.0, unit=TimeUnit.seconds)
+        timeline.add_child(
+            ContinuousPhysicalTimeline(length=1.0, uid="left"),
+            offset=0.0,
+        )
+        timeline.add_child(
+            ContinuousPhysicalTimeline(length=1.0, uid="right"),
+            offset=2.0,
+        )
+
+        with pytest.raises(ValueError) as error:
+            timeline.as_segment_line()
+
+        assert str(error.value) == (
+            "Children 'left' and 'right' are not contiguous: "
+            "expected offset 1.0, got 2.0"
+        )
+
+    def test_as_segment_line_rejects_heterogeneous_child_classes(self):
+        """A structurally valid hierarchy still requires one exact child class."""
+        timeline = Timeline(length=2.0, unit=TimeUnit.seconds)
+        timeline.add_child(
+            ContinuousPhysicalTimeline(length=1.0, uid="typed"),
+            offset=0.0,
+        )
+        timeline.add_child(
+            Timeline(length=1.0, unit=TimeUnit.seconds, uid="base"),
+            offset=1.0,
+        )
+
+        with pytest.raises(TypeError, match="heterogeneous child classes"):
+            timeline.as_segment_line()
+
+    def test_to_timeline_drops_outer_segment_enforcement(self):
+        """The plain cast keeps content but returns the parameter class."""
+        line = SegmentLine[ContinuousPhysicalTimeline](
+            length=0,
+            uid="line",
+            meta={"kind": "sections"},
+        )
+        child = ContinuousPhysicalTimeline(length=2.0, uid="section")
+        line.append_segment(child)
+
+        timeline = line.to_timeline()
+
+        assert type(timeline) is ContinuousPhysicalTimeline
+        assert not isinstance(timeline, SegmentLine)
+        assert timeline.id == "line"
+        assert timeline.meta == {"kind": "sections"}
+        assert timeline.get_child("section") is child
+
+    def test_parameterized_from_segmentation_rejects_source_type_mismatch(self):
+        """A bound factory accepts only its exact parameter class."""
+        source = ContinuousLogicalTimeline(length=4)
+
+        with pytest.raises(TypeError, match="requires source type"):
+            SegmentLine[ContinuousPhysicalTimeline].from_segmentation(
+                source,
+                [0, 4],
+            )
 
 
 # endregion

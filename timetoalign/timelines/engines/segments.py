@@ -49,6 +49,7 @@ class SegmentsMixin:
             ...     [0.0] + measure_times.tolist() + [float(audio_tl.length)]
             ... )
         """
+        from ..base import Timeline
         from ..types import SegmentLine
 
         if len(boundaries) < 2:
@@ -65,8 +66,10 @@ class SegmentsMixin:
                     f"boundaries[{i}]={coords[i]}"
                 )
 
-        sl = SegmentLine(
-            segment_type=self.__class__,
+        line_class = (
+            SegmentLine if self.__class__ is Timeline else SegmentLine[self.__class__]
+        )
+        sl = line_class(
             length=0,
             unit=self._unit,
             number_type=self._number_type,

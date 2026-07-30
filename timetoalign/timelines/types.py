@@ -18,16 +18,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, Iterator, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Iterator, Literal
 
 from timetoalign.core import Coordinate, CoordinateSpec, NumberType, TimeUnit
 
 from .base import Timeline
 from .mixins import ContinuousMixin, DiscreteMixin
-
-# TypeVar for SegmentLine's generic segment type parameter.
-# Bound to Timeline so that SegmentLine[ContinuousLogicalTimeline] etc. work.
-T = TypeVar("T", bound=Timeline)
 
 if TYPE_CHECKING:
     from timetoalign.maps.meter import MetricalPositionMap, MetricMap
@@ -814,143 +810,15 @@ class DiscreteGraphicalTimeline(DiscreteMixin, GraphicalTimeline):
 # region SegmentLine
 
 
-class SegmentLine(Timeline, Generic[T]):
-    """A timeline containing only contiguous Segments.
+class SegmentLineMixin:
+    """Enforce and expose contiguous, homogeneously typed child segments."""
 
-    SegmentLine is parameterized by the segment type ``T`` (a Timeline
-    subclass), enabling both runtime type enforcement and static type
-    checking.  When ``segment_type`` is provided, every appended segment
-    must be an instance of that class (or a subclass).  When omitted,
-    the type is inferred from the first segment added.
+    _segment_type: ClassVar[type[Timeline] | None] = None
 
-    Segments are children that:
-    - Start exactly where the previous segment ends
-    - Have no gaps or overlaps
-
-    SegmentLine provides additional convenience methods for
-    segment-based access patterns and C-map concatenation.
-
-    When all Children of the same parent timeline (siblings) are
-    contiguous with each other, they are Segments and the parent is a
-    SegmentLine.
-
-    The key advantage of SegmentLine is that C-maps from individual
-    segments can be concatenated into a single PiecewiseMap, enabling
-    cumulative coordinate conversion across the entire timeline.
-
-    Attributes:
-        segment_order: Ordered list of segment IDs (insertion order).
-        segment_type: The Timeline subclass that all segments must be
-            instances of (or None if not yet determined).
-
-    Examples:
-        >>> # Typed SegmentLine -- enforces segment class
-        >>> score: SegmentLine[ContinuousLogicalTimeline] = SegmentLine(
-        ...     unit=TimeUnit.quarters,
-        ...     segment_type=ContinuousLogicalTimeline,
-        ... )
-        >>> for i in range(4):
-        ...     measure = ContinuousLogicalTimeline(length=Fraction(4))
-        ...     score.append_segment(measure, name=f"m{i+1}")
-        >>> score.segment_type
-        <class 'ContinuousLogicalTimeline'>
-
-        >>> # Inferred type -- locks on first append
-        >>> sl = SegmentLine.empty(unit=TimeUnit.quarters)
-        >>> sl.append_segment(ContinuousLogicalTimeline(length=Fraction(4)))
-        >>> sl.segment_type
-        <class 'ContinuousLogicalTimeline'>
-
-        >>> # Access by index
-        >>> offset, segment = score.get_segment_by_index(2)
-        >>> offset
-        Coordinate(8, quarters)
-
-        >>> # Find segment containing a coordinate
-        >>> idx, seg, ts = score.get_segment_at(10.0)
-        >>> idx
-        2  # Third segment (0-indexed)
-    """
-
-    def __init__(
-        self,
-        segment_type: type[Timeline] | None = None,
-        inner_segment_type: type[Timeline] | None = None,
-        **kwargs: Any,
-    ) -> None:
-        """Initialize a SegmentLine.
-
-        Args:
-            segment_type: The Timeline subclass that all segments must be
-                instances of.  If ``None`` (default), the type is inferred
-                from the first segment added.  Providing it explicitly
-                enables early validation and clearer static typing.
-            inner_segment_type: When ``segment_type`` is ``SegmentLine``,
-                specifies the ``segment_type`` that each child SegmentLine
-                must have.  This enables recursive type enforcement
-                (e.g. ``SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]``).
-                Inferred from the first child's ``segment_type`` if not set.
-            **kwargs: Arguments passed to Timeline.__init__.  When ``unit``
-                is omitted (or ``None``) and a ``segment_type`` is known, it
-                defaults to that class's own ``_default_unit`` rather than to
-                the base Timeline default -- so a
-                ``SegmentLine[ContinuousLogicalTimeline]`` is in quarters, not
-                seconds.  ``number_type`` follows the same rule, but only for
-                segment classes that define their own default.  For
-                ``segment_type=SegmentLine`` the defaults come from
-                ``inner_segment_type`` instead, mirroring
-                :attr:`class_name`.  An explicitly passed ``unit`` or
-                ``number_type`` always wins, and nothing is inferred when
-                ``segment_type`` is ``None``.
-        """
-        # Take unit/number_type defaults from the segment class instead of the
-        # base Timeline defaults this class would otherwise inherit.
-        default_source = segment_type
-        if default_source is SegmentLine:
-            default_source = inner_segment_type
-        if default_source is not None:
-            if kwargs.get("unit") is None:
-                kwargs["unit"] = default_source._default_unit
-            # Only adopt a number_type the segment class declares itself; the
-            # value inherited from Timeline carries no intent here, and cannot
-            # be recognised by value alone since subclasses may redeclare it.
-            if kwargs.get("number_type") is None and any(
-                "_default_number_type" in klass.__dict__
-                for klass in default_source.__mro__
-                if klass is not Timeline
-            ):
-                kwargs["number_type"] = default_source._default_number_type
+    def __init__(self, **kwargs: Any) -> None:
+        """Initialize segment ordering before accepting children."""
         super().__init__(**kwargs)
         self._segment_order: list[str] = []
-        self._segment_type: type[Timeline] | None = segment_type
-        self._inner_segment_type: type[Timeline] | None = inner_segment_type
-
-    @classmethod
-    def _from_dict_init_kwargs(
-        cls, type_parameters: tuple[type[Timeline], ...]
-    ) -> dict[str, Any]:
-        """Restore segment type parameters encoded in the class tag."""
-        if not type_parameters:
-            return {}
-
-        segment_type = type_parameters[0]
-        if segment_type is SegmentLine:
-            if len(type_parameters) != 2:
-                raise ValueError(
-                    "Serialized SegmentLine tag must contain exactly one inner "
-                    "segment type"
-                )
-            return {
-                "segment_type": segment_type,
-                "inner_segment_type": type_parameters[1],
-            }
-
-        if len(type_parameters) != 1:
-            raise ValueError(
-                "Serialized SegmentLine tag may only nest a parameterized "
-                "SegmentLine"
-            )
-        return {"segment_type": segment_type}
 
     @classmethod
     def _from_dict_initial_length(cls, data: dict[str, Any]) -> int:
@@ -963,85 +831,24 @@ class SegmentLine(Timeline, Generic[T]):
 
     @property
     def segment_type(self) -> type[Timeline] | None:
-        """The Timeline subclass that all segments must be instances of.
-
-        Returns ``None`` if no ``segment_type`` was specified at construction
-        and no segments have been added yet (the type will be inferred from
-        the first segment).
-
-        Returns:
-            The segment class, or None if not yet determined.
-
-        Examples:
-            >>> sl = SegmentLine(
-            ...     unit=TimeUnit.quarters,
-            ...     segment_type=ContinuousLogicalTimeline,
-            ... )
-            >>> sl.segment_type
-            <class 'ContinuousLogicalTimeline'>
-        """
+        """Return the enforced class, inferred on first append for a bare line."""
         return self._segment_type
 
     @property
     def class_name(self) -> str:
-        """The class name including the segment type parameter (recursive).
-
-        When ``segment_type`` is set, returns ``SegmentLine[<type>]``.
-        When segments are themselves SegmentLines with a known
-        ``inner_segment_type``, the display is recursive:
-        ``SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]``.
-
-        Examples:
-            >>> sl = SegmentLine(
-            ...     unit=TimeUnit.quarters,
-            ...     segment_type=ContinuousLogicalTimeline,
-            ... )
-            >>> sl.class_name
-            'SegmentLine[ContinuousLogicalTimeline]'
-
-            >>> nested = SegmentLine(
-            ...     unit=TimeUnit.pixels,
-            ...     segment_type=SegmentLine,
-            ...     inner_segment_type=DiscreteGraphicalTimeline,
-            ... )
-            >>> nested.class_name
-            'SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]'
-        """
-        if self._segment_type is None:
-            return "SegmentLine"
-        if self._segment_type is SegmentLine and self._inner_segment_type is not None:
-            return f"SegmentLine[SegmentLine[{self._inner_segment_type.__name__}]]"
-        return f"SegmentLine[{self._segment_type.__name__}]"
+        """Return the dynamic class name or a bare line's inferred wire tag."""
+        if type(self) is SegmentLine and self._segment_type is not None:
+            return f"SegmentLine[{self._segment_type.__name__}]"
+        return type(self).__name__
 
     def validate_child(
         self,
         child: Timeline,
         offset: CoordinateSpec,
     ) -> None:
-        """Override to enforce contiguity and segment type consistency.
-
-        Segments must start exactly where the previous segment ends.
-        The first segment must start at 0.  All segments must be instances
-        of the same Timeline subclass (either specified at construction or
-        inferred from the first segment added).
-
-        When the segment type is ``SegmentLine``, child SegmentLines must
-        also share the same ``segment_type`` (i.e. differently-parameterized
-        SegmentLines are treated as incompatible types).
-
-        Args:
-            child: The timeline to validate.
-            offset: The proposed start coordinate.
-
-        Raises:
-            ValueError: If offset doesn't produce contiguous placement.
-            TypeError: If child's class does not match the segment type.
-            TypeError: If child is a SegmentLine with a different
-                ``segment_type`` than the expected inner segment type.
-        """
+        """Validate the segment class and its exact contiguous offset."""
         super().validate_child(child, offset)
 
-        # Enforce segment type consistency
         if self._segment_type is not None:
             if not isinstance(child, self._segment_type):
                 raise TypeError(
@@ -1051,25 +858,7 @@ class SegmentLine(Timeline, Generic[T]):
                     f"SegmentLine must be the same Timeline subclass."
                 )
 
-            # When segments are SegmentLines, enforce matching inner type
-            if (
-                self._segment_type is SegmentLine
-                and isinstance(child, SegmentLine)
-                and self._inner_segment_type is not None
-            ):
-                child_inner = child.segment_type
-                if child_inner != self._inner_segment_type:
-                    expected = self._inner_segment_type.__name__
-                    got = child_inner.__name__ if child_inner else "None"
-                    raise TypeError(
-                        f"SegmentLine expects SegmentLine[{expected}] "
-                        f"segments, got SegmentLine[{got}]. All child "
-                        f"SegmentLines must have the same segment_type."
-                    )
-
         offset_val = self._resolve_axis_value(offset)
-
-        # First segment must start at 0 (or current length if empty)
         expected_offset = self.length.value if self._segment_order else 0
 
         if offset_val != expected_offset:
@@ -1085,36 +874,11 @@ class SegmentLine(Timeline, Generic[T]):
         offset: CoordinateSpec,
         allow_expansion: bool = False,
     ) -> None:
-        """Add a segment at the specified offset.
-
-        Overrides Timeline.add_child to also track segment order and
-        infer/enforce the segment type.
-
-        Args:
-            child: The segment to add.
-            offset: The start coordinate (must be contiguous).
-            allow_expansion: If True, expand timeline if needed.
-
-        Raises:
-            ValueError: If placement would not be contiguous.
-            TypeError: If child's class does not match the segment type.
-        """
-        # Validate first (will check contiguity and segment type)
+        """Add a validated segment and record its insertion order."""
         super().add_child(child, offset, allow_expansion)
 
-        # Infer segment_type from first segment if not explicitly set
         if self._segment_type is None:
             self._segment_type = type(child)
-
-        # Infer inner_segment_type from first SegmentLine child
-        if (
-            self._inner_segment_type is None
-            and isinstance(child, SegmentLine)
-            and child.segment_type is not None
-        ):
-            self._inner_segment_type = child.segment_type
-
-        # Track segment order
         self._segment_order.append(child.id)
 
     def append_segment(
@@ -1122,33 +886,14 @@ class SegmentLine(Timeline, Generic[T]):
         segment: Timeline,
         name: str | None = None,
     ) -> None:
-        """Append a segment at the current end coordinate.
-
-        Delegates to :meth:`~ChildrenMixin.append_child`, which places the
-        segment at ``offset = self.length``; ``SegmentLine.add_child`` records
-        the segment order and infers/enforces the segment type.
-
-        Args:
-            segment: Timeline to add as segment.
-            name: Optional name override for the segment.
-        """
+        """Append a segment at the current end coordinate."""
         self.append_child(segment, name=name, allow_expansion=True)
 
     def get_segment_at(
         self,
         coord: CoordinateSpec,
     ) -> tuple[int, Timeline, Any]:
-        """Get segment containing a coordinate.
-
-        Args:
-            coord: Coordinate in this SegmentLine.
-
-        Returns:
-            Tuple of (segment_index, segment, timestamp_in_segment).
-
-        Raises:
-            ValueError: If no segment contains the coordinate.
-        """
+        """Return the index, segment, and local timestamp at a coordinate."""
         ts = self.get_timestamp(coord)
         coord_val = float(self._resolve_axis_value(coord))
 
@@ -1163,17 +908,7 @@ class SegmentLine(Timeline, Generic[T]):
         raise ValueError(f"No segment contains coordinate {coord_val}")
 
     def get_segment_by_index(self, index: int) -> tuple[Coordinate, Timeline]:
-        """Get segment by 0-based index.
-
-        Args:
-            index: Segment index (0-based).
-
-        Returns:
-            Tuple of (offset, segment).
-
-        Raises:
-            IndexError: If index is out of range.
-        """
+        """Return a segment's offset and timeline by zero-based index."""
         if index < 0 or index >= len(self._segment_order):
             raise IndexError(f"Segment index {index} out of range")
 
@@ -1186,33 +921,15 @@ class SegmentLine(Timeline, Generic[T]):
         return len(self._segment_order)
 
     def list_segments(self) -> list[str]:
-        """List segment IDs in order.
-
-        Returns:
-            List of segment IDs (child IDs) in insertion order.
-        """
+        """Return segment IDs in insertion order."""
         return list(self._segment_order)
 
     def has_segment(self, segment_id: str) -> bool:
-        """Check if a segment with the given ID exists.
-
-        Args:
-            segment_id: The segment ID to check.
-
-        Returns:
-            True if a segment with that ID exists.
-        """
+        """Return whether a segment ID exists."""
         return segment_id in self._segment_order
 
     def __contains__(self, item: Any) -> bool:
-        """Check if a region, child, or segment is part of this SegmentLine.
-
-        Extends Timeline.__contains__ to also check segments by ID.
-        For strings, checks regions, children, AND segments.
-
-        Args:
-            item: A string ID, Region, or Timeline object.
-        """
+        """Return whether a region, child, or segment belongs to this line."""
         if isinstance(item, str):
             return (
                 item in self._regions
@@ -1222,11 +939,7 @@ class SegmentLine(Timeline, Generic[T]):
         return super().__contains__(item)
 
     def iter_segments(self) -> Iterator[tuple[int, Coordinate, Timeline]]:
-        """Iterate over segments in order.
-
-        Yields:
-            Tuples of (index, offset, segment).
-        """
+        """Yield each segment's index, offset, and timeline."""
         for i, seg_id in enumerate(self._segment_order):
             yield (i, self._child_offsets[seg_id], self._children[seg_id])
 
@@ -1236,26 +949,7 @@ class SegmentLine(Timeline, Generic[T]):
         end_id: str,
         **kwargs: Any,
     ) -> "Timeline":
-        """Extract a slice spanning from the start of one segment to the end of another.
-
-        Convenience wrapper around :meth:`~Timeline.get_slice`.  Uses the
-        offset of *start_id* and the end coordinate of *end_id* to
-        determine the slice bounds.
-
-        Args:
-            start_id: ID of the first segment (inclusive).
-            end_id: ID of the last segment (inclusive — its full extent
-                is included).
-            **kwargs: Forwarded to :meth:`~Timeline.get_slice`.
-
-        Returns:
-            A new Timeline for the combined segment range.
-
-        Raises:
-            KeyError: If either segment ID is not found.
-            ValueError: If *start_id* comes after *end_id* in segment
-                order.
-        """
+        """Slice from the start of one segment through the end of another."""
         if start_id not in self._segment_order:
             raise KeyError(
                 f"Segment '{start_id}' not found on SegmentLine '{self._id}'. "
@@ -1292,27 +986,7 @@ class SegmentLine(Timeline, Generic[T]):
         include_children: bool = True,
         copy_cmaps: bool = True,
     ) -> "Timeline":
-        """Extract a portion of this SegmentLine as a new SegmentLine.
-
-        Overrides `Timeline.get_slice` to handle two SegmentLine-specific
-        requirements:
-
-        1. **Type preservation**: The ``segment_type`` and
-           ``inner_segment_type`` must be carried over from the source,
-           because the base implementation constructs the target via
-           ``self.__class__(length=…)`` which does not pass them.
-        2. **Contiguity during child copy**: The base ``get_slice``
-           creates the target with the final ``length`` up front, but
-           `SegmentLine.validate_child` expects the next segment to
-           start at ``self.length`` (which equals the cumulative child
-           lengths, not the pre-set slice length).  By creating the
-           target with ``length=0`` and ``allow_expansion=True`` we let
-           children expand the SegmentLine naturally.
-
-        All other behaviour (event extraction, coordinate shifting,
-        recursive child slicing, C-map copying) is delegated to the
-        base class helpers.
-        """
+        """Extract a slice while preserving the parameterized line class."""
         # Coerce to native number type
         start_value = self._resolve_axis_value(start)
         end_value = self._resolve_axis_value(end)
@@ -1339,11 +1013,7 @@ class SegmentLine(Timeline, Generic[T]):
                 f"end ({e}) is outside timeline bounds " f"[0, {self._length.value}]"
             )
 
-        # Create target SegmentLine with length=0 so that children
-        # can be added contiguously via allow_expansion (append pattern).
-        sliced = SegmentLine(
-            segment_type=self._segment_type,
-            inner_segment_type=self._inner_segment_type,
+        sliced = type(self)(
             length=0,
             unit=self._unit,
             number_type=self._number_type,
@@ -1369,29 +1039,61 @@ class SegmentLine(Timeline, Generic[T]):
 
         return sliced
 
+    def _typed_class(self) -> type[Timeline]:
+        """Return a line parameterized by the recursively typed child class."""
+        if self._children:
+            first_child = next(iter(self._children.values()))
+            child_class = first_child._typed_class()
+            return SegmentLine[child_class]
+        if type(self) is not SegmentLine:
+            return type(self)
+        return Timeline.resolve_subclass(self.unit, self.number_type)
+
+    def to_timeline(self) -> Timeline:
+        """Return the parameter timeline type without segment enforcement."""
+        target_class = self.segment_type
+        if target_class is None:
+            target_class = Timeline.resolve_subclass(self.unit, self.number_type)
+
+        initial_length = (
+            0 if issubclass(target_class, SegmentLineMixin) else self._length.value
+        )
+        timeline = target_class(
+            length=initial_length,
+            unit=self._unit,
+            number_type=self._number_type,
+            uid=self._id,
+            name=self._name,
+            locked=False,
+            meta=dict(self._meta) if self._meta else None,
+        )
+        events = [
+            dict(event)
+            for event in self._events
+            if event.get("event_type") != "Segment"
+        ]
+        if events:
+            timeline._add_events_unchecked(events)
+        timeline._external_references = self._external_references
+        for child_id, child in self._children.items():
+            timeline.add_child(
+                child,
+                offset=self._child_offsets[child_id],
+                allow_expansion=isinstance(timeline, SegmentLineMixin),
+            )
+        for cmap in self._conversion_maps.values():
+            timeline.add_conversion_map(cmap)
+        timeline._regions.update(self._regions)
+        timeline._flow_maps.update(self._flow_maps)
+        timeline._length = timeline._make_coordinate(self._length.value)
+        timeline._locked = self._locked
+        return timeline
+
     def concatenate_cmaps(
         self,
         target_unit: TimeUnit,
     ) -> Any:
-        """Concatenate segment C-maps into a single PiecewiseMap.
-
-        Each segment must have a C-map to the target unit.
-        The resulting map converts SegmentLine coordinates to the
-        cumulative target unit coordinates.
-
-        Segment contiguity allows local coordinate systems to be concatenated
-        by cumulatively summing segment lengths, and allows the same operation
-        to be applied to the segments' C-maps.
-
-        Args:
-            target_unit: The target unit all segment C-maps must convert to.
-
-        Returns:
-            PiecewiseMap combining all segment conversions.
-
-        Raises:
-            ValueError: If any segment lacks a C-map to target_unit.
-        """
+        """Concatenate every segment's map to a target unit."""
         from timetoalign.maps import PiecewiseMap
 
         pieces = []
@@ -1404,11 +1106,8 @@ class SegmentLine(Timeline, Generic[T]):
                     f"Segment '{segment.id}' has no C-map to {target_unit}"
                 )
 
-            # Get segment bounds in SegmentLine coordinates
             segment_start = float(offset.value)
             segment_end = segment_start + float(segment.length.value)
-
-            # Create piece definition
             pieces.append(
                 {
                     "start": segment_start,
@@ -1418,7 +1117,6 @@ class SegmentLine(Timeline, Generic[T]):
                 }
             )
 
-            # Cumulate the converted length
             converted_length = cmap(segment.length.value)
             cumulative_offset += float(converted_length)
 
@@ -1428,6 +1126,43 @@ class SegmentLine(Timeline, Generic[T]):
             target_unit=target_unit,
         )
 
+
+class SegmentLine(SegmentLineMixin, Timeline):
+    """A timeline whose cached parameterized classes inherit the segment API."""
+
+    _parameter_cache: ClassVar[dict[type[Timeline], type["SegmentLine"]]] = {}
+
+    @classmethod
+    def __class_getitem__(cls, segment_type: type[Timeline]) -> type["SegmentLine"]:
+        """Return the cached dynamic class for a strict Timeline subclass."""
+        if cls is not SegmentLine:
+            raise TypeError("Only bare SegmentLine can be parameterized")
+        if (
+            not isinstance(segment_type, type)
+            or not issubclass(segment_type, Timeline)
+            or segment_type is Timeline
+            or segment_type is SegmentLine
+        ):
+            raise TypeError(
+                "SegmentLine parameter must be a strict Timeline subclass "
+                "other than bare SegmentLine"
+            )
+
+        cached = cls._parameter_cache.get(segment_type)
+        if cached is not None:
+            return cached
+
+        name = f"SegmentLine[{segment_type.__name__}]"
+        attributes = {"_segment_type": segment_type, "__module__": __name__}
+        try:
+            parameterized = type(name, (SegmentLine, segment_type), attributes)
+        except TypeError:
+            if not issubclass(segment_type, SegmentLine):
+                raise
+            parameterized = type(name, (segment_type,), attributes)
+        cls._parameter_cache[segment_type] = parameterized
+        return parameterized
+
     @classmethod
     def from_segmentation(
         cls,
@@ -1435,17 +1170,7 @@ class SegmentLine(Timeline, Generic[T]):
         split_coords: list[CoordinateSpec],
         copy_events: bool = True,
     ) -> "SegmentLine":
-        """Create a SegmentLine by segmenting an existing timeline.
-
-        Segmentation is a special case of partitioning: it creates one or
-        several Segments from two or more segmentation points on a timeline.
-
-        Note: The segmented timeline is NOT modified. A new SegmentLine
-        is created with copies of the relevant portions.
-
-        The ``segment_type`` of the resulting SegmentLine is set to the
-        concrete class of ``source``, and segments are instantiated as
-        that class. This preserves domain-specific constraints.
+        """Create a parameterized line from slices of an unchanged source.
 
         Args:
             source: Timeline to segment (not modified).
@@ -1459,18 +1184,7 @@ class SegmentLine(Timeline, Generic[T]):
         Raises:
             ValueError: If source already has children (ambiguous nesting).
             ValueError: If fewer than 2 split coordinates provided.
-
-        Examples:
-            >>> source = ContinuousLogicalTimeline(length=100)
-            >>> source.add_events([...])  # Some events
-            >>> # Split into 4 segments at [0, 25, 50, 75, 100]
-            >>> segments = SegmentLine.from_segmentation(
-            ...     source, [0, 25, 50, 75, 100]
-            ... )
-            >>> segments.n_segments
-            4
-            >>> segments.segment_type
-            <class 'ContinuousLogicalTimeline'>
+            TypeError: If a parameterized receiver does not match the source.
         """
         if source.n_children > 0:
             raise ValueError(
@@ -1483,23 +1197,27 @@ class SegmentLine(Timeline, Generic[T]):
                 f"Segmentation requires at least 2 coordinates, got {len(split_coords)}"
             )
 
-        # Sort and validate coordinates
         coords = sorted(
             float(source._resolve_axis_value(coord)) for coord in split_coords
         )
-
-        # Determine the segment class from the source's concrete type
         source_class = type(source)
 
-        # Create the SegmentLine with length=0 (will expand as segments are added)
-        segment_line = cls(
-            segment_type=source_class,
+        if cls is SegmentLine:
+            line_class = SegmentLine[source_class]
+        elif cls._segment_type is not source_class:
+            raise TypeError(
+                f"{cls.__name__}.from_segmentation() requires source type "
+                f"{cls._segment_type.__name__}, got {source_class.__name__}"
+            )
+        else:
+            line_class = cls
+
+        segment_line = line_class(
             length=0,
             unit=source.unit,
             number_type=source.number_type,
         )
 
-        # Create segments using the source's concrete class
         for i in range(len(coords) - 1):
             start = coords[i]
             end = coords[i + 1]
@@ -1513,20 +1231,17 @@ class SegmentLine(Timeline, Generic[T]):
             )
 
             if copy_events:
-                # Get events in this range from source
                 events_in_range = source.get_events(
                     min_coord=start,
                     max_coord=end,
                 )
 
-                # Convert EventData to list of dicts and adjust coordinates
                 adjusted_events = []
                 for event in events_in_range:
                     adjusted = dict(event)
                     for coord_col in ("instant", "start", "end"):
                         val = adjusted.get(coord_col)
                         if val is not None:
-                            # Handle coordinate struct or raw value
                             if isinstance(val, dict) and "value" in val:
                                 adjusted[coord_col] = val["value"] - start
                             else:
@@ -1586,3 +1301,15 @@ def get_timeline_class(
 
 
 # endregion
+
+
+def __getattr__(name: str) -> Any:
+    """Materialize a serialized dynamic class requested by pickle."""
+    if name.startswith("SegmentLine[") and name.endswith("]"):
+        try:
+            resolved = Timeline._resolve_serialized_class_hierarchy(name)
+        except (TypeError, ValueError) as error:
+            raise AttributeError(name) from error
+        if resolved.__name__ == name:
+            return resolved
+    raise AttributeError(name)

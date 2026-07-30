@@ -1481,8 +1481,9 @@ class Ieee1599Loader(XmlLoader):
         the parent resolves every accolade coordinate to the page image that
         contains it.
         """
-        timeline: SegmentLine[DiscreteGraphicalTimeline] = SegmentLine(
-            segment_type=DiscreteGraphicalTimeline,
+        timeline: SegmentLine[DiscreteGraphicalTimeline] = SegmentLine[
+            DiscreteGraphicalTimeline
+        ](
             length=0,
             unit=_GRAPHIC_UNIT,
             number_type=NumberType.int,

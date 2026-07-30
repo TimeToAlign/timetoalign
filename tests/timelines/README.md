@@ -93,12 +93,14 @@ allowed to expose a float because interpolation is inherently float-based.
 
 **Test Categories:**
 
-1. **Construction Tests** (11 tests)
+1. **Construction Tests** (12 tests)
    - Empty timeline creation with defaults
    - Timeline with explicit length, unit, number_type
    - Custom ID vs auto-generated ID
    - Locked state on creation
    - Factory methods: `from_events()`, `from_event_store()`
+   - The experimental base class remains available as an explicit
+     `create_child(..., child_class=Timeline)` override
 
 2. **Coordinate Factory Tests** (6 tests)
    - `make_coordinate()` preserves value types (int, float, Fraction)
@@ -356,6 +358,16 @@ need contents opt in.
      exact rational wire dict (`rational_to_wire`) for the child's length —
      not a rounded float projection.
 
+9. **Child Construction and Boundary Tests**
+   - `create_child()` defaults its offset to zero and returns the parent's
+     exact concrete class for all six concrete timeline types
+   - Coordinate objects remain valid for child lengths and offsets
+   - BeatGrid children and slices are `ContinuousLogicalTimeline` instances
+     because they represent plain logical material rather than new grids
+   - `create_children_from_boundaries()` creates named, contiguous children
+     that tile the parent exactly, supports explicit names, and reports the
+     same boundary-validation errors as `create_regions_from_boundaries()`
+
 **Validity Rationale:**
 
 The TTA model specifies that timelines can contain nested "children" (segments)
@@ -371,7 +383,8 @@ that share the same coordinate type. These tests verify:
 
 ### `test_types.py` - Domain-Specific Timeline Subclasses
 
-**Purpose:** Validates the 6 timeline types (3 domains x 2 modalities).
+**Purpose:** Validates the 6 timeline types (3 domains x 2 modalities), the
+dynamic `SegmentLine[T]` class family, and timeline serialization dispatch.
 
 **Timeline Types:**
 
@@ -418,6 +431,16 @@ that share the same coordinate type. These tests verify:
    - Logical cannot contain physical
    - Physical cannot contain graphical
    - Graphical cannot contain logical
+
+8. **Parameterized SegmentLine and Serialization Tests**
+   - Repeated parameterization returns the identical cached class
+   - Dynamic classes inherit the APIs and restrictions of both `SegmentLine`
+     and their timeline parameter
+   - Invalid and repeated parameterization raises `TypeError`
+   - Nested class tags resolve recursively and preserve exact error messages
+   - Pickle reconstructs dynamic classes by module reference
+   - Captured 1.0.1 payloads deserialize to the same nested structure
+   - `to_typed()` recursively re-types children and retains exact classes
 
 **Validity Rationale:**
 
@@ -752,6 +775,7 @@ measures.
 11. **Phase C — create_segment_line()** (4 tests)
     - Creates SegmentLine from boundary coordinates
     - Does NOT modify source timeline
+    - Returns `SegmentLine[type(source)]` with the source timeline API
 
 12. **Phase C — create_segment_line_from_regions()** (3 tests)
     - Creates SegmentLine from contiguous regions
@@ -774,7 +798,7 @@ measures.
     - Region object `in tl` checks by name
     - Timeline object `in tl` checks by identity
 
-17. **SegmentLine Basics Tests** (8 tests)
+17. **SegmentLine Basics and Casting Tests**
     - Empty creation
     - append_segment() adds contiguous children
     - Segment offsets form contiguous sequence
@@ -782,13 +806,20 @@ measures.
     - First segment must start at 0
     - get_segment_by_index()
     - get_segment_at() finds segment by coordinate
+    - `is_segment_line()` uses exact structural coverage, including
+      zero-length children, and rejects an empty child collection
+    - `as_segment_line()` preserves content while enforcing contiguity and a
+      homogeneous child class
+    - `to_timeline()` removes segment enforcement without losing content
 
-18. **SegmentLine from_segmentation Tests** (5 tests)
+18. **SegmentLine from_segmentation Tests**
     - Creates correct number of segments
     - Segments have correct lengths
     - Copies events to respective segments
     - Requires at least 2 split coordinates
     - Fails if source has existing children
+    - Rejects invocation through a parameterized class whose parameter differs
+      from the source's exact class
 
 19. **Timeline.derive() Tests** (8 tests)
     - Creates timeline in target unit
@@ -843,6 +874,8 @@ These tests ensure:
    `SegmentLine.get_slice()`
 7. The unified verb×noun API provides consistent naming across all noun types
 8. Real data from Ms3Loader validates the API against production musicological data
+9. Dynamic SegmentLine classes preserve both segment behavior and the complete
+   API of their parameter timeline class
 
 ---
 
@@ -1415,6 +1448,7 @@ FlowMap approach with structural slicing in QB-space.
    - Child timeline recursive slicing
    - Number type preservation (Fraction stays Fraction)
    - Concrete class preservation (CLT returns CLT)
+   - Parameterized SegmentLine slicing preserves its dynamic class
    - Discrete and physical timeline support
    - Error cases (invalid range, out of bounds)
 
@@ -1430,6 +1464,7 @@ FlowMap approach with structural slicing in QB-space.
    - Total length = sum of slice lengths
    - Events preserved in assembled segments
    - Segment type matches source class
+   - The assembled line is an instance of both SegmentLine and the source class
    - Repeated section assembly (same range played twice)
 
 4. **Standalone Unfolded Timeline Identity Tests** (2 tests)

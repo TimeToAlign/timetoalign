@@ -16,6 +16,7 @@ Validity Rationale:
 
 from __future__ import annotations
 
+import pickle
 from fractions import Fraction
 
 import pytest
@@ -322,11 +323,10 @@ class TestSerializedTypeParameters:
         target_unit,
     ):
         """SegmentLine tags restore their registered segment type hierarchy."""
-        original = SegmentLine(
+        original = SegmentLine[segment_class](
             length=0,
             unit=segment_class._default_unit,
             number_type=segment_class._default_number_type,
-            segment_type=segment_class,
             uid="segments",
         )
         for index in range(2):
@@ -381,10 +381,7 @@ class TestSerializedTypeParameters:
 
     def test_parameterized_segment_line_rejects_unregistered_inner_class(self):
         """An unknown segment type identifies both the type and full tag."""
-        data = SegmentLine(
-            length=0,
-            segment_type=DiscreteGraphicalTimeline,
-        ).to_dict()
+        data = SegmentLine[DiscreteGraphicalTimeline](length=0).to_dict()
         data["class"] = "SegmentLine[UnregisteredSegmentTimeline]"
 
         with pytest.raises(ValueError) as error:
@@ -397,17 +394,9 @@ class TestSerializedTypeParameters:
 
     def test_nested_parameterized_segment_line_round_trip(self):
         """Nested SegmentLine tags restore both levels of segment type."""
-        original = SegmentLine(
-            length=0,
-            segment_type=SegmentLine,
-            inner_segment_type=DiscreteGraphicalTimeline,
-            uid="systems",
-        )
-        system = SegmentLine(
-            length=0,
-            segment_type=DiscreteGraphicalTimeline,
-            uid="system_0",
-        )
+        system_class = SegmentLine[DiscreteGraphicalTimeline]
+        original = SegmentLine[system_class](length=0, uid="systems")
+        system = system_class(length=0, uid="system_0")
         segment = DiscreteGraphicalTimeline(length=10, uid="measure_0")
         segment.add_events(
             [
@@ -435,8 +424,7 @@ class TestSerializedTypeParameters:
         assert restored.class_name == (
             "SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]"
         )
-        assert restored.segment_type is SegmentLine
-        assert restored._inner_segment_type is DiscreteGraphicalTimeline
+        assert restored.segment_type is system_class
         assert restored.n_segments == 1
         _, restored_system = restored.get_segment_by_index(0)
         assert isinstance(restored_system, SegmentLine)
@@ -448,6 +436,100 @@ class TestSerializedTypeParameters:
             restored_segment.get_conversion_map(TimeUnit.points).id
             == "pixels_to_points"
         )
+
+    def test_parameterized_class_cache_and_inheritance(self):
+        """Dynamic classes are cached and inherit both public API surfaces."""
+        line_class = SegmentLine[ContinuousPhysicalTimeline]
+
+        assert line_class is SegmentLine[ContinuousPhysicalTimeline]
+        assert issubclass(line_class, SegmentLine)
+        assert issubclass(line_class, ContinuousPhysicalTimeline)
+
+        line = line_class(length=0)
+        assert isinstance(line, SegmentLine)
+        assert isinstance(line, ContinuousPhysicalTimeline)
+        assert hasattr(line, "create_metrical_grid")
+
+    @pytest.mark.parametrize(
+        "parameter",
+        [Timeline, SegmentLine, 42],
+    )
+    def test_parameterization_rejects_non_strict_parameters(self, parameter):
+        """Timeline and bare SegmentLine are not valid parameters."""
+        with pytest.raises(TypeError):
+            SegmentLine[parameter]
+
+    def test_parameterized_class_cannot_be_parameterized_again(self):
+        """Only the bare SegmentLine class accepts subscription."""
+        with pytest.raises(TypeError):
+            SegmentLine[ContinuousPhysicalTimeline][DiscreteGraphicalTimeline]
+
+    def test_parameterized_segment_line_pickle_round_trip(self):
+        """Pickle restores a dynamic class through its module-level name."""
+        line_class = SegmentLine[ContinuousPhysicalTimeline]
+        original = line_class(length=0, uid="pickled")
+        original.append_segment(ContinuousPhysicalTimeline(length=2.5, uid="physical"))
+
+        restored = pickle.loads(pickle.dumps(original))
+
+        assert type(restored) is line_class
+        assert restored.id == "pickled"
+        assert restored.n_segments == 1
+
+    def test_version_1_0_1_nested_payload_compatibility(self):
+        """A hand-captured nested payload materializes both dynamic classes."""
+        zero = {"value": 0.0, "numerator": 0, "denominator": 1}
+        ten = {"value": 10.0, "numerator": 10, "denominator": 1}
+        payload = {
+            "id": "systems",
+            "name": None,
+            "class": "SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]",
+            "unit": "pixels",
+            "number_type": "int",
+            "length": ten,
+            "locked": False,
+            "meta": {},
+            "children": {
+                "system": {
+                    "offset": zero,
+                    "timeline": {
+                        "id": "system",
+                        "name": None,
+                        "class": "SegmentLine[DiscreteGraphicalTimeline]",
+                        "unit": "pixels",
+                        "number_type": "int",
+                        "length": ten,
+                        "locked": True,
+                        "meta": {},
+                        "children": {
+                            "staff": {
+                                "offset": zero,
+                                "timeline": {
+                                    "id": "staff",
+                                    "name": None,
+                                    "class": "DiscreteGraphicalTimeline",
+                                    "unit": "pixels",
+                                    "number_type": "int",
+                                    "length": ten,
+                                    "locked": True,
+                                    "meta": {},
+                                    "children": {},
+                                    "conversion_maps": [],
+                                },
+                            }
+                        },
+                        "conversion_maps": [],
+                    },
+                }
+            },
+            "conversion_maps": [],
+        }
+
+        restored = Timeline.from_dict(payload)
+        inner_class = SegmentLine[DiscreteGraphicalTimeline]
+
+        assert type(restored) is SegmentLine[inner_class]
+        assert type(restored.get_segment_by_index(0)[1]) is inner_class
 
     def test_continuous_graphical_pixels_legacy_payload_error(self):
         """Legacy continuous graphical pixel payloads name their valid replacement."""
@@ -894,6 +976,22 @@ class TestToTyped:
         region = typed.get_region("Chorus")
         assert region.start.value == 30.0
         assert region.end.value == 60.0
+
+    def test_to_typed_recursively_types_segment_line_hierarchy(self):
+        """Every hierarchy level receives its exact concrete class."""
+        grandchild = Timeline(length=1.0, unit=TimeUnit.seconds, uid="grandchild")
+        child = Timeline(length=2.0, unit=TimeUnit.seconds, uid="child")
+        child.add_child(grandchild, offset=0.0)
+        line = SegmentLine(length=0, unit=TimeUnit.seconds, uid="line")
+        line.append_segment(child)
+
+        typed = line.to_typed()
+        typed_child = typed.get_segment_by_index(0)[1]
+        typed_grandchild = typed_child.get_child("grandchild")
+
+        assert type(typed) is SegmentLine[ContinuousPhysicalTimeline]
+        assert type(typed_child) is ContinuousPhysicalTimeline
+        assert type(typed_grandchild) is ContinuousPhysicalTimeline
 
 
 # endregion

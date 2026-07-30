@@ -159,26 +159,19 @@ class Timeline(
         Timeline._registry[tag] = cls
 
     @classmethod
-    def _resolve_serialized_class_hierarchy(
-        cls, class_tag: str
-    ) -> tuple[type["Timeline"], ...]:
-        """Resolve a serialized class tag and any type parameters it carries.
+    def _resolve_serialized_class_hierarchy(cls, class_tag: str) -> type["Timeline"]:
+        """Resolve a serialized class tag, materializing parameters recursively."""
+        registered = (
+            Timeline
+            if class_tag == Timeline.__name__
+            else Timeline._registry.get(class_tag)
+        )
+        if registered is not None:
+            return registered
 
-        Parameterized tags use the same nested bracket notation as
-        :attr:`SegmentLine.class_name`, for example
-        ``SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]``.  The
-        returned tuple is ordered from outermost class to innermost parameter.
-        """
         bracket_start = class_tag.find("[")
         if bracket_start == -1:
-            timeline_class = (
-                Timeline
-                if class_tag == Timeline.__name__
-                else Timeline._registry.get(class_tag)
-            )
-            if timeline_class is None:
-                raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
-            return (timeline_class,)
+            raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
 
         outer_tag = class_tag[:bracket_start]
         if not outer_tag or not class_tag.endswith("]"):
@@ -197,30 +190,23 @@ class Timeline(
         if depth != 0:
             raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
 
-        outer_hierarchy = Timeline._resolve_serialized_class_hierarchy(outer_tag)
-        if len(outer_hierarchy) != 1:
-            raise ValueError(f"Unknown serialized timeline class '{class_tag}'")
+        outer_class = Timeline._resolve_serialized_class_hierarchy(outer_tag)
+        from .types import SegmentLine
+
+        if outer_class is not SegmentLine:
+            raise ValueError(
+                f"Serialized timeline class '{outer_class.__name__}' "
+                "does not accept type parameters"
+            )
 
         inner_start = bracket_start + 1
         inner_tag = class_tag[inner_start:-1]
         try:
-            inner_hierarchy = Timeline._resolve_serialized_class_hierarchy(inner_tag)
+            inner_class = Timeline._resolve_serialized_class_hierarchy(inner_tag)
         except ValueError as error:
             raise ValueError(f"{error} in parameterized tag '{class_tag}'") from error
 
-        return outer_hierarchy + inner_hierarchy
-
-    @classmethod
-    def _from_dict_init_kwargs(
-        cls, type_parameters: tuple[type["Timeline"], ...]
-    ) -> dict[str, Any]:
-        """Return constructor arguments encoded by a serialized class tag."""
-        if type_parameters:
-            raise ValueError(
-                f"Serialized timeline class '{cls.__name__}' does not accept "
-                "type parameters"
-            )
-        return {}
+        return SegmentLine[inner_class]
 
     @classmethod
     def _from_dict_initial_length(cls, data: dict[str, Any]) -> CoordinateValue:
@@ -799,6 +785,92 @@ class Timeline(
             "event_summary": self._events.summary(),
         }
 
+    def _segment_line_structure_error(self) -> str | None:
+        """Return the first exact contiguity error, if any."""
+        if not self._children:
+            return f"Timeline '{self._id}' has no children"
+
+        ordered = sorted(
+            self._children.items(),
+            key=lambda item: self._child_offsets[item[0]].value,
+        )
+        expected: CoordinateValue = 0
+        previous_id: str | None = None
+        for child_id, child in ordered:
+            actual = self._child_offsets[child_id].value
+            if actual != expected:
+                if previous_id is None:
+                    return (
+                        f"Timeline start and child '{child_id}' are not contiguous: "
+                        f"expected offset {expected}, got {actual}"
+                    )
+                return (
+                    f"Children '{previous_id}' and '{child_id}' are not contiguous: "
+                    f"expected offset {expected}, got {actual}"
+                )
+            expected = actual + child.length.value
+            previous_id = child_id
+
+        if expected != self._length.value:
+            return (
+                f"Child '{previous_id}' and timeline end are not contiguous: "
+                f"expected offset {expected}, got {self._length.value}"
+            )
+        return None
+
+    def is_segment_line(self) -> bool:
+        """Return whether children exactly and contiguously cover this timeline."""
+        return self._segment_line_structure_error() is None
+
+    def as_segment_line(self) -> "Timeline":
+        """Cast a structurally contiguous hierarchy to a parameterized line."""
+        from .types import SegmentLine, SegmentLineMixin
+
+        if isinstance(self, SegmentLineMixin):
+            return self
+
+        structure_error = self._segment_line_structure_error()
+        if structure_error is not None:
+            raise ValueError(structure_error)
+
+        ordered = sorted(
+            self._children.items(),
+            key=lambda item: self._child_offsets[item[0]].value,
+        )
+        child_class = type(ordered[0][1])
+        for _, child in ordered[1:]:
+            if type(child) is not child_class:
+                raise TypeError(
+                    "Cannot cast timeline with heterogeneous child classes: "
+                    f"expected {child_class.__name__}, got {type(child).__name__}"
+                )
+
+        segment_line = SegmentLine[child_class](
+            length=0,
+            unit=self._unit,
+            number_type=self._number_type,
+            uid=self._id,
+            name=self._name,
+            locked=False,
+            meta=dict(self._meta) if self._meta else None,
+        )
+        events = [
+            dict(event)
+            for event in self._events
+            if event.get("event_type") != SEGMENT_EVENT_TYPE
+        ]
+        if events:
+            segment_line._add_events_unchecked(events)
+        segment_line._external_references = self._external_references
+        for _, child in ordered:
+            segment_line.append_segment(child)
+        for cmap in self._conversion_maps.values():
+            segment_line.add_conversion_map(cmap)
+        segment_line._regions.update(self._regions)
+        segment_line._flow_maps.update(self._flow_maps)
+        segment_line._locked = self._locked
+        return segment_line
+
     # endregion
 
     # region Serialization
@@ -899,10 +971,8 @@ class Timeline(
         if not isinstance(class_tag, str):
             raise ValueError("Serialized timeline is missing a string 'class' tag")
 
-        class_hierarchy = Timeline._resolve_serialized_class_hierarchy(class_tag)
-        timeline_class, *type_parameters = class_hierarchy
-
-        if cls is Timeline and timeline_class is not Timeline:
+        timeline_class = Timeline._resolve_serialized_class_hierarchy(class_tag)
+        if timeline_class is not cls and issubclass(timeline_class, cls):
             return timeline_class.from_dict(data)
 
         if timeline_class is not cls:
@@ -921,7 +991,6 @@ class Timeline(
             name=data.get("name"),
             locked=False,
             meta=data.get("meta"),
-            **cls._from_dict_init_kwargs(tuple(type_parameters)),
         )
 
         # Add events (filter out segment events - they'll be recreated).
@@ -961,6 +1030,12 @@ class Timeline(
 
         return timeline
 
+    def _typed_class(self) -> type["Timeline"]:
+        """Return the canonical concrete class for this timeline."""
+        from .types import get_timeline_class
+
+        return get_timeline_class(self.domain.value, discrete=self._unit.is_discrete)
+
     def to_typed(self) -> "Timeline":
         """Return this timeline re-instantiated as the appropriate typed subclass.
 
@@ -973,9 +1048,8 @@ class Timeline(
         when working with generic ``Timeline`` instances that should carry
         domain-specific type information.
 
-        Note: Only the timeline object itself is re-typed. Events, external
-        references, children, conversion maps, regions, and metadata are
-        preserved. Children are transferred as-is (not recursively re-typed).
+        Events, external references, conversion maps, regions, flow maps, and
+        metadata are preserved. Children are recursively re-typed.
 
         Returns:
             A Timeline instance of the appropriate typed subclass, or ``self``
@@ -994,24 +1068,29 @@ class Timeline(
             >>> cpt.to_typed() is cpt
             True
         """
-        from .types import get_timeline_class
+        from .types import SegmentLineMixin
 
-        target_class = get_timeline_class(
-            self.domain.value, discrete=self._unit.is_discrete
-        )
+        target_class = self._typed_class()
+        typed_children = {
+            child_id: child.to_typed() for child_id, child in self._children.items()
+        }
 
-        # Already the correct type -- return self
-        if type(self) is target_class:
+        if type(self) is target_class and all(
+            typed_children[child_id] is child
+            for child_id, child in self._children.items()
+        ):
             return self
 
-        # Create new instance of the correct class
+        initial_length: CoordinateValue = (
+            0 if issubclass(target_class, SegmentLineMixin) else self._length.value
+        )
         typed = target_class(
-            length=self._length.value,
+            length=initial_length,
             unit=self._unit,
             number_type=self._number_type,
             uid=self._id,
             name=self._name,
-            locked=self._locked,
+            locked=False,
             meta=dict(self._meta) if self._meta else None,
         )
 
@@ -1029,10 +1108,14 @@ class Timeline(
         # table object can be shared between the two timelines)
         typed._external_references = self._external_references
 
-        # Transfer children
-        for child_id, child in self._children.items():
+        # Transfer recursively typed children
+        for child_id, child in typed_children.items():
             offset = self._child_offsets[child_id]
-            typed.add_child(child, offset=offset)
+            typed.add_child(
+                child,
+                offset=offset,
+                allow_expansion=isinstance(typed, SegmentLineMixin),
+            )
 
         # Transfer conversion maps
         for cmap in self._conversion_maps.values():
@@ -1046,6 +1129,8 @@ class Timeline(
         for flow_id, flow_map in self._flow_maps.items():
             typed._flow_maps[flow_id] = flow_map
 
+        typed._length = typed._make_coordinate(self._length.value)
+        typed._locked = self._locked
         return typed
 
     # endregion
