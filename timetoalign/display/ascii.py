@@ -353,21 +353,23 @@ def _build_child_row(
     is_last: bool,
     tree_chars: dict[str, str],
     n_events: int = 0,
+    ancestor_is_last: tuple[bool, ...] = (),
 ) -> str:
     """Build a single child row with positioned bar.
 
     Args:
-        child_offset: Where child starts on parent scale.
+        child_offset: Where child starts on the root scale.
         child_length: Length of the child.
         child_name: Display name for the child.
         child_char: Timeline character for child's type.
-        parent_length: Total length of parent timeline.
+        parent_length: Total length of the root timeline.
         bar_width: Width of the bar area in characters.
         name_width: Max width for child name.
         coord_width: Width for coordinate fields.
         is_last: True if this is the last child (use └ instead of ├).
         tree_chars: Tree drawing character set.
         n_events: Number of events in the child timeline.
+        ancestor_is_last: Whether each ancestor is last among its siblings.
 
     Returns:
         Formatted row string.
@@ -397,17 +399,124 @@ def _build_child_row(
 
     # Choose tree character
     prefix = tree_chars["last"] if is_last else tree_chars["branch"]
+    ancestor_prefix = "".join(
+        "   " if ancestor_last else f"{tree_chars['vertical']}  "
+        for ancestor_last in ancestor_is_last
+    )
 
     # Append event count after exit coordinate
     events_suffix = f" ({n_events} events)" if n_events > 0 else ""
 
     return (
-        f"  {prefix}{tree_chars['horizontal']} "
+        f"  {ancestor_prefix}{prefix}{tree_chars['horizontal']} "
         f"{display_name:<{name_width}} "
         f"{entry_coord:>{coord_width}} "
         f"{''.join(bar_area)} "
         f"{exit_coord}{events_suffix}"
     )
+
+
+def _append_child_rows(
+    lines: list[str],
+    timeline: "Timeline",
+    *,
+    root_length: float,
+    root_offset: float,
+    remaining_depth: int | None,
+    max_children: int,
+    bar_width: int,
+    name_width: int,
+    coord_width: int,
+    tree_chars: dict[str, str],
+    use_unicode: bool,
+    line_prefix: str,
+    ancestor_is_last: tuple[bool, ...] = (),
+) -> None:
+    """Append child rows recursively in root timeline coordinates.
+
+    Args:
+        lines: Diagram lines receiving rendered child rows.
+        timeline: Timeline whose children are rendered at this level.
+        root_length: Length of the root timeline.
+        root_offset: Absolute offset of ``timeline`` on the root.
+        remaining_depth: Levels still allowed, or ``None`` for no limit.
+        max_children: Maximum children shown at each level.
+        bar_width: Width of the root bar area in characters.
+        name_width: Maximum width for each child name.
+        coord_width: Width for coordinate fields.
+        tree_chars: Tree drawing character set.
+        use_unicode: Whether to use Unicode timeline characters.
+        line_prefix: Diagram indentation placed before every child row.
+        ancestor_is_last: Whether each ancestor is last among its siblings.
+    """
+    from timetoalign.timelines.types import SegmentLine
+
+    if remaining_depth == 0 or timeline.n_children == 0:
+        return
+
+    child_info: list[tuple[float, Any]] = []
+    for child_id, child in timeline._children.items():
+        offset = timeline._child_offsets[child_id]
+        child_info.append((float(offset.value), child))
+    child_info.sort(key=lambda item: item[0])
+
+    first, omitted, last = _get_children_to_display(child_info, max_children)
+    next_depth = None if remaining_depth is None else remaining_depth - 1
+
+    def append_child(
+        local_offset: float,
+        child: "Timeline",
+        *,
+        is_last: bool,
+    ) -> None:
+        absolute_offset = root_offset + local_offset
+        row = _build_child_row(
+            child_offset=absolute_offset,
+            child_length=float(child.length.value),
+            child_name=child.name,
+            child_char=_get_timeline_char(child, use_unicode),
+            parent_length=root_length,
+            bar_width=bar_width,
+            name_width=name_width,
+            coord_width=coord_width,
+            is_last=is_last,
+            tree_chars=tree_chars,
+            n_events=child.n_events,
+            ancestor_is_last=ancestor_is_last,
+        )
+        lines.append(line_prefix + row)
+
+        if next_depth != 0 and not isinstance(child, SegmentLine):
+            _append_child_rows(
+                lines,
+                child,
+                root_length=root_length,
+                root_offset=absolute_offset,
+                remaining_depth=next_depth,
+                max_children=max_children,
+                bar_width=bar_width,
+                name_width=name_width,
+                coord_width=coord_width,
+                tree_chars=tree_chars,
+                use_unicode=use_unicode,
+                line_prefix=line_prefix,
+                ancestor_is_last=(*ancestor_is_last, is_last),
+            )
+
+    for index, (offset, child) in enumerate(first):
+        is_last = omitted == 0 and index == len(first) - 1
+        append_child(offset, child, is_last=is_last)
+
+    if omitted > 0:
+        ancestor_prefix = "".join(
+            "   " if ancestor_last else f"{tree_chars['vertical']}  "
+            for ancestor_last in ancestor_is_last
+        )
+        ellipsis = f"  {ancestor_prefix}{tree_chars['vertical']}  ... ({omitted} more children)"
+        lines.append(line_prefix + ellipsis)
+
+    for index, (offset, child) in enumerate(last):
+        append_child(offset, child, is_last=index == len(last) - 1)
 
 
 def _build_region_row(
@@ -564,6 +673,7 @@ def timeline_diagram(
     unicode: bool = True,
     parent_id: str | None = None,
     show: set[str] | None = None,
+    depth: bool | int = True,
 ) -> Diagram:
     """Generate ASCII diagram for a timeline.
 
@@ -581,9 +691,15 @@ def timeline_diagram(
             When ``None``, behaviour is exactly as before (children shown if
             ``show_children=True``, no regions or cmaps).  The ``show_children``
             parameter takes precedence for backwards compatibility.
+        depth: Child levels to render. ``True`` renders all levels,
+            ``False`` renders direct children only, and a non-negative integer
+            renders at most that many levels below the root.
 
     Returns:
         Multi-line string with ASCII diagram.
+
+    Raises:
+        ValueError: If ``depth`` is a negative integer.
 
     Examples:
         >>> print(timeline_diagram(my_timeline))
@@ -595,6 +711,13 @@ def timeline_diagram(
     """
     # chars = TIMELINE_CHARS if unicode else TIMELINE_CHARS_ASCII
     tree = TREE_CHARS if unicode else TREE_CHARS_ASCII
+
+    if isinstance(depth, bool):
+        remaining_depth = None if depth else 1
+    else:
+        if depth < 0:
+            raise ValueError("depth must be non-negative")
+        remaining_depth = depth
 
     # Resolve show set: None means legacy behaviour
     _show_children = show_children  # backwards compat takes precedence
@@ -669,67 +792,22 @@ def timeline_diagram(
     bar_line = f"{prefix}{padding}{'0':>{coord_width}} {bar} {end_label} {unit_label}"
     lines.append(bar_line)
 
-    # 5. Render children (one per row)
-    if _show_children and timeline.n_children > 0:
-        # Collect and sort children by offset
-        child_info: list[tuple[float, Any]] = []
-        for child_id, child in timeline._children.items():
-            offset = timeline._child_offsets[child_id]
-            child_info.append((float(offset.value), child))
-        child_info.sort(key=lambda x: x[0])
-
-        # Apply truncation
-        first, omitted, last = _get_children_to_display(child_info, max_children)
-
-        parent_length = length_value
-        total_to_display = len(first) + len(last)
-        display_index = 0
-
-        # Render first group
-        for i, (offset, child) in enumerate(first):
-            is_last_overall = (display_index == total_to_display - 1) and omitted == 0
-            child_char = _get_timeline_char(child, unicode)
-
-            row = _build_child_row(
-                child_offset=offset,
-                child_length=float(child.length.value),
-                child_name=child.name,
-                child_char=child_char,
-                parent_length=parent_length,
-                bar_width=bar_width,
-                name_width=DEFAULT_NAME_WIDTH,
-                coord_width=coord_width,
-                is_last=is_last_overall,
-                tree_chars=tree,
-                n_events=child.n_events,
-            )
-            lines.append(prefix + row)
-            display_index += 1
-
-        # Render ellipsis if truncated
-        if omitted > 0:
-            ellipsis = f"  {tree['vertical']}  ... ({omitted} more children)"
-            lines.append(prefix + ellipsis)
-
-        # Render last group
-        for i, (offset, child) in enumerate(last):
-            is_last_overall = i == len(last) - 1
-            child_char = _get_timeline_char(child, unicode)
-
-            row = _build_child_row(
-                child_offset=offset,
-                child_length=float(child.length.value),
-                child_name=child.name,
-                child_char=child_char,
-                parent_length=parent_length,
-                bar_width=bar_width,
-                name_width=DEFAULT_NAME_WIDTH,
-                coord_width=coord_width,
-                is_last=is_last_overall,
-                tree_chars=tree,
-                n_events=child.n_events,
-            )
-            lines.append(prefix + row)
+    # 5. Render children recursively
+    if _show_children and timeline.n_children > 0 and remaining_depth != 0:
+        _append_child_rows(
+            lines,
+            timeline,
+            root_length=length_value,
+            root_offset=0.0,
+            remaining_depth=remaining_depth,
+            max_children=max_children,
+            bar_width=bar_width,
+            name_width=DEFAULT_NAME_WIDTH,
+            coord_width=coord_width,
+            tree_chars=tree,
+            use_unicode=unicode,
+            line_prefix=prefix,
+        )
 
     # 6. Render regions (below children)
     if _show_regions and timeline.n_regions > 0:
@@ -784,6 +862,7 @@ def group_diagram(
     show_children: bool = True,
     max_children: int = DEFAULT_MAX_CHILDREN,
     unicode: bool = True,
+    depth: bool | int = True,
 ) -> Diagram:
     """Generate ASCII diagram for a TimelineGroup.
 
@@ -793,6 +872,7 @@ def group_diagram(
         show_children: Whether to expand child timelines.
         max_children: Maximum children per timeline.
         unicode: Use Unicode characters (True) or ASCII fallback (False).
+        depth: Child levels to render for each member timeline.
 
     Returns:
         Multi-line string with ASCII diagram.
@@ -833,6 +913,7 @@ def group_diagram(
             show_children=show_children,
             max_children=max_children,
             unicode=unicode,
+            depth=depth,
         )
         for line in tl_diagram.split("\n"):
             content_lines.append(line)

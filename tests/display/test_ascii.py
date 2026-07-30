@@ -12,6 +12,7 @@ Tests cover:
 from __future__ import annotations
 
 import pyarrow as pa
+import pytest
 
 from timetoalign.core import TimeUnit
 from timetoalign.core.enums import FlowMode
@@ -376,6 +377,134 @@ class TestTimelineDiagram:
         assert "(child of parent:1)" in result
 
 
+class TestTimelineDiagramRecursion:
+    """Tests for recursive child rendering."""
+
+    @staticmethod
+    def _make_hierarchy() -> ContinuousPhysicalTimeline:
+        """Create a hierarchy with a following root child."""
+        root = ContinuousPhysicalTimeline(length=100, uid="recursive_root", name="root")
+        child = ContinuousPhysicalTimeline(
+            length=40,
+            uid="recursive_child",
+            name="child",
+        )
+        grandchild = ContinuousPhysicalTimeline(
+            length=10,
+            uid="recursive_grandchild",
+            name="grandchild",
+        )
+        tail = ContinuousPhysicalTimeline(
+            length=10,
+            uid="recursive_tail",
+            name="tail",
+        )
+        child.add_child(grandchild, offset=5)
+        root.add_child(child, offset=10)
+        root.add_child(tail, offset=80)
+        return root
+
+    @pytest.mark.parametrize(
+        ("depth", "expected"),
+        [
+            (
+                True,
+                "ContinuousPhysicalTimeline[recursive_root] (2 children)\n"
+                "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
+                "  ├─ child           10    ~~~~~~~~~~~~~~                  50\n"
+                "  │  └─ grandchild      15      ~~~                           25\n"
+                "  └─ tail            80                            ~~~     90",
+            ),
+            (
+                False,
+                "ContinuousPhysicalTimeline[recursive_root] (2 children)\n"
+                "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
+                "  ├─ child           10    ~~~~~~~~~~~~~~                  50\n"
+                "  └─ tail            80                            ~~~     90",
+            ),
+            (
+                0,
+                "ContinuousPhysicalTimeline[recursive_root] (2 children)\n"
+                "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds",
+            ),
+            (
+                1,
+                "ContinuousPhysicalTimeline[recursive_root] (2 children)\n"
+                "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
+                "  ├─ child           10    ~~~~~~~~~~~~~~                  50\n"
+                "  └─ tail            80                            ~~~     90",
+            ),
+            (
+                2,
+                "ContinuousPhysicalTimeline[recursive_root] (2 children)\n"
+                "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
+                "  ├─ child           10    ~~~~~~~~~~~~~~                  50\n"
+                "  │  └─ grandchild      15      ~~~                           25\n"
+                "  └─ tail            80                            ~~~     90",
+            ),
+        ],
+        ids=["unlimited", "direct-bool", "none", "direct-int", "two-levels"],
+    )
+    def test_depth_controls_complete_output(
+        self,
+        depth: bool | int,
+        expected: str,
+    ) -> None:
+        """Each supported depth renders the exact expected hierarchy."""
+        assert timeline_diagram(self._make_hierarchy(), depth=depth) == expected
+
+    def test_false_equals_depth_one(self) -> None:
+        """Boolean false preserves the direct-child rendering."""
+        root = self._make_hierarchy()
+        assert timeline_diagram(root, depth=False) == timeline_diagram(root, depth=1)
+
+    def test_negative_depth_raises(self) -> None:
+        """Negative integer depths are invalid."""
+        with pytest.raises(ValueError, match="depth must be non-negative"):
+            timeline_diagram(self._make_hierarchy(), depth=-1)
+
+    def test_grandchildren_truncate_per_level(self) -> None:
+        """A descendant level uses its own child limit and omission row."""
+        root = ContinuousPhysicalTimeline(length=100, uid="truncate_root")
+        child = ContinuousPhysicalTimeline(
+            length=60,
+            uid="truncate_child",
+            name="branch",
+        )
+        for index in range(6):
+            grandchild = ContinuousPhysicalTimeline(
+                length=5,
+                uid=f"leaf_{index}",
+                name=f"leaf_{index}",
+            )
+            child.add_child(grandchild, offset=index * 10)
+        root.add_child(child, offset=20)
+
+        assert timeline_diagram(root, depth=True, max_children=3) == (
+            "ContinuousPhysicalTimeline[truncate_root] (1 children)\n"
+            "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
+            "  └─ branch          20       ~~~~~~~~~~~~~~~~~~~~~        80\n"
+            "     ├─ leaf_0          20       ~~                           25\n"
+            "     ├─ leaf_1          30           ~                        35\n"
+            "     │  ... (3 more children)\n"
+            "     └─ leaf_5          70                        ~~          75"
+        )
+
+    def test_segment_line_child_stays_collapsed(self) -> None:
+        """A segment line child renders once without expanding its segments."""
+        source = ContinuousPhysicalTimeline(length=30, uid="segment_source")
+        segment_line = source.create_segment_line([0, 10, 20, 30])
+        segment_line.name = "segments"
+        root = ContinuousPhysicalTimeline(length=100, uid="segment_root")
+        root.add_child(segment_line, offset=25)
+
+        assert timeline_diagram(root, depth=True) == (
+            "ContinuousPhysicalTimeline[segment_root] (1 children)\n"
+            "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
+            "  └─ segments        25         ~~~~~~~~~~                 55"
+        )
+
+
 # endregion
 
 # region Group Diagram Tests
@@ -430,6 +559,24 @@ class TestGroupDiagram:
         # ASCII box corners
         assert "+" in result  # ASCII corner
         assert "\u250c" not in result  # No Unicode ┌
+
+    def test_group_forwards_depth(self) -> None:
+        """A group applies the requested depth to its member diagrams."""
+        from timetoalign.timelines import TimelineGroup
+
+        root = ContinuousPhysicalTimeline(length=100, uid="group_root")
+        child = ContinuousPhysicalTimeline(length=10, uid="group_child", name="child")
+        root.add_child(child, offset=10)
+        group = TimelineGroup(id="recursive_group", timelines=[root])
+
+        assert group_diagram(group, depth=0) == (
+            "TimelineGroup[recursive_group] (1 timelines, 2 timestamps)\n"
+            "┌────────────────────────────────────────────────────────────────────┐\n"
+            "│ ContinuousPhysicalTimeline[group_root] (1 children)                │\n"
+            "│                       0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds │\n"
+            "└────────────────────────────────────────────────────────────────────┘\n"
+            "Timestamps: 2"
+        )
 
 
 # endregion

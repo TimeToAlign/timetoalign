@@ -206,6 +206,39 @@ DiscreteGraphicalTimeline[page] (3 children)
   └─ System 3   700            :::950
 ```
 
+#### 7a. Recursive Child Diagram Tests (`TestTimelineDiagramRecursion`)
+
+**What we validate:**
+- `depth=True` renders descendants without a level limit
+- `depth=False` and `depth=1` render direct children only with exactly the
+  existing one-level output
+- `depth=0` renders no child rows, while negative integer depths raise
+  `ValueError`
+- Descendant bars and entry/exit labels use absolute coordinates on the root
+  timeline
+- Ancestor continuation glyphs remain visible for descendants whose ancestor
+  has following siblings
+- `max_children` truncation applies independently at every rendered level and
+  uses the existing `... (N more children)` row
+- A `SegmentLine` child renders as one collapsed row even when unlimited
+  recursion is requested
+- `group_diagram` forwards `depth` to every member timeline
+
+**Depth rules tested:**
+```
+True  → all descendant levels
+False → direct children only
+0     → no child rows
+1     → direct children only
+2     → children and grandchildren
+```
+
+**Why this matters:**
+Nested timelines must preserve their hierarchy while sharing one root coordinate
+scale. Limiting depth keeps large structures readable, per-level truncation
+bounds every branch, and collapsing segment lines prevents their contiguous
+segments from expanding into redundant rows.
+
 #### 8. Group Diagram Tests (`TestGroupDiagram`)
 
 **What we validate:**
