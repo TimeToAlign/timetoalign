@@ -517,6 +517,38 @@ class TestTimestampAccess:
 class TestGetTimestampAt:
     """Tests for get_timestamp_at() interpolation."""
 
+    def test_get_timestamps_at_uses_each_embedded_timeline_id(
+        self,
+        dgt_timeline: DiscreteGraphicalTimeline,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Batch lookup accepts independently qualified coordinate rows."""
+        group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
+
+        result = group.get_timestamps_at(
+            [
+                IdCoordinate(75.0, TimeUnit.seconds, "audio"),
+                IdCoordinate(2437.5, TimeUnit.pixels, "dgt1"),
+            ],
+            units=False,
+        )
+
+        assert result["audio"].tolist() == [75.0, 75.0]
+        assert result["dgt1"].tolist() == [2438, 2438]
+
+    def test_get_timestamps_at_requires_id_for_plain_values(
+        self,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """Batch lookup rejects raw rows when no timeline ID is supplied."""
+        group = TimelineGroup(id="test_group", timelines=[audio_timeline])
+
+        with pytest.raises(
+            ValueError,
+            match="timeline_id is required unless coordinate is an IdCoordinate",
+        ):
+            group.get_timestamps_at([25.0])
+
     def test_exact_boundary_match(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,

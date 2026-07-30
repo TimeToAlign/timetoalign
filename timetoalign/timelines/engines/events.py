@@ -125,7 +125,7 @@ class EventsMixin:
 
         Each of ``start`` / ``end`` / ``instant`` given as a unit-qualified
         :class:`~timetoalign.core.Coordinate` is resolved through
-        :meth:`resolve_coordinate`, so a value expressed in a derived unit is
+        :meth:`get_coordinate`, so a value expressed in a derived unit is
         converted into the timeline's native unit via its C-Maps. Raw numbers,
         coordinate struct dicts and durations are left untouched, and the input
         dict is never mutated in place.
@@ -142,7 +142,7 @@ class EventsMixin:
             if isinstance(value, Coordinate):
                 if resolved is None:
                     resolved = dict(row)
-                resolved[key] = self.resolve_coordinate(value).value
+                resolved[key] = self.get_coordinate(value).value
         return resolved if resolved is not None else row
 
     def _add_events_unchecked(self, rows: list[dict[str, Any]]) -> None:

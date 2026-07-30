@@ -124,8 +124,8 @@ class RegionsMixin:
         if name in self._regions:
             raise ValueError(f"Region '{name}' already exists")
 
-        start_coord = self.resolve_coordinate(start)
-        end_coord = self.resolve_coordinate(end)
+        start_coord = self.get_coordinate(start)
+        end_coord = self.get_coordinate(end)
 
         region = Region(
             name=name,

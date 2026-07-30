@@ -18,6 +18,7 @@ from timetoalign import (
     resolve_coordinate_spec,
 )
 from timetoalign.maps import LinearMap, ScalarMap
+from timetoalign.timelines import ContinuousPhysicalTimeline
 
 
 @pytest.mark.parametrize("value", [7, 2.5, Fraction(3, 4)])
@@ -60,9 +61,7 @@ def test_coordinate_spec_rejects_unsupported_type() -> None:
 def test_timeline_resolves_native_fraction_exactly() -> None:
     """Native-unit Fraction values are preserved without float coercion."""
     timeline = Timeline(length=8, unit=TimeUnit.quarters, uid="score")
-    resolved = timeline.resolve_coordinate(
-        Coordinate(Fraction(7, 4), TimeUnit.quarters)
-    )
+    resolved = timeline.get_coordinate(Coordinate(Fraction(7, 4), TimeUnit.quarters))
     assert resolved == Coordinate(Fraction(7, 4), TimeUnit.quarters)
     assert isinstance(resolved.value, Fraction)
 
@@ -77,7 +76,7 @@ def test_timeline_resolves_foreign_unit_through_cmap() -> None:
             target_unit=TimeUnit.milliseconds,
         )
     )
-    assert timeline.resolve_coordinate(
+    assert timeline.get_coordinate(
         Coordinate(2500, TimeUnit.milliseconds)
     ) == Coordinate(2.5, TimeUnit.seconds)
 
@@ -86,14 +85,14 @@ def test_timeline_rejects_missing_conversion_path() -> None:
     """A missing C-Map reports both units and the timeline ID."""
     timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
     with pytest.raises(ValueError, match="quarters.*seconds.*audio"):
-        timeline.resolve_coordinate(Coordinate(2, TimeUnit.quarters))
+        timeline.get_coordinate(Coordinate(2, TimeUnit.quarters))
 
 
 def test_timeline_rejects_unknown_timeline_id() -> None:
-    """A non-child timeline ID is never treated as a native coordinate."""
+    """A non-descendant timeline ID is never treated as a native coordinate."""
     timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
     with pytest.raises(ValueError, match="missing.*audio"):
-        timeline.resolve_coordinate(IdCoordinate(2, TimeUnit.seconds, "missing"))
+        timeline.get_coordinate(IdCoordinate(2, TimeUnit.seconds, "missing"))
 
 
 def test_timeline_resolves_direct_child_offset_exactly() -> None:
@@ -102,7 +101,7 @@ def test_timeline_resolves_direct_child_offset_exactly() -> None:
     child = Timeline(length=5, unit=TimeUnit.quarters, uid="measure")
     parent.add_child(child, offset=Fraction(9, 2))
 
-    resolved = parent.resolve_coordinate(
+    resolved = parent.get_coordinate(
         IdCoordinate(Fraction(3, 2), TimeUnit.quarters, "measure")
     )
     assert resolved == Coordinate(Fraction(6), TimeUnit.quarters)
@@ -123,9 +122,7 @@ def test_timeline_converts_scalar_child_value_before_native_offset() -> None:
     )
     child_coordinate = IdCoordinate(2000, TimeUnit.milliseconds, "child")
 
-    assert parent.resolve_coordinate(child_coordinate) == Coordinate(
-        12.0, TimeUnit.seconds
-    )
+    assert parent.get_coordinate(child_coordinate) == Coordinate(12.0, TimeUnit.seconds)
     dataframe = parent.to_dataframe(
         coordinates=[child_coordinate], conversion_maps=False
     )
@@ -146,9 +143,106 @@ def test_timeline_converts_affine_child_value_before_native_offset() -> None:
         )
     )
 
-    assert parent.resolve_coordinate(
+    assert parent.get_coordinate(
         IdCoordinate(2500, TimeUnit.milliseconds, "child")
     ) == Coordinate(12.0, TimeUnit.seconds)
+
+
+def test_timeline_resolves_grandchild_offset_exactly() -> None:
+    """A grandchild coordinate receives both ancestor offsets."""
+    parent = ContinuousPhysicalTimeline(length=20.0, uid="parent")
+    child = ContinuousPhysicalTimeline(length=10.0, uid="child")
+    grandchild = ContinuousPhysicalTimeline(length=5.0, uid="grandchild")
+    child.add_child(grandchild, offset=5.0)
+    parent.add_child(child, offset=10.0)
+
+    assert parent.get_coordinate(
+        IdCoordinate(2.0, TimeUnit.seconds, "grandchild")
+    ) == Coordinate(17.0, TimeUnit.seconds)
+
+
+def test_timeline_composes_grandchild_fraction_offsets_exactly() -> None:
+    """Two rational descendant offsets remain exact when composed upward."""
+    parent = Timeline(length=10, unit=TimeUnit.quarters, uid="parent")
+    child = Timeline(length=4, unit=TimeUnit.quarters, uid="child")
+    grandchild = Timeline(length=2, unit=TimeUnit.quarters, uid="grandchild")
+    child.add_child(grandchild, offset=Fraction(3, 2))
+    parent.add_child(child, offset=Fraction(9, 2))
+
+    resolved = parent.get_coordinate(
+        IdCoordinate(Fraction(0), TimeUnit.quarters, "grandchild")
+    )
+
+    assert resolved == Coordinate(Fraction(6), TimeUnit.quarters)
+    assert isinstance(resolved.value, Fraction)
+
+
+def test_timeline_id_keyword_qualifies_bare_descendant_value() -> None:
+    """A bare value can be explicitly qualified with its descendant timeline ID."""
+    parent = Timeline(length=20, unit=TimeUnit.seconds, uid="parent")
+    child = Timeline(length=5, unit=TimeUnit.seconds, uid="child")
+    parent.add_child(child, offset=10)
+
+    assert parent.get_coordinate(2, timeline_id="child") == parent.get_coordinate(
+        IdCoordinate(2, TimeUnit.seconds, "child")
+    )
+
+
+def test_timeline_rejects_conflicting_coordinate_and_keyword_ids() -> None:
+    """An explicit timeline ID cannot conflict with an embedded timeline ID."""
+    timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
+
+    with pytest.raises(ValueError, match="audio.*other"):
+        timeline.get_coordinate(
+            IdCoordinate(2, TimeUnit.seconds, "other"), timeline_id="audio"
+        )
+
+
+def test_timeline_uses_grandparent_cmap_for_grandchild_coordinate() -> None:
+    """A grandparent C-Map converts a foreign-unit grandchild value."""
+    parent = Timeline(length=20, unit=TimeUnit.seconds, uid="parent")
+    child = Timeline(length=10, unit=TimeUnit.seconds, uid="child")
+    grandchild = Timeline(length=5, unit=TimeUnit.seconds, uid="grandchild")
+    child.add_child(grandchild, offset=5)
+    parent.add_child(child, offset=10)
+    parent.add_conversion_map(
+        ScalarMap(
+            scalar=1000,
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.milliseconds,
+        )
+    )
+
+    assert parent.get_coordinate(
+        IdCoordinate(2000, TimeUnit.milliseconds, "grandchild")
+    ) == Coordinate(17.0, TimeUnit.seconds)
+
+
+def test_timeline_uses_intermediate_cmap_for_grandchild_coordinate() -> None:
+    """An intermediate C-Map takes precedence over a grandparent C-Map."""
+    parent = Timeline(length=20, unit=TimeUnit.seconds, uid="parent")
+    child = Timeline(length=10, unit=TimeUnit.seconds, uid="child")
+    grandchild = Timeline(length=5, unit=TimeUnit.seconds, uid="grandchild")
+    child.add_child(grandchild, offset=5)
+    parent.add_child(child, offset=10)
+    parent.add_conversion_map(
+        ScalarMap(
+            scalar=100,
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.milliseconds,
+        )
+    )
+    child.add_conversion_map(
+        ScalarMap(
+            scalar=1000,
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.milliseconds,
+        )
+    )
+
+    assert parent.get_coordinate(
+        IdCoordinate(2000, TimeUnit.milliseconds, "grandchild")
+    ) == Coordinate(17.0, TimeUnit.seconds)
 
 
 def test_to_dataframe_rejects_unknown_timeline_id() -> None:
@@ -162,7 +256,7 @@ def test_to_dataframe_rejects_unknown_timeline_id() -> None:
         )
 
     assert str(exc_info.value) == (
-        "Timeline ID 'missing' is not this timeline 'audio' or one of its direct children"
+        "Timeline ID 'missing' is not this timeline 'audio' or one of its descendants"
     )
 
 

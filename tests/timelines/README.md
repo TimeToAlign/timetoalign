@@ -37,6 +37,23 @@ missing columns remain null-filled. DataFrame views are tested only through
 
 ## Test Files
 
+### `test_coordinate_resolution.py` - Public Coordinate Resolution
+
+These tests pass foreign-unit coordinates through timeline entry points that
+read or update events, regions, children, lengths, and slices. Each entry point
+must delegate to the same coordinate resolver and preserve its exact missing
+C-Map error, demonstrating that coordinate normalization is consistent across
+the public timeline surface.
+
+### `test_offset_arithmetic.py` - Nested Offset Arithmetic
+
+These tests validate exact coordinate transfer between parents, children, and
+deeper descendants. Parent-to-descendant lookup checks every embedding span,
+while descendant-to-parent lookup and `get_coordinate()` compose all offsets
+into the ancestor coordinate system. Integer and `Fraction` cases assert exact
+results, unknown IDs retain their established return or exception behavior, and
+timestamp cross-sections keep their left-inclusive, right-exclusive bounds.
+
 ### `test_fraction_generation.py` - Exact Logical Coordinate Generation
 
 These tests generate fraction-typed metrical timelines and inspect the stored

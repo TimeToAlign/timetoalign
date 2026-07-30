@@ -649,7 +649,7 @@ class Timeline(
         """
         self._check_not_locked("set length")
 
-        new_length = self.resolve_coordinate(value)
+        new_length = self.get_coordinate(value)
 
         # Check that new length accommodates all content
         max_content = self._get_max_content_coordinate()

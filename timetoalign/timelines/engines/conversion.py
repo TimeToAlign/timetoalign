@@ -295,7 +295,9 @@ class ConversionMapsMixin:
 
         return derived
 
-    def _get_child_coordinate(self, child_id: str, parent_coord: float) -> float | None:
+    def _get_child_coordinate(
+        self, child_id: str, parent_coord: CoordinateValue
+    ) -> CoordinateValue | None:
         """Convert a parent coordinate to a child coordinate via exact offset arithmetic.
 
         ``child_coord = parent_coord - offset``
@@ -310,27 +312,18 @@ class ConversionMapsMixin:
         Returns:
             Coordinate on the child timeline, or None if out of bounds.
         """
-        offset = self._child_offsets.get(child_id)
-        if offset is None:
-            # Not a direct child: descend into whichever direct child owns
-            # *child_id* deeper in the subtree, composing offsets exactly at
-            # each level. Returns None if the coordinate leaves any span.
-            for cid, child in self._children.items():
-                if child._find_descendant(child_id) is None:
-                    continue
-                direct_coord = self._get_child_coordinate(cid, parent_coord)
-                if direct_coord is None:
-                    return None
-                return child._get_child_coordinate(child_id, direct_coord)
+        path = self._descendant_offset_path(child_id)
+        if path is None or not path[0]:
             return None
-        child = self._children[child_id]
-        parent_exact = exact_coordinate_value(parent_coord)
-        offset_exact = exact_coordinate_value(offset.value)
-        if parent_exact is not None and offset_exact is not None:
-            child_coord = parent_exact - offset_exact
-        else:
-            child_coord = float(coordinate_numeric_value(parent_coord)) - float(
-                offset.value
+        offsets, child = path
+        child_coord = parent_coord
+        for offset in offsets:
+            child_exact = exact_coordinate_value(child_coord)
+            offset_exact = exact_coordinate_value(offset.value)
+            child_coord = (
+                child_exact - offset_exact
+                if child_exact is not None and offset_exact is not None
+                else float(coordinate_numeric_value(child_coord)) - float(offset.value)
             )
         child_length = child.length.value
         if child_coord < 0 or (child_length > 0 and child_coord >= child_length):
@@ -338,8 +331,8 @@ class ConversionMapsMixin:
         return child_coord
 
     def _get_parent_coordinate_from_child(
-        self, child_id: str, child_coord: float
-    ) -> float:
+        self, child_id: str, child_coord: CoordinateValue
+    ) -> CoordinateValue:
         """Convert a child coordinate to a parent coordinate via exact offset arithmetic.
 
         ``parent_coord = child_coord + offset``
@@ -352,14 +345,21 @@ class ConversionMapsMixin:
             Coordinate on this (parent) timeline.
 
         Raises:
-            KeyError: If *child_id* is not a child of this timeline.
+            KeyError: If *child_id* is not a descendant of this timeline.
         """
-        offset = self._child_offsets[child_id]
-        child_exact = exact_coordinate_value(child_coord)
-        offset_exact = exact_coordinate_value(offset.value)
-        if child_exact is not None and offset_exact is not None:
-            return child_exact + offset_exact
-        return float(coordinate_numeric_value(child_coord)) + float(offset.value)
+        path = self._descendant_offset_path(child_id)
+        if path is None or not path[0]:
+            raise KeyError(child_id)
+        parent_coord = child_coord
+        for offset in reversed(path[0]):
+            parent_exact = exact_coordinate_value(parent_coord)
+            offset_exact = exact_coordinate_value(offset.value)
+            parent_coord = (
+                parent_exact + offset_exact
+                if parent_exact is not None and offset_exact is not None
+                else float(coordinate_numeric_value(parent_coord)) + float(offset.value)
+            )
+        return parent_coord
 
     def _get_interpolation_map(
         self, target_id: str, source_id: str | None = None
@@ -442,11 +442,28 @@ class ConversionMapsMixin:
 
     def _find_descendant(self, timeline_id: str) -> "Timeline | None":
         """Return this timeline or the descendant with *timeline_id*, else None."""
+        path = self._descendant_offset_path(timeline_id)
+        return path[1] if path is not None else None
+
+    def _descendant_offset_path(
+        self, timeline_id: str
+    ) -> tuple[list[Coordinate], Timeline] | None:
+        """Find the offset path to a timeline in this subtree.
+
+        Args:
+            timeline_id: Timeline ID to find.
+
+        Returns:
+            The offsets from this timeline to the owner and the owner itself,
+            or None when the ID is unknown.
+        """
         if timeline_id == self._id:
-            return self  # type: ignore[return-value]
-        for descendant_id, descendant in self._iter_descendants():
-            if descendant_id == timeline_id:
-                return descendant
+            return [], self  # type: ignore[return-value]
+        for child_id, child in self._children.items():
+            child_path = child._descendant_offset_path(timeline_id)
+            if child_path is not None:
+                offsets, owner = child_path
+                return [self._child_offsets[child_id], *offsets], owner
         return None
 
     def _get_descendant_timeline_ids(self) -> list[str]:
@@ -526,27 +543,19 @@ class ConversionMapsMixin:
         """
         if timeline_id == self._id:
             return True
-        if timeline_id in self._child_offsets:
-            offset = float(self._child_offsets[timeline_id].value)
-            length = float(self._children[timeline_id].length.value)
-            return offset <= axis < offset + length
-        # Deeper descendant: the axis must stay inside every span on the way
-        # down. Find the direct child that owns *timeline_id* and recurse.
-        for cid, child in self._children.items():
-            if child._find_descendant(timeline_id) is None:
-                continue
-            offset = float(self._child_offsets[cid].value)
-            length = float(child.length.value)
-            if not (offset <= axis < offset + length):
-                return False
-            return child._contains_coordinate(timeline_id, axis - offset, child._id)
-        return False
+        return self._get_child_coordinate(timeline_id, axis) is not None
 
-    def resolve_coordinate(self, coord: CoordinateSpec) -> Coordinate:
+    def get_coordinate(
+        self, value: CoordinateSpec, timeline_id: str | None = None
+    ) -> Coordinate:
         """Resolve a coordinate into this timeline's coordinate system.
 
         Args:
-            coord: Numeric, unit-qualified, or timeline-qualified coordinate.
+            value: Numeric, unit-qualified, or timeline-qualified coordinate. A
+                bare number with ``timeline_id`` is expressed in that descendant
+                timeline's native coordinate system.
+            timeline_id: Timeline that owns ``value``. An embedded ID on an
+                ``IdCoordinate`` must match this value when both are provided.
 
         Returns:
             A coordinate expressed in this timeline's native unit.
@@ -554,21 +563,31 @@ class ConversionMapsMixin:
         Raises:
             ValueError: If a timeline ID is unknown or no unit conversion path exists.
         """
-        resolved = resolve_coordinate_spec(coord)
-        value = resolved.value
-        child_offset: Coordinate | None = None
-
-        if resolved.timeline_id is not None and resolved.timeline_id != self._id:
-            if resolved.timeline_id not in self._children:
-                raise ValueError(
-                    f"Timeline ID '{resolved.timeline_id}' is not this timeline "
-                    f"'{self._id}' or one of its direct children"
-                )
-            child_offset = self._child_offsets[resolved.timeline_id]
-
-        native_value = value
+        resolved = resolve_coordinate_spec(value, timeline_id=timeline_id)
+        owner_id = resolved.timeline_id or self._id
+        path = self._descendant_offset_path(owner_id)
+        if path is None:
+            raise ValueError(
+                f"Timeline ID '{owner_id}' is not this timeline "
+                f"'{self._id}' or one of its descendants"
+            )
+        offsets, owner = path
+        native_value = resolved.value
         if resolved.unit is not None and resolved.unit != self._unit:
-            unit_map = self._get_unit_map(resolved.unit)
+            candidates: list[tuple[int, Timeline]] = [(0, owner)]
+            for _, candidate in self._iter_descendants():
+                if candidate is owner:
+                    continue
+                candidate_path = candidate._descendant_offset_path(owner_id)
+                if candidate_path is not None:
+                    candidates.append((len(candidate_path[0]), candidate))
+            if self is not owner:
+                candidates.append((len(offsets), self))
+            unit_map = None
+            for _, candidate in sorted(candidates, key=lambda item: item[0]):
+                unit_map = candidate._get_unit_map(resolved.unit)
+                if unit_map is not None:
+                    break
             if unit_map is None:
                 raise ValueError(
                     f"No C-Map available to convert coordinate from unit "
@@ -581,13 +600,19 @@ class ConversionMapsMixin:
                     f"No invertible C-Map available to convert coordinate from unit "
                     f"'{resolved.unit}' to '{self._unit}' on timeline '{self._id}'"
                 ) from None
-            native_value = inverse_map(value)
+            native_value = inverse_map(resolved.value)
 
-        if child_offset is not None:
-            native_value = native_value + child_offset.value
+        for offset in reversed(offsets):
+            native_exact = exact_coordinate_value(native_value)
+            offset_exact = exact_coordinate_value(offset.value)
+            native_value = (
+                native_exact + offset_exact
+                if native_exact is not None and offset_exact is not None
+                else float(coordinate_numeric_value(native_value)) + float(offset.value)
+            )
 
         return Coordinate(native_value, self._unit)
 
     def _resolve_axis_value(self, coord: CoordinateSpec) -> int | float | Fraction:
         """Resolve a coordinate and return its native numeric value."""
-        return self.resolve_coordinate(coord).value
+        return self.get_coordinate(coord).value

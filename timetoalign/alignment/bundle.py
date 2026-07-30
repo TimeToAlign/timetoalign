@@ -655,7 +655,7 @@ class AlignmentBundle:
         if unit is not None:
             coord = float(
                 self.get_timeline(from_timeline)
-                .resolve_coordinate(Coordinate(coord_value, unit))
+                .get_coordinate(Coordinate(coord_value, unit))
                 .value
             )
         else:
@@ -773,14 +773,12 @@ class AlignmentBundle:
         )
         source_timeline = self.get_timeline(from_timeline)
         start = float(
-            source_timeline.resolve_coordinate(
-                Coordinate(start_value, start_unit)
-            ).value
+            source_timeline.get_coordinate(Coordinate(start_value, start_unit)).value
             if start_unit is not None
             else start_value
         )
         end = float(
-            source_timeline.resolve_coordinate(Coordinate(end_value, end_unit)).value
+            source_timeline.get_coordinate(Coordinate(end_value, end_unit)).value
             if end_unit is not None
             else end_value
         )
@@ -1510,7 +1508,7 @@ class AlignmentBundle:
         actual_timeline_id = self._uid_to_timeline_id.get(bundle_uid, timeline_id)
         coordinate = float(
             self.get_timeline(bundle_uid)
-            .resolve_coordinate(Coordinate(coordinate_value, unit))
+            .get_coordinate(Coordinate(coordinate_value, unit))
             .value
             if unit is not None
             else coordinate_value

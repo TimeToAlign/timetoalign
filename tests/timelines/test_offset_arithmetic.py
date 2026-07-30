@@ -7,8 +7,11 @@ This eliminates floating-point drift for hierarchical coordinate resolution.
 
 from __future__ import annotations
 
+from fractions import Fraction
+
 import pytest
 
+from timetoalign import Coordinate, IdCoordinate, Timeline, TimeUnit
 from timetoalign.timelines import ContinuousPhysicalTimeline
 
 # region Fixtures
@@ -141,26 +144,28 @@ class TestRecursiveOffset:
         parent.add_child(child, offset=10.0)
         child.add_child(grandchild, offset=5.0)
 
-        # Parent coord 15.0 -> child coord 5.0 -> grandchild coord 0.0
-        child_coord = parent._get_child_coordinate("child", 15.0)
-        assert child_coord == 5.0
+        assert parent.get_coordinate(
+            IdCoordinate(0.0, TimeUnit.seconds, "grandchild")
+        ) == Coordinate(15.0, TimeUnit.seconds)
+        assert parent.get_coordinate(
+            IdCoordinate(5.0, TimeUnit.seconds, "grandchild")
+        ) == Coordinate(20.0, TimeUnit.seconds)
+        assert parent._get_parent_coordinate_from_child("grandchild", 5.0) == 20.0
 
-        grandchild_coord = child._get_child_coordinate("grandchild", child_coord)
-        assert grandchild_coord == 0.0
+    def test_recursive_fraction_offset_exact(self) -> None:
+        """Verify rational offsets compose without float coercion."""
+        parent = Timeline(length=10, unit=TimeUnit.quarters, uid="parent")
+        child = Timeline(length=4, unit=TimeUnit.quarters, uid="child")
+        grandchild = Timeline(length=2, unit=TimeUnit.quarters, uid="grandchild")
+        child.add_child(grandchild, offset=Fraction(3, 2))
+        parent.add_child(child, offset=Fraction(9, 2))
 
-        # Parent coord 20.0 -> child coord 10.0 -> grandchild coord 5.0
-        child_coord = parent._get_child_coordinate("child", 20.0)
-        assert child_coord == 10.0
-
-        grandchild_coord = child._get_child_coordinate("grandchild", child_coord)
-        assert grandchild_coord == 5.0
-
-        # Verify exact round-trip:
-        # grandchild 5.0 -> child 10.0 -> parent 20.0
-        child_back = child._get_parent_coordinate_from_child("grandchild", 5.0)
-        assert child_back == 10.0
-        parent_back = parent._get_parent_coordinate_from_child("child", child_back)
-        assert parent_back == 20.0
+        assert parent.get_coordinate(
+            IdCoordinate(Fraction(0), TimeUnit.quarters, "grandchild")
+        ) == Coordinate(Fraction(6), TimeUnit.quarters)
+        assert parent._get_parent_coordinate_from_child(
+            "grandchild", Fraction(1, 2)
+        ) == Fraction(13, 2)
 
 
 # endregion

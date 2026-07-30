@@ -72,7 +72,7 @@ class TabularExportMixin:
             5.0
         """
         if unit is None:
-            native_coord = self.resolve_coordinate(coord)
+            native_coord = self.get_coordinate(coord)
         else:
             target_unit = TimeUnit(unit) if isinstance(unit, str) else unit
             decomposed = resolve_coordinate_spec(coord)
@@ -86,7 +86,7 @@ class TabularExportMixin:
                     target_unit,
                     decomposed.timeline_id,
                 )
-            native_coord = self.resolve_coordinate(qualified_coord)
+            native_coord = self.get_coordinate(qualified_coord)
 
         return TimeStamp(
             axis=float(native_coord.value),

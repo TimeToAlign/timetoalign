@@ -764,7 +764,7 @@ class TimelineGroup:
 
         coord_value = float(
             self.get_timeline(timeline_id)
-            .resolve_coordinate(Coordinate(resolved.value, resolved.unit))
+            .get_coordinate(Coordinate(resolved.value, resolved.unit))
             .value
             if resolved.unit is not None
             else resolved.value
@@ -818,7 +818,7 @@ class TimelineGroup:
     def get_timestamps_at(
         self,
         coordinates: Sequence[CoordinateSpec],
-        timeline_id: str,
+        timeline_id: str | None = None,
         *,
         conversion_maps: ConversionMapsSpec = True,
         units: bool = True,
@@ -830,7 +830,8 @@ class TimelineGroup:
 
         Args:
             coordinates: Sequence of CoordinateSpec to query.
-            timeline_id: Which timeline the coordinates refer to.
+            timeline_id: Which timeline the coordinates refer to. Required for
+                entries without an embedded timeline ID.
             conversion_maps: Whether to include C-Map fields from member timelines.
                 - True (default): Include all attached C-Maps
                 - False/None: Only timeline coordinates
@@ -852,16 +853,23 @@ class TimelineGroup:
         timestamp_dicts: list[dict[str, float | None]] = []
         for coord in coordinates:
             resolved = resolve_coordinate_spec(coord, timeline_id=timeline_id)
+            resolved_timeline_id = resolved.timeline_id
+            if resolved_timeline_id is None:
+                raise ValueError(
+                    "timeline_id is required unless coordinate is an IdCoordinate"
+                )
             coord_float = float(
-                self.get_timeline(timeline_id)
-                .resolve_coordinate(Coordinate(resolved.value, resolved.unit))
+                self.get_timeline(resolved_timeline_id)
+                .get_coordinate(Coordinate(resolved.value, resolved.unit))
                 .value
                 if resolved.unit is not None
                 else resolved.value
             )
             try:
                 ts = self.get_timestamp_at(
-                    coord_float, timeline_id, conversion_maps=conversion_maps
+                    coord_float,
+                    resolved_timeline_id,
+                    conversion_maps=conversion_maps,
                 )
                 # Use to_dict() to get all coordinates including C-Maps
                 ts_dict = ts.to_dict(
@@ -871,7 +879,7 @@ class TimelineGroup:
                 timestamp_dicts.append(ts_dict)
             except (KeyError, ValueError):
                 # Coordinate out of range - add row with just the input coordinate
-                timestamp_dicts.append({timeline_id: coord_float})
+                timestamp_dicts.append({resolved_timeline_id: coord_float})
 
         if not timestamp_dicts:
             return pd.DataFrame()
@@ -1588,7 +1596,7 @@ class TimelineGroup:
                     f"Timeline '{spec.timeline_id}' not in group. "
                     f"Available timelines: {self.timeline_ids}"
                 )
-            native_coord = self._timelines[spec.timeline_id].resolve_coordinate(spec)
+            native_coord = self._timelines[spec.timeline_id].get_coordinate(spec)
             return self._find_or_create_at(
                 float(native_coord.value), spec.timeline_id, new_timeline, is_start
             )
@@ -1603,7 +1611,7 @@ class TimelineGroup:
             # If only one timeline exists, use that for context
             if len(self._timelines) == 1:
                 tl_id = next(iter(self._timelines.keys()))
-                native_coord = self._timelines[tl_id].resolve_coordinate(spec)
+                native_coord = self._timelines[tl_id].get_coordinate(spec)
                 return self._find_or_create_at(
                     float(native_coord.value), tl_id, new_timeline, is_start
                 )
