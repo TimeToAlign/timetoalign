@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.1.0](https://github.com/TimeToAlign/timetoalign/compare/v1.0.1...v1.1.0) (2026-07-30)
+
+
+### Features
+
+* **display:** recurse timeline diagrams with a depth control ([e1eca24](https://github.com/TimeToAlign/timetoalign/commit/e1eca2483757ee13efc6eca0e38c5b60d82f7361))
+* **timelines:** harmonize child creation across concrete classes ([7db621c](https://github.com/TimeToAlign/timetoalign/commit/7db621c610cac63c73baf0a18b19d784fe130fe3))
+* **timelines:** parameterize SegmentLine over its segment class ([d9d9d17](https://github.com/TimeToAlign/timetoalign/commit/d9d9d17f1e5de5f375604135f86ce1b7f84b9f03))
+* **timelines:** resolve descendant coordinates through get_coordinate ([407c738](https://github.com/TimeToAlign/timetoalign/commit/407c7382c62bca9bbaee81c098d42deecc3b6fba))
+
+
+### Bug Fixes
+
+* **timelines:** reject appends to length-locked timelines ([b4ba551](https://github.com/TimeToAlign/timetoalign/commit/b4ba55141bac928ac82223faefb9b602124d9ad1))
+
+
+### Documentation
+
+* construct concrete timeline types in notebooks ([30eac1b](https://github.com/TimeToAlign/timetoalign/commit/30eac1b54193ad4e5f6b524fecdd0bc89bcb7699))
+* demonstrate the hierarchical child API across notebooks and reference ([a070a83](https://github.com/TimeToAlign/timetoalign/commit/a070a8364ef03ec18e4229a9275fb62a6699ef80))
+* register SegmentLine and inherited timeline methods in the reference ([0533ab3](https://github.com/TimeToAlign/timetoalign/commit/0533ab3fd7cd7a9853a550948ea2665dfacd6518))
+
 ## [1.0.1](https://github.com/TimeToAlign/timetoalign/compare/v1.0.0...v1.0.1) (2026-07-24)
 
 
