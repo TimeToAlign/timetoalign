@@ -5,13 +5,15 @@ is right for assembling a performance, but wrong for undoing one: a recording
 that omits two measures has to put the music *back* where it came from, leaving
 the omitted stretch empty.
 
-Two constructions describe that placement, and they are required to agree:
+Three constructions describe that placement, and they are required to agree:
 
 - **Gap entries** — ``Gap(6)`` mixed into the flow spec, pushing everything
   after it 6 quarters later. ``Gap()`` sizes itself from the neighbouring
   spans' source coordinates.
 - **``at`` placements** — the target coordinate of each played span, stated
   outright.
+- **A mapping** — ``{0: "A8_1", 129: "A8_2"}``, pairing each coordinate with
+  the span that begins there; see ``FlowMap.from_dict``.
 
 The motivating case throughout is A8, a recording of Satie's first Gymnopédie
 (3/4, so 3 QB per measure) that skips measures 42 and 43. On the 234 QB score
@@ -33,7 +35,7 @@ import pytest
 from timetoalign.core import struct_to_rational
 from timetoalign.timelines.flow import FlowMap, Gap
 from timetoalign.timelines.flow.sections import _coerce_flow_entries
-from timetoalign.timelines.types import ContinuousLogicalTimeline
+from timetoalign.timelines.types import ContinuousLogicalTimeline, SegmentLine
 
 # region Fixtures
 
@@ -248,6 +250,64 @@ class TestAutoSizedGap:
             FlowMap([(129, 234), Gap(), (0, 123)])
 
 
+class TestFromDict:
+    """`FlowMap.from_dict` pairs each target coordinate with the span there."""
+
+    @pytest.fixture
+    def via_dict(self, performance: ContinuousLogicalTimeline) -> FlowMap:
+        return FlowMap.from_dict(
+            {0: "A8_1", CUT_END: "A8_2"},
+            id="restored_dict",
+            resolve=performance.get_region,
+        )
+
+    def test_matches_the_other_constructions(
+        self, via_dict: FlowMap, performance: ContinuousLogicalTimeline
+    ) -> None:
+        via_gaps = performance.create_flow_map(
+            ["A8_1", Gap(CUT_LENGTH), "A8_2"], id="restored_gaps"
+        )
+        assert sections(via_dict) == sections(via_gaps)
+
+    def test_second_span_lands_at_measure_44(self, via_dict: FlowMap) -> None:
+        assert via_dict.unfold_coordinate(CUT_START) == [CUT_END]
+
+    def test_gap_reported(self, via_dict: FlowMap) -> None:
+        assert via_dict.iter_gaps() == [(CUT_START, CUT_END, None)]
+
+    def test_keys_need_not_be_written_in_order(self) -> None:
+        fm = FlowMap.from_dict({CUT_END: (CUT_START, PERF_LENGTH), 0: (0, CUT_START)})
+        assert [s.target_start for s in fm._sections if not s.is_gap] == [
+            Fraction(0),
+            CUT_END,
+        ]
+
+    def test_a_value_may_hold_several_spans(self) -> None:
+        # Two spans laid end to end from QB 129 on.
+        fm = FlowMap.from_dict({0: (0, 60), CUT_END: [(60, 90), (90, 123)]})
+        placed = [(s.target_start, s.target_end) for s in fm._sections if not s.is_gap]
+        assert placed == [
+            (Fraction(0), Fraction(60)),
+            (CUT_END, Fraction(159)),
+            (Fraction(159), Fraction(192)),
+        ]
+
+    def test_overlapping_placements_rejected(self) -> None:
+        with pytest.raises(ValueError, match="overlaps the preceding span"):
+            FlowMap.from_dict({0: (0, 123), 100: (123, 228)})
+
+    def test_the_constructor_accepts_a_mapping_too(
+        self, performance: ContinuousLogicalTimeline, via_dict: FlowMap
+    ) -> None:
+        # `create_flow_map` takes the same mapping, so it needs no separate path.
+        fm = performance.create_flow_map({0: "A8_1", CUT_END: "A8_2"}, id="viadict")
+        assert sections(fm) == sections(via_dict)
+
+    def test_mapping_and_at_cannot_be_combined(self) -> None:
+        with pytest.raises(ValueError, match="Cannot combine `at` with a mapping"):
+            FlowMap({0: (0, 123)}, at=[0])
+
+
 class TestAtPlacements:
     """`at` states each played span's target coordinate outright."""
 
@@ -396,27 +456,65 @@ class TestApplyFlowPlacesChildren:
         r2 = restored.get_region("A8_2")
         assert (r2.start.value, r2.end.value) == (CUT_END, SCORE_LENGTH)
 
-    def test_mark_gaps_records_the_hole_as_a_region(
+    def test_fill_gaps_closes_the_hole_with_an_empty_segment(
         self, performance: ContinuousLogicalTimeline
     ) -> None:
         performance.create_flow_map(["A8_1", Gap(CUT_LENGTH), "A8_2"], id="restored")
-        result = performance.apply_flow("restored", mark_gaps=True)
+        result = performance.apply_flow("restored", fill_gaps=True)
+        # The hole becomes a child in its own right, so the result tiles its
+        # axis contiguously, in target order.
+        assert result.list_children() == ["A8_1", "gap_1", "A8_2"]
+        filler = result.get_child("gap_1")
+        assert filler.length.value == CUT_LENGTH
+        assert filler.n_events == 0
+        assert result.get_child_offset("gap_1").value == CUT_START
         gap = result.get_region("gap_1")
         assert (gap.start.value, gap.end.value) == (CUT_START, CUT_END)
 
-    def test_mark_gaps_uses_the_gap_label(
+    def test_fill_gaps_uses_the_gap_label(
         self, performance: ContinuousLogicalTimeline
     ) -> None:
         performance.create_flow_map(
             ["A8_1", Gap(CUT_LENGTH, "skipped_42_43"), "A8_2"], id="restored"
         )
-        result = performance.apply_flow("restored", mark_gaps=True)
+        result = performance.apply_flow("restored", fill_gaps=True)
         assert "skipped_42_43" in result.list_regions()
 
     def test_gaps_unmarked_by_default(
         self, restored: ContinuousLogicalTimeline
     ) -> None:
         assert restored.list_regions() == ["A8_1", "A8_2"]
+
+    def test_segment_line_needs_its_gaps_filled(self) -> None:
+        # A SegmentLine admits no space between its segments, so a placing flow
+        # can only be unfolded into one when the holes are closed.
+        sl = SegmentLine[ContinuousLogicalTimeline](unit="q", name="sl")
+        for i in range(4):
+            sl.append_segment(ContinuousLogicalTimeline(length=10, unit="q"), f"s{i}")
+        sl.create_region("first", start=0, end=10)
+        sl.create_region("last", start=30, end=40)
+        sl.create_flow_map({0: "first", 20: "last"}, id="placed")
+
+        with pytest.raises(ValueError, match="fill_gaps=True"):
+            sl.apply_flow("placed")
+
+        result = sl.apply_flow("placed", fill_gaps=True)
+        assert isinstance(result, SegmentLine)
+        assert result.list_children() == ["first", "gap_1", "last"]
+        # Contiguous, in order, and the empty segment holds the middle.
+        assert [
+            result.get_child_offset(name).value for name in result.list_children()
+        ] == [Fraction(0), Fraction(10), Fraction(20)]
+        assert result.length.value == Fraction(30)
+
+    def test_trailing_gap_is_filled_too(self, score: ContinuousLogicalTimeline) -> None:
+        # A1 plays only the opening; inverting it leaves the rest of the score
+        # empty, and filling closes that trailing stretch with a segment.
+        score.create_flow_map(["A8_1"], id="A1")
+        restored = score.apply_flow("A1").apply_flow("source", fill_gaps=True)
+        assert restored.length.value == SCORE_LENGTH
+        assert restored.list_children() == ["A8_1", "gap_1"]
+        assert restored.get_child("gap_1").length.value == SCORE_LENGTH - CUT_START
 
     def test_concatenating_flow_is_unchanged(
         self, score: ContinuousLogicalTimeline

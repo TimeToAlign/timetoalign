@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import bisect
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 
-from .sections import Flow, Gap, _coerce_flow_entries
+from .sections import Flow, Gap, _coerce_flow_entries, _coerce_intervals
 
 
 @dataclass
@@ -106,16 +106,18 @@ class FlowMap:
       ``Timeline`` objects, and interval events — see
       :func:`~timetoalign.timelines.flow.sections._coerce_intervals`.
 
-    Concatenation is only the default. Two independent mechanisms **place**
-    the played spans on the target axis instead, so the assembled timeline can
-    hold holes — which is what an inverted cut needs:
+    Concatenation is only the default. Three interchangeable mechanisms
+    **place** the played spans on the target axis instead, so the assembled
+    timeline can hold holes — which is what an inverted cut needs:
 
     - :class:`~timetoalign.timelines.flow.sections.Gap` entries mixed into
       *source*, each pushing everything after it later by its own duration.
     - The *at* argument, giving the target coordinate of each played span
       outright.
+    - A ``{target coordinate -> span}`` mapping as *source*, which pairs the
+      two directly; see :meth:`from_dict`.
 
-    The two agree on the result and may not be combined in one call. See
+    All three agree on the result, and no two may be combined in one call. See
     :meth:`_build_from_entries` for the placement rules.
 
     FlowMap stores sections for efficient lookup:
@@ -192,12 +194,104 @@ class FlowMap:
             self._build_section_tables()
             return
 
-        # Interval-like singleton or collection: build sections directly in
-        # the source coordinate space of the descriptors (e.g. quarterbeats).
         if not self.id:
             self.id = "default"
+
+        if isinstance(source, Mapping):
+            # A {target coordinate -> span} mapping states the placement as
+            # data; see `from_dict`, which this shares its rules with.
+            if at is not None:
+                raise ValueError(
+                    "Cannot combine `at` with a mapping source: a mapping "
+                    "already gives each span its target coordinate"
+                )
+            entries, at = self._entries_from_mapping(source, resolve=resolve)
+            self._build_from_entries(entries, at=at)
+            return
+
+        # Interval-like singleton or collection: build sections directly in
+        # the source coordinate space of the descriptors (e.g. quarterbeats).
         entries = _coerce_flow_entries(source, resolve=resolve)
         self._build_from_entries(entries, at=at)
+
+    @classmethod
+    def from_dict(
+        cls,
+        placements: "Mapping[Fraction | float | int, object]",
+        *,
+        id: str = "default",
+        resolve: Callable[[str], object] | None = None,
+        source_length: Fraction | float | int | None = None,
+        target_length: Fraction | float | int | None = None,
+    ) -> "FlowMap":
+        """Build a FlowMap from a ``{target coordinate -> span}`` mapping.
+
+        The third way to state a placement, and the most direct: each key is
+        the target coordinate at which its span begins. Where ``Gap`` entries
+        describe the holes and ``at`` parallels the span list, a mapping puts
+        coordinate and span side by side, which reads well when the placement
+        comes from a table, a file, or an analysis::
+
+            FlowMap.from_dict({0: "A8_1", 129: "A8_2"}, resolve=tl.get_region)
+
+        Keys are sorted, so the mapping need not be written in target order.
+        A value may also be a *collection* of spans, which are laid end to end
+        from that coordinate on.
+
+        Args:
+            placements: Mapping from target coordinate to one interval-like
+                descriptor — or a collection of them — in the same shapes the
+                constructor accepts (region names, ``Region`` objects,
+                ``(start, end)`` pairs, ``Timeline`` objects, interval events).
+            id: Identifier for this FlowMap.
+            resolve: Callable mapping a region name to an interval-like object,
+                needed only when the values carry region-name strings.
+            source_length: Total extent of the source axis, when known.
+            target_length: Total extent of the target axis, when known.
+
+        Returns:
+            The constructed FlowMap, its spans placed at the given coordinates
+            and the space between them recorded as gaps.
+
+        Raises:
+            ValueError: If two spans would overlap on the target axis.
+
+        Examples:
+            >>> FlowMap.from_dict({0: (0, 123), 129: (123, 228)}, id="restored")
+            FlowMap(restored: 2 sections, 1 gap)
+        """
+        fm = cls(id=id, source_length=source_length, target_length=target_length)
+        entries, at = cls._entries_from_mapping(placements, resolve=resolve)
+        fm._build_from_entries(entries, at=at)
+        return fm
+
+    @staticmethod
+    def _entries_from_mapping(
+        placements: "Mapping[Fraction | float | int, object]",
+        *,
+        resolve: Callable[[str], object] | None = None,
+    ) -> tuple[list[tuple[Fraction, Fraction, str | None]], list[Fraction | None]]:
+        """Flatten a ``{coordinate -> span(s)}`` mapping into entries and placements.
+
+        Args:
+            placements: The mapping to flatten.
+            resolve: Callable mapping a region name to an interval-like object.
+
+        Returns:
+            The played spans in target order, and the matching ``at`` list:
+            the coordinate for each group's first span and ``None`` for the
+            spans that follow it there.
+        """
+        entries: list[tuple[Fraction, Fraction, str | None]] = []
+        at: list[Fraction | None] = []
+
+        for coordinate in sorted(placements, key=Fraction):
+            spans = _coerce_intervals(placements[coordinate], resolve=resolve)
+            for offset, span in enumerate(spans):
+                entries.append(span)
+                at.append(Fraction(coordinate) if offset == 0 else None)
+
+        return entries, at
 
     def _build_from_intervals(
         self, intervals: list[tuple[Fraction, Fraction, str | None]]

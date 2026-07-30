@@ -394,17 +394,19 @@ class SegmentsMixin:
         result).
 
         To lay the spans out with holes between them instead — which is what
-        restoring a cut needs — either mix
-        :class:`~timetoalign.timelines.flow.Gap` entries into *intervals* or
-        give each span its target coordinate in *at*.
+        restoring a cut needs — state the placement in any of three ways: mix
+        :class:`~timetoalign.timelines.flow.Gap` entries into *intervals*,
+        give each span its target coordinate in *at*, or pass *intervals* as a
+        ``{target coordinate -> span}`` mapping.
 
         Args:
-            intervals: One interval-like descriptor or a collection of them.
-                Accepted forms — singleton or collection — are region names
-                (``str``, resolved via :meth:`get_region`), ``Region``
-                objects, ``(start, end)`` coordinate pairs, ``Timeline``
-                objects, and interval events. ``Gap`` entries may be mixed in
-                to space the spans apart.
+            intervals: One interval-like descriptor, a collection of them, or
+                a ``{target coordinate -> span}`` mapping. Accepted descriptor
+                forms are region names (``str``, resolved via
+                :meth:`get_region`), ``Region`` objects, ``(start, end)``
+                coordinate pairs, ``Timeline`` objects, and interval events.
+                ``Gap`` entries may be mixed into a collection to space the
+                spans apart.
             id: Identifier for the FlowMap. Defaults to ``"default"``.
             at: Target coordinate for each played span, in the order given.
                 One entry per span, or ``None`` for a span that should follow
@@ -422,10 +424,13 @@ class SegmentsMixin:
             FlowMap(A8: 2 sections)
             >>> # Restore the two skipped measures as a 6-quarter hole:
             >>> child.create_flow_map(["A8_1", Gap(6), "A8_2"], id="restored")
-            FlowMap(restored: 3 sections)
+            FlowMap(restored: 2 sections, 1 gap)
             >>> # The same placement, stated as coordinates:
             >>> child.create_flow_map(["A8_1", "A8_2"], at=[0, 129], id="restored")
-            FlowMap(restored: 3 sections)
+            FlowMap(restored: 2 sections, 1 gap)
+            >>> # ... or as a mapping pairing each coordinate with its span:
+            >>> child.create_flow_map({0: "A8_1", 129: "A8_2"}, id="restored")
+            FlowMap(restored: 2 sections, 1 gap)
         """
         from ..flow import FlowMap
 
@@ -514,7 +519,7 @@ class SegmentsMixin:
         include_children: bool = True,
         uid: str | None = None,
         name: str | None = None,
-        mark_gaps: bool = False,
+        fill_gaps: bool = False,
     ) -> "Timeline":
         """Yield the unfolded timeline for an attached FlowMap.
 
@@ -550,9 +555,10 @@ class SegmentsMixin:
             uid: Optional identifier for the returned timeline.
             name: Optional name for the returned timeline. Defaults to
                 ``f"{self.name}_unfolded"``.
-            mark_gaps: If True, each gap also becomes a named Region marking
-                the empty stretch. Gaps never become children — there is no
-                material to put in one.
+            fill_gaps: If True, each hole between the placed spans becomes an
+                empty child (plus a matching Region), so the result tiles its
+                axis contiguously. Required when this timeline is a
+                ``SegmentLine``, which admits no gaps between its segments.
 
         Returns:
             The unfolded timeline (same concrete type as ``self``), with one
@@ -588,7 +594,7 @@ class SegmentsMixin:
             uid=uid,
             include_children=include_children,
             name=name,
-            mark_gaps=mark_gaps,
+            fill_gaps=fill_gaps,
         )
 
     def unfold_coordinate(

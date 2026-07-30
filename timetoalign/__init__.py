@@ -194,6 +194,7 @@ _DEFERRED_EXPORTS = {
     "DiscreteGraphicalTimeline": ("timetoalign.timelines", "DiscreteGraphicalTimeline"),
     "DiscreteLogicalTimeline": ("timetoalign.timelines", "DiscreteLogicalTimeline"),
     "DiscretePhysicalTimeline": ("timetoalign.timelines", "DiscretePhysicalTimeline"),
+    "Gap": ("timetoalign.timelines", "Gap"),
     "GraphicalTimeline": ("timetoalign.timelines", "GraphicalTimeline"),
     "GroupTimestamp": ("timetoalign.timelines", "GroupTimestamp"),
     "LogicalTimeline": ("timetoalign.timelines", "LogicalTimeline"),
@@ -337,6 +338,7 @@ __all__ = [
     # Alignment
     "Agent",
     "AlignmentBundle",
+    "Gap",
     "GroupTimestamp",
     "TimelineGroup",
     "AlignmentAnchor",

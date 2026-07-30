@@ -6,7 +6,7 @@ from collections import Counter
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
-from .flowmap import FlowMap
+from .flowmap import FlowMap, FlowMapSection
 
 if TYPE_CHECKING:
     from timetoalign.core import TimeUnit
@@ -206,7 +206,7 @@ def unfold_via_flowmap(
     target_unit: "TimeUnit | str | None" = None,
     include_children: bool = True,
     name: str | None = None,
-    mark_gaps: bool = False,
+    fill_gaps: bool = False,
 ) -> "Timeline":
     """Unfold a timeline by slicing it at a FlowMap's sections.
 
@@ -257,10 +257,11 @@ def unfold_via_flowmap(
             sliced and included in each section.
         name: Optional name for the returned timeline. Defaults to
             ``f"{source_timeline.name}_unfolded"``.
-        mark_gaps: If True, each gap in *forward_map* also becomes a named
-            Region on the result, marking the empty stretch. Gaps never become
-            children — there is no material to put in one. Defaults to False,
-            leaving the gaps as plain empty space.
+        fill_gaps: If True, each hole between the placed spans becomes an
+            empty child (plus a matching Region) of the result's own type, so
+            the result tiles its axis contiguously. Required when the result
+            is a ``SegmentLine``, which admits no gaps between its segments.
+            Defaults to False, leaving the holes as plain empty space.
 
     Returns:
         New Timeline of the source's concrete type, with one child (plus
@@ -273,6 +274,7 @@ def unfold_via_flowmap(
         `Timeline.get_slice`: Extracts a portion of a timeline.
     """
     from ..base import Timeline
+    from ..types import SegmentLine
 
     number_type = source_timeline.number_type
     unit = source_timeline.unit if target_unit is None else target_unit
@@ -284,47 +286,85 @@ def unfold_via_flowmap(
     _name = name if name is not None else f"{source_timeline.name}_unfolded"
 
     # Open the result at its full target extent so that a flow ending in a gap
-    # keeps the trailing empty stretch, which no section would imply.
+    # keeps the trailing empty stretch, which no section would imply. A
+    # SegmentLine is the exception: it measures contiguity against its own
+    # length, so it has to grow with the segments rather than be pre-sized.
+    is_segment_line = issubclass(timeline_cls, SegmentLine)
     result = timeline_cls(
-        length=forward_map.total_target_length,
+        length=0 if is_segment_line else forward_map.total_target_length,
         unit=unit,
         number_type=number_type,
         uid=uid,
         name=_name,
     )
 
-    # Slice the source at each section and place the slice — as a same-type
-    # child plus a matching Region — at the section's target coordinate.
+    # Holes reach the map both recorded (a Gap entry) and implied (the space
+    # between two placed spans, as an inverse produces). Filling them makes the
+    # result tile its axis contiguously, which is what a SegmentLine demands of
+    # its children — so a placing flow can only be unfolded into one when the
+    # holes are filled.
+    gaps = forward_map.iter_gaps()
+    if gaps and not fill_gaps and is_segment_line:
+        raise ValueError(
+            f"{type(result).__name__} requires contiguous segments, but this "
+            f"FlowMap leaves {len(gaps)} hole(s) between its spans. Pass "
+            f"fill_gaps=True to close them with empty segments."
+        )
+
+    # Walk spans and gaps together in target order: a SegmentLine accepts a
+    # child only at its current end, so each hole has to be filled before the
+    # span that follows it.
+    placements: list[tuple[Fraction, Fraction, object]] = [
+        (sec.target_start, sec.target_end, sec)
+        for sec in forward_map._sections
+        if not sec.is_gap
+    ]
+    if fill_gaps:
+        placements += [(start, end, label) for start, end, label in gaps]
+    placements.sort(key=lambda placement: placement[0])
+
+    # Slice the source at each played section and place the slice — as a
+    # same-type child plus a matching Region — at its target coordinate.
     # Repeated section labels are suffixed so every name is unique.
     base_counts: Counter[str] = Counter()
-    for i, sec in enumerate(forward_map._sections):
-        if sec.is_gap:
-            # A gap holds no material to slice; it only spaces out what follows.
+    n_spans = 0
+    n_gaps = 0
+    for start, end, payload in placements:
+        if not isinstance(payload, FlowMapSection):
+            # A gap: an empty segment of the result's own type, holding the
+            # space that no source material fills. For a parameterized
+            # SegmentLine, timeline_cls already carries the enforced segment
+            # type, so the filler is a valid sibling of the placed slices
+            # without any extra declaration.
+            n_gaps += 1
+            gap_name = payload or f"gap_{n_gaps}"
+            filler = timeline_cls(
+                length=end - start,
+                unit=unit,
+                number_type=number_type,
+                uid=gap_name,
+                name=gap_name,
+            )
+            result.add_child(filler, start, allow_expansion=True)
+            result.create_region(gap_name, start, end)
             continue
 
-        base = sec.label or f"span_{i + 1}"
+        n_spans += 1
+        base = payload.label or f"span_{n_spans}"
         base_counts[base] += 1
         occurrence = base_counts[base]
         section_name = base if occurrence == 1 else f"{base}-rend{occurrence}"
 
         slice_tl = source_timeline.get_slice(
-            sec.source_start,
-            sec.source_end,
+            payload.source_start,
+            payload.source_end,
             truncate_events=True,
             include_children=include_children,
         )
         slice_tl._id = section_name
         slice_tl._name = section_name
-        result.add_child(slice_tl, sec.target_start, allow_expansion=True)
-        result.create_region(section_name, sec.target_start, sec.target_end)
-
-    # Holes reach the map both recorded (a Gap entry) and implied (the space
-    # between two placed spans, as an inverse produces); mark either kind.
-    if mark_gaps:
-        for j, (gap_start, gap_end, gap_label) in enumerate(
-            forward_map.iter_gaps(), start=1
-        ):
-            result.create_region(gap_label or f"gap_{j}", gap_start, gap_end)
+        result.add_child(slice_tl, start, allow_expansion=True)
+        result.create_region(section_name, start, end)
 
     # --- Add FlowMaps ---
     result.add_flow_map(forward_map.inverse(), id="source")
