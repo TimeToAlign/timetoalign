@@ -222,7 +222,9 @@ class TestFlowMapFromIntervals:
     def test_inverse_round_trips(self, two_span_map: FlowMap) -> None:
         inverse = two_span_map.inverse()
         assert inverse.flow is None
-        assert repr(inverse) == "FlowMap(A8_inverse: 2 sections)"
+        # The inverse puts each span back at its source coordinates, so the
+        # 6 QB the cut removed reopen as a hole between them.
+        assert repr(inverse) == "FlowMap(A8_inverse: 2 sections, 1 gap)"
         # Target 144 came from source 150; the inverse recovers it.
         assert inverse.unfold_coordinate(144) == [Fraction(150)]
 

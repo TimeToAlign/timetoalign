@@ -24,8 +24,10 @@ from .sections import (
     AtomicSection,
     Flow,
     FlowDiagnostic,
+    Gap,
     PlaythroughSection,
     _as_interval,
+    _coerce_flow_entries,
     _coerce_intervals,
     load_valid_flows,
 )
@@ -47,6 +49,7 @@ __all__ = [
     "FlowDiagnostic",
     "PlaythroughSection",
     "Flow",
+    "Gap",
     "load_valid_flows",
     "FlowMapSection",
     "FlowMap",

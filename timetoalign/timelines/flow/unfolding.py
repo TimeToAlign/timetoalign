@@ -206,6 +206,7 @@ def unfold_via_flowmap(
     target_unit: "TimeUnit | str | None" = None,
     include_children: bool = True,
     name: str | None = None,
+    mark_gaps: bool = False,
 ) -> "Timeline":
     """Unfold a timeline by slicing it at a FlowMap's sections.
 
@@ -221,6 +222,13 @@ def unfold_via_flowmap(
     `FlowMap`, so it applies to any FlowMap regardless of how it was
     constructed (a computed flow, quarterbeat boundaries, or interval-like
     played spans).
+
+    Each slice is placed at its section's ``target_start``, which is what lets
+    a FlowMap lay its spans out rather than only stack them end to end. Spans
+    separated by a gap leave the assembled timeline empty in between — the
+    layout an inverted cut needs to restore the source it came from. For the
+    ordinary concatenating FlowMap, successive ``target_start`` values already
+    stack the slices, so this is the same result as appending them.
 
     Each section is named after its FlowMap ``label`` (falling back to
     ``span_{i}`` when the section names nothing). A label visited more than
@@ -249,10 +257,15 @@ def unfold_via_flowmap(
             sliced and included in each section.
         name: Optional name for the returned timeline. Defaults to
             ``f"{source_timeline.name}_unfolded"``.
+        mark_gaps: If True, each gap in *forward_map* also becomes a named
+            Region on the result, marking the empty stretch. Gaps never become
+            children — there is no material to put in one. Defaults to False,
+            leaving the gaps as plain empty space.
 
     Returns:
-        New Timeline of the source's concrete type, with one appended child
-        (plus matching Region) per section.
+        New Timeline of the source's concrete type, with one child (plus
+        matching Region) per played section, each placed at its target
+        coordinate.
 
     See Also:
         `create_unfolded_timeline`: Computes QB-space boundaries from a Flow
@@ -270,19 +283,25 @@ def unfold_via_flowmap(
 
     _name = name if name is not None else f"{source_timeline.name}_unfolded"
 
+    # Open the result at its full target extent so that a flow ending in a gap
+    # keeps the trailing empty stretch, which no section would imply.
     result = timeline_cls(
-        length=0,
+        length=forward_map.total_target_length,
         unit=unit,
         number_type=number_type,
         uid=uid,
         name=_name,
     )
 
-    # Slice the source at each section, appending a same-type child and a
-    # matching Region per section. Repeated section labels are suffixed so
-    # every child and Region name is unique.
+    # Slice the source at each section and place the slice — as a same-type
+    # child plus a matching Region — at the section's target coordinate.
+    # Repeated section labels are suffixed so every name is unique.
     base_counts: Counter[str] = Counter()
     for i, sec in enumerate(forward_map._sections):
+        if sec.is_gap:
+            # A gap holds no material to slice; it only spaces out what follows.
+            continue
+
         base = sec.label or f"span_{i + 1}"
         base_counts[base] += 1
         occurrence = base_counts[base]
@@ -294,8 +313,18 @@ def unfold_via_flowmap(
             truncate_events=True,
             include_children=include_children,
         )
-        result.append_child(slice_tl, uid=section_name, name=section_name)
+        slice_tl._id = section_name
+        slice_tl._name = section_name
+        result.add_child(slice_tl, sec.target_start, allow_expansion=True)
         result.create_region(section_name, sec.target_start, sec.target_end)
+
+    # Holes reach the map both recorded (a Gap entry) and implied (the space
+    # between two placed spans, as an inverse produces); mark either kind.
+    if mark_gaps:
+        for j, (gap_start, gap_end, gap_label) in enumerate(
+            forward_map.iter_gaps(), start=1
+        ):
+            result.create_region(gap_label or f"gap_{j}", gap_start, gap_end)
 
     # --- Add FlowMaps ---
     result.add_flow_map(forward_map.inverse(), id="source")

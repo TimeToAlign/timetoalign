@@ -71,6 +71,7 @@ from .flow import (
     FlowDiagnostic,
     FlowMap,
     FlowMapSection,
+    Gap,
     IncompleteGroup,
     IncompleteMeasure,
     MeasureGroup,
@@ -144,6 +145,7 @@ __all__ = [
     "Flow",
     "FlowMap",
     "FlowMapSection",
+    "Gap",
     "FlowControllerBase",  # Abstract base class
     "ScoreFlowController",  # Concrete implementation for score data
     "SegmentNameGenerator",  # Customizable atomic-section labelling

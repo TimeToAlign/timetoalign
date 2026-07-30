@@ -943,3 +943,122 @@ def _coerce_intervals(
 
 
 # endregion
+
+# region Gaps
+
+
+@dataclass(frozen=True)
+class Gap:
+    """A stretch of target time that no source material fills.
+
+    A ``Gap`` is written **between** interval-like descriptors in a flow spec.
+    Where a played span carries material from the source into the target axis,
+    a ``Gap`` carries nothing: it only pushes everything after it later by its
+    own duration, leaving a hole in the assembled result.
+
+    This is the vocabulary for describing a flow whose spans do *not* simply
+    concatenate — most importantly the inverse of a cut. The A8 performance
+    omits two measures (6 quarters), so its inverse must place the second span
+    6 quarters after the first one ends, restoring the original layout::
+
+        performance.create_flow_map(["A8_1", Gap(6), "A8_2"], id="restored")
+
+    A gap with no explicit *duration* is **auto-sized**: it takes the distance
+    between the source end of the span before it and the source start of the
+    span after it. That reads the hole straight off the folded coordinates, so
+    a flow spec written against the folded source reproduces the source layout
+    without repeating the arithmetic::
+
+        folded.create_flow_map(["A8_1", Gap(), "A8_2"], id="layout")
+
+    Auto-sizing needs a played span on both sides, since it has nothing to
+    measure otherwise; a leading or trailing ``Gap()`` must state its duration.
+
+    Attributes:
+        duration: Length of the hole in target coordinates, or ``None`` to
+            auto-size it from the neighbouring spans' source coordinates.
+        label: Optional name for the hole, used when the assembled timeline
+            marks its gaps as Regions.
+    """
+
+    duration: Fraction | int | float | None = None
+    label: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.duration is None:
+            return
+        duration = Fraction(self.duration)
+        if duration < 0:
+            raise ValueError(f"A Gap duration cannot be negative, got {duration}")
+        object.__setattr__(self, "duration", duration)
+
+    @property
+    def is_auto(self) -> bool:
+        """Whether this gap sizes itself from its neighbouring spans."""
+        return self.duration is None
+
+    def __repr__(self) -> str:
+        size = "auto" if self.is_auto else str(self.duration)
+        label = f", label={self.label!r}" if self.label else ""
+        return f"Gap({size}{label})"
+
+
+def _coerce_flow_entries(
+    spec: object,
+    *,
+    resolve: Callable[[str], object] | None = None,
+) -> list["tuple[Fraction, Fraction, str | None] | Gap"]:
+    """Coerce a flow spec that may contain Gaps into an ordered entry list.
+
+    Extends :func:`_coerce_intervals` with :class:`Gap` entries. Every
+    non-``Gap`` element is coerced by :func:`_as_interval` exactly as before,
+    so a spec holding no gaps yields the same ``(start, end, label)`` triples
+    that :func:`_coerce_intervals` produces.
+
+    A spec that *is* a single ``Gap`` — or that holds nothing but gaps —
+    describes no played material and is rejected: a flow has to play something.
+
+    Args:
+        spec: One interval-like descriptor (see :func:`_as_interval`), a
+            ``Gap``, or an iterable mixing the two.
+        resolve: Callable mapping a region name to an interval-like object,
+            forwarded to :func:`_as_interval`.
+
+    Returns:
+        The entries in target order: ``(start, end, label)`` triples for played
+        spans and :class:`Gap` objects for holes.
+
+    Raises:
+        ValueError: If any played interval has ``end < start``, or if the spec
+            holds no played span at all.
+    """
+
+    def _played(item: object) -> tuple[Fraction, Fraction, str | None]:
+        start, end, label = _as_interval(item, resolve=resolve)
+        if end < start:
+            raise ValueError(f"Interval end ({end}) cannot be before start ({start})")
+        return (start, end, label)
+
+    entries: list["tuple[Fraction, Fraction, str | None] | Gap"] = []
+    if isinstance(spec, Gap):
+        entries.append(spec)
+    elif isinstance(spec, str):
+        entries.append(_played(spec))
+    else:
+        # Same singleton-or-collection disambiguation as `_coerce_intervals`:
+        # try the whole spec as one interval, and only iterate if that fails.
+        try:
+            entries.append(_played(spec))
+        except (TypeError, ValueError):
+            for item in spec:  # type: ignore[attr-defined]
+                entries.append(item if isinstance(item, Gap) else _played(item))
+
+    if not any(not isinstance(entry, Gap) for entry in entries):
+        raise ValueError(
+            "A flow spec must contain at least one played span; "
+            "gaps alone describe no material to play"
+        )
+    return entries
+
+
+# endregion

@@ -373,7 +373,14 @@ class SegmentsMixin:
 
         return sl
 
-    def create_flow_map(self, intervals: Any, *, id: str = "default") -> "FlowMap":
+    def create_flow_map(
+        self,
+        intervals: Any,
+        *,
+        id: str = "default",
+        at: "Sequence[Any] | None" = None,
+        target_length: CoordinateSpec | None = None,
+    ) -> "FlowMap":
         """Construct a FlowMap from interval-like descriptors, attach it, return it.
 
         Mirrors the ``create_*`` verb×noun convention (as in
@@ -381,17 +388,29 @@ class SegmentsMixin:
         it constructs the FlowMap, attaches it to this timeline under *id*,
         and returns it.
 
-        The played spans described by *intervals* concatenate contiguously in
-        the unfolded (target) axis; coordinates falling in a gap between spans
-        map to nothing (an empty ``unfold_coordinate`` result).
+        By default the played spans described by *intervals* concatenate
+        contiguously in the unfolded (target) axis; coordinates falling in a
+        gap between spans map to nothing (an empty ``unfold_coordinate``
+        result).
+
+        To lay the spans out with holes between them instead — which is what
+        restoring a cut needs — either mix
+        :class:`~timetoalign.timelines.flow.Gap` entries into *intervals* or
+        give each span its target coordinate in *at*.
 
         Args:
             intervals: One interval-like descriptor or a collection of them.
                 Accepted forms — singleton or collection — are region names
                 (``str``, resolved via :meth:`get_region`), ``Region``
                 objects, ``(start, end)`` coordinate pairs, ``Timeline``
-                objects, and interval events.
+                objects, and interval events. ``Gap`` entries may be mixed in
+                to space the spans apart.
             id: Identifier for the FlowMap. Defaults to ``"default"``.
+            at: Target coordinate for each played span, in the order given.
+                One entry per span, or ``None`` for a span that should follow
+                its predecessor. Cannot be combined with ``Gap`` entries.
+            target_length: Total extent of the unfolded axis. Needed only when
+                the flow ends in a gap, which no section would imply.
 
         Returns:
             The constructed FlowMap (also attached to this timeline).
@@ -401,10 +420,27 @@ class SegmentsMixin:
             FlowMap(A8: 2 sections)
             >>> child.create_flow_map([(0, 123), (129, child.length)], id="A8")
             FlowMap(A8: 2 sections)
+            >>> # Restore the two skipped measures as a 6-quarter hole:
+            >>> child.create_flow_map(["A8_1", Gap(6), "A8_2"], id="restored")
+            FlowMap(restored: 3 sections)
+            >>> # The same placement, stated as coordinates:
+            >>> child.create_flow_map(["A8_1", "A8_2"], at=[0, 129], id="restored")
+            FlowMap(restored: 3 sections)
         """
         from ..flow import FlowMap
 
-        fm = FlowMap(intervals, id=id, resolve=self.get_region)
+        fm = FlowMap(
+            intervals,
+            id=id,
+            resolve=self.get_region,
+            at=at,
+            source_length=self.length.value,
+            target_length=(
+                None
+                if target_length is None
+                else self.get_coordinate(target_length).value
+            ),
+        )
         self.add_flow_map(fm, id=id)
         return fm
 
@@ -478,14 +514,21 @@ class SegmentsMixin:
         include_children: bool = True,
         uid: str | None = None,
         name: str | None = None,
+        mark_gaps: bool = False,
     ) -> "Timeline":
         """Yield the unfolded timeline for an attached FlowMap.
 
         Slices this timeline at each of the attached FlowMap's sections and
-        appends the slices, in target (unfolded) order, as children of a new
+        places the slices, in target (unfolded) order, as children of a new
         timeline of this timeline's **same concrete type**. Each section also
         becomes a matching named Region on the result, in unfolded
         coordinates.
+
+        Each slice sits at its section's target coordinate. Ordinary
+        concatenating FlowMaps stack the slices end to end; a FlowMap that
+        places its spans apart — a restored cut, or any FlowMap's
+        :meth:`~timetoalign.timelines.flow.FlowMap.inverse` — leaves the
+        result empty between them.
 
         Each appended child (and its Region) takes the source section's name —
         the region name a played span was built from. A span visited more than
@@ -507,10 +550,14 @@ class SegmentsMixin:
             uid: Optional identifier for the returned timeline.
             name: Optional name for the returned timeline. Defaults to
                 ``f"{self.name}_unfolded"``.
+            mark_gaps: If True, each gap also becomes a named Region marking
+                the empty stretch. Gaps never become children — there is no
+                material to put in one.
 
         Returns:
             The unfolded timeline (same concrete type as ``self``), with one
-            appended child and matching Region per section.
+            child and matching Region per played section, each placed at its
+            target coordinate.
 
         Raises:
             ValueError: If no FlowMap with the given id is attached.
@@ -523,6 +570,11 @@ class SegmentsMixin:
             2
             >>> unfolded.list_children()
             ['A8_1', 'A8_2']
+            >>> # Applying the inverse puts the spans back where they came
+            >>> # from, restoring the hole the cut left:
+            >>> restored = unfolded.apply_flow("source")
+            >>> float(restored.get_child_offset("A8_2").value)
+            129.0
         """
         flow_map = self._flow_maps.get(id)
         if flow_map is None:
@@ -536,6 +588,7 @@ class SegmentsMixin:
             uid=uid,
             include_children=include_children,
             name=name,
+            mark_gaps=mark_gaps,
         )
 
     def unfold_coordinate(
