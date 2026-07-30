@@ -22,26 +22,27 @@
 # %%
 from fractions import Fraction
 
-from timetoalign import TimeUnit
-from timetoalign.timelines import Timeline
+from timetoalign.timelines import (
+    ContinuousLogicalTimeline,
+    ContinuousPhysicalTimeline,
+    DiscreteLogicalTimeline,
+)
 
 # %% [markdown]
 # ## Creating Timelines
 
 # %%
-audio_tl = Timeline(length=10.0, unit=TimeUnit.seconds, uid="audio")
+audio_tl = ContinuousPhysicalTimeline(length=10.0, uid="audio")
 audio_tl
 
 # %%
-score_tl = Timeline(length=16, unit=TimeUnit.quarters, uid="score")
-score_tl_frac = Timeline(
-    length=Fraction(33, 2), unit=TimeUnit.quarters, uid="score_frac"
-)
+score_tl = ContinuousLogicalTimeline(length=16, uid="score")
+score_tl_frac = ContinuousLogicalTimeline(length=Fraction(33, 2), uid="score_frac")
 
 {"integer length": score_tl.length, "fraction length": score_tl_frac.length}
 
 # %%
-midi_tl = Timeline(length=1920, unit=TimeUnit.ticks, uid="midi")
+midi_tl = DiscreteLogicalTimeline(length=1920, uid="midi")
 {"unit": midi_tl.unit, "domain": midi_tl.domain, "length": midi_tl.length}
 
 # %% [markdown]
@@ -125,9 +126,9 @@ interval_store = audio_tl.get_events(temporal_type="interval")
 # locked after being added.
 
 # %%
-parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent")
+parent = ContinuousPhysicalTimeline(length=100, uid="parent")
 
-child1 = Timeline(length=20, unit=TimeUnit.seconds, uid="verse1")
+child1 = ContinuousPhysicalTimeline(length=20, uid="verse1")
 child1.add_events(
     [
         {
@@ -145,7 +146,7 @@ child1.add_events(
     ]
 )
 
-child2 = Timeline(length=15, unit=TimeUnit.seconds, uid="chorus")
+child2 = ContinuousPhysicalTimeline(length=15, uid="chorus")
 child2.add_events(
     [
         {
@@ -170,10 +171,10 @@ for offset, child in parent.iter_children():
 # ### Nested Hierarchies
 
 # %%
-piece = Timeline(length=600, unit=TimeUnit.seconds, uid="symphony")
-movement1 = Timeline(length=300, unit=TimeUnit.seconds, uid="mov1")
-section1a = Timeline(length=60, unit=TimeUnit.seconds, uid="exposition")
-section1b = Timeline(length=90, unit=TimeUnit.seconds, uid="development")
+piece = ContinuousPhysicalTimeline(length=600, uid="symphony")
+movement1 = ContinuousPhysicalTimeline(length=300, uid="mov1")
+section1a = ContinuousPhysicalTimeline(length=60, uid="exposition")
+section1b = ContinuousPhysicalTimeline(length=90, uid="development")
 
 movement1.add_child(section1a, offset=0)
 movement1.add_child(section1b, offset=60)
@@ -185,7 +186,7 @@ piece
 # ## Serialisation
 
 # %%
-tl = Timeline(length=10, unit=TimeUnit.seconds, uid="test")
+tl = ContinuousPhysicalTimeline(length=10, uid="test")
 tl.add_events(
     [
         {"id": "e1", "temporal_type": "instant", "event_type": "Beat", "instant": 0.0},
@@ -197,5 +198,5 @@ data = tl.to_dict(events=True)
 {"keys": list(data.keys()), "events": len(data["events"])}
 
 # %%
-restored = Timeline.from_dict(data)
+restored = ContinuousPhysicalTimeline.from_dict(data)
 {"id": restored.id, "n_events": restored.n_events}

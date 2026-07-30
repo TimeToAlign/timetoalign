@@ -59,8 +59,7 @@
 # construction shapes side by side.
 
 # %%
-from timetoalign import TimeUnit
-from timetoalign.timelines import FlowMap, Timeline
+from timetoalign.timelines import ContinuousLogicalTimeline, FlowMap
 
 QB_PER_MEASURE = 3
 N_MEASURES = 50
@@ -68,10 +67,10 @@ N_MEASURES = 50
 
 def build_score(
     n_measures: int = N_MEASURES, qb_per_measure: int = QB_PER_MEASURE
-) -> Timeline:
+) -> ContinuousLogicalTimeline:
     """Return a folded score timeline with one downbeat marker per measure."""
     length = n_measures * qb_per_measure
-    score = Timeline(length=length, unit=TimeUnit.quarters, uid="score")
+    score = ContinuousLogicalTimeline(length=length, uid="score")
     score.add_events(
         [
             {
@@ -206,8 +205,8 @@ probe(cut_map, [downbeat(42), downbeat(43)])
 # performance as its own timeline, call `apply_flow()` with the attached
 # FlowMap's id. Where `unfold_coordinate()` answers "where does this one
 # coordinate land?", `apply_flow(id)` assembles the whole performance: it returns
-# a new timeline of the **source's own concrete type** — here a plain
-# {{< glossary Timeline >}}, not some special container — and appends each played
+# a new timeline of the **source's own concrete type** — here a
+# `ContinuousLogicalTimeline`, not some special container — and appends each played
 # span as a **child**, named for the {{< glossary Region >}} it was cut from.
 #
 # Its length is the two spans summed (123 QB before the cut + 21 QB after =

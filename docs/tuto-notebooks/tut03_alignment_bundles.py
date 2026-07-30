@@ -21,10 +21,14 @@
 # performances) using the `MatchfileLoader` to illustrate the pattern.
 
 # %%
-from timetoalign import AlignmentBundle, MatchfileLoader, TimeUnit
+from timetoalign import AlignmentBundle, MatchfileLoader
 from timetoalign.core import SupportPolicy
 from timetoalign.testdata import ensure_data
-from timetoalign.timelines import Timeline
+from timetoalign.timelines import (
+    ContinuousLogicalTimeline,
+    ContinuousPhysicalTimeline,
+    DiscreteLogicalTimeline,
+)
 
 DATA_DIR = ensure_data("vienna_1x22")
 
@@ -98,7 +102,7 @@ stamp
 # The first bundle is a symbolic score, four measures of 4/4:
 
 # %%
-score = Timeline(length=12, unit=TimeUnit.quarters, uid="score")
+score = ContinuousLogicalTimeline(length=12, uid="score")
 score.add_events(
     [
         {
@@ -119,8 +123,8 @@ symbolic.add_timeline(score, as_group="score")
 # by interpolation:
 
 # %%
-perf = Timeline(length=6.0, unit=TimeUnit.seconds, uid="perf")
-midi = Timeline(length=2880, unit=TimeUnit.ticks, uid="midi")
+perf = ContinuousPhysicalTimeline(length=6.0, uid="perf")
+midi = DiscreteLogicalTimeline(length=2880, uid="midi")
 audio = AlignmentBundle(name="audio")
 audio.add_timeline(perf, as_group="performance")
 audio.add_timeline(midi, aligned_to="perf")

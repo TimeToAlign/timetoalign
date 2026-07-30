@@ -22,14 +22,13 @@
 # %%
 import numpy as np
 
-from timetoalign import TimeUnit
-from timetoalign.timelines import Timeline
+from timetoalign.timelines import ContinuousPhysicalTimeline
 
 # %% [markdown]
 # ## Setup: A Hierarchical Timeline
 
 # %%
-parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent")
+parent = ContinuousPhysicalTimeline(length=100, uid="parent")
 parent.add_events(
     [
         {"id": "p1", "temporal_type": "instant", "event_type": "Beat", "instant": 0.0},
@@ -37,7 +36,7 @@ parent.add_events(
     ]
 )
 
-child1 = Timeline(length=20, unit=TimeUnit.seconds, uid="child1")
+child1 = ContinuousPhysicalTimeline(length=20, uid="child1")
 child1.add_events(
     [
         {"id": "c1a", "temporal_type": "instant", "event_type": "Note", "instant": 0.0},
@@ -50,7 +49,7 @@ child1.add_events(
     ]
 )
 
-child2 = Timeline(length=15, unit=TimeUnit.seconds, uid="child2")
+child2 = ContinuousPhysicalTimeline(length=15, uid="child2")
 child2.add_events(
     [
         {"id": "c2a", "temporal_type": "instant", "event_type": "Note", "instant": 5.0},
