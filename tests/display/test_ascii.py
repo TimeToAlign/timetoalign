@@ -737,6 +737,69 @@ class TestDiagramMethods:
         assert len(wide) == 139
         assert len(narrow) == 94
 
+    def test_timeline_diagram_method_forwards_depth(self) -> None:
+        """Timeline.diagram() forwards depth to timeline_diagram()."""
+        root = ContinuousPhysicalTimeline(length=20, uid="method_depth_root")
+        child = ContinuousPhysicalTimeline(
+            length=10,
+            uid="method_depth_child",
+            name="child",
+        )
+        grandchild = ContinuousPhysicalTimeline(
+            length=5,
+            uid="method_depth_grandchild",
+            name="grandchild",
+        )
+        child.add_child(grandchild, offset=0)
+        root.add_child(child, offset=0)
+
+        assert root.diagram(depth=False) == timeline_diagram(root, depth=False)
+
+    def test_group_diagram_method_forwards_depth(self) -> None:
+        """TimelineGroup.diagram() toggles grandchildren through depth."""
+        from timetoalign.timelines import TimelineGroup
+
+        root = ContinuousPhysicalTimeline(length=20, uid="group_method_root")
+        child = ContinuousPhysicalTimeline(
+            length=10,
+            uid="group_method_child",
+            name="child",
+        )
+        grandchild = ContinuousPhysicalTimeline(
+            length=5,
+            uid="group_method_grandchild",
+            name="grandchild",
+        )
+        child.add_child(grandchild, offset=0)
+        root.add_child(child, offset=0)
+        group = TimelineGroup(id="depth_method_group", timelines=[root])
+
+        assert "grandchild" in group.diagram(depth=True)
+        assert "grandchild" not in group.diagram(depth=False)
+
+    def test_bundle_diagram_method_forwards_depth(self) -> None:
+        """AlignmentBundle.diagram() toggles grandchildren through depth."""
+        from timetoalign.alignment import AlignmentBundle
+
+        root = ContinuousPhysicalTimeline(length=20, uid="bundle_method_root")
+        child = ContinuousPhysicalTimeline(
+            length=10,
+            uid="bundle_method_child",
+            name="child",
+        )
+        grandchild = ContinuousPhysicalTimeline(
+            length=5,
+            uid="bundle_method_grandchild",
+            name="grandchild",
+        )
+        child.add_child(grandchild, offset=0)
+        root.add_child(child, offset=0)
+        bundle = AlignmentBundle(id="depth_method_bundle")
+        bundle.add_timeline(root, as_group="depth_method_group")
+
+        assert "grandchild" in bundle.diagram(depth=True)
+        assert "grandchild" not in bundle.diagram(depth=False)
+
 
 # endregion
 

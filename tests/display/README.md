@@ -261,6 +261,8 @@ segments from expanding into redundant rows.
 - `TimelineGroup.diagram()` returns identical output to `group_diagram(group)`
 - `AlignmentBundle.diagram()` returns identical output to `bundle_diagram(bundle)`
 - Parameters (width, unicode, etc.) are passed through correctly
+- `depth` is forwarded by timeline, group, and bundle methods so callers can
+  include or suppress grandchildren consistently
 
 **Why this matters:**
 Users interact with the `.diagram()` method, not the module functions. These tests

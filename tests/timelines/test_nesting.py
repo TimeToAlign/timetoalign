@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import time
 from fractions import Fraction
+from inspect import Parameter, signature
 
 import pytest
 
@@ -33,6 +34,7 @@ from timetoalign.timelines import (
     DiscreteGraphicalTimeline,
     DiscreteLogicalTimeline,
     DiscretePhysicalTimeline,
+    SegmentLine,
     Timeline,
 )
 from timetoalign.timelines.base import SEGMENT_EVENT_TYPE
@@ -185,6 +187,62 @@ class TestAddChild:
 
         stored_offset = parent.get_child_offset(child.id)
         assert stored_offset.value == 10.0
+
+
+class TestAppendChild:
+    """Test append_child placement, identity, and locking."""
+
+    def test_locked_parent_raises_standard_error_before_mutating_child(self) -> None:
+        """A locked parent rejects append without changing child identity."""
+        parent = Timeline(length=5.0, uid="locked_parent", locked=True)
+        child = Timeline(length=2.0, uid="original_id", name="Original")
+
+        with pytest.raises(RuntimeError) as error:
+            parent.append_child(child, uid="replacement_id", name="Replacement")
+
+        assert str(error.value) == (
+            "Cannot append child on locked timeline 'locked_parent'. "
+            "Timelines are locked when embedded as children."
+        )
+        assert child.id == "original_id"
+        assert child.name == "Original"
+
+    def test_unlocked_parent_appends_at_previous_end_and_expands(self) -> None:
+        """Append places a named child at the old end and expands the parent."""
+        parent = Timeline(length=5.0)
+        child = Timeline(length=2.5)
+
+        parent.append_child(child, uid="ending", name="Ending")
+
+        assert parent.get_child("ending") is child
+        assert parent.get_child_offset("ending").value == 5.0
+        assert parent.length.value == 7.5
+        assert child.id == "ending"
+        assert child.name == "Ending"
+
+    def test_name_and_uid_are_keyword_only(self) -> None:
+        """Identity overrides remain keyword-only parameters."""
+        parameters = signature(Timeline.append_child).parameters
+
+        assert parameters["name"].kind is Parameter.KEYWORD_ONLY
+        assert parameters["uid"].kind is Parameter.KEYWORD_ONLY
+
+    def test_embedded_segment_line_rejects_append_segment(self) -> None:
+        """An embedded SegmentLine applies the append lock gate."""
+        segment_line = SegmentLine[ContinuousLogicalTimeline](
+            length=0,
+            uid="embedded_line",
+        )
+        parent = ContinuousLogicalTimeline(length=4)
+        parent.add_child(segment_line, offset=0)
+
+        with pytest.raises(RuntimeError) as error:
+            segment_line.append_segment(ContinuousLogicalTimeline(length=4))
+
+        assert str(error.value) == (
+            "Cannot append child on locked timeline 'embedded_line'. "
+            "Timelines are locked when embedded as children."
+        )
 
 
 class TestAddChildDurationExactness:

@@ -965,6 +965,7 @@ def bundle_diagram(
     max_children: int = DEFAULT_MAX_CHILDREN,
     max_standalone: int = DEFAULT_MAX_STANDALONE,
     unicode: bool = True,
+    depth: bool | int = True,
 ) -> Diagram:
     """Generate ASCII diagram for an AlignmentBundle.
 
@@ -981,6 +982,7 @@ def bundle_diagram(
         max_standalone: Maximum standalone timelines to display before
             truncating with an ellipsis.
         unicode: Use Unicode characters (True) or ASCII fallback (False).
+        depth: Child levels to render in nested timeline diagrams.
 
     Returns:
         Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
@@ -1012,6 +1014,7 @@ def bundle_diagram(
             show_children=show_children,
             max_children=max_children,
             unicode=unicode,
+            depth=depth,
         )
         for line in group_str.split("\n"):
             lines.append("  " + line)

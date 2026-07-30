@@ -2107,6 +2107,7 @@ class TimelineGroup:
         show_children: bool = True,
         max_children: int = 6,
         unicode: bool = True,
+        depth: bool | int = True,
     ) -> "Diagram":
         """Generate ASCII diagram for this group.
 
@@ -2115,9 +2116,16 @@ class TimelineGroup:
             show_children: Whether to expand child timelines.
             max_children: Maximum children per timeline.
             unicode: Use Unicode characters (True) or ASCII fallback (False).
+            depth: Child levels to render for each member timeline. ``True``
+                renders all levels, ``False`` renders direct children only,
+                and a non-negative integer renders at most that many levels.
+                In particular, ``0`` renders no child rows.
 
         Returns:
             Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+
+        Raises:
+            ValueError: If ``depth`` is a negative integer.
 
         Examples:
             >>> print(group.diagram())
@@ -2138,6 +2146,7 @@ class TimelineGroup:
             show_children=show_children,
             max_children=max_children,
             unicode=unicode,
+            depth=depth,
         )
 
     # endregion

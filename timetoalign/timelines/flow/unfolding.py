@@ -294,9 +294,7 @@ def unfold_via_flowmap(
             truncate_events=True,
             include_children=include_children,
         )
-        result.append_child(
-            slice_tl, uid=section_name, name=section_name, allow_expansion=True
-        )
+        result.append_child(slice_tl, uid=section_name, name=section_name)
         result.create_region(section_name, sec.target_start, sec.target_end)
 
     # --- Add FlowMaps ---

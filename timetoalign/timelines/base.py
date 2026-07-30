@@ -1144,6 +1144,7 @@ class Timeline(
         max_children: int = 6,
         unicode: bool = True,
         show: set[str] | None = None,
+        depth: bool | int = True,
     ) -> "Diagram":
         """Generate ASCII diagram for this timeline.
 
@@ -1156,9 +1157,16 @@ class Timeline(
                 values: ``"children"``, ``"regions"``, and ``"cmaps"``
                 (attached conversion maps). When ``None``, behaviour is
                 exactly as before.
+            depth: Child levels to render. ``True`` renders all levels,
+                ``False`` renders direct children only, and a non-negative
+                integer renders at most that many levels below this timeline.
+                In particular, ``0`` renders no child rows.
 
         Returns:
             Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+
+        Raises:
+            ValueError: If ``depth`` is a negative integer.
 
         Examples:
             >>> print(timeline.diagram())
@@ -1177,6 +1185,7 @@ class Timeline(
             max_children=max_children,
             unicode=unicode,
             show=show,
+            depth=depth,
         )
 
     # endregion

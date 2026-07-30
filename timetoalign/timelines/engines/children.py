@@ -361,20 +361,19 @@ class ChildrenMixin:
 
     def append_child(
         self,
-        child: Timeline,
+        child: "Timeline",
         *,
         name: str | None = None,
         uid: str | None = None,
-        allow_expansion: bool = True,
     ) -> None:
         """Append a child timeline at the current end of this timeline.
 
         The child is placed at ``offset = self.length``, so successive calls
-        stack children end-to-end. Because the child is a fresh, unlocked
-        timeline, its identity may be set here: *uid* becomes the child's ID
-        (the key under which it is stored and retrieved) and *name* its
-        human-readable name — both applied before the child is locked by
-        :meth:`add_child`.
+        stack children end-to-end and expand this timeline. Because the child
+        is a fresh, unlocked timeline, its identity may be set here: *uid*
+        becomes the child's ID (the key under which it is stored and
+        retrieved) and *name* its human-readable name — both applied before
+        the child is locked by :meth:`add_child`.
 
         Args:
             child: The timeline to append. Must be fresh (parentless) and
@@ -382,8 +381,6 @@ class ChildrenMixin:
             name: Human-readable name for the child. Applied when given.
             uid: Identifier for the child; also the key for
                 :meth:`get_child`. Applied when given.
-            allow_expansion: If True (default), expand this timeline to make
-                room for the appended child.
 
         Raises:
             TypeError: If child is not a Timeline.
@@ -403,12 +400,12 @@ class ChildrenMixin:
             >>> float(parent.get_child_offset("B").value)
             8.0
         """
-        offset = self.length
+        self._check_not_locked("append child")
         if uid is not None:
             child._id = uid
         if name is not None:
             child._name = name
-        self.add_child(child, offset, allow_expansion=allow_expansion)
+        self.add_child(child, self.length, allow_expansion=True)
 
     def get_child(self, child_id: str) -> Timeline:
         """Retrieve a child timeline by ID.

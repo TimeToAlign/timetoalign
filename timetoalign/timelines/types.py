@@ -887,7 +887,7 @@ class SegmentLineMixin:
         name: str | None = None,
     ) -> None:
         """Append a segment at the current end coordinate."""
-        self.append_child(segment, name=name, allow_expansion=True)
+        self.append_child(segment, name=name)
 
     def get_segment_at(
         self,

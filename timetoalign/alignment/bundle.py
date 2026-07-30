@@ -2728,6 +2728,7 @@ class AlignmentBundle:
         max_children: int = 6,
         max_standalone: int = 6,
         unicode: bool = True,
+        depth: bool | int = True,
     ) -> "Diagram":
         """Generate ASCII diagram for this bundle.
 
@@ -2738,9 +2739,16 @@ class AlignmentBundle:
             max_standalone: Maximum standalone timelines to display
                 before truncating with an ellipsis.
             unicode: Use Unicode characters (True) or ASCII fallback (False).
+            depth: Child levels to render in nested timeline diagrams. ``True``
+                renders all levels, ``False`` renders direct children only,
+                and a non-negative integer renders at most that many levels.
+                In particular, ``0`` renders no child rows.
 
         Returns:
             Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).
+
+        Raises:
+            ValueError: If ``depth`` is a negative integer.
 
         Examples:
             >>> print(bundle.diagram())
@@ -2764,6 +2772,7 @@ class AlignmentBundle:
             max_children=max_children,
             max_standalone=max_standalone,
             unicode=unicode,
+            depth=depth,
         )
 
     def _repr_html_(self) -> str:

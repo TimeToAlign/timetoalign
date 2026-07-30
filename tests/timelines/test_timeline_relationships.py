@@ -962,6 +962,59 @@ class TestSegmentLineCasting:
         assert cast._flow_maps["flow"] is flow_marker
         assert cast.as_segment_line() is cast
 
+    def test_boundary_children_cast_with_exact_names_offsets_and_type(self) -> None:
+        """Boundary children cast to the parent's concrete SegmentLine class."""
+        parent = ContinuousPhysicalTimeline(length=9.0, uid="movements")
+        children = parent.create_children_from_boundaries(
+            [0.0, 2.5, 6.0, 9.0],
+            names=["opening", "development", "closing"],
+        )
+
+        assert parent.is_segment_line() is True
+
+        segment_line = parent.as_segment_line()
+
+        assert type(segment_line) is SegmentLine[ContinuousPhysicalTimeline]
+        assert segment_line.n_segments == len(children) == 3
+        assert segment_line.list_segments() == [
+            "opening",
+            "development",
+            "closing",
+        ]
+        assert [
+            segment_line.get_segment_by_index(index)[0].value
+            for index in range(segment_line.n_segments)
+        ] == [0.0, 2.5, 6.0]
+        assert [
+            segment_line.get_segment_by_index(index)[1].name
+            for index in range(segment_line.n_segments)
+        ] == ["opening", "development", "closing"]
+
+    def test_nested_segment_line_diagram_collapses_segments(self) -> None:
+        """A nested SegmentLine occupies one row without segment rows."""
+        parent = ContinuousPhysicalTimeline(length=8.0, uid="score")
+        sections = SegmentLine[ContinuousPhysicalTimeline](
+            length=0.0,
+            uid="sections",
+            name="sections",
+        )
+        sections.append_segment(
+            ContinuousPhysicalTimeline(length=3.0),
+            name="opening",
+        )
+        sections.append_segment(
+            ContinuousPhysicalTimeline(length=5.0),
+            name="closing",
+        )
+        parent.add_child(sections, offset=0.0)
+
+        rendered = parent.diagram()
+
+        assert "  └─ sections" in rendered
+        assert rendered.count("sections") == 1
+        assert "opening" not in rendered
+        assert "closing" not in rendered
+
     def test_as_segment_line_gap_names_first_offending_pair(self):
         """A gap reports both adjacent child IDs and exact offsets."""
         timeline = Timeline(length=3.0, unit=TimeUnit.seconds)

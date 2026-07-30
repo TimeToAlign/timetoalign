@@ -303,13 +303,18 @@ need contents opt in.
    - Duplicate children rejected
    - Negative offsets rejected
 
-2. **Adding Children Tests** (9 tests)
+2. **Adding and Appending Children Tests** (13 tests)
    - Basic child addition
    - Offset storage and retrieval
    - Child locking upon embedding
    - Segment event creation in parent's EventStore
    - Auto-expansion of parent
    - Multiple children
+   - `append_child()` requires an unlocked parent, reports the exact standard
+     lock error, preserves keyword-only identity arguments, and places a named
+     child at the previous end while expanding the parent
+   - `append_segment()` uses the same lock gate when its SegmentLine is already
+     embedded as a child
 
 3. **Get Child Tests** (4 tests)
    - Retrieve child by ID
@@ -811,6 +816,11 @@ measures.
     - `as_segment_line()` preserves content while enforcing contiguity and a
       homogeneous child class
     - `to_timeline()` removes segment enforcement without losing content
+    - Boundary-created children make the parent structurally segmentable;
+      casting returns the parent's concrete dynamic SegmentLine class with the
+      exact child count, names, and offsets
+    - A SegmentLine nested beneath a parent renders as one collapsed child row,
+      without rendering each of its segments as additional rows
 
 18. **SegmentLine from_segmentation Tests**
     - Creates correct number of segments
