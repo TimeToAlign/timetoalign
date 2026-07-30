@@ -25,7 +25,7 @@ from typing import Any
 import pytest
 
 from timetoalign.core import Coordinate, NumberType, TimeUnit
-from timetoalign.timelines import Timeline
+from timetoalign.timelines import ContinuousPhysicalTimeline, Timeline
 
 # region Construction Tests
 
@@ -101,6 +101,15 @@ class TestTimelineConstruction:
         meta = {"source": "test", "version": 1}
         tl = Timeline(meta=meta)
         assert tl.meta == meta
+
+    def test_create_child_accepts_base_class_override(self) -> None:
+        """The explicit class override can construct the experimental base class."""
+        parent = ContinuousPhysicalTimeline(length=10.0)
+
+        child = parent.create_child(length=2.0, child_class=Timeline)
+
+        assert type(child) is Timeline
+        assert parent.get_child_offset(child.id).value == 0.0
 
     def test_from_events_empty(self):
         """from_events with empty list creates empty timeline."""

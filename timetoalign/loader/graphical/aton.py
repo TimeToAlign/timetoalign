@@ -22,12 +22,13 @@ from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
+from timetoalign.core import TimeUnit
 from timetoalign.core.events import BoundingBox
 from timetoalign.loader.base import Loader
+from timetoalign.timelines import DiscreteGraphicalTimeline
 
 if TYPE_CHECKING:
     from timetoalign.core import Coordinate
-    from timetoalign.timelines import Timeline
 
 module_logger = logging.getLogger(__name__)
 
@@ -355,7 +356,8 @@ class ATONLoader(Loader[list[ATONHole]]):
         """Pixel coordinate of first musical hole (from ROLLINFO).
 
         Returns:
-            Coordinate with pixel unit, usable directly as offset in create_child().
+            Coordinate with pixel unit, usable directly as the offset for an
+            inherited DiscreteGraphicalTimeline child.
         """
         from timetoalign.core import Coordinate, TimeUnit
 
@@ -468,15 +470,15 @@ class ATONLoader(Loader[list[ATONHole]]):
         self,
         uid: str | None = None,
         name: str | None = None,
-    ) -> "Timeline":
+    ) -> DiscreteGraphicalTimeline:
         """Create a timeline populated with hole events.
 
         Creates a graphical timeline (in pixels) spanning the full image height,
         with all parsed holes as InstantEvents at their absolute pixel coordinates.
 
         This is the primary timeline for the piano roll image. To get a relative
-        coordinate view (first hole = 0), create a child timeline at offset
-        first_hole using parent.create_child().
+        coordinate view (first hole = 0), create an inherited
+        DiscreteGraphicalTimeline child at ``first_hole``.
 
         Args:
             uid: Unique identifier for the timeline. Auto-generated if None.
@@ -494,21 +496,18 @@ class ATONLoader(Loader[list[ATONHole]]):
             >>> dgt1 = loader.create_timeline(uid="dgt1")
             >>> dgt1.n_events
             30092
-            >>> # Create child for relative coordinates (first hole = 0)
+            >>> # Child inherits DiscreteGraphicalTimeline; its origin is the first hole
             >>> dgt_holes = dgt1.create_child(
             ...     length=loader.musical_length,
             ...     offset=loader.first_hole,
             ...     uid="dgt_holes",
             ... )
         """
-        from timetoalign import TimeUnit
-        from timetoalign.timelines import Timeline
-
         if not self._holes:
             raise RuntimeError("No data loaded. Call load() first.")
 
         # Create timeline spanning full image
-        timeline = Timeline(
+        timeline = DiscreteGraphicalTimeline(
             length=self.image_dimensions["height"],
             unit=TimeUnit.pixels,
             uid=uid,

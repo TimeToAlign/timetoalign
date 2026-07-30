@@ -16,6 +16,7 @@ from .coordinate_ops import (
     shift_coordinate,
     subtract_coordinates,
 )
+from .regions import _resolve_boundary_names
 
 if TYPE_CHECKING:
     from ..base import Timeline
@@ -26,6 +27,26 @@ TraversalOrder = Literal["sorted", "depth_first", "breadth_first"]
 
 class ChildrenMixin:
     """Provide child timeline and slicing operations for timeline instances."""
+
+    def _spawn_class(self) -> type["Timeline"]:
+        """The class used for children and slices of this timeline."""
+        return type(self)
+
+    def is_segment_line(self) -> bool:
+        """Return whether children exactly and contiguously cover this timeline."""
+        if not self._children:
+            return False
+
+        expected_end: CoordinateValue = 0
+        for child_id, child in sorted(
+            self._children.items(),
+            key=lambda item: self._child_offsets[item[0]].value,
+        ):
+            offset = self._child_offsets[child_id].value
+            if offset != expected_end:
+                return False
+            expected_end = offset + child.length.value
+        return expected_end == self._length.value
 
     @property
     def n_children(self) -> int:
@@ -250,52 +271,45 @@ class ChildrenMixin:
     def create_child(
         self,
         length: CoordinateSpec,
-        offset: CoordinateSpec,
+        offset: CoordinateSpec = 0,
         uid: str | None = None,
         name: str | None = None,
         allow_expansion: bool = False,
+        child_class: type["Timeline"] | None = None,
     ) -> "Timeline":
-        """Create a new child timeline and embed it at the specified offset.
+        """Create and embed a child selected by this timeline's spawn hook.
 
-        Convenience method that creates a new timeline with the same unit as the
-        parent and immediately adds it as a child. This is equivalent to:
+        By default, this is equivalent to:
 
-            child = Timeline(length=length, unit=parent.unit, uid=uid, name=name)
+            child_type = parent._spawn_class()
+            child = child_type(length=length, unit=parent.unit, uid=uid, name=name)
             parent.add_child(child, offset=offset)
 
-        A timeline can accommodate events and other timelines, called
-        Children, as long as they use the same measuring unit.
+        ``child_class=Timeline`` deliberately selects the experimental base class.
 
         Args:
-            length: Length of the child timeline (in parent's unit). Can be a
-                Coordinate object if its unit matches the parent.
-            offset: The start coordinate on this timeline where the child begins.
+            length: Child length in the parent's unit.
+            offset: Child start coordinate. Defaults to zero.
             uid: Unique identifier for the child. Auto-generated if None.
             name: Human-readable name for the child.
-            allow_expansion: If True, expand parent timeline if needed.
+            allow_expansion: If True, expand the parent when needed.
+            child_class: Explicit class override for the child.
 
         Returns:
             The newly created and embedded child Timeline.
 
         Raises:
-            ValueError: If offset is negative or child would exceed parent bounds.
-            ValueError: If length/offset Coordinate has mismatched unit.
-            RuntimeError: If this timeline is locked.
+            ValueError: If coordinates are invalid or the child exceeds bounds.
 
         Examples:
-            >>> # Create a child representing a region of interest
-            >>> holes_region = image_timeline.create_child(
-            ...     length=277776,
-            ...     offset=15343,
-            ...     uid="dgt1_holes",
-            ...     name="Musical Holes Region",
-            ... )
-            >>> # Now add events to the child
-            >>> holes_region.add_events(hole_events)
+            >>> parent = ContinuousLogicalTimeline(length=8)
+            >>> child = parent.create_child(length=4)
+            >>> type(child) is ContinuousLogicalTimeline
+            True
         """
         length = self._resolve_axis_value(length)
 
-        child = Timeline(
+        child = (child_class or self._spawn_class())(
             length=length,
             unit=self._unit,
             number_type=self._number_type,
@@ -304,6 +318,46 @@ class ChildrenMixin:
         )
         self.add_child(child, offset=offset, allow_expansion=allow_expansion)
         return child
+
+    def create_children_from_boundaries(
+        self,
+        boundaries: Sequence[CoordinateSpec],
+        *,
+        names: Sequence[str] | None = None,
+        name_format: str = "{prefix}_{n}",
+        prefix: str = "section",
+        allow_expansion: bool = False,
+    ) -> list["Timeline"]:
+        """Create children spanning consecutive boundary coordinates.
+
+        Source events are not copied into the children.
+
+        Args:
+            boundaries: k+1 monotonically increasing coordinates.
+            names: Explicit names for the k children.
+            name_format: Format with {prefix}, {i}, and {n} placeholders.
+            prefix: Prefix for auto-generated names.
+            allow_expansion: If True, expand the parent when needed.
+
+        Returns:
+            Child timelines in boundary order.
+
+        Raises:
+            ValueError: If the boundaries or number of names are invalid.
+        """
+        coords, child_names = _resolve_boundary_names(
+            boundaries,
+            names,
+            name_format,
+            prefix,
+            self._resolve_axis_value,
+        )
+        return [
+            self.create_child(end - start, start, name, name, allow_expansion)
+            for start, end, name in zip(
+                coords[:-1], coords[1:], child_names, strict=True
+            )
+        ]
 
     def append_child(
         self,
@@ -529,7 +583,7 @@ class ChildrenMixin:
 
         self._check_not_locked("create child from region")
 
-        child = self.__class__(
+        child = self._spawn_class()(
             length=region.duration,
             unit=self._unit,
             number_type=self._number_type,
@@ -729,8 +783,8 @@ class ChildrenMixin:
 
         slice_length = e - s
 
-        # Create new timeline of same concrete class
-        sliced = self.__class__(
+        # Create new timeline using the source's spawn class
+        sliced = self._spawn_class()(
             length=slice_length,
             unit=self._unit,
             number_type=self._number_type,

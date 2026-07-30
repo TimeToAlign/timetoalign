@@ -13,12 +13,11 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from timetoalign.core import TimeUnit
 from timetoalign.loader.base import Loader
-
-if TYPE_CHECKING:
-    from timetoalign.timelines import Timeline
+from timetoalign.timelines import DiscreteGraphicalTimeline
 
 module_logger = logging.getLogger(__name__)
 
@@ -394,7 +393,7 @@ class IIIFManifestLoader(Loader[IIIFManifestInfo]):
         uid: str | None = None,
         name: str | None = None,
         axis: str = "height",
-    ) -> "Timeline":
+    ) -> DiscreteGraphicalTimeline:
         """Create a graphical timeline from the loaded IIIF manifest.
 
         The timeline length is determined by the image dimensions along the
@@ -419,9 +418,6 @@ class IIIFManifestLoader(Loader[IIIFManifestInfo]):
             >>> loader.load("manifest.json")
             >>> timeline = loader.create_timeline(uid="dgt1_image")
         """
-        from timetoalign import TimeUnit
-        from timetoalign.timelines import Timeline
-
         if self._manifest_info is None:
             raise RuntimeError("No manifest loaded. Call load() first.")
 
@@ -432,7 +428,7 @@ class IIIFManifestLoader(Loader[IIIFManifestInfo]):
         else:
             raise ValueError(f"axis must be 'height' or 'width', got: {axis!r}")
 
-        return Timeline(
+        return DiscreteGraphicalTimeline(
             length=length,
             unit=TimeUnit.pixels,
             uid=uid,

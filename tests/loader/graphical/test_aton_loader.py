@@ -13,6 +13,7 @@ import pytest
 
 from timetoalign.core.events import BoundingBox
 from timetoalign.loader.graphical.aton import ATONHole, ATONLoader
+from timetoalign.timelines import DiscreteGraphicalTimeline
 
 # Test data directory
 TESTDATA_DIR = Path(
@@ -430,7 +431,7 @@ class TestMinimalATONTimeline:
         """create_timeline() produces a valid timeline."""
         timeline = loaded_minimal_loader.create_timeline()
 
-        assert timeline is not None
+        assert type(timeline) is DiscreteGraphicalTimeline
         assert timeline.n_events == 5
 
     def test_create_timeline_with_uid(self, loaded_minimal_loader: ATONLoader) -> None:

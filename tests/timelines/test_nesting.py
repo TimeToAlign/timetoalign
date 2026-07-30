@@ -26,9 +26,13 @@ import pytest
 
 from timetoalign.core import Coordinate, NumberType, TimeUnit, rational_to_wire
 from timetoalign.timelines import (
+    BeatGrid,
+    ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
     DiscreteLogicalTimeline,
+    DiscretePhysicalTimeline,
     Timeline,
 )
 from timetoalign.timelines.base import SEGMENT_EVENT_TYPE
@@ -221,6 +225,172 @@ class TestAddChildDurationExactness:
 
         duration = parent.to_dict(events=True)["events"][0]["duration"]
         assert duration == rational_to_wire(Fraction(7, 3))
+
+
+class TestCreateChild:
+    """Test child construction and concrete class selection."""
+
+    @pytest.mark.parametrize(
+        ("parent_class", "length"),
+        [
+            (ContinuousLogicalTimeline, Fraction(100, 1)),
+            (ContinuousPhysicalTimeline, 100.0),
+            (ContinuousGraphicalTimeline, 100.0),
+            (DiscreteLogicalTimeline, 100),
+            (DiscretePhysicalTimeline, 100),
+            (DiscreteGraphicalTimeline, 100),
+        ],
+    )
+    def test_create_child_inherits_exact_concrete_class(
+        self,
+        parent_class: type[Timeline],
+        length: int | float | Fraction,
+    ) -> None:
+        """Each concrete timeline type creates a child of its exact class."""
+        parent = parent_class(length=length)
+
+        child = parent.create_child(length=10, uid="child")
+
+        assert type(child) is parent_class
+        assert parent.get_child_offset("child").value == 0
+
+    def test_create_child_accepts_coordinate_length_and_offset(self) -> None:
+        """Coordinate objects remain accepted for child length and offset."""
+        parent = ContinuousPhysicalTimeline(length=10.0, unit=TimeUnit.seconds)
+
+        child = parent.create_child(
+            length=Coordinate(2.0, TimeUnit.seconds),
+            offset=Coordinate(3.0, TimeUnit.seconds),
+            uid="coordinate_child",
+        )
+
+        assert child.length.value == 2.0
+        assert parent.get_child_offset("coordinate_child").value == 3.0
+
+    def test_beatgrid_create_child_returns_plain_logical_timeline(self) -> None:
+        """BeatGrid children contain logical material rather than another grid."""
+        grid = BeatGrid(length=Fraction(16, 1))
+
+        child = grid.create_child(length=Fraction(4, 1), uid="measure")
+
+        assert type(child) is ContinuousLogicalTimeline
+        assert child.length.value == Fraction(4, 1)
+        assert grid.get_child_offset("measure").value == Fraction(0, 1)
+
+    def test_beatgrid_get_slice_returns_plain_logical_timeline(self) -> None:
+        """BeatGrid slicing succeeds without invoking its specialized constructor."""
+        grid = BeatGrid(length=Fraction(16, 1))
+
+        sliced = grid.get_slice(Fraction(4, 1), Fraction(8, 1))
+
+        assert type(sliced) is ContinuousLogicalTimeline
+        assert sliced.length.value == Fraction(4, 1)
+
+
+class TestCreateChildrenFromBoundaries:
+    """Test contiguous child construction from boundary coordinates."""
+
+    def test_generated_children_have_exact_names_offsets_and_lengths(self) -> None:
+        """Generated children use exact interval names, offsets, and lengths."""
+        parent = ContinuousPhysicalTimeline(length=90.0, unit=TimeUnit.seconds)
+        parent.add_events(
+            [
+                {
+                    "id": "source",
+                    "temporal_type": "instant",
+                    "event_type": "Marker",
+                    "instant": 15.0,
+                }
+            ]
+        )
+
+        children = parent.create_children_from_boundaries(
+            [0.0, 30.0, 60.0, 90.0],
+            prefix="movement",
+        )
+
+        assert [child.id for child in children] == [
+            "movement_1",
+            "movement_2",
+            "movement_3",
+        ]
+        assert [child.name for child in children] == [
+            "movement_1",
+            "movement_2",
+            "movement_3",
+        ]
+        assert [parent.get_child_offset(child.id).value for child in children] == [
+            0.0,
+            30.0,
+            60.0,
+        ]
+        assert [child.length.value for child in children] == [30.0, 30.0, 30.0]
+        assert [child.n_events for child in children] == [0, 0, 0]
+
+    def test_explicit_names_are_used_for_ids_and_names(self) -> None:
+        """Explicit boundary names become both child IDs and names."""
+        parent = ContinuousPhysicalTimeline(length=90.0)
+
+        children = parent.create_children_from_boundaries(
+            [0.0, 30.0, 60.0, 90.0],
+            names=["opening", "middle", "closing"],
+        )
+
+        assert [child.id for child in children] == ["opening", "middle", "closing"]
+        assert [child.name for child in children] == [
+            "opening",
+            "middle",
+            "closing",
+        ]
+
+    @pytest.mark.parametrize(
+        ("boundaries", "expected_message"),
+        [
+            ([50.0], "Need at least 2 boundary coordinates, got 1"),
+            (
+                [0.0, 60.0, 30.0, 100.0],
+                "Boundaries must be monotonically increasing: "
+                "boundaries[1]=60.0 >= boundaries[2]=30.0",
+            ),
+        ],
+    )
+    def test_boundary_errors_match_region_variant(
+        self,
+        boundaries: list[float],
+        expected_message: str,
+    ) -> None:
+        """Child and region boundary creation report identical validation errors."""
+        child_parent = ContinuousPhysicalTimeline(length=100.0)
+        region_parent = ContinuousPhysicalTimeline(length=100.0)
+
+        with pytest.raises(ValueError) as child_error:
+            child_parent.create_children_from_boundaries(boundaries)
+        with pytest.raises(ValueError) as region_error:
+            region_parent.create_regions_from_boundaries(boundaries)
+
+        assert str(child_error.value) == str(region_error.value)
+        assert str(child_error.value) == expected_message
+
+    def test_children_tile_parent_exactly(self) -> None:
+        """Boundary-created children cover the parent without gaps or overlaps."""
+        parent = ContinuousPhysicalTimeline(length=90.0)
+
+        children = parent.create_children_from_boundaries(
+            [0.0, 30.0, 60.0, 90.0],
+            prefix="movement",
+        )
+        extents = [
+            (
+                parent.get_child_offset(child.id).value,
+                parent.get_child_offset(child.id).value + child.length.value,
+            )
+            for child in children
+        ]
+
+        assert extents == [(0.0, 30.0), (30.0, 60.0), (60.0, 90.0)]
+        assert extents[0][0] == 0.0
+        assert extents[-1][1] == parent.length.value
+        assert parent.is_segment_line() is True
 
 
 # endregion

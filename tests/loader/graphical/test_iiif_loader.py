@@ -16,6 +16,7 @@ from timetoalign.loader.graphical.iiif import (
     IIIFCanvasInfo,
     IIIFManifestLoader,
 )
+from timetoalign.timelines import DiscreteGraphicalTimeline
 
 # Test data directory
 TESTDATA_DIR = Path(
@@ -128,6 +129,15 @@ class TestSUPRAManifestDimensions:
     def test_supra_single_canvas(self, loaded_supra_loader: IIIFManifestLoader) -> None:
         """SUPRA manifest has exactly one canvas."""
         assert loaded_supra_loader.n_canvases == 1
+
+    def test_create_timeline_returns_discrete_graphical_timeline(
+        self, loaded_supra_loader: IIIFManifestLoader
+    ) -> None:
+        """IIIF pixel material uses the discrete graphical concrete class."""
+        timeline = loaded_supra_loader.create_timeline()
+
+        assert type(timeline) is DiscreteGraphicalTimeline
+        assert timeline.length.value == 299400
 
 
 # endregion

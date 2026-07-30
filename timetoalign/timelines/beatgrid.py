@@ -113,6 +113,16 @@ class BeatGrid(ContinuousLogicalTimeline):
     _start_seconds: float
     _tempo_map: LinearMap | None
 
+    def _spawn_class(self) -> type[Timeline]:
+        """Return the plain logical class used for children and slices.
+
+        BeatGrid initialization does not accept ``unit`` or ``number_type``
+        arguments, so generic child construction cannot instantiate
+        ``type(self)``. Children and slices are logical material rather than
+        independent metrical grids.
+        """
+        return ContinuousLogicalTimeline
+
     def __init__(
         self,
         length: Fraction | int,

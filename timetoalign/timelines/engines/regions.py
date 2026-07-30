@@ -5,10 +5,43 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator, Sequence
 from typing import Any
 
-from timetoalign.core import CoordinateSpec
+from timetoalign.core import CoordinateSpec, CoordinateValue
 
 from ..regions import Region
 from .coordinate_ops import coordinate_numeric_value
+
+
+def _resolve_boundary_names(
+    boundaries: Sequence[CoordinateSpec],
+    names: Sequence[str] | None,
+    name_format: str,
+    prefix: str,
+    resolve: Callable[[CoordinateSpec], CoordinateValue],
+) -> tuple[list[CoordinateValue], list[str]]:
+    """Validate boundaries and resolve one name per interval."""
+    if len(boundaries) < 2:
+        raise ValueError(f"Need at least 2 boundary coordinates, got {len(boundaries)}")
+
+    coords = [resolve(boundary) for boundary in boundaries]
+    for i in range(1, len(coords)):
+        if coords[i] <= coords[i - 1]:
+            raise ValueError(
+                f"Boundaries must be monotonically increasing: "
+                f"boundaries[{i - 1}]={coords[i - 1]} >= "
+                f"boundaries[{i}]={coords[i]}"
+            )
+
+    n_regions = len(coords) - 1
+    if names is not None:
+        if len(names) != n_regions:
+            raise ValueError(
+                f"Expected {n_regions} names for {n_regions} regions, got {len(names)}"
+            )
+        return coords, list(names)
+
+    return coords, [
+        name_format.format(prefix=prefix, i=i, n=i + 1) for i in range(n_regions)
+    ]
 
 
 class RegionsMixin:
@@ -176,39 +209,20 @@ class RegionsMixin:
             [Region('movement_1', 0-30), Region('movement_2', 30-60),
              Region('movement_3', 60-90)]
         """
-        if len(boundaries) < 2:
-            raise ValueError(
-                f"Need at least 2 boundary coordinates, got {len(boundaries)}"
+        coords, region_names = _resolve_boundary_names(
+            boundaries,
+            names,
+            name_format,
+            prefix,
+            self._resolve_axis_value,
+        )
+
+        return [
+            self.create_region(name, start, end)
+            for start, end, name in zip(
+                coords[:-1], coords[1:], region_names, strict=True
             )
-
-        coords = [self._resolve_axis_value(boundary) for boundary in boundaries]
-        for i in range(1, len(coords)):
-            if coords[i] <= coords[i - 1]:
-                raise ValueError(
-                    f"Boundaries must be monotonically increasing: "
-                    f"boundaries[{i - 1}]={coords[i - 1]} >= "
-                    f"boundaries[{i}]={coords[i]}"
-                )
-
-        n_regions = len(coords) - 1
-        if names is not None:
-            if len(names) != n_regions:
-                raise ValueError(
-                    f"Expected {n_regions} names for {n_regions} regions, "
-                    f"got {len(names)}"
-                )
-            region_names = list(names)
-        else:
-            region_names = [
-                name_format.format(prefix=prefix, i=i, n=i + 1)
-                for i in range(n_regions)
-            ]
-
-        result: list[Region] = []
-        for i in range(n_regions):
-            region = self.create_region(region_names[i], coords[i], coords[i + 1])
-            result.append(region)
-        return result
+        ]
 
     def create_regions_by_grouping(
         self,
