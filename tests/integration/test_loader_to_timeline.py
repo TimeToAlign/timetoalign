@@ -26,7 +26,11 @@ from timetoalign.timelines import create_timeline
 DATA_DIR = Path(__file__).parents[1] / "data" / "vienna_1x22"
 SCORE_DIR = DATA_DIR
 MS3_DIR = DATA_DIR / "ms3"
-PERF_DIR = DATA_DIR
+
+# MIDI specimens live in the dedicated ``midi`` corpus, split by role.
+MIDI_DIR = Path(__file__).parents[1] / "data" / "midi"
+MIDI_SCORE_DIR = MIDI_DIR / "score"
+MIDI_PERF_DIR = MIDI_DIR / "performance"
 
 # Gold standard counts from MS3 TSV files
 # Source: tests/data/vienna_1x22/ms3/chopin_op10_no3.notes.tsv (499 lines - 1 header = 498)
@@ -204,16 +208,16 @@ class TestMidiLoaderToTimeline:
 
     @pytest.fixture
     def beethoven_midi(self) -> Path:
-        """Path to Beethoven Op.18 MIDI file."""
-        path = SCORE_DIR / "beethoven_op18.mid"
+        """Path to Beethoven Op.18 score MIDI file."""
+        path = MIDI_SCORE_DIR / "beethoven_op18.mid"
         if not path.exists():
             pytest.skip(f"Test data not found: {path}")
         return path
 
     @pytest.fixture
     def supra_midi(self) -> Path:
-        """Path to Supra piano roll MIDI file."""
-        path = PERF_DIR / "supra_raw.mid"
+        """Path to Supra piano roll performance MIDI file."""
+        path = MIDI_PERF_DIR / "supra_raw.mid"
         if not path.exists():
             pytest.skip(f"Test data not found: {path}")
         return path
