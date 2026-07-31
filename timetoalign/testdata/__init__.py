@@ -41,6 +41,31 @@ By default :data:`DATA_DIR` is resolved as follows:
 The cached ``.tar.gz`` archives live in pooch's standard cache (override
 with ``TTA_TESTDATA_CACHE``).
 
+Atomic extraction and the sentinel
+----------------------------------
+
+Each archive is unpacked into a temporary sibling directory under
+:data:`DATA_DIR` and then moved into place with a single rename, so a
+process killed mid-extraction leaves either the previous state or an
+orphaned temp directory — never a half-written corpus under a trusted
+sentinel.
+
+Completeness is recorded in a two-line ``.tta_testdata_hash`` sentinel that
+:func:`ensure_data` writes *after* the rename::
+
+    <archive SHA256 hex digest>
+    <count of payload files under the corpus dir, excluding the sentinel>
+
+A directory is reused without re-extracting only when the sentinel's digest
+matches the expected release digest *and* at least the recorded number of
+files are on disk; a tree with fewer files is a partial extraction and
+self-heals on the next call, while extra files a test may have written
+alongside the corpus are tolerated. Any ``.tta_testdata_hash`` entry shipped
+inside an archive is stripped during extraction — the sentinel is authored
+solely by :func:`ensure_data`. Legacy single-line sentinels (digest only)
+carry no count and force one re-extraction that upgrades them to the
+two-line form.
+
 Publishing a new test-data release
 ----------------------------------
 
@@ -62,10 +87,14 @@ import logging
 import os
 import shutil
 import tarfile
+import tempfile
 import threading
 from pathlib import Path
 
 _LOG = logging.getLogger(__name__)
+
+#: Name of the per-corpus completeness sentinel authored by :func:`ensure_data`.
+_SENTINEL_NAME = ".tta_testdata_hash"
 
 try:
     import pooch
@@ -166,10 +195,14 @@ def available_corpora() -> tuple[str, ...]:
 def ensure_data(*names: str) -> tuple[Path, ...]:
     """Make sure each named corpus is extracted under :data:`DATA_DIR`.
 
-    Downloads the archive via pooch (verifying its SHA256) on first use and
-    extracts it into ``DATA_DIR / <name>``. Subsequent calls with the same
-    name return immediately as long as a sentinel ``.tta_testdata_hash``
-    file matches the cached archive's digest.
+    Downloads the archive via pooch (verifying its SHA256) on first use,
+    unpacks it into a temporary sibling directory, and moves it into
+    ``DATA_DIR / <name>`` with a single rename. Any ``.tta_testdata_hash``
+    entry shipped inside the archive is stripped; the sentinel is authored
+    here, last, as two lines — the archive digest and the count of extracted
+    payload files. Subsequent calls with the same name return immediately
+    while that sentinel's digest still matches and at least the recorded
+    number of files remain, so a partial or hand-truncated tree self-heals.
 
     Args:
         *names: Corpus names (top-level subdirectory names under
@@ -209,7 +242,7 @@ def _ensure_one(name: str) -> Path:
 
     target_dir = DATA_DIR / name
     expected_digest = REGISTRY[archive_name].removeprefix("sha256:")
-    marker = target_dir / ".tta_testdata_hash"
+    marker = target_dir / _SENTINEL_NAME
 
     if _looks_ready(target_dir, marker, expected_digest):
         return target_dir
@@ -219,21 +252,52 @@ def _ensure_one(name: str) -> Path:
             return target_dir
 
         archive_path = Path(_POOCH.fetch(archive_name))
-
-        if target_dir.exists():
-            shutil.rmtree(target_dir)
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        with tarfile.open(archive_path, "r:gz") as tar:
-            _safe_extractall(tar, DATA_DIR)
 
-        if not target_dir.is_dir():
-            raise RuntimeError(
-                f"Archive {archive_name} did not produce expected directory "
-                f"{target_dir}. Did the tarball layout change?"
-            )
-        marker.write_text(expected_digest, encoding="utf-8")
+        # Unpack into a private temp dir on the same filesystem, then swap it
+        # into place. A crash before the swap leaves the old tree (or nothing)
+        # plus an orphan temp dir — never a partial tree under a valid sentinel.
+        staging = Path(tempfile.mkdtemp(dir=DATA_DIR, prefix=f".{name}.staging-"))
+        try:
+            with tarfile.open(archive_path, "r:gz") as tar:
+                _safe_extractall(tar, staging)
+
+            extracted = staging / name
+            if not extracted.is_dir():
+                raise RuntimeError(
+                    f"Archive {archive_name} did not produce expected directory "
+                    f"{name!r}. Did the tarball layout change?"
+                )
+
+            if target_dir.exists():
+                shutil.rmtree(target_dir)
+            os.replace(extracted, target_dir)
+        finally:
+            shutil.rmtree(staging, ignore_errors=True)
+
+        # Sentinel authored LAST, once the tree is fully in place: the digest
+        # plus the payload-file count that later calls check for completeness.
+        marker.write_text(
+            f"{expected_digest}\n{_count_payload_files(target_dir, marker)}\n",
+            encoding="utf-8",
+        )
 
     return target_dir
+
+
+def _count_payload_files(target_dir: Path, marker: Path) -> int:
+    """Count regular files under ``target_dir``, excluding the sentinel itself.
+
+    This is the completeness measure recorded on the sentinel's second line
+    and re-verified by :func:`_looks_ready`. Directories are not counted;
+    hidden files are.
+    """
+    count = 0
+    for root, _dirs, files in os.walk(target_dir):
+        for fname in files:
+            if Path(root) / fname != marker:
+                count += 1
+    return count
 
 
 def _looks_ready(target_dir: Path, marker: Path, expected_digest: str) -> bool:
@@ -241,37 +305,53 @@ def _looks_ready(target_dir: Path, marker: Path, expected_digest: str) -> bool:
 
     A directory is trusted in one of two cases:
 
-    * **Sentinel match (canonical case)** — the sentinel file
-      ``marker`` exists and matches ``expected_digest``, *and* the
-      directory contains at least one non-marker child.  The non-marker
-      child check guards against partial-extraction states where the
-      sentinel got written but the actual data files were never written
-      (or were deleted afterwards): without the guard, downstream
-      ``open()`` would fail with ``FileNotFoundError``.
+    * **Sentinel match (canonical case)** — the two-line sentinel ``marker``
+      exists, its first line equals ``expected_digest``, and the live
+      payload-file count (:func:`_count_payload_files`) is at least the
+      recorded count. The count guards against *partial* extractions where
+      the sentinel was written but data files are missing: without it, a
+      downstream ``open()`` would fail with ``FileNotFoundError`` far from the
+      cause. A tree with more files than recorded (a test wrote next to the
+      corpus) is still complete and stays ready. A legacy single-line
+      sentinel (digest only, no count) has no count line and is therefore
+      *not* ready, forcing one re-extraction that upgrades it.
     * **Developer-checkout fallback** — the sentinel is missing but the
-      directory exists and contains at least one non-marker file
-      (developer checkout / migration window — assume the user placed
-      correct data here on purpose).  This path emits a single
-      ``logging.WARNING`` (channel ``timetoalign.testdata``) advising
-      the caller that contents are not verified against the release
-      digest.
+      directory exists and contains at least one non-marker file (developer
+      checkout / migration window — assume the user placed correct data here
+      on purpose). This path emits a single ``logging.WARNING`` (channel
+      ``timetoalign.testdata``) advising the caller that contents are not
+      verified against the release digest.
 
-    Returns ``False`` when ``target_dir`` does not exist, is empty, or
-    holds only the sentinel file with no payload data.  Deleting
-    ``target_dir`` is the way to force a re-fetch.
+    Returns ``False`` when ``target_dir`` does not exist, is empty, holds
+    only the sentinel, or carries a sentinel whose digest mismatches or whose
+    recorded count exceeds what is on disk. Deleting ``target_dir`` is the
+    way to force a re-fetch.
     """
     if not target_dir.is_dir():
         return False
 
-    has_payload = any(p for p in target_dir.iterdir() if p.name != marker.name)
-
     if marker.is_file():
-        if marker.read_text(encoding="utf-8").strip() != expected_digest:
+        lines = marker.read_text(encoding="utf-8").splitlines()
+        if len(lines) < 2:
+            # Legacy single-line (digest-only) sentinel — no completeness
+            # record, so re-extract once and upgrade to the two-line form.
             return False
-        # Sentinel matches AND payload is present
-        return has_payload
+        if lines[0].strip() != expected_digest:
+            return False
+        try:
+            recorded_count = int(lines[1].strip())
+        except ValueError:
+            return False
+        live_count = _count_payload_files(target_dir, marker)
+        # Completeness means "every recorded file is present", i.e. at least
+        # the recorded count. A tree with FEWER files is a partial extraction
+        # and must be repaired; a tree with MORE (a test wrote alongside the
+        # corpus) is still complete and must NOT trigger a re-extraction —
+        # otherwise a stray sibling file would race concurrent readers into a
+        # destructive rebuild. The count guards against under-population only.
+        return live_count >= recorded_count and live_count > 0
 
-    if not has_payload:
+    if not any(p for p in target_dir.iterdir() if p.name != marker.name):
         return False
 
     _LOG.warning(
@@ -283,13 +363,22 @@ def _looks_ready(target_dir: Path, marker: Path, expected_digest: str) -> bool:
 
 
 def _safe_extractall(tar: tarfile.TarFile, dest: Path) -> None:
-    """Extract ``tar`` into ``dest`` while rejecting members that escape it."""
+    """Extract ``tar`` into ``dest`` while rejecting members that escape it.
+
+    Any member whose basename is the sentinel name is dropped: the
+    completeness sentinel is authored by :func:`ensure_data`, never trusted
+    from the archive payload.
+    """
     dest_resolved = dest.resolve()
+    members = []
     for member in tar.getmembers():
+        if Path(member.name).name == _SENTINEL_NAME:
+            continue
         member_path = (dest_resolved / member.name).resolve()
         if member_path != dest_resolved and dest_resolved not in member_path.parents:
             raise RuntimeError(f"Refusing to extract unsafe path: {member.name!r}")
-    tar.extractall(dest)
+        members.append(member)
+    tar.extractall(dest, members=members)
 
 
 __all__ = [
