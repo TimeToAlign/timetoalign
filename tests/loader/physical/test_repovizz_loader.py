@@ -13,12 +13,12 @@ from timetoalign.core import TimeUnit
 from timetoalign.loader.physical.repovizz import RepoVizzInfo, RepoVizzLoader
 from timetoalign.loader.physical.repovizz_catalogue import CatalogueEntry
 from timetoalign.loader.physical.repovizz_store import RepovizzDictStore
-from timetoalign.timelines import DiscretePhysicalTimeline
+from timetoalign.timelines import DiscretePhysicalTimeline, TimelineGroup
 
 # region Test Data Paths
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def multimodal_dir() -> Path:
     """Path to the multimodal test data directory."""
     return (
@@ -29,13 +29,13 @@ def multimodal_dir() -> Path:
     )
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def normal_recording_dir(multimodal_dir: Path) -> Path:
     """Path to the Normal recording directory."""
     return multimodal_dir / "StringQuartetEEP_I_Normal"
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def xml_manifest_path(normal_recording_dir: Path) -> Path:
     """Path to the XML manifest file."""
     return normal_recording_dir / "StringQuartetEEP_I_Normal.xml"
@@ -45,6 +45,15 @@ def xml_manifest_path(normal_recording_dir: Path) -> Path:
 def csv_file_path(normal_recording_dir: Path) -> Path:
     """Path to a sample CSV file (bowing velocity)."""
     return normal_recording_dir / "vln1_bow_vel.csv"
+
+
+@pytest.fixture(scope="module")
+def audio_timeline_group(xml_manifest_path: Path) -> TimelineGroup | None:
+    """Create the XML audio TimelineGroup once for read-only assertions."""
+    loader = RepoVizzLoader.from_file(xml_manifest_path)
+    if "audio" not in loader.groups:
+        return None
+    return loader.create_group(category="audio")
 
 
 # endregion
@@ -222,13 +231,11 @@ class TestRepoVizzLoaderXmlMode:
             assert len(timelines) == 2
 
     @pytest.mark.slow
-    def test_create_group(self, xml_manifest_path: Path) -> None:
+    def test_create_group(self, audio_timeline_group: TimelineGroup | None) -> None:
         """TimelineGroup can be created from XML loader."""
-        loader = RepoVizzLoader.from_file(xml_manifest_path)
-
         # Get audio group if available
-        if "audio" in loader.groups:
-            group = loader.create_group(category="audio")
+        if audio_timeline_group is not None:
+            group = audio_timeline_group
             assert group.id == "repovizz:audio"
             assert len(group) > 0
 
@@ -415,12 +422,12 @@ class TestRepoVizzLoaderIntegration:
         assert mechanical_cardioid.n_samples == 12426696
 
     @pytest.mark.slow
-    def test_timeline_group_iteration(self, xml_manifest_path: Path) -> None:
+    def test_timeline_group_iteration(
+        self, audio_timeline_group: TimelineGroup | None
+    ) -> None:
         """TimelineGroup from loader can be iterated."""
-        loader = RepoVizzLoader.from_file(xml_manifest_path)
-
-        if "audio" in loader.groups:
-            group = loader.create_group(category="audio")
+        if audio_timeline_group is not None:
+            group = audio_timeline_group
             timelines = list(group)
             assert len(timelines) > 0
             for tl in timelines:

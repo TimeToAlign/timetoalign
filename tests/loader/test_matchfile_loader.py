@@ -103,7 +103,7 @@ def p01_loader() -> MatchfileLoader:
     return loader
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def all_loader() -> MatchfileLoader:
     """MatchfileLoader with all 22 files loaded."""
     loader = MatchfileLoader()
