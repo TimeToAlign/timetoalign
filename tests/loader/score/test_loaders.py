@@ -62,36 +62,6 @@ def chopin_tsv_notes():
 class TestMs3Loader:
     """Tests for Ms3Loader."""
 
-    def test_returns_score_store(self, chopin_tsv_notes):
-        """Ms3Loader.load() populates ScoreStore."""
-        loader = Ms3Loader()
-        loader.load(chopin_tsv_notes)
-        store = loader.store
-
-        assert isinstance(store, ScoreStore)
-        assert len(store.notes) == 498  # Chopin Op.10 No.3 gold standard
-        assert "parser" in store.metadata
-        assert store.metadata["parser"] == "ms3"
-
-    def test_note_count(self, chopin_tsv_notes):
-        """TSV gold standard has 498 notes."""
-        loader = Ms3Loader()
-        loader.load(chopin_tsv_notes)
-        store = loader.store
-        assert len(store.notes) == 498
-
-    def test_fraction_schema(self, chopin_tsv_notes):
-        """Temporal fields use Fraction struct."""
-        loader = Ms3Loader()
-        loader.load(chopin_tsv_notes)
-        store = loader.store
-        first = list(store.notes)[0]
-
-        qb = first.get("start")
-        assert qb is not None
-        assert "numerator" in qb and "denominator" in qb
-        assert "value" in qb
-
     def test_measure_coordinates_preserve_exact_fractions(self):
         """Known MS3 measures retain exact starts, durations, and ends."""
         loader = Ms3Loader.from_file(WOO71_MEASURES)
@@ -205,46 +175,12 @@ class TestMs3Loader:
 class TestPartituraLoader:
     """Tests for PartituraLoader."""
 
-    def test_returns_score_store(self, chopin_xml):
-        """PartituraLoader.load() populates ScoreStore."""
-        loader = PartituraLoader()
-        loader.load(chopin_xml)
-        store = loader.store
-
-        assert isinstance(store, ScoreStore)
-        assert len(store.notes) == 498  # Chopin gold standard
-        assert len(store.measures) == 22
-        assert store.metadata["parser"] == "partitura"
-
-    def test_note_count(self, chopin_xml):
-        """Partitura matches TSV gold standard (498 notes)."""
-        loader = PartituraLoader()
-        loader.load(chopin_xml)
-        store = loader.store
-
-        # Filter to Notes only (exclude Rests)
-        df = store.notes.to_dataframe()
-        note_count = len(df[df["event_type"] == "Note"])
-        assert note_count == 498
-
     def test_measure_count(self, chopin_xml):
         """Partitura extracts measures."""
         loader = PartituraLoader()
         loader.load(chopin_xml)
         store = loader.store
         assert len(store.measures) == 22
-
-    def test_fraction_schema(self, chopin_xml):
-        """Temporal fields use Fraction struct."""
-        loader = PartituraLoader()
-        loader.load(chopin_xml)
-        store = loader.store
-        first = list(store.notes)[0]
-
-        qb = first.get("start")
-        assert qb is not None
-        assert "numerator" in qb and "denominator" in qb
-        assert "value" in qb
 
     @pytest.mark.slow
     def test_midi_loads_without_type_error(self):
@@ -258,56 +194,6 @@ class TestPartituraLoader:
         loader = PartituraLoader()
         loader.load(midi_path)
         assert len(loader.store.notes) == 4186
-
-
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-class TestMusic21Loader:
-    """Tests for Music21Loader."""
-
-    def test_returns_score_store(self, chopin_xml):
-        """Music21Loader.load() populates ScoreStore."""
-        loader = Music21Loader()
-        loader.load(chopin_xml)
-        store = loader.store
-
-        assert isinstance(store, ScoreStore)
-        assert len(store.notes) == 498  # Chopin gold standard
-        assert store.metadata["parser"] == "music21"
-
-    def test_note_count(self, chopin_xml):
-        """Music21 matches TSV gold standard (498 notes + optional rests)."""
-        loader = Music21Loader()
-        loader.load(chopin_xml)
-        store = loader.store
-
-        df = store.notes.to_dataframe()
-        note_count = len(df[df["event_type"] == "Note"])
-        rest_count = len(df[df["event_type"] == "Rest"])
-
-        # Notes must match exactly
-        assert note_count == 498, f"Expected 498 notes, got {note_count}"
-
-        # Music21 currently does not extract rests (has_rests=False).
-        # If a future version starts extracting rests, update the exact count.
-        if store.notes.has_rests:
-            # Update this assertion with the exact rest count when has_rests becomes True
-            assert rest_count > 0, "has_rests=True but no rests found"
-        else:
-            assert rest_count == 0, f"has_rests=False but found {rest_count} rests"
-        # Total should be notes + rests
-        assert len(df) == note_count + rest_count
-
-    def test_fraction_schema(self, chopin_xml):
-        """Temporal fields use Fraction struct."""
-        loader = Music21Loader()
-        loader.load(chopin_xml)
-        store = loader.store
-        first = list(store.notes)[0]
-
-        qb = first.get("start")
-        assert qb is not None
-        assert "numerator" in qb and "denominator" in qb
-        assert "value" in qb
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
@@ -395,11 +281,8 @@ class TestAnacrusisOffset:
         loader = PartituraLoader()
         loader.load(chopin_xml)
         raw_min = _raw_min_onset_partitura(chopin_xml)
-        expected_offset = max(0.0, -raw_min)
-        assert loader.anacrusis_offset == pytest.approx(expected_offset), (
-            f"anacrusis_offset={loader.anacrusis_offset} != "
-            f"-raw_min={expected_offset}"
-        )
+        assert raw_min == -0.5
+        assert loader.anacrusis_offset == 0.5
 
     def test_partitura_offset_nonzero_for_chopin(self, chopin_xml):
         """Chopin Op.10/3 has an anacrusis: offset must be > 0."""
@@ -415,24 +298,20 @@ class TestAnacrusisOffset:
         loader.load(chopin_xml)
         store = loader.store
         assert "anacrusis_offset" in store.metadata
-        assert store.metadata["anacrusis_offset"] == pytest.approx(
-            loader.anacrusis_offset
-        )
+        assert store.metadata["anacrusis_offset"] == 0.5
 
     def test_partitura_store_property_matches_loader(self, chopin_xml):
         """ScoreStore.anacrusis_offset reads from metadata and matches loader."""
         loader = PartituraLoader()
         loader.load(chopin_xml)
-        assert loader.store.anacrusis_offset == pytest.approx(loader.anacrusis_offset)
+        assert loader.store.anacrusis_offset == 0.5
 
     def test_partitura_raw_plus_offset_is_zero(self, chopin_xml):
         """raw_min_onset + anacrusis_offset == 0 (the contract)."""
         loader = PartituraLoader()
         loader.load(chopin_xml)
         raw_min = _raw_min_onset_partitura(chopin_xml)
-        assert raw_min + loader.anacrusis_offset == pytest.approx(
-            0.0
-        ), f"raw_min={raw_min} + offset={loader.anacrusis_offset} != 0"
+        assert raw_min + loader.anacrusis_offset == 0.0
 
     def test_music21_anacrusis_offset_in_metadata(self, chopin_xml):
         """Music21 stores anacrusis_offset in ScoreStore.metadata."""
@@ -440,15 +319,13 @@ class TestAnacrusisOffset:
         loader.load(chopin_xml)
         store = loader.store
         assert "anacrusis_offset" in store.metadata
-        assert store.metadata["anacrusis_offset"] == pytest.approx(
-            loader.anacrusis_offset
-        )
+        assert store.metadata["anacrusis_offset"] == 0.0
 
     def test_music21_store_property_matches_loader(self, chopin_xml):
         """Music21 store.anacrusis_offset reads from metadata and matches loader."""
         loader = Music21Loader()
         loader.load(chopin_xml)
-        assert loader.store.anacrusis_offset == pytest.approx(loader.anacrusis_offset)
+        assert loader.store.anacrusis_offset == 0.0
 
     def test_music21_zero_offset_for_chopin(self, chopin_xml):
         """Music21 reports 0.0 offset for Chopin Op.10/3.
@@ -466,7 +343,7 @@ class TestAnacrusisOffset:
         """
         loader = Music21Loader()
         loader.load(chopin_xml)
-        assert loader.anacrusis_offset == pytest.approx(0.0)
+        assert loader.anacrusis_offset == 0.0
 
     def test_default_offset_before_loading(self):
         """Freshly constructed loaders report anacrusis_offset == 0.0."""

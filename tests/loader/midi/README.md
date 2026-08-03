@@ -1,140 +1,74 @@
-# MIDI Loaders: Testing, Validation & Performance
+# MIDI loader tests
 
-This directory contains the unit tests and validation logic for the MIDI loaders in `timetoalign`. Given the complexity of MIDI as a data format—which can represent both loose, unquantized performances and strict, quantized scores—we employ a rigorous testing strategy to ensure data integrity across different parsing paradigms.
+The MIDI tests cover the two supported interpretations of MIDI data:
 
-## 1. The Challenge: One Format, Two Paradigms
+- `PerformanceMidiLoader` uses mido for event-stream data and returns `MidiEventData`.
+- `ScoreMidiLoader` uses Partitura for quantized score data and returns `ScoreMidiEventData`.
 
-MIDI files (`.mid`) are used for two fundamentally different types of musical data:
+`MidiEventData` adds `pitch`, `velocity`, `channel`, `track`, `control`, `value`, and `program`.
+`ScoreMidiEventData` additionally adds `voice`, `staff`, and `part_id`. Performance stores must not
+contain those three score-only columns.
 
-1.  **Performance Data**: A linear stream of timestamped events (Note On/Off, Control Changes). Timing is often in seconds or high-resolution ticks. There is no concept of "measure", "voice", or "staff".
-2.  **Score Data**: A structured representation of music. Timing is strictly quantized (beats, measures). Notes belong to specific voices and staves.
+## Test files
 
-To handle this, `timetoalign` provides two specialized loaders that map these distinct paradigms into a unified `MidiEventData` schema.
+| File | Remaining coverage |
+|---|---|
+| `test_performance.py` | Performance-file event-type and extent golds, plus synthetic loader coverage. |
+| `test_harmonization.py` | Canonical same-file comparisons between performance and score loaders. |
+| `test_score.py` | Beethoven score loading, empty-file failure, and the wider score schema. |
+| `test_store.py` | Base and score event-data schemas, nullability, construction, and inheritance. |
+| `test_bundle.py` | `MidiStore` splitting, empty stores, extension, mapping protocol, summaries, and timelines. |
+| `conftest.py` | Downloaded MIDI specimen paths and synthetic shared event data. |
 
-## 2. Loader Schemata & Fields
+## Performance loader
 
-Two concrete `EventData` subclasses model the cross-loader vs
-loader-specific split, so the storage schema is the minimal set of
-columns each loader can populate:
+`test_performance.py` also pins unique raw-performance-file behavior that score parsing cannot
+cover.
 
-* `MidiEventData` — used by `PerformanceMidiLoader`. Carries the
-  seven cross-loader columns: `pitch`, `velocity`, `channel`,
-  `track`, `control`, `value`, `program`.
-* `ScoreMidiEventData(MidiEventData)` — used by `ScoreMidiLoader`.
-  Extends the base with three partitura-only columns: `voice`,
-  `staff`, `part_id`.
+- A C4 note-on at tick 0 and note-off 480 ticks later becomes one note with pitch 60 and duration
+  480.
+- With controls enabled, the concrete store type is exactly `MidiEventData`, contains all seven
+  performance columns, and omits `voice`, `staff`, and `part_id`.
+- A program change at 0, note at 240, control change at 480, and note end at 960 produce starts
+  `[0.0, 240.0, 480.0]`, ends `[None, None, 960.0]`, coordinate range `(0.0, 960.0)`, timeline
+  length 960, and group ID `perf:dlt1`.
+- `supra_raw.mid` produces 30,096 total events: 30,092 notes and 4 control changes. Its coordinate
+  range is `(0.0, 277776.0)`, its created timeline has length 277776, and it constructs a
+  `TimelineGroup` named `supra`.
 
-The previous unified-superset schema (with always-null `voice` /
-`staff` / `part_id` columns on every performance-MIDI store) has
-been retired — those columns existed only on the score side and
-storing them as nulls on performance data was redundant.
+## Same-file harmonization
 
-| Field | Type | `MidiEventData` | `ScoreMidiEventData` | Source / notes |
-| :--- | :--- | :--- | :--- | :--- |
-| `start` | Coordinate | yes | yes | Exact tick (mido) / quantized tick (partitura) |
-| `duration` | Coordinate | yes | yes | Exact / quantized |
-| `pitch` | int8 | yes | yes | MIDI number (0–127) |
-| `velocity` | int8 | **measured** | default 64 | Score MIDI rarely carries velocity |
-| `channel` | int8 | **source channel** | derived / null | Partitura maps channels to parts |
-| `track` | int16 | **source track** | derived / null | |
-| `control` | int8 | **captured** | ignored | CC is performance-specific |
-| `value` | int8 | **captured** | ignored | CC / Program value |
-| `program` | int8 | **captured** | ignored | Program Change |
-| `voice` | int8 | *(absent)* | **extracted** | Voice separation |
-| `staff` | int8 | *(absent)* | **extracted** | LH / RH assignment |
-| `part_id` | string | *(absent)* | **extracted** | Part ID from score structure |
+`test_harmonization.py` is authoritative for downloaded performance files because it loads each
+input with both loader implementations.
 
-The paired pydantic scalars `MidiEvent` (7 fields) and
-`ScoreMidiEvent(MidiEvent)` (+3 fields) live in `core/events.py`;
-their derived `pa.Schema` shapes are the two distinct semantic
-fingerprints these EventData subclasses round-trip via
-`SemanticField` / `EventData.get_field(...)`.
+| Input | Exact assertions |
+|---|---|
+| `supra_raw.mid` | Both loaders produce 30,092 notes and maximum end tick 277,776.0. |
+| `Chopin_op10_no3_p01.mid` | Both loaders produce 451 notes and identical pitch histograms; MIDI 59 is most frequent with 50 occurrences. |
 
-## 3. The Three Parsing Approaches
+Performance MIDI can contain controls that score parsing omits. Harmonization therefore compares
+note events rather than total raw message counts.
 
-We evaluated three approaches to parsing MIDI.
+## Score loader and stores
 
-### 1. Mido (Stream Parsing)
--   **Implementation**: `PerformanceMidiLoader`
--   **Logic**: Iterates over tracks linearly. Pairs `note_on` with `note_off`.
--   **Pros**: Extremely fast. Preserves all MIDI messages (CC, SysEx). Zero interpretation.
--   **Cons**: No structural analysis (cannot tell voice 1 from voice 2).
+The Beethoven score test pins 3,751 events, non-null tick resolution, Partitura metadata with four
+parts, and populated pitch data. An empty MIDI file must raise `EOFError`. `ScoreMidiEventData`
+must contain the three score-only fields, while both event-data classes retain their declared
+nullable fields and can be constructed from dictionaries.
 
-### 2. Partitura Performance (Object Parsing)
--   **Implementation**: `partitura.load_performance_midi()` (Raw)
--   **Logic**: Parses MIDI into a `Performance` object with a `note_array`.
--   **Pros**: Good middle ground. Structured note array.
--   **Cons**: Slower than Mido. Less control over raw message stream.
+`MidiStore` tests require notes and controls to split into the correct child stores while retaining
+metadata. Empty stores have empty data and default metadata. Extension merges each category and
+updates metadata. Mapping keys, iteration, items, lookup, membership, and length use the canonical
+`notes`, `controls` order. Summary counts are exact. Timeline conversion creates the two expected
+children at offset zero with the original note/control counts.
 
-### 3. Partitura Score (Structural Analysis)
--   **Implementation**: `ScoreMidiLoader` (wraps `partitura.load_score_midi`)
--   **Logic**: Performs complex analysis: key estimation, voice separation, quantization, pitch spelling.
--   **Pros**: Extracts rich score structure (`voice`, `staff`, `part`).
--   **Cons**: Very slow (expensive analysis). Inappropriate for raw performance data.
+All exact counts, ticks, schemas, IDs, and extents use equality; there are no `pytest.approx` calls
+in the MIDI-loader tests.
 
-## 4. Performance Profiling
+## Running the tests
 
-We benchmarked these approaches on `supra_raw.mid` (238 KB, ~30k events), a raw piano roll scan.
+From the repository root:
 
-| Approach | Implementation | Speed | Relative Speed | Use Case |
-| :--- | :--- | :--- | :--- | :--- |
-| **Mido** | `PerformanceMidiLoader` | **~15,700 events/sec** | **1.0x (Baseline)** | **High-volume Performance Data** |
-| **Partitura Perf** | `load_performance_midi` | ~12,400 notes/sec | 0.8x | Structured Performance Analysis |
-| **Partitura Score** | `ScoreMidiLoader` | ~2,000 events/sec | 0.13x | **Score / OMR Data Only** |
-
-**Recommendation**: Use `PerformanceMidiLoader` for large performance datasets (1.25x faster than Partitura Perf, 8x faster than Partitura Score). Use `ScoreMidiLoader` strictly for score data where the overhead yields valuable structural info.
-
-## 5. Equivalence Validation (Harmonization)
-
-To verify correctness, we run **Harmonization Tests** (`test_harmonization.py`) that parse the exact same file using both `PerformanceMidiLoader` and `ScoreMidiLoader`.
-
-### Validation Logic
-We assert that:
-1.  **Note Counts Match**: The number of identified note events must be identical (exact match required; both loaders produce exactly 30,092 notes).
-2.  **Durations Match**: The total duration of the track must match.
-3.  **Pitch Content Matches**: The frequency distribution of pitches must be identical.
-
-### Verified Mismatch: Control Changes
-On `supra_raw.mid`, we observed a difference of exactly 4 events:
--   Mido: 30,096 events.
--   Partitura: 30,092 events.
--   **Explanation**: The file contains 4 `ControlChange` messages. Mido captures them; Partitura (in score mode) ignores them. The 30,092 **Note** events match exactly.
-
-**Status**: VALIDATED. The loaders produce musically equivalent note data.
-
-### Nullable coordinate preservation
-
-Performance MIDI mixes interval notes with instant control/program events. The
-vectorized handoff keeps `start`, `end`, and `duration` as nullable Arrow arrays;
-`start` is formed with Arrow `coalesce(start, instant)`. The synthetic regression
-pins starts `[0, 240, 480]`, coordinate range `(0.0, 960.0)`, timeline length
-`960`, and successful `TimelineGroup` construction. This prevents null interval
-coordinates from becoming floating NaNs that poison extents. Score MIDI likewise
-hands its coordinate columns through as Arrow arrays. The downloaded SUPRA piano
-roll additionally pins its real coordinate range and timeline length to
-`(0.0, 277776.0)` and `277776`, then constructs the formerly failing group.
-
-## 6. Test Status
-
-**All MIDI-loader tests passing under the split schema.**
-
-### Bug Fix History
-
-| Date | Issue | Root Cause | Fix |
-|------|-------|------------|-----|
-| Feb 2026 | `KeyError: 'pitch'` in all MIDI tests | `MidiLoader` used wrong class attribute name (`_event_store_class` instead of `_event_data_class`), causing base `EventData` schema to be used instead of `MidiEventData` | Renamed attribute in `loader/midi/base.py:26` |
-
-### Test Files
-
-| File | Tests | Purpose |
-|------|-------|---------|
-| `test_performance.py` | 5 | `PerformanceMidiLoader` (mido parsing); pins nullable mixed-event coordinates, exact extent, group construction, and the narrower 7-extra-column schema |
-| `test_score.py` | 3 | `ScoreMidiLoader` (partitura parsing); pins the wider 10-extra-column schema |
-| `test_harmonization.py` | 2 | Cross-loader Note-count validation |
-| `test_store.py` | 7 | `MidiEventData` + `ScoreMidiEventData` schema contracts |
-| `test_bundle.py` | 23 | `MidiStore` operations (filter / merge / canonical iteration) |
-
-Scalar-side coverage for `MidiEvent` / `ScoreMidiEvent` lives at
-`tests/core/test_midi_event.py` (16 tests) — pydantic construction,
-`derive_arrow_schema` shape, and the column-builder → `from_field`
-round-trip for both scalars.
+```bash
+/home/laser/miniconda3/envs/timetoalign/bin/python -m pytest --runslow tests/loader/midi
+```

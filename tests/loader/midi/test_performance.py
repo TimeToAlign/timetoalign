@@ -1,5 +1,7 @@
 """Tests for PerformanceMidiLoader."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 import pytest
@@ -17,47 +19,35 @@ class TestPerformanceMidiLoader:
     """Tests for loading performance MIDI files."""
 
     @pytest.mark.slow
-    def test_load_piano_roll_raw(self, supra_raw_path: Path) -> None:
-        """Can load raw piano roll MIDI."""
+    def test_supra_raw_preserves_control_events(self, supra_raw_path: Path) -> None:
+        """Pin unique real-file event-type golds for the raw performance MIDI."""
         if not supra_raw_path.exists():
             pytest.skip("Test data not found")
 
         loader = PerformanceMidiLoader()
         loader.load(supra_raw_path)
 
-        assert len(loader) == 30096  # supra_raw.mid has 30096 total events
-        assert loader.ticks_per_beat is not None
+        event_counts = loader.count_events_by_type()
+        assert len(loader) == 30096
+        assert event_counts[MidiEventType.NOTE] == 30092
+        assert event_counts[MidiEventType.CONTROL_CHANGE] == 4
 
-        # Check metadata
-        meta = loader.metadata["sources"][0]
-        assert meta["format"] == "midi"
-        assert meta["parser"] == "mido"
+    @pytest.mark.slow
+    def test_supra_raw_extent_creates_timeline_group(
+        self, supra_raw_path: Path
+    ) -> None:
+        """Pin unique real-file extent golds and timeline-group construction."""
+        if not supra_raw_path.exists():
+            pytest.skip("Test data not found")
 
-        # Check events
-        types = loader.count_events_by_type()
-        assert MidiEventType.NOTE in types
-        # Piano roll: 30092 notes + 4 control changes = 30096 total
-        assert types[MidiEventType.NOTE] == 30092
+        loader = PerformanceMidiLoader()
+        loader.load(supra_raw_path)
+
         assert loader.events.summary()["coordinate_range"] == (0.0, 277776.0)
-
         timeline = loader.create_timeline(uid="supra:dlt1")
         assert timeline.length.value == 277776
         group = TimelineGroup(id="supra", timelines=[timeline])
         assert group.timeline_ids == ["supra:dlt1"]
-
-    def test_load_chopin_performance(self, chopin_perf_path: Path) -> None:
-        """Can load expressive performance MIDI."""
-        if not chopin_perf_path.exists():
-            pytest.skip("Test data not found")
-
-        loader = PerformanceMidiLoader(include_controls=True)
-        loader.load(chopin_perf_path)
-
-        assert len(loader) > 0
-
-        # Should have notes and control changes (pedal)
-        types = loader.count_events_by_type()
-        assert MidiEventType.NOTE in types
 
     def test_note_pairing(self, tmp_path: Path) -> None:
         """Loader correctly pairs note_on and note_off."""

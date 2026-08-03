@@ -45,6 +45,7 @@ ZERO TOLERANCE VALIDATION POLICY:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -70,6 +71,132 @@ def format_available(spec: SpecimenConfig, file_type: str) -> bool:
     """Check if a specific format is available for a specimen."""
     path = get_specimen_path(spec, file_type)
     return path is not None and path.exists()
+
+
+def _flow_control_counts(measures: Any) -> dict[str, int | bool]:
+    """Return exact marker counts from a measure table.
+
+    Args:
+        measures: A ``MeasureData`` instance.
+
+    Returns:
+        Counts for the flow-control fields asserted by the parsing matrix.
+    """
+    table = measures._table
+    repeats = (
+        table.column("repeats").to_pylist() if "repeats" in table.column_names else []
+    )
+    bool_starts = (
+        sum(value is True for value in table.column("start_repeat").to_pylist())
+        if "start_repeat" in table.column_names
+        else 0
+    )
+    bool_ends = (
+        sum(value is True for value in table.column("end_repeat").to_pylist())
+        if "end_repeat" in table.column_names
+        else 0
+    )
+    repeat_starts = max(
+        bool_starts, sum(value in {"start", "startend"} for value in repeats)
+    )
+    repeat_ends = max(bool_ends, sum(value in {"end", "startend"} for value in repeats))
+    section_breaks = (
+        sum(value == "section" for value in table.column("breaks").to_pylist())
+        if "breaks" in table.column_names
+        else 0
+    )
+    double_barlines = (
+        sum(value == "double" for value in table.column("barline").to_pylist())
+        if "barline" in table.column_names
+        else 0
+    )
+    voltas = (
+        sum(value in {1, 2} for value in table.column("volta").to_pylist())
+        if "volta" in table.column_names
+        else 0
+    )
+    return {
+        "total_measures": len(table),
+        "repeat_starts": repeat_starts,
+        "repeat_ends": repeat_ends,
+        "section_breaks": section_breaks,
+        "double_barlines": double_barlines,
+        "has_flow_control": any((repeat_starts, repeat_ends, section_breaks, voltas)),
+    }
+
+
+FLOW_CONTROL_PROFILES = [
+    pytest.param(
+        "WoO71",
+        "tsv",
+        {
+            "total_measures": 397,
+            "repeat_starts": 11,
+            "repeat_ends": 11,
+            "section_breaks": 12,
+            "double_barlines": 4,
+            "has_flow_control": True,
+        },
+        id="woo71-tsv",
+    ),
+    pytest.param(
+        "WoO71",
+        "measuremap",
+        {"repeat_starts": 11, "repeat_ends": 11, "has_flow_control": True},
+        id="woo71-measuremap",
+    ),
+    pytest.param(
+        "WoO71",
+        "partitura",
+        {"has_flow_control": True},
+        id="woo71-partitura",
+    ),
+    pytest.param(
+        "WoO71",
+        "music21",
+        {"repeat_starts": 11, "repeat_ends": 11, "has_flow_control": True},
+        id="woo71-music21",
+    ),
+    pytest.param(
+        "flow_only",
+        "tsv",
+        {
+            "total_measures": 15,
+            "repeat_starts": 3,
+            "repeat_ends": 6,
+            "has_flow_control": True,
+        },
+        id="flow-only-tsv",
+    ),
+    pytest.param(
+        "flow_only",
+        "measuremap",
+        {"repeat_starts": 3, "repeat_ends": 6, "has_flow_control": True},
+        id="flow-only-measuremap",
+    ),
+    pytest.param(
+        "flow_only",
+        "partitura",
+        {
+            "total_measures": 15,
+            "repeat_starts": 7,
+            "repeat_ends": 7,
+            "has_flow_control": True,
+        },
+        id="flow-only-partitura",
+    ),
+    pytest.param(
+        "flow_only",
+        "music21",
+        {
+            "total_measures": 15,
+            "repeat_starts": 3,
+            "repeat_ends": 6,
+            "has_flow_control": True,
+        },
+        id="flow-only-music21",
+    ),
+]
 
 
 # region Test Fixtures
@@ -145,6 +272,65 @@ class TestFlowCSVValidation:
         assert (
             actual == expected
         ), f"{specimen_name}: Expected {expected} atomic sections, got {actual}"
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+class TestFlowControlProfiles:
+    """Pin exact marker profiles and the Partitura region-model difference."""
+
+    @pytest.mark.parametrize(
+        "specimen_name,loader_name,expected", FLOW_CONTROL_PROFILES
+    )
+    def test_loader_flow_control_profile(
+        self,
+        specimen_name: str,
+        loader_name: str,
+        expected: dict[str, int | bool],
+    ) -> None:
+        """Each loader extracts its documented flow-control profile exactly."""
+        from timetoalign.loader.score import (
+            MeasureMapLoader,
+            Ms3Loader,
+            Music21Loader,
+            PartituraLoader,
+        )
+
+        loader_classes = {
+            "tsv": Ms3Loader,
+            "measuremap": MeasureMapLoader,
+            "partitura": PartituraLoader,
+            "music21": Music21Loader,
+        }
+        file_types = {
+            "tsv": "tsv",
+            "measuremap": "mm_json",
+            "partitura": "musicxml",
+            "music21": "musicxml",
+        }
+        spec = SPECIMENS[specimen_name]
+        source = get_specimen_path(spec, file_types[loader_name])
+        if source is None or not source.exists():
+            pytest.skip(f"Source not found for {specimen_name}: {loader_name}")
+        if loader_name in {"partitura", "music21"} and musicxml_too_large(source):
+            pytest.skip(f"Source too large for {loader_name}: {source}")
+
+        loader = loader_classes[loader_name]()
+        loader.load(source)
+        counts = _flow_control_counts(loader.store.measures)
+        if (
+            specimen_name == "WoO71"
+            and loader_name in {"partitura", "music21"}
+            and counts["total_measures"] != 397
+        ):
+            pytest.skip(
+                f"{loader_name} loaded {counts['total_measures']} multi-part measures"
+            )
+
+        for field, expected_value in expected.items():
+            assert counts[field] == expected_value, (
+                f"{specimen_name}/{loader_name} {field}: "
+                f"got {counts[field]}, expected {expected_value}"
+            )
 
 
 class TestMs3LoaderValidation:
@@ -899,7 +1085,13 @@ class TestDocumentedDeviations:
         ]
         assert [
             (row["mc"], row["volta"]) for row in rows if row["volta"] is not None
-        ] == [(5, 1), (6, 2), (7, 3), (14, 1), (15, 2)]
+        ] == [
+            (5, 1),
+            (6, 2),
+            (7, 3),
+            (14, 1),
+            (15, 2),
+        ]
 
     def test_flow_only_ms3_deviation(self) -> None:
         """Document: ms3 diverges from canonical in flow_only due to ambiguous encoding.
