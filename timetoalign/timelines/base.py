@@ -369,7 +369,7 @@ class Timeline(
         unit: TimeUnit | str,
         number_type: NumberType | str | None = None,
     ) -> type[Timeline]:
-        """Return the canonical Timeline subclass for a unit/number_type pair.
+        """Return the most specific Timeline subclass for a unit/number_type pair.
 
         Inspects all subclasses and selects the one whose
         ``_allowed_units`` includes *unit*.  Among candidates the selection
@@ -380,20 +380,20 @@ class Timeline(
         2. The class with the **smallest** ``_allowed_units`` set (most
            specific domain).
 
-        This ensures the six concrete types from ``timetoalign.timelines.types``
-        are returned rather than further-derived specialisations like
-        ``BeatGrid``.
+        Further-derived subclasses participate in the lookup and can be
+        selected when they are the most specific matching candidate, such as
+        a specialized ``BeatGrid`` subclass.
 
         Falls back to the base ``Timeline`` if no subclass claims the unit.
 
         Args:
             unit: The time unit to look up.
             number_type: Optional number type for disambiguation
-                (e.g. ``NumberType.fraction`` selects ``ContinuousLogicalTimeline``
-                over ``DiscreteLogicalTimeline``).
+                (e.g. ``NumberType.fraction`` selects a fractional logical
+                timeline over ``DiscreteLogicalTimeline``).
 
         Returns:
-            The canonical Timeline subclass that accepts *unit*.
+            The most specific Timeline subclass that accepts *unit*.
 
         Examples:
             >>> Timeline.resolve_subclass(TimeUnit.quarters, NumberType.fraction)

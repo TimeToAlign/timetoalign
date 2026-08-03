@@ -12,7 +12,7 @@ Design principles:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 
 from timetoalign.core import Domain, NumberType, TimelineIdGenerator, TimeUnit
 from timetoalign.storage import EventData, EventStore, SingleStore
@@ -36,16 +36,6 @@ def _mint_timeline_id(owner: object, timeline_class: type["Timeline"]) -> str:
         generator = TimelineIdGenerator()
         setattr(owner, "_timeline_id_generator", generator)
     return generator.next_id(timeline_class)
-
-
-@runtime_checkable
-class LoaderSource(Protocol):
-    """Object exposing an EventStore through a ``store`` attribute."""
-
-    @property
-    def store(self) -> EventStore:
-        """Return the loaded event store."""
-        ...
 
 
 def create_timeline_from_event_data(
@@ -403,7 +393,7 @@ def create_timeline_from_bundle(
 
 
 def create_timeline(
-    source: EventStore | EventData | LoaderSource,
+    source: EventStore | EventData | Any,
     uid: str | None = None,
     store_filters: dict[str, dict[str, Any]] | None = None,
     include_stores: list[str] | None = None,
@@ -427,7 +417,8 @@ def create_timeline(
       for each unique value. Overrides default single/multi behavior.
 
     Args:
-        source: The data source (EventStore, EventData, or Loader).
+        source: The data source (EventStore, EventData, or any loader exposing a
+            .store attribute holding an EventStore).
         uid: Unique ID for the timeline. Auto-generated if None.
         store_filters: Per-data filter kwargs to apply before adding.
             Example: {"notes": {"event_type": "Note"}} to exclude rests.
@@ -479,7 +470,7 @@ def create_timeline(
         store = source
     elif isinstance(source, EventData):
         store = SingleStore(source, name="events")
-    elif isinstance(source, LoaderSource) and isinstance(source.store, EventStore):
+    elif hasattr(source, "store") and isinstance(source.store, EventStore):
         store = source.store
     else:
         raise TypeError(

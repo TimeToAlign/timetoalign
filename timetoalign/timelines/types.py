@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Iterator, Literal
 from timetoalign.core import Coordinate, CoordinateSpec, NumberType, TimeUnit
 
 from .base import Timeline
-from .mixins import ContinuousMixin, DiscreteMixin
 
 if TYPE_CHECKING:
     from timetoalign.maps.meter import MetricalPositionMap, MetricMap
@@ -225,7 +224,7 @@ class GraphicalTimeline(Timeline):
 # region Continuous Timeline Types
 
 
-class ContinuousLogicalTimeline(ContinuousMixin, LogicalTimeline):
+class ContinuousLogicalTimeline(LogicalTimeline):
     """A logical timeline with continuous coordinates.
 
     Used for score representations where fractional beat positions
@@ -238,10 +237,14 @@ class ContinuousLogicalTimeline(ContinuousMixin, LogicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = CONTINUOUS_LOGICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.quarters
+    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (
+        NumberType.float,
+        NumberType.fraction,
+    )
     _default_number_type: ClassVar[NumberType] = NumberType.fraction
 
 
-class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
+class ContinuousPhysicalTimeline(PhysicalTimeline):
     """A physical timeline with continuous coordinates.
 
     Used for acoustic time measurements where arbitrary precision
@@ -258,6 +261,10 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = CONTINUOUS_PHYSICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
+    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (
+        NumberType.float,
+        NumberType.fraction,
+    )
     _default_number_type: ClassVar[NumberType] = NumberType.float
 
     def create_metrical_grid(
@@ -724,7 +731,7 @@ class ContinuousPhysicalTimeline(ContinuousMixin, PhysicalTimeline):
         )
 
 
-class ContinuousGraphicalTimeline(ContinuousMixin, GraphicalTimeline):
+class ContinuousGraphicalTimeline(GraphicalTimeline):
     """A graphical timeline with continuous coordinates.
 
     Used for visualization where real-valued positions are needed
@@ -737,6 +744,10 @@ class ContinuousGraphicalTimeline(ContinuousMixin, GraphicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = CONTINUOUS_GRAPHICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.centimeters
+    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (
+        NumberType.float,
+        NumberType.fraction,
+    )
     _default_number_type: ClassVar[NumberType] = NumberType.float
 
     @classmethod
@@ -756,7 +767,7 @@ class ContinuousGraphicalTimeline(ContinuousMixin, GraphicalTimeline):
 # region Discrete Timeline Types
 
 
-class DiscreteLogicalTimeline(DiscreteMixin, LogicalTimeline):
+class DiscreteLogicalTimeline(LogicalTimeline):
     """A logical timeline with discrete (integer) coordinates.
 
     Used for MIDI-based representations where time is measured in
@@ -769,10 +780,11 @@ class DiscreteLogicalTimeline(DiscreteMixin, LogicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = DISCRETE_LOGICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.ticks
+    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (NumberType.int,)
     _default_number_type: ClassVar[NumberType] = NumberType.int
 
 
-class DiscretePhysicalTimeline(DiscreteMixin, PhysicalTimeline):
+class DiscretePhysicalTimeline(PhysicalTimeline):
     """A physical timeline with discrete (integer) coordinates.
 
     Used for audio sample-based representations where time is
@@ -785,10 +797,11 @@ class DiscretePhysicalTimeline(DiscreteMixin, PhysicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = DISCRETE_PHYSICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.samples
+    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (NumberType.int,)
     _default_number_type: ClassVar[NumberType] = NumberType.int
 
 
-class DiscreteGraphicalTimeline(DiscreteMixin, GraphicalTimeline):
+class DiscreteGraphicalTimeline(GraphicalTimeline):
     """A graphical timeline with discrete (integer) coordinates.
 
     Used for pixel-based visualization where positions are
@@ -801,6 +814,7 @@ class DiscreteGraphicalTimeline(DiscreteMixin, GraphicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = DISCRETE_GRAPHICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.pixels
+    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (NumberType.int,)
     _default_number_type: ClassVar[NumberType] = NumberType.int
 
 
@@ -943,40 +957,6 @@ class SegmentLineMixin:
         for i, seg_id in enumerate(self._segment_order):
             yield (i, self._child_offsets[seg_id], self._children[seg_id])
 
-    def get_slice_from_segments(
-        self,
-        start_id: str,
-        end_id: str,
-        **kwargs: Any,
-    ) -> "Timeline":
-        """Slice from the start of one segment through the end of another."""
-        if start_id not in self._segment_order:
-            raise KeyError(
-                f"Segment '{start_id}' not found on SegmentLine '{self._id}'. "
-                f"Available segments: {list(self._segment_order)}"
-            )
-        if end_id not in self._segment_order:
-            raise KeyError(
-                f"Segment '{end_id}' not found on SegmentLine '{self._id}'. "
-                f"Available segments: {list(self._segment_order)}"
-            )
-
-        start_idx = self._segment_order.index(start_id)
-        end_idx = self._segment_order.index(end_id)
-
-        if start_idx > end_idx:
-            raise ValueError(
-                f"start_id '{start_id}' (index {start_idx}) comes after "
-                f"end_id '{end_id}' (index {end_idx})"
-            )
-
-        slice_start = float(self._child_offsets[start_id].value)
-        end_seg = self._children[end_id]
-        end_offset = float(self._child_offsets[end_id].value)
-        slice_end = end_offset + float(end_seg.length.value)
-
-        return self.get_slice(slice_start, slice_end, **kwargs)
-
     def get_slice(
         self,
         start: CoordinateSpec,
@@ -1088,43 +1068,6 @@ class SegmentLineMixin:
         timeline._length = timeline._make_coordinate(self._length.value)
         timeline._locked = self._locked
         return timeline
-
-    def concatenate_cmaps(
-        self,
-        target_unit: TimeUnit,
-    ) -> Any:
-        """Concatenate every segment's map to a target unit."""
-        from timetoalign.maps import PiecewiseMap
-
-        pieces = []
-        cumulative_offset = 0.0
-
-        for i, offset, segment in self.iter_segments():
-            cmap = segment.get_conversion_map(target_unit)
-            if cmap is None:
-                raise ValueError(
-                    f"Segment '{segment.id}' has no C-map to {target_unit}"
-                )
-
-            segment_start = float(offset.value)
-            segment_end = segment_start + float(segment.length.value)
-            pieces.append(
-                {
-                    "start": segment_start,
-                    "end": segment_end,
-                    "map": cmap,
-                    "offset": cumulative_offset,
-                }
-            )
-
-            converted_length = cmap(segment.length.value)
-            cumulative_offset += float(converted_length)
-
-        return PiecewiseMap.from_segments(
-            pieces=pieces,
-            source_unit=self.unit,
-            target_unit=target_unit,
-        )
 
 
 class SegmentLine(SegmentLineMixin, Timeline):
