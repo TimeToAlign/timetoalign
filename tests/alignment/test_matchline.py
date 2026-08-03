@@ -387,9 +387,9 @@ class TestFromClaims:
         # Audio coordinates should be linearly mapped
         pairs = line.get_coordinate_pairs("audio")
         assert len(pairs) == 3
-        assert pairs[0] == (0.0, pytest.approx(0.0))
-        assert pairs[1] == (500.0, pytest.approx(50.0))
-        assert pairs[2] == (1000.0, pytest.approx(100.0))
+        assert pairs[0] == (0.0, 0.0)
+        assert pairs[1] == (500.0, 50.0)
+        assert pairs[2] == (1000.0, 100.0)
 
     def test_from_claims_non_synchronous_excluded(self) -> None:
         """Non-synchronous claims do not produce stamps."""
@@ -799,8 +799,8 @@ class TestMatchLineIntegration:
 
         audio_pairs = line.get_coordinate_pairs("audio")
         assert len(audio_pairs) == 2
-        assert audio_pairs[0] == (0.0, pytest.approx(0.0))
-        assert audio_pairs[1] == (1000.0, pytest.approx(100.0))
+        assert audio_pairs[0] == (0.0, 0.0)
+        assert audio_pairs[1] == (1000.0, 100.0)
 
         dgt2_pairs = line.get_coordinate_pairs("dgt2")
         assert len(dgt2_pairs) == 2

@@ -227,7 +227,7 @@ class TestAudioLoaderWAV:
         assert loader.n_samples == 44100
         assert loader.sample_rate == 44100
         assert loader.channels == 1
-        assert loader.duration_seconds == pytest.approx(1.0, rel=1e-6)
+        assert loader.duration_seconds == 1.0
         assert loader.format == "WAV"
         assert loader.source_path == wav_file
 
@@ -238,7 +238,7 @@ class TestAudioLoaderWAV:
         assert loader.n_samples == 96000
         assert loader.sample_rate == 48000
         assert loader.channels == 2
-        assert loader.duration_seconds == pytest.approx(2.0, rel=1e-6)
+        assert loader.duration_seconds == 2.0
 
     def test_from_file_convenience(self, wav_file: Path):
         """Test from_file class method."""
@@ -315,7 +315,7 @@ class TestAudioLoaderTimeline:
 
         # Test conversion
         result = cmap(44100)
-        assert result == pytest.approx(1.0, rel=1e-6)
+        assert result == 1.0
 
     def test_create_timeline_without_cmap(self, wav_file: Path):
         """Test timeline creation without C-map attachment."""
@@ -342,8 +342,8 @@ class TestAudioLoaderTimeline:
         cmap = loader.create_samples_to_seconds_map()
 
         assert isinstance(cmap, SamplesToSeconds)
-        assert cmap(44100) == pytest.approx(1.0, rel=1e-6)
-        assert cmap(22050) == pytest.approx(0.5, rel=1e-6)
+        assert cmap(44100) == 1.0
+        assert cmap(22050) == 0.5
 
 
 # endregion
@@ -365,7 +365,7 @@ class TestAudioLoaderIntegration:
         half_sample = 22050
         result = timeline.convert_to(half_sample, TimeUnit.seconds)
 
-        assert result.value == pytest.approx(0.5, rel=1e-6)
+        assert result.value == 0.5
 
     def test_timeline_used_with_metrical_grid(self, stereo_wav_file: Path):
         """Test that audio timeline works with ContinuousPhysicalTimeline workflow."""
@@ -391,7 +391,7 @@ class TestAudioLoaderIntegration:
         duration_from_discrete = discrete_tl.convert_to(
             discrete_tl.length.value, TimeUnit.seconds
         )
-        assert duration_from_discrete.value == pytest.approx(2.0, rel=1e-6)
+        assert duration_from_discrete.value == 2.0
 
 
 # endregion
@@ -414,7 +414,7 @@ class TestAudioLoaderEdgeCases:
 
         loader = AudioLoader().load(wav_path)
         assert loader.n_samples == 10
-        assert loader.duration_seconds == pytest.approx(10 / 44100, rel=1e-6)
+        assert loader.duration_seconds == 10 / 44100
 
     def test_high_sample_rate(self, tmp_path: Path):
         """Test loading audio with high sample rate (192kHz)."""
@@ -428,7 +428,7 @@ class TestAudioLoaderEdgeCases:
 
         loader = AudioLoader().load(wav_path)
         assert loader.sample_rate == 192000
-        assert loader.duration_seconds == pytest.approx(1.0, rel=1e-6)
+        assert loader.duration_seconds == 1.0
 
     def test_method_chaining(self, wav_file: Path):
         """Test that load() returns self for method chaining."""

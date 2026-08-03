@@ -14,7 +14,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pyarrow as pa
-import pytest
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.tabular import CsvLoader, TabularLoader, TsvLoader
@@ -84,8 +83,8 @@ e3,2.0,3.5,Note
         # Verify coordinate range
         coord_range = loader.events.coordinate_range()
         assert coord_range is not None
-        assert coord_range[0] == pytest.approx(0.0)
-        assert coord_range[1] == pytest.approx(100.1)
+        assert coord_range[0] == 0.0
+        assert coord_range[1] == 100.1
 
 
 class TestVectorizedTsvLoader:
@@ -158,8 +157,8 @@ class TestCoordinateTypeParsing:
         assert len(loader) == 3
         coord_range = loader.events.coordinate_range()
         assert coord_range is not None
-        assert coord_range[0] == pytest.approx(0.0)
-        assert coord_range[1] == pytest.approx(4.75)
+        assert coord_range[0] == 0.0
+        assert coord_range[1] == 4.75
 
     def test_duration_float_does_not_claim_exact_end(self, tmp_path: Path) -> None:
         """Keep an endpoint inexact when only duration is floating-point."""

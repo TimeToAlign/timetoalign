@@ -164,7 +164,37 @@ class TestStructuralResolution:
         uris = {uri for row in table.to_pylist() for uri in _access_uris(row)}
 
         assert len(uris) == 29
-        assert {"Analisi_1/L3_RS_I.pnml", "Analisi_2/L3-RS-C.pnml"} <= uris
+        assert sorted(uris) == [
+            "Analisi_1/L1.pnml",
+            "Analisi_1/L2_A.pnml",
+            "Analisi_1/L2_B.pnml",
+            "Analisi_1/L2_C.pnml",
+            "Analisi_1/L2_D.pnml",
+            "Analisi_1/L2_E.pnml",
+            "Analisi_1/L2_F.pnml",
+            "Analisi_1/L2_G.pnml",
+            "Analisi_1/L2_H.pnml",
+            "Analisi_1/L2_I.pnml",
+            "Analisi_1/L2_L.pnml",
+            "Analisi_1/L3_RI_A.pnml",
+            "Analisi_1/L3_RI_B.pnml",
+            "Analisi_1/L3_RI_C.pnml",
+            "Analisi_1/L3_RS_A.pnml",
+            "Analisi_1/L3_RS_C.pnml",
+            "Analisi_1/L3_RS_D.pnml",
+            "Analisi_1/L3_RS_G.pnml",
+            "Analisi_1/L3_RS_I.pnml",
+            "Analisi_2/L1.pnml",
+            "Analisi_2/L2-RI.pnml",
+            "Analisi_2/L2-RS.pnml",
+            "Analisi_2/L3-RI-A.pnml",
+            "Analisi_2/L3-RI-C.pnml",
+            "Analisi_2/L3-RS-A.pnml",
+            "Analisi_2/L3-RS-B.pnml",
+            "Analisi_2/L3-RS-C.pnml",
+            "Analisi_2/L3-RS-D.pnml",
+            "Analisi_2/L3-RS-F.pnml",
+        ]
         # The document's own directory holds no ``Analisi_1``; the net lives in
         # a sibling package directory, so the uri is stated, never resolved.
         satie = ieee1599_dir / "SatiePetriNets"

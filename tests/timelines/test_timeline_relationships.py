@@ -26,6 +26,7 @@ Validity Rationale:
 
 from __future__ import annotations
 
+from dataclasses import FrozenInstanceError
 from fractions import Fraction
 
 import pytest
@@ -162,7 +163,7 @@ class TestRegionDataclass:
         end = Coordinate(10.0, TimeUnit.seconds)
         region = Region(name="Test", start=start, end=end)
 
-        with pytest.raises(Exception):  # FrozenInstanceError
+        with pytest.raises(FrozenInstanceError):
             region.name = "Changed"
 
 
@@ -388,15 +389,15 @@ class TestCreateChildFromRegion:
         event = events[0]
         start_coord = event.get("start")
         if isinstance(start_coord, dict) and "value" in start_coord:
-            assert start_coord["value"] == pytest.approx(5.0)
+            assert start_coord["value"] == 5.0
         elif start_coord is not None:
-            assert float(start_coord) == pytest.approx(5.0)
+            assert float(start_coord) == 5.0
         else:
             event_instant = event.get("instant")
             if isinstance(event_instant, dict) and "value" in event_instant:
-                assert event_instant["value"] == pytest.approx(5.0)
+                assert event_instant["value"] == 5.0
             else:
-                assert float(event_instant) == pytest.approx(5.0)
+                assert float(event_instant) == 5.0
 
     def test_create_child_from_region_copy_events_false(self):
         """create_child_from_region with copy_events=False creates empty child."""
@@ -1144,7 +1145,7 @@ class TestTimelineDerive:
 
         # Roundtrip test: 60 quarters -> seconds -> quarters
         seconds = inverse(60.0)  # 60 / 2 = 30
-        assert seconds == pytest.approx(30.0)
+        assert seconds == 30.0
 
     def test_derive_roundtrip_accuracy(self):
         """derive() enables accurate roundtrip conversions."""
@@ -1166,7 +1167,8 @@ class TestTimelineDerive:
         for original in test_values:
             quarters = tempo_map(original)
             back = inverse(quarters)
-            assert back == pytest.approx(original, abs=1e-10)
+            # These fixed inputs recover bit-exactly through *1.5 then *(2/3).
+            assert back == original
 
     def test_derive_without_cmap_raises(self):
         """derive() raises ValueError if no C-map for target unit."""

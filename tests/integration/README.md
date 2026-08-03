@@ -81,13 +81,39 @@ loader they use. Any difference in core data indicates a bug.
 
 **Why this matters:** Custom timeline creation relies on filters working correctly.
 
+### 5. MIDI Timeline Structure (`TestMidiLoaderToTimeline`)
+
+**What we test:** MIDI loaders build the expected timeline structure.
+
+- `test_performance_midi_to_timeline`: `PerformanceMidiLoader` on
+  `supra_raw.mid` yields **exactly 2** children — `notes` and `controls`
+  (`assert timeline.n_children == 2`, an exact count, not `>= 1`).
+- `test_performance_midi_notes_child_has_events`: the `notes` child is
+  non-empty. Its exact event count is specimen-dependent and intentionally left
+  as `> 0` (the piano-roll note total is not part of the gold standard).
+
+## Beethoven WoO71 Gold Standard (`test_beethoven_woo71.py`)
+
+A second, larger gold specimen (Beethoven Piano Trio WoO71) with exact TSV
+counts: **4753** notes, **397** measures, and **8** volta notes with null
+`quarterbeats`. All of these are asserted with exact `==`.
+
+**Retained `pytest.approx` — documentary scale ratio.** One assertion,
+`test_beethoven_has_more_notes_than_chopin`, records the *order-of-magnitude*
+size ratio versus Chopin as `ratio == pytest.approx(9.54, rel=0.1)`. The gold
+`9.54` is a rounded human-readable figure, **not** the bit-exact quotient
+`4753 / 498 = 9.5441…`; the loose `rel=0.1` tolerance is the point of the check
+(the real correctness gate is the exact `4753` count and the `ratio > 5`
+assertion just above it). It is therefore kept as `approx` rather than pinned
+to a false `== 9.54`.
+
 ## Test Data Specimens
 
 | File | Type | Source | Purpose |
 |------|------|--------|---------|
 | `vienna_1x22/Chopin_op10_no3.musicxml` | MusicXML | Vienna 4x22 | Primary validation |
-| `beethoven_op18.mid` | Score MIDI | OMR Groundtruth | MIDI loader testing |
-| `supra_raw.mid` | Performance MIDI | Supra Rolls | Performance MIDI testing |
+| `data/midi/score/beethoven_op18.mid` | Score MIDI | OMR Groundtruth | MIDI loader testing |
+| `data/midi/performance/supra_raw.mid` | Performance MIDI | Supra Rolls | Performance MIDI testing |
 
 ## How to Run
 

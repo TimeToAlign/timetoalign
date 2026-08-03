@@ -35,6 +35,24 @@ raise an exact `ValueError` naming the column and both types, while genuinely
 missing columns remain null-filled. DataFrame views are tested only through
 `EventData.to_dataframe()`.
 
+Coordinate conversions and interpolations here are asserted exactly (`==`)
+wherever the arithmetic lands on a binary-exact value. The exactness does
+**not** come from the pixel/second ratios being representable in general — of
+the two axes, only 4875 px / 150 s reduces to a dyadic ratio (`= 32.5`);
+4328 px / 150 s reduces to `2164/75`, which is **not** exactly representable in
+binary. What makes the assertions exact is that the tested coordinates sit at
+dyadic fractions (0.0, 0.5, 1.0) of the *integer* pixel endpoints, and the
+group interpolates `fraction × 150`: `2437.5/4875 = 0.5` and `2164/4328 = 0.5`
+both reduce exactly, and `0.5 × 150 = 75.0`, `1.0 × 150 = 150.0` are exact. So
+`2437.5 px ↔ 75.0 s`, `2164 px ↔ 75.0 s`, and `4328 px ↔ 150.0 s` are all
+bit-exact. Two comparisons remain `pytest.approx` because they are genuinely
+floating-point: `test_three_timeline_group` interpolates onto a partial
+timeline where the score coordinate is `100 * 30/90 = 33.333…`, a
+non-terminating ratio; and `test_round_trip_conversion` closes an audio →
+discrete-pixel → audio loop whose integer quantization admits an error up to
+`abs=0.5 * 150/4875` seconds. Both retentions are load-bearing, not tolerance
+padding.
+
 ## Test Files
 
 ### `test_coordinate_resolution.py` - Public Coordinate Resolution
@@ -711,7 +729,9 @@ measures.
    - overlaps() detection
    - Rejects end < start
    - Rejects mismatched units
-   - Immutability (frozen dataclass)
+   - Immutability: mutating a field raises the concrete
+     `dataclasses.FrozenInstanceError` (asserted by class, not a bare
+     `Exception`), since `Region` is a frozen dataclass
 
 2. **Timeline Region Management Tests** (12 tests)
    - add_region() returns Region object
@@ -834,8 +854,17 @@ measures.
 19. **Timeline.derive() Tests** (8 tests)
     - Creates timeline in target unit
     - Creates correct Timeline subclass for domain
-    - Attaches inverse C-map for roundtrip
-    - Roundtrip accuracy verification
+    - Attaches inverse C-map for roundtrip; the exact 2× tempo inverse
+      (`60 / 2 = 30`) is asserted with `==`
+    - Roundtrip accuracy verification: `test_derive_roundtrip_accuracy` scales
+      by a 1.5× tempo and inverts with `÷ 1.5`. For its fixed inputs
+      (0, 25, 50, 75, 100) each product `x·1.5` and its division back are
+      exactly representable, so the round trip recovers every value
+      **bit-exactly** and is asserted with `==`. (1.5 is a rational, in fact
+      dyadic, scale — not irrational; the earlier claim that this needed a
+      tolerance was wrong. `test_timeline_relationships.py` now retains no
+      `pytest.approx`; the only remaining tolerances in this directory are the
+      two load-bearing sites in `test_groups.py` described above.)
     - Raises ValueError without C-map
     - Uses custom name if provided
     - copy_events=True copies and converts events

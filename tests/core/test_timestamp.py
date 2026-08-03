@@ -179,8 +179,8 @@ class TestTimeStampWithCMaps:
 
         ts = tl.get_timestamp(480)
 
-        # 480 ticks = 1.0 seconds
-        assert ts.get_unit(TimeUnit.seconds) == pytest.approx(1.0)
+        # 480 ticks = 1.0 seconds (linear TableMap interp is bit-exact here)
+        assert ts.get_unit(TimeUnit.seconds) == 1.0
 
     def test_timestamp_from_unit(self):
         """Create timestamp specifying coordinate in different unit."""
@@ -198,8 +198,8 @@ class TestTimeStampWithCMaps:
         # Query at 1.5 seconds
         ts = tl.get_timestamp(1.5, unit=TimeUnit.seconds)
 
-        # 1.5 seconds = 720 ticks
-        assert ts.axis == pytest.approx(720.0)
+        # 1.5 seconds = 720 ticks (linear inverse is bit-exact here)
+        assert ts.axis == 720.0
 
     def test_subscript_unit_access(self):
         """Subscript access works for unit names."""
@@ -217,7 +217,7 @@ class TestTimeStampWithCMaps:
 
         # Access by unit name string
         result = ts["seconds"]
-        assert result == pytest.approx(1.0)
+        assert result == 1.0
 
     def test_no_cmap_returns_none(self):
         """get_unit returns None when no C-Map available."""
@@ -250,7 +250,7 @@ class TestTimeStampWithCMaps:
         result = ts.to_dict(conversion_units=[TimeUnit.seconds])
 
         assert result["tl:1"] == 480.0
-        assert result["seconds"] == pytest.approx(1.0)
+        assert result["seconds"] == 1.0
 
 
 class TestTimeIntervalStamp:
@@ -737,8 +737,8 @@ class TestTimeStampCrossSectionConversions:
         ts = parent.get_timestamp(20)  # child coordinate 10
 
         assert TimeUnit.seconds in parent._get_available_units()
-        assert ts.get_unit(TimeUnit.seconds) == pytest.approx(5.0)
-        assert ts["seconds"] == pytest.approx(5.0)
+        assert ts.get_unit(TimeUnit.seconds) == 5.0
+        assert ts["seconds"] == 5.0
 
     def test_non_numeric_value_not_coerced(self):
         """Structured/label outputs render as themselves, never through float."""

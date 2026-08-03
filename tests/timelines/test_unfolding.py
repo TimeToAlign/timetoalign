@@ -472,7 +472,7 @@ class TestGetSlice:
         )
 
         sliced = tl.get_slice(2.0, 8.0)
-        assert sliced.length.value == pytest.approx(6.0)
+        assert sliced.length.value == 6.0
         assert type(sliced) is ContinuousPhysicalTimeline
 
         events = list(sliced.get_events())

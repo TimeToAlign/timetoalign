@@ -828,6 +828,24 @@ The `Timeline._get_interpolation_map()` method (part of the `TimeStampSource` pr
 
 The MatchGraph enforces the design principle that only synchronous claims produce graph edges, while non-synchronous claims are stored as metadata. The `extend_to_groups()` method creates `MatchClaim.implicit()` objects with `source_claim_id` traceability, and filtering supports domain/unit/timeline constraints.
 
+### Local Fixtures (no conftest shadowing)
+
+`test_graph.py` defines its own small group-test timelines with dimensions that
+differ from the Thoresen fixtures in `conftest.py` (1000 px / 800 px / 100 s vs.
+4835 px / 4328 px / 150 s). To avoid silently shadowing the conftest fixtures of
+the same name, these local fixtures carry dimension-explicit names:
+
+| Old (shadowed conftest) | New (local, dimension-explicit) | Used by |
+|-------------------------|---------------------------------|---------|
+| `dgt1_timeline` | `dgt1_1000px_timeline` | `dgt1_group` |
+| `dgt2_timeline` | `dgt2_800px_timeline` | (defined for symmetry; no current user) |
+| `audio_timeline` | `audio_100s_timeline` | `dgt1_group` |
+
+All coordinate assertions in this file are exact `==`: the stamp-coordinate
+checks in `test_extend_creates_correct_coordinates` (50.0) and
+`test_two_groups_five_implicit_claims` (250.0, 100.0, 200.0) are linear
+group conversions at exactly representable ratios and carry no `pytest.approx`.
+
 ### Key Test Classes
 
 | Class | Tests | Purpose |
@@ -1070,6 +1088,22 @@ the exact pixel value `2438` for all three coordinate forms.
 
 A key implementation discovery documented in the tests: EventData converts `{"instant": 0.0}` to `{"start": {"value": 0.0, "numerator": None, "denominator": None}}` internally. The `instant` key is NOT preserved — it becomes `start`. The `temporal_type` field distinguishes instant vs interval events. WarpMap's `_warp_events()` handles both the struct dict format and plain floats.
 
+### Floating-Point Tolerance (retained `pytest.approx`)
+
+Every anchor, linear/non-linear forward map, inverse map, extrapolation, chord
+dedup, and every materialise assertion (lengths, instants, note
+start/end/duration, region boundaries) resolves to an exactly representable
+`float` and is asserted with `==`. The two fixed-input round-trip loops
+(`test_round_trip_precision`, `test_round_trip_nonlinear`) also now use `==`:
+each listed value recovers **bit-exactly** through `forward(inverse(x))` — the
+earlier "accumulated sub-epsilon error" rationale was false for these specific
+inputs. Only one assertion in this file retains `pytest.approx`, because it is
+genuinely floating-point:
+
+| Test | Tolerance | Why approx is required |
+|------|-----------|------------------------|
+| `test_proportional_warp_between_dgt_timelines` | `abs=1e-9` | The interior expected value `967 + (378/867) * 967` uses the non-dyadic rational scale `378/867`, which the map's interpolation and this test's recomputation evaluate via slightly different float operation orders (difference ~2.27e-13). The boundary-anchor loop in the same test maps anchors exactly and uses `==`. |
+
 ---
 
 ## Graphical Loader Tests (`test_graphical_loader.py`)
@@ -1125,6 +1159,30 @@ The pixel coordinates come from:
 3. Cross-validation between Applications.ipynb calculations and test assertions
 
 Any discrepancy between these sources indicates a bug that must be investigated--not tolerated
+
+### Floating-Point Tolerance (retained `pytest.approx`)
+
+Horizontal- and diagonal-path coordinate maps, all `GraphicalSegment`
+to_image/from_image conversions, and every `GraphicalBundle`
+timeline↔image conversion (including the DGT1/DGT2 event round-trips) land on
+exactly representable values and are asserted with `==`. The only retained
+`pytest.approx` assertion is the quarter-circle arc-length test, which is
+genuinely floating-point:
+
+| Test | Tolerance | Why approx is required |
+|------|-----------|------------------------|
+| `TestParametricPath::test_circle_quarter` | `rel=0.01` | Arc length of a quarter circle is computed by sampling 1000 points and summing chord lengths — a numerical approximation of `r·π/2`. |
+
+The other two `ParametricPath` tests are now asserted with `==`:
+
+- `test_straight_line_as_parametric` — every sampled segment of the
+  `y=0` line contributes an exact chord length, so the accumulated arc length
+  is exactly `100.0`, not a tolerance-bounded integral.
+- `test_to_2d_endpoints` (4 asserts) — `ParametricPath._arc_to_t` does **not**
+  search the sampled table at the endpoints: it clamps `arc <= 0` to `t_start`
+  and `arc >= total_length` to `t_end` and returns the exact endpoint
+  (`paths.py:450-455`). So `to_2d(0)` and `to_2d(length)` are bit-exact
+  `(0, 0)` and `(100, 50)`.
 
 ---
 

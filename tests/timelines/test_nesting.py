@@ -786,12 +786,12 @@ class TestAddChildWithConversionMap:
         start_val = event["start"]
         if isinstance(start_val, dict):
             start_val = start_val["value"]
-        assert start_val == pytest.approx(44100.0)
+        assert start_val == 44100.0
         # 2.0 seconds * 44100 = 88200 samples
         end_val = event["end"]
         if isinstance(end_val, dict):
             end_val = end_val["value"]
-        assert end_val == pytest.approx(88200.0)
+        assert end_val == 88200.0
 
     def test_original_child_is_not_modified(self):
         """The original child timeline is not locked or mutated."""

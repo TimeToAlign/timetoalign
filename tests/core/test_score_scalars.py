@@ -5,6 +5,7 @@ from __future__ import annotations
 from fractions import Fraction
 
 import pytest
+from pydantic import ValidationError
 
 from timetoalign.core.enums import TimeUnit
 from timetoalign.core.events import DcmlHarmony, Measure, MidiPitch, Note, SpecificPitch
@@ -74,7 +75,7 @@ class TestMidiPitch:
         ``AttributeError``).
         """
         p = MidiPitch(midi_number=60)
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             p.midi_number = 61  # type: ignore[misc]
         assert "frozen" in str(exc_info.value).lower() or isinstance(
             exc_info.value, AttributeError
@@ -159,7 +160,7 @@ class TestSpecificPitch:
         ``AttributeError``).
         """
         p = SpecificPitch(step="C", alter=0, octave=4)
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             p.step = "D"  # type: ignore[misc]
         assert "frozen" in str(exc_info.value).lower() or isinstance(
             exc_info.value, AttributeError
@@ -249,7 +250,7 @@ class TestNote:
             staff=1,
             velocity=None,
         )
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             note.duration = Coordinate(1.0, TimeUnit.quarters)  # type: ignore[misc]
         assert "frozen" in str(exc_info.value).lower() or isinstance(
             exc_info.value, AttributeError
@@ -376,7 +377,7 @@ class TestMeasure:
             time_signature=(2, 4),
             key_signature="E",
         )
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             m.id = 2  # type: ignore[misc]
         assert "frozen" in str(exc_info.value).lower() or isinstance(
             exc_info.value, AttributeError
@@ -482,7 +483,7 @@ class TestDcmlHarmony:
         ``AttributeError``).
         """
         h = DcmlHarmony(label="V")
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             h.label = "i"  # type: ignore[misc]
         assert "frozen" in str(exc_info.value).lower() or isinstance(
             exc_info.value, AttributeError

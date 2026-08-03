@@ -162,14 +162,14 @@ class TestDiagonalLinePath:
         """Midpoint of diagonal is at half coordinates."""
         path = DiagonalLinePath(start=(0, 0), end=(300, 400))
         x, y = path.to_2d(250)  # Half of 500
-        assert x == pytest.approx(150)
-        assert y == pytest.approx(200)
+        assert x == 150
+        assert y == 200
 
     def test_from_2d_on_path(self) -> None:
         """Point on diagonal converts correctly."""
         path = DiagonalLinePath(start=(0, 0), end=(300, 400))
         coord = path.from_2d(150, 200)
-        assert coord == pytest.approx(250)
+        assert coord == 250
 
     def test_from_2d_off_path(self) -> None:
         """Point far from diagonal returns None."""
@@ -209,7 +209,9 @@ class TestParametricPath:
             t_end=1,
             samples=100,
         )
-        assert path.length == pytest.approx(100, rel=0.01)
+        # Every sampled segment lies on y=0, so the accumulated arc length is
+        # exactly 100.0 with no interpolation error.
+        assert path.length == 100.0
 
     def test_to_2d_endpoints(self) -> None:
         """Parametric path endpoints map correctly."""
@@ -219,15 +221,17 @@ class TestParametricPath:
             t_start=0,
             t_end=1,
         )
-        # Start
+        # Start. _arc_to_t clamps arc <= 0 to t_start (paths.py:450-455) and
+        # returns the exact endpoint, so to_2d(0) is bit-exact (0, 0).
         x0, y0 = path.to_2d(0)
-        assert x0 == pytest.approx(0, abs=1)
-        assert y0 == pytest.approx(0, abs=1)
+        assert x0 == 0
+        assert y0 == 0
 
-        # End
+        # End. _arc_to_t clamps arc >= total_length to t_end and returns the
+        # exact endpoint, so to_2d(length) is bit-exact (100, 50).
         x1, y1 = path.to_2d(path.length)
-        assert x1 == pytest.approx(100, abs=1)
-        assert y1 == pytest.approx(50, abs=1)
+        assert x1 == 100
+        assert y1 == 50
 
 
 # endregion
@@ -271,7 +275,7 @@ class TestGraphicalSegment:
 
         src_idx, (x, y) = seg.to_image(200)  # 100 into segment
         assert src_idx == 2
-        assert x == pytest.approx(110)  # 10 + 100
+        assert x == 110  # 10 + 100
         assert y == 100
 
     def test_to_image_out_of_range_raises(self) -> None:
@@ -292,7 +296,7 @@ class TestGraphicalSegment:
         seg = GraphicalSegment(source_index=0, path=path, timeline_offset=100)
 
         coord = seg.from_image(110, 100)  # 100 pixels into path
-        assert coord == pytest.approx(200)  # 100 offset + 100 local
+        assert coord == 200  # 100 offset + 100 local
 
     def test_from_image_wrong_source(self) -> None:
         """Mismatched source_index returns None."""
@@ -331,7 +335,7 @@ class TestGraphicalBundleDGT1:
         """Coordinate in first segment maps to correct image position."""
         src_idx, (x, y) = dgt1_bundle.timeline_to_image(100)
         assert src_idx == 0
-        assert x == pytest.approx(DGT1_X0 + 100)  # 2 + 100 = 102
+        assert x == DGT1_X0 + 100  # 2 + 100 = 102
         assert y == DGT1_Y_POSITIONS[0]  # 18
 
     def test_timeline_to_image_third_segment(self, dgt1_bundle) -> None:
@@ -340,13 +344,13 @@ class TestGraphicalBundleDGT1:
         coord = 1934 + 200  # 200 into third segment
         src_idx, (x, y) = dgt1_bundle.timeline_to_image(coord)
         assert src_idx == 0  # Same source for all segments
-        assert x == pytest.approx(DGT1_X0 + 200)  # 2 + 200 = 202
+        assert x == DGT1_X0 + 200  # 2 + 200 = 202
         assert y == DGT1_Y_POSITIONS[2]  # 396
 
     def test_image_to_timeline_first_segment(self, dgt1_bundle) -> None:
         """Image coordinate converts back to timeline."""
         coord = dgt1_bundle.image_to_timeline(0, DGT1_X0 + 100, DGT1_Y_POSITIONS[0])
-        assert coord == pytest.approx(100)
+        assert coord == 100
 
     def test_total_length_exact(self, dgt1_bundle) -> None:
         """Total length matches expected DGT1 width."""
@@ -384,7 +388,7 @@ class TestGraphicalBundleDGT2:
         # Local x should be EVENT_H_START_LOCAL + x0 of that segment
         x0, x1, expected_y = DGT2_SEGMENT_BOUNDS[EVENT_H_SEGMENT_INDEX]
         expected_x = x0 + EVENT_H_START_LOCAL
-        assert x == pytest.approx(expected_x)
+        assert x == expected_x
         assert y == expected_y
 
     def test_event_h_spans_within_segment(self, dgt2_bundle) -> None:
@@ -540,9 +544,7 @@ class TestThoresenAllEvents:
         ), f"{event_id}: Expected source {evt['segment_index']}, got {src_idx}"
 
         # Verify x coordinate (should match original x from TSV)
-        assert x == pytest.approx(
-            evt["x"]
-        ), f"{event_id}: Expected x={evt['x']}, got {x}"
+        assert x == evt["x"], f"{event_id}: Expected x={evt['x']}, got {x}"
 
         # Verify y coordinate
         x0, x1, expected_y = DGT2_SEGMENT_BOUNDS[evt["segment_index"]]
@@ -558,15 +560,15 @@ class TestThoresenAllEvents:
         # Start: timeline -> image -> timeline
         src_idx, (x_start, y_start) = dgt2_bundle.timeline_to_image(evt["start_global"])
         coord_start_back = dgt2_bundle.image_to_timeline(src_idx, x_start, y_start)
-        assert coord_start_back == pytest.approx(
-            evt["start_global"]
+        assert (
+            coord_start_back == evt["start_global"]
         ), f"{event_id} start: {evt['start_global']} -> {coord_start_back}"
 
         # End: timeline -> image -> timeline
         src_idx, (x_end, y_end) = dgt2_bundle.timeline_to_image(evt["end_global"] - 0.5)
         coord_end_back = dgt2_bundle.image_to_timeline(src_idx, x_end, y_end)
-        assert coord_end_back == pytest.approx(
-            evt["end_global"] - 0.5
+        assert (
+            coord_end_back == evt["end_global"] - 0.5
         ), f"{event_id} end: {evt['end_global']} -> {coord_end_back}"
 
     @pytest.mark.parametrize("event_id", [evt[0] for evt in THORESEN_TEST_EVENTS])

@@ -4,7 +4,19 @@ Tests for the physical-domain loaders in `timetoalign.loader.physical`.
 
 ## Test Files
 
-### `test_repovizz_loader.py` (26 tests)
+### `test_audio.py` (24 tests)
+
+Tests for `AudioLoader` against minimal in-memory WAV files.
+
+Durations are asserted **exactly**, with zero tolerance: `AudioLoader`
+computes `duration_seconds = n_samples / sample_rate` and `SamplesToSeconds`
+performs the same division, so every duration in these tests is bit-identical
+to the value expression and is checked with `==` (no `pytest.approx`). The
+integer-sample fixtures divide out cleanly (44100/44100 = `1.0`, 96000/48000 =
+`2.0`, 22050/44100 = `0.5`); the 10-sample edge case is pinned as `10 / 44100`,
+the same double the C-map returns. No approx assertions remain in this file.
+
+### `test_repovizz_loader.py` (27 tests)
 
 Tests for `RepoVizzLoader`, a manifest-style loader for RepoVizz XML manifests
 and legacy 2-line CSV sensor files from the EEP (Expressive Ensemble Performance)
@@ -19,7 +31,21 @@ dataset.
 | `TestRepoVizzLoaderXmlMode` | 8 | XML manifest parsing and timeline creation |
 | `TestRepoVizzLoaderCsvMode` | 7 | Legacy CSV backwards compatibility |
 | `TestRepoVizzLoaderErrors` | 4 | Error handling and edge cases |
-| `TestRepoVizzLoaderIntegration` | 2 | Cross-recording and group iteration |
+| `TestRepoVizzLoaderIntegration` | 2 | Cross-recording content and group iteration |
+
+**Exact counts (zero tolerance).** Both the `Normal` and `Mechanical`
+recordings catalogue exactly **376** entries, of which **232** become
+timelines (**144** audio, **4** score entries), and both expose the same
+group list `["audio", "descriptors", "mocap", "score"]`. Durations are exact:
+a signal entry's `duration_seconds` is `n_samples / sample_rate` (asserted with
+`==`, not `approx`) — the 441000-sample / 44100 Hz `CatalogueEntry` gives
+exactly `10.0`, and the legacy-CSV `duration_seconds` equals
+`n_samples / frame_rate` bit-for-bit. `TestRepoVizzLoaderIntegration.test_multiple_recordings`
+no longer merely checks "both load"; it pins the counts above **and** the fact
+that the two takes carry distinct audio content: the shared cardioid-ambient
+entry (`ROOT0_Audi1_Audi0_Ambi0`, "Cardioid microphone", 44100 Hz) has
+**11753638** samples in the Normal recording and **12426696** in the
+Mechanical one.
 
 **Test Specimens:**
 
@@ -54,8 +80,8 @@ Each recording directory has an XML manifest cataloguing all 332+ data files.
 
 | Test File | Tests | Status |
 |-----------|-------|--------|
-| `test_repovizz_loader.py` | 26 | All pass |
-| `test_audio_loader.py` | (existing) | All pass |
-| **Total** | **26+** | **All pass** |
+| `test_repovizz_loader.py` | 27 | All pass |
+| `test_audio.py` | 24 | All pass |
+| **Total** | **51** | **All pass** |
 
 All tests pass in parallel mode (`pytest-xdist -n auto`).

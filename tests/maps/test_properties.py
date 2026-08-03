@@ -119,7 +119,10 @@ class TestLinearMapProperties:
         chain = m1 >> m2
         sequential = m2(m1(x))
 
-        assert chain(x) == pytest.approx(sequential, rel=1e-9, abs=1e-9)
+        # ChainMap applies the maps in the same order as sequential application
+        # (base.py:303-319, composite.py:101-122), so the two paths execute the
+        # identical sequence of float operations and agree bit-for-bit.
+        assert chain(x) == sequential
 
     @given(x=finite_floats)
     def test_identity_map(self, x: float):
@@ -151,7 +154,9 @@ class TestScalarMapProperties:
     def test_scaling_property(self, scalar: float, x: float):
         """ScalarMap(a)(x) == a * x."""
         m = ScalarMap(scalar=scalar)
-        assert m(x) == pytest.approx(scalar * x, rel=1e-6, abs=1e-6)
+        # The test computes the exact same product the implementation does
+        # (linear.py:237-239), so the results are bit-identical.
+        assert m(x) == scalar * x
 
 
 # endregion
@@ -176,7 +181,9 @@ class TestShiftMapProperties:
     def test_shift_property(self, offset: float, x: float):
         """ShiftMap(b)(x) == x + b."""
         m = ShiftMap(offset=offset)
-        assert m(x) == pytest.approx(x + offset, rel=1e-6, abs=1e-6)
+        # The test computes the exact same sum the implementation does
+        # (linear.py:338-340), so the results are bit-identical.
+        assert m(x) == x + offset
 
     @given(x=finite_floats)
     def test_zero_shift_is_identity(self, x: float):
@@ -299,11 +306,13 @@ class TestTableMapProperties:
 
         inv = m.inverse()
 
-        # Test at table points
+        # Test at table points (anchors). np.interp returns the stored ordinate
+        # exactly at each anchor (table.py:177-187), so the round trip through
+        # the inverse recovers the anchor abscissa bit-for-bit.
         for x in x_values:
             y = m(x)
             back = inv(y)
-            assert back == pytest.approx(x, rel=1e-9, abs=1e-9)
+            assert back == x
 
         # Test at midpoints
         for i in range(len(x_values) - 1):
@@ -447,7 +456,10 @@ class TestChainMapProperties:
         left = (m1 >> m2) >> m3
         right = m1 >> (m2 >> m3)
 
-        assert left(x) == pytest.approx(right(x), rel=1e-9, abs=1e-9)
+        # Both groupings flatten to the same ordered ChainMap and therefore
+        # execute the identical sequence of float operations (composite.py:101-122),
+        # so associativity holds bit-for-bit.
+        assert left(x) == right(x)
 
 
 # endregion

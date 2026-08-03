@@ -79,20 +79,20 @@ class TestLabLoaderLoading:
         # Returns self for chaining
         assert result is loader
 
-        # Data is loaded
-        assert len(loader) > 0
+        # Data is loaded: regions.lab holds exactly 6 events.
+        assert len(loader) == 6
 
     def test_load_beats_lab(self, beats_lab_path: Path) -> None:
         """beats.lab loads without error."""
         loader = LabLoader()
         loader.load(beats_lab_path)
-        assert len(loader) > 0
+        assert len(loader) == 6
 
     def test_load_instants_lab(self, instants_lab_path: Path) -> None:
         """instants.lab loads without error."""
         loader = LabLoader()
         loader.load(instants_lab_path)
-        assert len(loader) > 0
+        assert len(loader) == 4
 
     def test_from_file_convenience(self, regions_lab_path: Path) -> None:
         """from_file() classmethod works correctly."""

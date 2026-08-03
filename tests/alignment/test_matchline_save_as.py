@@ -625,11 +625,13 @@ class TestRoundTripHow03Notebook:
         match_lines = [ln for ln in lines if ln.startswith("snote(") and "-note(" in ln]
         assert len(match_lines) == score_to_perf.n_stamps
 
-        # Deletion lines for unmatched target notes
+        # Deletion lines for unmatched target notes: matching here passes EEP as
+        # source_df and ABC (the score) as target_df, so unmatched_target rows are
+        # unmatched *score* notes (matching.py:208-265). MatchFileContext emits one
+        # -deletion. line per such unmatched score note (match_format.py:331-364),
+        # deterministically 10 for this Beethoven Op.18/4-iv Normal-take fixture.
         del_lines = [ln for ln in lines if ln.endswith("-deletion.")]
-        # The number of deletions depends on what from_dataframes produces
-        # from the unmatched target rows
-        assert len(del_lines) >= 0  # May be 0 if no unmatched targets
+        assert len(del_lines) == 10
 
         # All lines should end with a period (Prolog convention)
         for line in lines:

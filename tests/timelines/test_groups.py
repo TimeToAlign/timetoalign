@@ -573,7 +573,7 @@ class TestGetTimestampAt:
         # 75 seconds is halfway through 150 seconds
         ts = group.get_timestamp_at(75.0, "audio")
 
-        assert ts["audio"] == pytest.approx(75.0)
+        assert ts["audio"] == 75.0
         # Discrete timelines round to nearest integer: 4875/2 = 2437.5 → 2438
         assert ts["dgt1"] == 2438
         assert ts.is_interpolated is True
@@ -589,8 +589,8 @@ class TestGetTimestampAt:
         # 30 seconds = 20% of 150 seconds
         ts = group.get_timestamp_at(30.0, "audio")
 
-        assert ts["audio"] == pytest.approx(30.0)
-        assert ts["dgt1"] == pytest.approx(975.0)  # 20% of 4875
+        assert ts["audio"] == 30.0
+        assert ts["dgt1"] == 975  # 20% of 4875, discrete → integer
 
     def test_interpolation_reverse_lookup(
         self,
@@ -605,7 +605,7 @@ class TestGetTimestampAt:
 
         # Discrete timelines round to nearest integer: 2437.5 → 2438
         assert ts["dgt1"] == 2438
-        assert ts["audio"] == pytest.approx(75.0)
+        assert ts["audio"] == 75.0
 
     def test_interpolation_with_partial_timeline(
         self,
@@ -680,7 +680,7 @@ class TestConvert:
 
         # 2437.5 pixels -> 75 seconds
         result = group.convert(2437.5, source="dgt1", target="audio")
-        assert result == pytest.approx(75.0)
+        assert result == 75.0
 
     def test_convert_same_timeline(
         self,
@@ -690,7 +690,7 @@ class TestConvert:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
 
         result = group.convert(1000.0, source="dgt1", target="dgt1")
-        assert result == pytest.approx(1000.0)
+        assert result == 1000.0
 
     def test_convert_returns_none_for_absent_target(
         self,
@@ -916,14 +916,14 @@ class TestGroupIntegration:
         group2 = TimelineGroup(id="DGT2_Group", timelines=[dgt2, audio])
 
         # Verify conversions in group1
-        assert group1.convert(0.0, "dgt1", "audio") == pytest.approx(0.0)
-        assert group1.convert(4875.0, "dgt1", "audio") == pytest.approx(150.0)
-        assert group1.convert(2437.5, "dgt1", "audio") == pytest.approx(75.0)
+        assert group1.convert(0.0, "dgt1", "audio") == 0.0
+        assert group1.convert(4875.0, "dgt1", "audio") == 150.0
+        assert group1.convert(2437.5, "dgt1", "audio") == 75.0
 
         # Verify conversions in group2
-        assert group2.convert(0.0, "dgt2", "audio") == pytest.approx(0.0)
-        assert group2.convert(4328.0, "dgt2", "audio") == pytest.approx(150.0)
-        assert group2.convert(2164.0, "dgt2", "audio") == pytest.approx(75.0)
+        assert group2.convert(0.0, "dgt2", "audio") == 0.0
+        assert group2.convert(4328.0, "dgt2", "audio") == 150.0
+        assert group2.convert(2164.0, "dgt2", "audio") == 75.0
 
     def test_three_timeline_group(self) -> None:
         """Test a group with three timelines and partial overlap."""
@@ -953,7 +953,9 @@ class TestGroupIntegration:
         # audio 75 = (75-45)/(135-45) = 30/90 = 1/3 through score
         # score 1/3 of 100 = 33.33...
         ts = group.get_timestamp_at(75.0, "audio")
-        assert ts["audio"] == pytest.approx(75.0)
+        assert ts["audio"] == 75.0
+        # Interpolated onto a partial timeline: 100 * 30/90 = 33.333… is a
+        # non-terminating ratio, so this remains a genuine float comparison.
         assert ts["score"] == pytest.approx(100.0 * (75.0 - 45.0) / (135.0 - 45.0))
         assert ts["dgt"] is not None
 
@@ -1137,7 +1139,7 @@ class TestTimelineGroupTimestampAt:
         ts = group.get_timestamp_at(2437.5, "dgt1")
         audio_coord = ts["audio"]
         assert audio_coord is not None
-        assert audio_coord == pytest.approx(75.0)
+        assert audio_coord == 75.0
 
     def test_get_timestamp_at_unknown_timeline_raises(
         self,
@@ -1180,8 +1182,8 @@ class TestTimelineGroupTimestampAt:
         dgt_interval = interval["dgt1"]
         assert dgt_interval is not None
         # audio 0->100 maps to dgt 0->3250 (100/150 * 4875)
-        assert dgt_interval[0] == pytest.approx(0.0)
-        assert dgt_interval[1] == pytest.approx(3250.0)
+        assert dgt_interval[0] == 0.0
+        assert dgt_interval[1] == 3250.0
 
     def test_timestamp_with_three_timelines(
         self,
@@ -1204,8 +1206,8 @@ class TestTimelineGroupTimestampAt:
 
         # Discrete timelines are rounded to nearest integer
         assert ts["dgt1"] == 2438
-        assert ts["score"] == pytest.approx(50.0)
-        assert ts["audio"] == pytest.approx(75.0)
+        assert ts["score"] == 50.0
+        assert ts["audio"] == 75.0
 
     def test_timestamp_same_timeline_returns_axis(
         self,

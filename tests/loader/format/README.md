@@ -45,11 +45,15 @@ Tests for `XmlLoader`, a generic XML-to-flat-table loader using `xml.etree.Eleme
 
 | Class | Tests | Focus |
 |-------|-------|-------|
-| `TestXmlLoaderBasic` | 15 | Core functionality: loading, element extraction, attribute propagation |
-| `TestXmlLoaderPrincipalTags` | 8 | Principal tag filtering and auto-detection |
-| `TestXmlLoaderAncestorPropagation` | 6 | Ancestor attribute inheritance |
-| `TestXmlLoaderRealSpecimens` | 10 | Real-world XML files (RepoVizz, MusicXML structure) |
-| `TestXmlLoaderEdgeCases` | 6 | Error handling, empty files, malformed XML |
+| `TestSimpleXml` | 7 | Core functionality: row counts, attribute-to-column extraction, value parsing |
+| `TestNestedXml` | 3 | Parent-attribute propagation onto child rows |
+| `TestAutoDetection` | 3 | Auto-detection of principal tags (elements appearing at least twice) |
+| `TestTypeParsing` | 1 | int / float / bool / string attribute value parsing |
+| `TestTextContent` | 2 | Element text extraction as the `_text` field |
+| `TestRepoVizzXml` | 8 | Real RepoVizz manifest: 6 Audio, 4 Annotation, >100 Signal elements |
+| `TestXmlLoaderStore` | 8 | `store` DictStore integration and iteration |
+| `TestXmlLoaderEdgeCases` | 11 | Error handling, empty/single-element XML, clear/repr, ancestor toggle |
+| `TestLoadElement` | 2 | `load_element()` from an `ElementTree` |
 
 **Test Specimens:**
 
@@ -62,7 +66,9 @@ Tests for `XmlLoader`, a generic XML-to-flat-table loader using `xml.etree.Eleme
 
 - Ancestor attribute propagation (parent attributes appear on child rows)
 - Principal tag filtering (extract only specified element types)
-- Auto-detection of principal tags from XML structure
+- Auto-detection of principal tags from XML structure. `TestXmlLoaderStore.test_store_iteration`
+  pins the auto-detection of `NESTED_XML` at **exactly two** principal tags
+  (`group` and `item`) — an exact `count == 2`, not a `>= 2` lower bound.
 - Text content extraction as `_text` field
 - Error handling for malformed XML
 

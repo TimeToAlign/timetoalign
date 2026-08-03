@@ -269,8 +269,10 @@ class TestMidiLoaderToTimeline:
         timeline = loader.store.create_timeline(uid="supra")
 
         assert timeline.id == "supra"
-        # Should have at least notes
-        assert timeline.n_children >= 1
+        # supra_raw.mid yields exactly two children: notes and controls.
+        assert timeline.n_children == 2
+        assert "notes" in timeline
+        assert "controls" in timeline
 
     def test_performance_midi_notes_child_has_events(self, supra_midi: Path):
         """Performance MIDI notes child has events."""

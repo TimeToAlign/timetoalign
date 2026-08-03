@@ -69,7 +69,7 @@ rules.
    - Integer, float, and Fraction values accepted
    - String units coerced to TimeUnit enum
    - Invalid types (str, None) rejected
-   - Frozen dataclass (immutable)
+   - Frozen model (immutable): attribute assignment raises `pydantic.ValidationError`
    - Hashable (usable in sets/dicts)
 
 2. **Conversion Tests** (9 tests)
@@ -79,7 +79,10 @@ rules.
 3. **Property Tests** (8 tests)
    - `number_type` property (INT, FLOAT, FRACTION)
    - `domain` property (physical, logical, graphical)
-   - Boolean rejection in `number_type`
+   - Boolean values rejected at construction by the `value` field validator,
+     which raises `TypeError` — asserted as the concrete class, not a bare
+     `Exception`. (The `TypeError` propagates unwrapped because pydantic only
+     re-wraps `ValueError`/`AssertionError` raised inside validators.)
 
 4. **Arithmetic Tests** (18 tests)
    - Addition/subtraction with same units
@@ -105,6 +108,22 @@ The Coordinate class is the atomic unit for all temporal positioning in TTA. Tes
 - Immutability (frozen dataclass prevents mutation bugs)
 - Unit safety (operations between incompatible units are rejected)
 - Mathematical correctness (arithmetic operations preserve semantics)
+
+---
+
+### `test_score_scalars.py` - Circle 1 Score Scalars
+
+**Purpose:** Validates construction and protocol conformance for the score-level
+scalars `MidiPitch`, `SpecificPitch`, `Note`, `Measure`, and `DcmlHarmony`.
+
+**Test Categories:** construction, protocol conformance (`PitchLike`,
+`NoteLike`, `MeasureLike`, `HarmonyLabelLike`, `DcmlHarmonyLike`,
+`SemanticTypeLike`), `semantic_type`, `metadata_dict`, and immutability.
+
+**Concrete exceptions:** each scalar is a frozen pydantic v2 `BaseModel`, so
+mutating a field raises `pydantic.ValidationError` (message contains
+`"frozen"`). The `test_frozen_immutable` cases assert `pytest.raises(
+ValidationError)` — the concrete class, not a bare `Exception`.
 
 ---
 
@@ -227,6 +246,10 @@ The ID system ensures:
    - No C-Map returns None
    - Missing C-Map raises ValueError
    - `to_dict()` with conversion units
+   - C-Map conversion values assert exact `==`, not `pytest.approx`: the
+     `TableMap` anchors (e.g. `[0,960]->[0,2]`, `[0,20]->[0,10]`) are exactly
+     representable, so linear interpolation is bit-exact (480 ticks -> `1.0` s,
+     1.5 s -> `720.0` ticks, child 10 -> `5.0` s).
 
 4. **TimeIntervalStamp** (10 tests)
    - Interval creation from start/end coordinates
@@ -624,6 +647,9 @@ python -m pytest tests/core/ --cov=timetoalign.core --cov-report=term-missing
 All tests follow the TimeToAlign! engineering standards:
 
 1. **Exact Values**: Assertions use exact expected values, not ranges or tolerances
-2. **Immutability**: Frozen dataclasses are tested for mutation rejection
-3. **Type Safety**: Invalid types are verified to raise appropriate errors
+2. **Immutability**: Frozen pydantic models are tested for mutation rejection;
+   assignment raises `pydantic.ValidationError`, pinned as the concrete class
+   (never a bare `Exception`)
+3. **Type Safety**: Invalid types are verified to raise the concrete error
+   class (`TypeError` for bad `Coordinate` value/unit types, including bool)
 4. **Roundtrip**: Serialization/parsing operations preserve data exactly

@@ -98,8 +98,8 @@ def three_timeline_claims() -> list[MatchClaim]:
 
 
 @pytest.fixture
-def dgt1_timeline() -> DiscreteGraphicalTimeline:
-    """DGT1 timeline for group tests."""
+def dgt1_1000px_timeline() -> DiscreteGraphicalTimeline:
+    """DGT1 timeline for group tests (1000 pixels)."""
     return DiscreteGraphicalTimeline(
         length=1000,
         unit="pixels",
@@ -108,8 +108,8 @@ def dgt1_timeline() -> DiscreteGraphicalTimeline:
 
 
 @pytest.fixture
-def dgt2_timeline() -> DiscreteGraphicalTimeline:
-    """DGT2 timeline for group tests."""
+def dgt2_800px_timeline() -> DiscreteGraphicalTimeline:
+    """DGT2 timeline for group tests (800 pixels)."""
     return DiscreteGraphicalTimeline(
         length=800,
         unit="pixels",
@@ -118,8 +118,8 @@ def dgt2_timeline() -> DiscreteGraphicalTimeline:
 
 
 @pytest.fixture
-def audio_timeline() -> ContinuousPhysicalTimeline:
-    """Audio timeline for group tests."""
+def audio_100s_timeline() -> ContinuousPhysicalTimeline:
+    """Audio timeline for group tests (100 seconds)."""
     return ContinuousPhysicalTimeline(
         length=100.0,
         unit="seconds",
@@ -129,8 +129,8 @@ def audio_timeline() -> ContinuousPhysicalTimeline:
 
 @pytest.fixture
 def dgt1_group(
-    dgt1_timeline: DiscreteGraphicalTimeline,
-    audio_timeline: ContinuousPhysicalTimeline,
+    dgt1_1000px_timeline: DiscreteGraphicalTimeline,
+    audio_100s_timeline: ContinuousPhysicalTimeline,
 ) -> TimelineGroup:
     """Group with DGT1 and audio timelines.
 
@@ -138,8 +138,8 @@ def dgt1_group(
     Audio's full extent (0-100) maps to DGT1's full extent (0-1000).
     """
     group = TimelineGroup(id="dgt1_group", name="DGT1_Group")
-    group.add_timeline(dgt1_timeline)
-    group.add_timeline(audio_timeline)
+    group.add_timeline(dgt1_1000px_timeline)
+    group.add_timeline(audio_100s_timeline)
     return group
 
 
@@ -524,7 +524,7 @@ class TestMatchGraphGroupExtension:
         stamps = extended.get_stamps()
         assert len(stamps) == 1
         stamp = stamps[0]
-        assert stamp.get("audio") == pytest.approx(50.0)
+        assert stamp.get("audio") == 50.0
 
     def test_extend_marks_inferred_edges(
         self,
@@ -1116,11 +1116,11 @@ class TestMatchGraphExtendToGroupsImplicitClaims:
         # Verify coordinates via linear interpolation
         # tl1: 1000px, tl4: 500px, tl5: 200px (all linear from 0)
         # tl1@500 -> tl4: 500 * (500/1000) = 250
-        assert stamp.get("tl4") == pytest.approx(250.0)
+        assert stamp.get("tl4") == 250.0
         # tl1@500 -> tl5: 500 * (200/1000) = 100
-        assert stamp.get("tl5") == pytest.approx(100.0)
+        assert stamp.get("tl5") == 100.0
         # tl2@400 -> tl6: 400 * (400/800) = 200
-        assert stamp.get("tl6") == pytest.approx(200.0)
+        assert stamp.get("tl6") == 200.0
 
         # Count implicit claims
         implicit = [c for c in extended.claims if not c.is_explicit]

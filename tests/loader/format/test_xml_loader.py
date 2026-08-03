@@ -386,7 +386,8 @@ class TestXmlLoaderStore:
         for name, data in auto_detect_loader.store.items():
             assert isinstance(name, str)
             count += 1
-        assert count >= 2
+        # NESTED_XML auto-detects exactly two principal tags: 'group' and 'item'.
+        assert count == 2
 
     def test_store_contains(self, simple_loader: XmlLoader) -> None:
         assert "item" in simple_loader.store

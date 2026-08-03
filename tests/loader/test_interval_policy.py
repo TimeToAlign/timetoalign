@@ -74,7 +74,7 @@ class TestNormalizeIntervalsRow:
         }
         EventData._normalize_intervals_row(processed)
         dur = _value_of(processed["duration"])
-        assert dur == pytest.approx(2.0)
+        assert dur == 2.0
         assert processed["temporal_type"] == "interval"
 
     def test_duration_only_computes_end(self):
@@ -85,7 +85,7 @@ class TestNormalizeIntervalsRow:
         }
         EventData._normalize_intervals_row(processed)
         end = _value_of(processed["end"])
-        assert end == pytest.approx(3.0)
+        assert end == 3.0
         assert processed["temporal_type"] == "interval"
 
     def test_no_end_no_duration_is_instant(self):
@@ -102,8 +102,8 @@ class TestNormalizeIntervalsRow:
             "duration": coordinate_to_struct(2.0),
         }
         EventData._normalize_intervals_row(processed, policy=IntervalPolicy.warn)
-        assert _value_of(processed["end"]) == pytest.approx(3.0)
-        assert _value_of(processed["duration"]) == pytest.approx(2.0)
+        assert _value_of(processed["end"]) == 3.0
+        assert _value_of(processed["duration"]) == 2.0
 
     # ---- Inconsistent rows ----
 
@@ -126,8 +126,8 @@ class TestNormalizeIntervalsRow:
         }
         with caplog.at_level(logging.WARNING, logger="timetoalign.storage.events"):
             EventData._normalize_intervals_row(processed, policy=IntervalPolicy.warn)
-        assert _value_of(processed["duration"]) == pytest.approx(2.0)
-        assert _value_of(processed["end"]) == pytest.approx(3.0)
+        assert _value_of(processed["duration"]) == 2.0
+        assert _value_of(processed["end"]) == 3.0
         assert any("inconsistency" in r.message.lower() for r in caplog.records)
 
     def test_prefer_end_recomputes_duration(self):
@@ -138,8 +138,8 @@ class TestNormalizeIntervalsRow:
             "duration": coordinate_to_struct(5.0),
         }
         EventData._normalize_intervals_row(processed, policy=IntervalPolicy.prefer_end)
-        assert _value_of(processed["duration"]) == pytest.approx(2.0)
-        assert _value_of(processed["end"]) == pytest.approx(3.0)
+        assert _value_of(processed["duration"]) == 2.0
+        assert _value_of(processed["end"]) == 3.0
 
     def test_prefer_duration_recomputes_end(self):
         """prefer_duration always recomputes end from duration."""
@@ -151,8 +151,8 @@ class TestNormalizeIntervalsRow:
         EventData._normalize_intervals_row(
             processed, policy=IntervalPolicy.prefer_duration
         )
-        assert _value_of(processed["end"]) == pytest.approx(6.0)
-        assert _value_of(processed["duration"]) == pytest.approx(5.0)
+        assert _value_of(processed["end"]) == 6.0
+        assert _value_of(processed["duration"]) == 5.0
 
     # ---- Fraction inputs ----
 
@@ -164,7 +164,7 @@ class TestNormalizeIntervalsRow:
         }
         EventData._normalize_intervals_row(processed)
         dur = _value_of(processed["duration"])
-        assert dur == pytest.approx(0.5)
+        assert dur == 0.5
 
     def test_fraction_duration_only(self):
         """Fraction coordinates: end computed correctly."""
@@ -174,7 +174,7 @@ class TestNormalizeIntervalsRow:
         }
         EventData._normalize_intervals_row(processed)
         end = _value_of(processed["end"])
-        assert end == pytest.approx(0.75)
+        assert end == 0.75
 
     # ---- Exact recomputation when both end and duration are present ----
 
@@ -201,7 +201,7 @@ class TestNormalizeIntervalsRow:
         dur = processed["duration"]
         assert dur["numerator"] is None
         assert dur["denominator"] is None
-        assert dur["value"] == pytest.approx(3.0 - 1 / 3)
+        assert dur["value"] == 3.0 - 1 / 3
 
 
 # ---------------------------------------------------------------------------
@@ -271,7 +271,7 @@ class TestNormalizeIntervalsVectorized:
         result = EventData._normalize_intervals_vectorized(processed)
         dur = result["duration"]
         dur_vals = dur.field("value").to_pylist()
-        assert dur_vals == pytest.approx([1.0, 1.0, 1.5])
+        assert dur_vals == [1.0, 1.0, 1.5]
 
     def test_duration_only_computes_end(self):
         """Vectorized: end computed from start + duration."""
@@ -282,7 +282,7 @@ class TestNormalizeIntervalsVectorized:
         result = EventData._normalize_intervals_vectorized(processed)
         end = result["end"]
         end_vals = end.field("value").to_pylist()
-        assert end_vals == pytest.approx([1.0, 2.0, 3.5])
+        assert end_vals == [1.0, 2.0, 3.5]
 
     def test_strict_raises_on_inconsistency(self):
         """Vectorized: strict policy raises ValueError."""
@@ -308,7 +308,7 @@ class TestNormalizeIntervalsVectorized:
                 processed, policy=IntervalPolicy.warn
             )
         dur_vals = result["duration"].field("value").to_pylist()
-        assert dur_vals == pytest.approx([1.0, 2.0])
+        assert dur_vals == [1.0, 2.0]
         # Warning should have been logged
         assert any("inconsistency" in r.message.lower() for r in caplog.records)
 
@@ -323,9 +323,9 @@ class TestNormalizeIntervalsVectorized:
             processed, policy=IntervalPolicy.prefer_end
         )
         dur_vals = result["duration"].field("value").to_pylist()
-        assert dur_vals == pytest.approx([1.0, 2.0])
+        assert dur_vals == [1.0, 2.0]
         end_vals = result["end"].field("value").to_pylist()
-        assert end_vals == pytest.approx([1.0, 3.0])
+        assert end_vals == [1.0, 3.0]
 
     def test_prefer_duration_recomputes_end(self):
         """Vectorized: prefer_duration recomputes end from duration."""
@@ -338,9 +338,9 @@ class TestNormalizeIntervalsVectorized:
             processed, policy=IntervalPolicy.prefer_duration
         )
         end_vals = result["end"].field("value").to_pylist()
-        assert end_vals == pytest.approx([1.0, 6.0])
+        assert end_vals == [1.0, 6.0]
         dur_vals = result["duration"].field("value").to_pylist()
-        assert dur_vals == pytest.approx([1.0, 5.0])
+        assert dur_vals == [1.0, 5.0]
 
     def test_temporal_type_inferred(self):
         """Vectorized: temporal_type set to 'interval' when end present."""
@@ -385,7 +385,7 @@ class TestFromDictsIntegration:
         # to_dataframe() flattens coordinate structs to float64
         for idx, expected_dur in enumerate([1.0, 1.5]):
             dur_val = df.iloc[idx]["duration"]
-            assert dur_val == pytest.approx(expected_dur)
+            assert dur_val == expected_dur
 
     def test_duration_only_fills_end(self):
         """from_dicts with duration-only rows produces correct end."""
@@ -397,7 +397,7 @@ class TestFromDictsIntegration:
         df = store.to_dataframe()
         for idx, expected_end in enumerate([1.0, 2.5]):
             end_val = df.iloc[idx]["end"]
-            assert end_val == pytest.approx(expected_end)
+            assert end_val == expected_end
 
     def test_strict_policy_raises(self):
         """from_dicts with strict policy raises on inconsistency."""
@@ -483,8 +483,8 @@ class TestCsvLoaderIntegration:
             end_val = float(row["end"])
             dur_val = float(row["duration"])
             expected = end_val - start_val
-            assert dur_val == pytest.approx(
-                expected
+            assert (
+                dur_val == expected
             ), f"Row {idx}: duration={dur_val}, expected={expected}"
 
 

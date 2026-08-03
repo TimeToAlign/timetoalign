@@ -3,6 +3,7 @@
 from fractions import Fraction
 
 import pytest
+from pydantic import ValidationError
 
 from timetoalign.core.enums import Domain, NumberType, TimeUnit
 from timetoalign.core.time import Coordinate, Duration, IdCoordinate, IdDuration
@@ -55,7 +56,7 @@ class TestCoordinateCreation:
         c = Coordinate(120, TimeUnit.ticks)
         # Pydantic v2 BaseModel with ``frozen=True`` raises ValidationError
         # on attribute assignment (not the dataclass AttributeError).
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ValidationError) as exc_info:
             c.value = 240  # type: ignore[misc]
         assert "frozen" in str(exc_info.value).lower() or isinstance(
             exc_info.value, (AttributeError, ValueError)
@@ -145,10 +146,13 @@ class TestCoordinateProperties:
     def test_number_type_bool_raises(self) -> None:
         """Boolean values are rejected at Coordinate construction.
 
-        With the pydantic v2 BaseModel implementation, the validator
-        rejects bool eagerly at construction before ``number_type`` handling.
+        With the pydantic v2 BaseModel implementation, the ``value``
+        field validator rejects bool eagerly at construction, before
+        ``number_type`` handling. A validator raising ``TypeError``
+        propagates unwrapped (pydantic only re-wraps ``ValueError`` /
+        ``AssertionError`` into ``ValidationError``).
         """
-        with pytest.raises(Exception, match="Boolean values"):
+        with pytest.raises(TypeError, match="Boolean values"):
             Coordinate(True, TimeUnit.ticks)  # type: ignore[arg-type]
 
     def test_domain_physical(self) -> None:

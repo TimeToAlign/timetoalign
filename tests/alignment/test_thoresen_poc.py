@@ -177,12 +177,13 @@ class TestThoresenGroupSetup:
         # Midpoint: half of pixels -> half of seconds
         mid_pixels = DGT1_TOTAL_WIDTH / 2
         mid_seconds = dgt1_group.convert(mid_pixels, "dgt1", "audio")
-        assert mid_seconds == pytest.approx(AUDIO_DURATION_SECONDS / 2)
+        assert mid_seconds == AUDIO_DURATION_SECONDS / 2
 
         # Endpoints
-        assert dgt1_group.convert(0, "dgt1", "audio") == pytest.approx(0.0)
-        assert dgt1_group.convert(DGT1_TOTAL_WIDTH, "dgt1", "audio") == pytest.approx(
-            AUDIO_DURATION_SECONDS
+        assert dgt1_group.convert(0, "dgt1", "audio") == 0.0
+        assert (
+            dgt1_group.convert(DGT1_TOTAL_WIDTH, "dgt1", "audio")
+            == AUDIO_DURATION_SECONDS
         )
 
 
@@ -217,21 +218,17 @@ class TestThoresenSegmentClaims:
         prev_end = 0.0
         for claim in thoresen_segment_claims:
             start, end = claim.get_coordinates_for("dgt1")
-            assert start.value == pytest.approx(
-                prev_end
-            ), f"Gap before segment starting at {start}"
+            assert start.value == prev_end, f"Gap before segment starting at {start}"
             prev_end = end.value
-        assert prev_end == pytest.approx(DGT1_TOTAL_WIDTH)
+        assert prev_end == DGT1_TOTAL_WIDTH
 
         # Check DGT2 side
         prev_end = 0.0
         for claim in thoresen_segment_claims:
             start, end = claim.get_coordinates_for("dgt2")
-            assert start.value == pytest.approx(
-                prev_end
-            ), f"Gap before segment starting at {start}"
+            assert start.value == prev_end, f"Gap before segment starting at {start}"
             prev_end = end.value
-        assert prev_end == pytest.approx(DGT2_TOTAL_WIDTH)
+        assert prev_end == DGT2_TOTAL_WIDTH
 
     def test_claim_metadata(self, thoresen_segment_claims: list[MatchClaim]) -> None:
         """Claims have proper provenance metadata."""
@@ -364,7 +361,7 @@ class TestThoresenGraphicalBundles:
         expected_x = (
             DGT2_SEGMENT_BOUNDS[EVENT_H_SEGMENT_INDEX][0] + EVENT_H_START_IN_SEGMENT
         )
-        assert x == pytest.approx(expected_x)
+        assert x == expected_x
 
     def test_bundles_create_correct_timelines(self, dgt1_bundle, dgt2_bundle) -> None:
         """Bundles create timelines matching the fixtures."""

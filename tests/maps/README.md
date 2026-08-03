@@ -228,6 +228,72 @@ registry dispatches on.
 
 ---
 
+### `test_properties.py` - Property-Based Invariants (Hypothesis)
+
+**Purpose:** Verifies mathematical invariants (invertibility, composition
+associativity, scaling, shifting, identity) that must hold for *all* valid
+inputs, using Hypothesis to generate randomized examples across `LinearMap`,
+`ScalarMap`, `ShiftMap`, the convenience maps (`TicksToQuarters` /
+`QuartersToTicks`, `SamplesToSeconds` / `SecondsToSamples`), `TableMap`, and
+`ChainMap`.
+
+**Exact vs. retained `pytest.approx`.** The property tests split cleanly into
+assertions whose two sides execute the *identical* sequence of float
+operations (bit-exact — asserted with `==`) and assertions that round-trip an
+arbitrary float through a lossy composition or compare a float map's output to
+an independently-computed gold value (genuinely rounding — kept with
+`pytest.approx`). 13 `approx` sites remain, and they belong to these classes:
+
+- **Forward-then-inverse round-trips** — `inverse(forward(x)) == approx(x)`
+  and `forward(inverse(x)) == approx(x)` for `LinearMap`, `ScalarMap`,
+  `ShiftMap`, and `ChainMap` (`test_chain_inverse_roundtrip`). The inputs,
+  scalars, and offsets are arbitrary Hypothesis-drawn floats, so IEEE-754
+  rounding accumulates through the forward-then-inverse (and multi-step chain)
+  composition. The tolerance absorbs that inherent loss, not any implementation
+  defect (see the docstring on `test_chain_inverse_roundtrip`).
+- **Interpolation / linearity at non-anchor points** — the `TableMap`
+  mid-point round-trip (`test_inverse_roundtrip_monotonic`, the second loop)
+  and the tempo-map inverse round-trip and linearity checks
+  (`from_tempo_changes`). A mid-point is not a stored ordinate, so `np.interp`
+  actually interpolates and the inverse re-interpolates; the result is exact
+  only up to tolerance.
+- **Reciprocal-scaled convenience maps** — `TicksToQuarters` /
+  `QuartersToTicks` and `SamplesToSeconds` / `SecondsToSamples` are `ScalarMap`s
+  whose scalar is a *rounded reciprocal* (`1/ppq`, `1/sr`). Both the int and
+  float round-trips (`test_inverse_roundtrip_int` / `_float`) therefore pass
+  through two rounding steps and are not bit-exact even for divisible integer
+  inputs.
+- **Fraction gold vs. float output** — `test_ticks_to_quarters_fraction_exact`
+  compares the map's float output against `float(Fraction(ticks, ppq))`
+  (`rel=1e-12`). The `Fraction` gold is exact but the map's float output is
+  not, so equality only holds to tolerance.
+
+**Sites converted to exact `==`.** Five assertions whose two sides run the
+identical float arithmetic were hardened from `approx` to `==`:
+
+- **Composition vs. sequential** (`test_composition_associativity`) —
+  `ChainMap` calls its member maps in the same order as `m2(m1(x))`
+  (`base.py:303-319`, `composite.py:101-122`), so both paths execute the same
+  operations bit-for-bit.
+- **Direct scaling** (`test_scaling_property`) — the test recomputes the exact
+  product the implementation uses (`linear.py:237-239`).
+- **Direct shifting** (`test_shift_property`) — the test recomputes the exact
+  sum the implementation uses (`linear.py:338-340`).
+- **Table anchor round-trips** (`test_inverse_roundtrip_monotonic`, the
+  anchor loop) — `np.interp` returns the stored ordinate exactly at each anchor
+  (`table.py:177-187`), so the inverse recovers the anchor abscissa exactly.
+  (The mid-point loop in the same test keeps `approx` — see above.)
+- **Nested chain associativity** (`test_chain_associativity`) — both groupings
+  flatten to the same ordered `ChainMap` and run the identical operation
+  sequence (`composite.py:101-122`).
+
+The by-definition anchors that *are* bit-exact were already written with `==`
+in this file (`t2q(ppq) == 1.0`, `q2t(1.0) == ppq`, `s2s(sr) == 1.0`,
+`s2samp(1.0) == sr`) and the pure-`Fraction` `LinearMap` invariant asserts
+exact `Fraction` equality (`result == expected`).
+
+---
+
 ## Serialization
 
 Every map's `to_dict()` is JSON-serializable: rational parameters (scalars,

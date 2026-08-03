@@ -404,7 +404,7 @@ class TestCustomAlignment:
         result = group.convert(
             50.0, source=second_timeline.id, target=simple_timeline.id
         )
-        assert result == pytest.approx(12.5)
+        assert result == 12.5
 
 
 # endregion

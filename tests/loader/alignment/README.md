@@ -207,7 +207,11 @@ the document and survives whole even where the Petri-net modelling does not
 cover it.  The `.pnml` files are never opened and their paths are never
 resolved against disk — the whole mapping is in the XML, and the `file_name` is
 recorded verbatim (`Analisi_1/L3_RS_I.pnml`, `Analisi_2/L3-RS-C.pnml`: the two
-analyses do not even agree on a separator).
+analyses do not even agree on a separator).  The uri test pins the **complete**
+set of distinct access-point uris — all **29** of them, as an exact sorted-list
+equality (not a `<=` subset check) — so both the count and every verbatim,
+unresolved path are held to zero tolerance (19 `Analisi_1/…` nets + 10
+`Analisi_2/…` nets).
 
 **Exact-count arithmetic.** The specimen states
 

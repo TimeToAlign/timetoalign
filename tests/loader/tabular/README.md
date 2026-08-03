@@ -8,6 +8,7 @@ This directory contains comprehensive tests for the `timetoalign.loader.tabular`
 |------|-------|---------|
 | `test_tabular.py` | 11 | Core TabularLoader, CsvLoader, TsvLoader functionality |
 | `test_vectorized.py` | 10 | Vectorized pipeline integration tests |
+| `test_lab_loader.py` | 29 | `LabLoader` (.lab audio-region files) — see §LabLoader below |
 | `test_correctness.py` | 11 | ZERO TOLERANCE validation with real specimens |
 | `test_error_handling.py` | 15 | Graceful degradation and error message clarity |
 | `test_struct_columns.py` | 16 | `Field`, `ComputedField`, `ConvertedField` unit tests and JSON-to-struct parsing helper |
@@ -59,6 +60,15 @@ No manual `os.unlink()` or `tempfile.NamedTemporaryFile(delete=False)` patterns 
 ---
 
 ## Validation Logic
+
+### Coordinate ranges are exact
+
+`test_vectorized.py` asserts `coordinate_range()` endpoints with `==`, not
+`pytest.approx`: the `np.linspace(0.1, 100.1, 10_000)` large-file case pins the
+max at exactly `100.1` (NumPy's `linspace` sets the last sample to the `stop`
+value, so it is the same IEEE-754 double), and the float-coordinate CSV pins
+`[0.0, 4.75]` (both exactly representable). No approx assertions remain in this
+file.
 
 ### Exact Coordinate Completion
 
@@ -241,6 +251,29 @@ When adding tests for new loaders:
 3. Add to the "Discrepancies Between Loaders" section if behavior differs
 
 ---
+
+## LabLoader
+
+### Specimens
+
+Three synthetic tab-separated `.lab` files in
+`tests/data/fixtures/lab/` (audio-region label files, `start<TAB>end<TAB>label`
+per line, no header):
+
+| Specimen | Events | Kind | Coordinate range |
+|----------|--------|------|------------------|
+| `regions.lab` | **6** | intervals (Intro, Verse, Chorus, Verse, Chorus, Outro) | `[0.0, 15.2]` |
+| `beats.lab` | **6** | intervals all labelled `Beat` | `[0.0, 3.0]` |
+| `instants.lab` | **4** | `start == end` events labelled `Downbeat` | `[0.0, 3.0]` |
+
+### Validation logic (zero tolerance)
+
+Event counts are **exact**, per the ZERO TOLERANCE policy — the loading smoke
+tests assert `len(loader) == 6` / `6` / `4` (never `len(loader) > 0`), agreeing
+with the dedicated `TestRegionsLab` / `TestBeatsLab` / `TestInstantsLab`
+count assertions and with `test_from_file_convenience` (`== 6`). Coordinate
+ranges are asserted as exact `Fraction`/float endpoints (`15.2`, `3.0`, `0.0`).
+The default unit is `seconds` and the default event type is `Region`.
 
 ## SoloLoader
 

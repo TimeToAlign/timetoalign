@@ -72,7 +72,7 @@ class TestCatalogueEntry:
         assert entry.xml_id == "test_id"
         assert entry.name == "Test Entry"
         assert entry.is_signal is True
-        assert entry.duration_seconds == pytest.approx(10.0, rel=1e-3)
+        assert entry.duration_seconds == 10.0
 
     def test_non_signal_entry(self) -> None:
         """CatalogueEntry with no samples is not a signal."""
@@ -282,9 +282,7 @@ class TestRepoVizzLoaderCsvMode:
         assert isinstance(info, RepoVizzInfo)
         assert info.n_samples == loader.n_samples
         assert info.frame_rate == loader.frame_rate
-        assert info.duration_seconds == pytest.approx(
-            loader.n_samples / loader.frame_rate, rel=1e-6
-        )
+        assert info.duration_seconds == loader.n_samples / loader.frame_rate
 
     def test_create_timeline_csv(self, csv_file_path: Path) -> None:
         """Timeline can be created from CSV."""
@@ -374,7 +372,8 @@ class TestRepoVizzLoaderIntegration:
     """Integration tests for RepoVizzLoader."""
 
     def test_multiple_recordings(self, multimodal_dir: Path) -> None:
-        """Can load different recordings from the dataset."""
+        """Two recordings load into identically-shaped catalogues that
+        nevertheless carry distinct audio content."""
         normal_xml = (
             multimodal_dir
             / "StringQuartetEEP_I_Normal"
@@ -386,16 +385,34 @@ class TestRepoVizzLoaderIntegration:
             / "StringQuartetEEP_I_Mechanical.xml"
         )
 
-        if normal_xml.exists() and mechanical_xml.exists():
-            loader1 = RepoVizzLoader.from_file(normal_xml)
-            loader2 = RepoVizzLoader.from_file(mechanical_xml)
+        loader1 = RepoVizzLoader.from_file(normal_xml)
+        loader2 = RepoVizzLoader.from_file(mechanical_xml)
 
-            # Both should load successfully
-            assert len(loader1.catalogue) > 0
-            assert len(loader2.catalogue) > 0
+        # Each recording catalogues exactly 376 entries, 232 of them timelines.
+        assert len(loader1.catalogue) == 376
+        assert len(loader2.catalogue) == 376
+        assert len(loader1.timeline_ids) == 232
+        assert len(loader2.timeline_ids) == 232
 
-            # They may have similar structure
-            assert loader1.groups == loader2.groups
+        # Identical modality structure across the two recordings.
+        assert loader1.groups == ["audio", "descriptors", "mocap", "score"]
+        assert loader1.groups == loader2.groups
+        assert len(loader1.store.audio) == 144
+        assert len(loader2.store.audio) == 144
+        assert len(loader1.store.score) == 4
+        assert len(loader2.store.score) == 4
+
+        # ...but the recordings themselves differ: the shared cardioid-ambient
+        # audio entry is longer in the Mechanical take than in the Normal one.
+        cardioid_id = "ROOT0_Audi1_Audi0_Ambi0"
+        normal_cardioid = loader1.get_entry(cardioid_id)
+        mechanical_cardioid = loader2.get_entry(cardioid_id)
+        assert normal_cardioid.name == "Cardioid microphone"
+        assert mechanical_cardioid.name == "Cardioid microphone"
+        assert normal_cardioid.sample_rate == 44100.0
+        assert mechanical_cardioid.sample_rate == 44100.0
+        assert normal_cardioid.n_samples == 11753638
+        assert mechanical_cardioid.n_samples == 12426696
 
     @pytest.mark.slow
     def test_timeline_group_iteration(self, xml_manifest_path: Path) -> None:
