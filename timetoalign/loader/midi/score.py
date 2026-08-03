@@ -23,15 +23,16 @@ from .events import MidiEventData, ScoreMidiEventData
 
 
 class ScoreMidiLoader(MidiLoader):
-    """Load score MIDI files using partitura.
+    """Load score MIDI files using partitura or a mido fast path.
 
     This loader uses partitura's sophisticated MIDI parsing to extract structural
     information like voices, parts, and specific pitches (optional). It is ideal
     for quantized MIDI files representing scores.
 
-    Emits a :class:`ScoreMidiEventData` (the wider 10-column schema)
-    because partitura supplies the score-only ``voice``, ``staff`` and
-    ``part_id`` columns on top of the cross-loader seven.
+    The default partitura parser emits :class:`ScoreMidiEventData`, the wider
+    schema containing ``voice``, ``staff``, and ``part_id``. ``parser="mido"``
+    parses only MIDI messages and emits the base :class:`MidiEventData` schema;
+    it is appropriate when structural score information is not required.
     """
 
     _event_data_class: ClassVar[type[MidiEventData]] = ScoreMidiEventData
@@ -44,6 +45,7 @@ class ScoreMidiLoader(MidiLoader):
         estimate_voice_info: bool = False,
         estimate_key: bool = False,
         assign_note_ids: bool = True,
+        parser: str = "partitura",
         unit: TimeUnit | None = None,
         number_type: NumberType = NumberType.float,
         **kwargs: Any,
@@ -56,16 +58,33 @@ class ScoreMidiLoader(MidiLoader):
             estimate_voice_info: Use Chew & Wu algorithm for voice separation.
             estimate_key: Use Krumhansl algorithm for key estimation.
             assign_note_ids: Ensure unique note IDs.
+            parser: MIDI parser, either ``"partitura"`` or ``"mido"``.
             unit: Time unit for coordinates.
             number_type: Number type for coordinates.
             **kwargs: Additional arguments passed to parent Loader.
         """
+        if parser not in {"partitura", "mido"}:
+            raise ValueError("parser must be either 'partitura' or 'mido'")
+        if parser == "mido" and (
+            part_voice_assign_mode != 0
+            or quantization_unit is not None
+            or estimate_voice_info
+            or estimate_key
+        ):
+            raise ValueError(
+                "parser='mido' cannot use structural score options; "
+                "part_voice_assign_mode, quantization_unit, estimate_voice_info, "
+                "and estimate_key need partitura"
+            )
+        if parser == "mido":
+            self._event_data_class = MidiEventData
         super().__init__(unit=unit, number_type=number_type, **kwargs)
         self._part_voice_assign_mode = part_voice_assign_mode
         self._quantization_unit = quantization_unit
         self._estimate_voice_info = estimate_voice_info
         self._estimate_key = estimate_key
         self._assign_note_ids = assign_note_ids
+        self._parser = parser
         self._ticks_per_beat: int | None = None
 
     @property
@@ -76,7 +95,7 @@ class ScoreMidiLoader(MidiLoader):
     def _load_source(
         self, source: Path
     ) -> tuple[dict[str, Any], dict[str, pa.ChunkedArray]]:
-        """Load a MIDI file using partitura.
+        """Load a MIDI file using the configured parser.
 
         Args:
             source: Path to the MIDI file.
@@ -84,6 +103,15 @@ class ScoreMidiLoader(MidiLoader):
         Returns:
             Tuple of metadata and vectorized event field arrays.
         """
+        if self._parser == "mido":
+            return self._parse_mido_source(
+                source,
+                parse_durations=True,
+                include_controls=False,
+                include_program_changes=False,
+                on0_means_off=True,
+            )
+
         # Load score using partitura
         # Note: partitura can return Score, Part, PartGroup, or list
         score_data = pt.load_score_midi(

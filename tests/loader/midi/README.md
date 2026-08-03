@@ -49,6 +49,18 @@ input with both loader implementations.
 Performance MIDI can contain controls that score parsing omits. Harmonization therefore compares
 note events rather than total raw message counts.
 
+## Score mido fast path
+
+The optional ``ScoreMidiLoader(parser="mido")`` path parses note intervals directly from the MIDI
+event stream when structural score analysis is not requested. Its tests pin the raw-file note count,
+first and last note start ticks, and pitch sum against ``PerformanceMidiLoader`` with controls and
+program changes disabled, because both paths then apply the same message-level pairing rules. A
+quantized score MIDI test separately pins each parser's note count, pitch multiset, and first-note
+coordinates: pitch content must agree, while partitura may use structurally derived coordinates.
+The tests also pin the mido tick resolution and exact narrow ``MidiEventData`` column list,
+explicitly excluding voice, staff, and part identifiers. Structural parser options are rejected
+for this path.
+
 ## Score loader and stores
 
 The Beethoven score test pins 3,751 events, non-null tick resolution, Partitura metadata with four
