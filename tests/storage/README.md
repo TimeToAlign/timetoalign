@@ -23,6 +23,13 @@ score tables.
 
 ## Test Files
 
+### `test_events.py` - `EventData.create_timeline()`
+
+`EventData.create_timeline()` selects the concrete timeline class from the
+data unit and number type, places the selected rows directly on that timeline,
+and applies EventData filters before assignment. The tests pin the logical
+timeline class and the exact unfiltered and filtered event counts.
+
 ### `test_events.py` - `EventData.column_values()`
 
 **Purpose:** Documents and validates the public, decoded column-read

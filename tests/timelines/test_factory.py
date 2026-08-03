@@ -275,6 +275,37 @@ class TestCreateTimelineFromStore:
         # Exact count: 2 notes (all notes pass filter)
         assert child.n_events == 2
 
+    def test_store_surface_places_single_store_events_directly(
+        self, single_store: SingleStore
+    ) -> None:
+        """A one-data store returns its discrete logical events without children."""
+        timeline = single_store.create_timeline()
+
+        assert type(timeline) is DiscreteLogicalTimeline
+        assert timeline.n_children == 0
+        assert timeline.n_events == 3
+
+    def test_store_surface_creates_named_children_for_multiple_data(
+        self, multi_store: DictStore
+    ) -> None:
+        """A multi-data store retains each named event table as a child."""
+        timeline = multi_store.create_timeline()
+
+        assert type(timeline) is DiscreteLogicalTimeline
+        assert list(timeline._children) == ["notes", "measures"]
+        assert timeline.get_child("notes").n_events == 2
+        assert timeline.get_child("measures").n_events == 1
+
+    def test_store_surface_include_filter_selects_one_data_table(
+        self, multi_store: DictStore
+    ) -> None:
+        """Selecting one source converts its events into the direct timeline payload."""
+        timeline = multi_store.create_timeline(include_stores=["notes"])
+
+        assert type(timeline) is DiscreteLogicalTimeline
+        assert timeline.n_children == 0
+        assert timeline.n_events == 2
+
 
 class TestCreateTimelineIncludeExclude:
     """Tests for include_stores and exclude_stores parameters."""

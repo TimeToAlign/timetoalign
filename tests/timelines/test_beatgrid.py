@@ -7,7 +7,10 @@ The SUPRA test validates that BeatGrid correctly computes measure numbers and
 beat positions for a known musical work, proving the mechanism works correctly.
 """
 
+from __future__ import annotations
+
 from fractions import Fraction
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -75,6 +78,74 @@ class TestBeatGridBasic:
         assert grid.quarters_per_beat == Fraction(1, 2)
         assert grid.quarters_per_measure == Fraction(3, 1)
         assert grid.n_measures == 4  # 12 / 3 = 4 measures
+
+
+class TestBeatGridExport:
+    """CSV exports preserve the format-specific beat-grid representation."""
+
+    @staticmethod
+    def _grid() -> BeatGrid:
+        """Create four quarter-note beat events across two measures."""
+        grid = BeatGrid.from_tempo(
+            tempo_bpm=120.0,
+            beats_per_measure=2,
+            length_quarters=Fraction(4, 1),
+            start_seconds=0.0,
+            uid="beat_grid",
+        )
+        grid.add_events(
+            [
+                {
+                    "id": f"beat:{index}",
+                    "event_type": "Beat",
+                    "instant": Fraction(index),
+                }
+                for index in range(4)
+            ]
+        )
+        return grid
+
+    @pytest.mark.parametrize(
+        ("format_name,kwargs,expected_rows,expected_content"),
+        [
+            (
+                "default",
+                {"conversion_maps": False},
+                4,
+                "axis (quarters),beat_grid (quarters)\n0,0\n1,1\n2,2\n3,3\n",
+            ),
+            (
+                "sonic_visualiser",
+                {},
+                4,
+                "TIME,LABEL\n0.0,M1B1\n0.5,M1B2\n1.0,M2B1\n1.5,M2B2\n",
+            ),
+            (
+                "tilia",
+                {},
+                4,
+                "time,measure,beat,is_first_in_measure\n"
+                "0.0,1,1,True\n0.5,1,2,False\n1.0,2,1,True\n1.5,2,2,False\n",
+            ),
+        ],
+    )
+    def test_export_to_csv_writes_supported_format(
+        self,
+        tmp_path: Path,
+        format_name: str,
+        kwargs: dict[str, bool],
+        expected_rows: int,
+        expected_content: str,
+    ) -> None:
+        """Each format writes its exact four-row representation."""
+        output_path = tmp_path / f"{format_name}.csv"
+
+        rows_written = self._grid().export_to_csv(
+            str(output_path), format=format_name, **kwargs
+        )
+
+        assert rows_written == expected_rows
+        assert output_path.read_text() == expected_content
 
 
 class TestBeatGridMetricalMaps:

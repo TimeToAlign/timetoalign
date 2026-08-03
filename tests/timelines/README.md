@@ -1550,6 +1550,27 @@ unnecessarily (loses Fraction precision).
 
 ## Validation Methodology
 
+## Timestamp, Export, Factory, and Subclass Resolution Validation
+
+`test_groups.py` verifies event-ID timestamp lookup with a two-member group.
+The event coordinate remains the timestamp axis, the source ID identifies the
+member containing the event, and the present-timeline sequence reflects every
+coordinate surfaced by the timestamp. Bulk lookup preserves request order and
+keeps an explicit missing-event row.
+
+`test_beatgrid.py` exports a four-beat, two-beat-per-measure grid in every
+supported format. The expected files include headers, row order, labels, and
+boolean spellings so format-specific consumers receive a stable wire layout.
+
+`test_factory.py` exercises `EventStore.create_timeline()` for direct events,
+multi-store children, and store selection. It pins child IDs and event counts
+to distinguish direct placement from child construction.
+
+`test_types.py` resolves continuous, discrete, string-unit, and unmatched-unit
+inputs to the most specific matching classes. Further-derived classes also
+participate in resolution. The unmatched input verifies the documented base
+`Timeline` fallback when no registered subclass accepts a unit.
+
 All tests follow these principles:
 
 1. **Positive Tests**: Verify correct behavior under normal conditions

@@ -11,6 +11,7 @@ import pyarrow as pa
 
 from timetoalign.core import TimeUnit
 from timetoalign.storage.events import EventData
+from timetoalign.timelines import ContinuousLogicalTimeline
 
 
 class TestColumnValues:
@@ -74,6 +75,26 @@ class TestColumnValues:
     def test_non_coordinate_column_passes_through(self) -> None:
         data = self._data()
         assert data.column_values("event_type") == ["Note", "Note", "Beat"]
+
+
+class TestCreateTimeline:
+    """EventData timelines retain inferred type and selected event rows."""
+
+    def test_create_timeline_places_selected_events_directly(self) -> None:
+        """Quarter-note EventData creates a continuous logical event timeline."""
+        data = TestColumnValues()._data()
+        timeline = data.create_timeline()
+
+        assert type(timeline) is ContinuousLogicalTimeline
+        assert timeline.n_events == 3
+
+    def test_create_timeline_filters_before_assigning_events(self) -> None:
+        """The public filter parameter restricts the direct event assignment."""
+        data = TestColumnValues()._data()
+        timeline = data.create_timeline(filters={"event_type": "Note"})
+
+        assert type(timeline) is ContinuousLogicalTimeline
+        assert timeline.n_events == 2
 
 
 class TestIntervalFractionFidelity:

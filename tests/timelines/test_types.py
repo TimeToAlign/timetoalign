@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import pickle
 from fractions import Fraction
+from typing import cast
 
 import pytest
 
@@ -292,6 +293,40 @@ class TestAllTimelineTypes:
 
         tl.add_events(events)
         assert tl.n_events == 3
+
+
+# endregion
+
+
+# region Timeline Subclass Resolution Tests
+
+
+class TestTimelineSubclassResolution:
+    """Subclass lookup uses unit specificity and number type."""
+
+    def test_fractional_logical_unit_resolves_continuous_logical(self) -> None:
+        """Fractional quarters select the continuous logical timeline."""
+        result = Timeline.resolve_subclass(TimeUnit.quarters, NumberType.fraction)
+
+        assert result is ContinuousLogicalTimeline
+
+    def test_discrete_graphical_unit_resolves_discrete_graphical(self) -> None:
+        """Integer pixels select the discrete graphical timeline."""
+        result = Timeline.resolve_subclass(TimeUnit.pixels, NumberType.int)
+
+        assert result is DiscreteGraphicalTimeline
+
+    def test_string_unit_resolves_continuous_physical(self) -> None:
+        """A string unit is normalized before selecting its canonical timeline."""
+        result = Timeline.resolve_subclass("seconds")
+
+        assert result is ContinuousPhysicalTimeline
+
+    def test_unclaimed_unit_falls_back_to_base_timeline(self) -> None:
+        """An unmatched unit returns the documented base Timeline fallback."""
+        result = Timeline.resolve_subclass(cast(TimeUnit, object()))
+
+        assert result is Timeline
 
 
 # endregion

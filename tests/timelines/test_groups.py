@@ -6,7 +6,7 @@ import pytest
 
 from timetoalign.core import Coordinate, IdCoordinate
 from timetoalign.core.enums import NumberType, TimeUnit
-from timetoalign.core.timestamp import Stamp
+from timetoalign.core.timestamp import Stamp, TimeStamp
 from timetoalign.maps import TableMap
 from timetoalign.storage.events import EventData
 from timetoalign.timelines import (
@@ -35,6 +35,58 @@ def audio_timeline() -> ContinuousPhysicalTimeline:
 def score_timeline() -> ContinuousPhysicalTimeline:
     """Create a score timeline (100 units, e.g., beats)."""
     return ContinuousPhysicalTimeline(length=100.0, unit="seconds", uid="score")
+
+
+# endregion
+
+
+# region Event ID Timestamp Lookup Tests
+
+
+class TestEventIdTimestampLookup:
+    """Event IDs resolve through group timestamp coordinates."""
+
+    @staticmethod
+    def _group() -> TimelineGroup:
+        """Create two linearly aligned timelines with two source events."""
+        audio = ContinuousPhysicalTimeline(length=10.0, unit="seconds", uid="audio")
+        audio.add_events(
+            [
+                {"id": "event:one", "event_type": "Marker", "instant": 2.0},
+                {"id": "event:two", "event_type": "Marker", "instant": 6.0},
+            ]
+        )
+        score = ContinuousPhysicalTimeline(length=20.0, unit="seconds", uid="score")
+        return TimelineGroup(id="paired", timelines=[audio, score])
+
+    def test_get_timestamp_of_returns_source_coordinate_fields(self) -> None:
+        """The event coordinate identifies its source and mapped member coordinates."""
+        timestamp = self._group().get_timestamp_of("event:one")
+
+        assert type(timestamp) is TimeStamp
+        assert timestamp.axis == 2.0
+        assert timestamp.source_id == "audio"
+        assert timestamp.present_timelines == ["audio", "audio", "score"]
+        assert timestamp.to_dict(include_children=True, conversion_units=None) == {
+            "audio": 2.0,
+            "score": 4.0,
+        }
+
+    def test_get_timestamp_of_missing_event_raises_key_error(self) -> None:
+        """Absent IDs retain the lookup API's KeyError contract."""
+        with pytest.raises(KeyError):
+            self._group().get_timestamp_of("missing")
+
+    def test_get_timestamps_of_preserves_requested_order(self) -> None:
+        """Bulk lookup creates one row per requested ID in the original order."""
+        timestamps = self._group().get_timestamps_of(["event:two", "event:one"])
+
+        assert len(timestamps) == 2
+        assert list(timestamps.index) == ["event:two", "event:one"]
+        assert timestamps.to_dict(orient="list") == {
+            "audio": [6.0, 2.0],
+            "score": [12.0, 4.0],
+        }
 
 
 # endregion
