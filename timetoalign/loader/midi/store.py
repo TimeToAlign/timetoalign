@@ -142,16 +142,14 @@ class MidiStore(EventStore):
         self.metadata.update(other.metadata)
 
     def summary(self) -> dict[str, Any]:
-        """Get summary of all data.
+        """Extend the store summary with MIDI-level facts.
 
         Returns:
-            Dict with counts and metadata.
+            Summary with table information and MIDI metadata facts.
         """
-        return {
-            "notes_count": len(self.notes),
-            "controls_count": len(self.controls),
-            **self.metadata,
-        }
+        result = super().summary()
+        result["facts"].update(self.metadata)
+        return result
 
     def get_cmaps(self) -> dict[str, ConversionMap]:
         """Get ConversionMaps derivable from MIDI store metadata.

@@ -153,6 +153,8 @@ class ConversionMapsMixin:
 
         # Return array for array input, Coordinate for scalar input
         if isinstance(values, np.ndarray):
+            if target.is_discrete:
+                return np.vectorize(round, otypes=[int])(converted_value)
             return converted_value
         return Coordinate(converted_value, target)
 

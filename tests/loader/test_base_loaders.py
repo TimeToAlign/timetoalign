@@ -345,9 +345,22 @@ class TestAlignmentStore:
         store = AlignmentStore.empty()
         summary = store.summary()
 
-        assert "event_count" in summary
-        assert "match_count" in summary
-        assert "cmap_count" in summary
+        assert summary == {
+            "tables": {
+                "events": {
+                    "unit": "seconds",
+                    "count": 0,
+                    "range": (0.0, 0.0),
+                }
+            },
+            "facts": {
+                "event_count": 0,
+                "match_count": 0,
+                "cmap_count": 0,
+                "domains": ["physical"],
+                "store_names": ["events"],
+            },
+        }
 
 
 # endregion

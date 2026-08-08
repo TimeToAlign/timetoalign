@@ -424,7 +424,7 @@ Pitch scalars — `repr()` then `str()`:
 | `GenericPitchClass` | `(0)` | `GPC(C)` | `C` |
 | `GenericPitch` | `(0, 4)` | `GP(C4)` | `C4` |
 | `SpecificPitchClass` | `(step="C", alter=1)` | `SPC(C♯)` | `C♯` |
-| `EnharmonicPitch` | `(56)` (black) | `EP(G♯/A♭3)` | `A♭3` |
+| `EnharmonicPitch` | `(56)` (black) | `EP(G♯/A♭3)` | `G♯/A♭3` |
 | `EnharmonicPitch` | `(60)` (white) | `EP(C4)` | `C4` |
 | `MidiPitch` | `(60)` | `MP(60)` | `60` |
 | `SpecificPitch` | `(step="C", alter=1, octave=4)` | `SP(C♯4)` | `C♯4` |
@@ -466,7 +466,7 @@ Note / Measure — `str()` is a pretty one-liner; `repr()` unchanged:
 
 | Scalar | `str()` |
 |--------|---------|
-| `Note(start=0q, duration=1q, pitch=EnharmonicPitch(61))` | `C♯4 @0 quarters+1 quarters` |
+| `Note(start=0q, duration=1q, pitch=EnharmonicPitch(61))` | `C♯/D♭4 @0 quarters+1 quarters` |
 | `Note(start=0q, duration=1q, pitch=None)` (rest) | `rest @0 quarters+1 quarters` |
 | `Measure(mn="16", …)` | `16` |
 

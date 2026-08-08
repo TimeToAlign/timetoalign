@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -101,7 +102,7 @@ DISCRETE_UNITS = frozenset(
 )
 
 
-def _format_coordinate_value(value: float, unit_str: str = "") -> str:
+def _format_coordinate_value(value: int | float, unit_str: str = "") -> str:
     """Format a coordinate value, avoiding scientific notation.
 
     Rules:
@@ -153,8 +154,11 @@ def _format_stamp_value(value: Any, unit_str: str = "") -> str:
     """
     if isinstance(value, bool):
         return str(value)
+    if isinstance(value, Fraction):
+        suffix = f" {unit_str}" if unit_str else ""
+        return f"{value}{suffix}"
     if isinstance(value, (int, float)):
-        return _format_coordinate_value(float(value), unit_str)
+        return _format_coordinate_value(value, unit_str)
     return str(value)
 
 
@@ -309,7 +313,7 @@ class Stamp(ABC):
         ...
 
     @abstractmethod
-    def get_unit(self, unit: TimeUnit) -> float | None:
+    def get_unit(self, unit: TimeUnit) -> int | float | Fraction | None:
         """Get a coordinate converted to a unit."""
         ...
 
@@ -484,7 +488,8 @@ class TimeStamp(Stamp):
         axis: The root/reference coordinate value.
         source: The Timeline or TimelineGroup this timestamp belongs to.
         source_id: ID of the source (for serialization).
-        row_index: If from a table row, the index. -1 if interpolated.
+        row_index: If from a table row, the index. ``-1`` if interpolated and
+            ``None`` for a direct query on the source axis.
 
     Examples:
         >>> ts = timeline.get_timestamp(5.0)
@@ -503,7 +508,7 @@ class TimeStamp(Stamp):
     axis: float
     source: TimeStampSource
     source_id: str
-    row_index: int = field(default=-1)
+    row_index: int | None = field(default=None)
     conversion_maps: ConversionMapsSpec = field(default=True)
 
     def get(self, timeline_id: str, default: float | None = None) -> float | None:
@@ -563,7 +568,7 @@ class TimeStamp(Stamp):
 
         return result
 
-    def get_unit(self, unit: "TimeUnit") -> float | None:
+    def get_unit(self, unit: "TimeUnit") -> int | float | Fraction | None:
         """Get coordinate converted to a specific unit.
 
         Works with any map registered by ``add_conversion_map``, called
@@ -584,6 +589,8 @@ class TimeStamp(Stamp):
         if not self._unit_resolution_enabled(unit):
             return None
 
+        from ..core.time import Coordinate
+
         for timeline_id in self._surfaceable_ids():
             umap = self.source._get_unit_map_for_timeline(timeline_id, unit)
             if umap is None:
@@ -591,7 +598,7 @@ class TimeStamp(Stamp):
             value = self._coordinate_on(timeline_id)
             if value is None:
                 continue
-            return float(umap(value))
+            return Coordinate(umap(value), unit).value
         return None
 
     def _surfaceable_ids(self) -> list[str]:
@@ -658,6 +665,9 @@ class TimeStamp(Stamp):
                     # domain): that map is simply omitted from the row set.
                     continue
                 if cmap.target_unit is not None:
+                    from ..core.time import Coordinate
+
+                    value = Coordinate(value, cmap.target_unit).value
                     label = cmap.target_unit.value
                     suffix = cmap.target_unit.value
                 else:
@@ -694,43 +704,72 @@ class TimeStamp(Stamp):
                 if not matches and cmap.target_unit is not None:
                     matches = cmap.target_unit.value == key
                 if matches:
-                    return cmap(coord)
+                    value = cmap(coord)
+                    if cmap.target_unit is not None:
+                        from ..core.time import Coordinate
+
+                        value = Coordinate(value, cmap.target_unit).value
+                    return value
         return None
 
     def to_dict(
         self,
         include_children: bool = True,
         conversion_units: list["TimeUnit"] | Literal["all"] | None = None,
+        format: Literal["flat", "prefix", "nested", "graph"] = "flat",
     ) -> dict[str, Any]:
-        """Materialize all coordinates as a dictionary.
+        """Materialize all coordinates in a flat or structured dictionary.
 
         Args:
             include_children: Include child/member timeline coordinates.
             conversion_units: C-Map conversions to include.
-                - None: No C-Map conversions
+                - None: Every C-Map enabled on this stamp
                 - "all": Every C-Map across the subtree, of every kind
                   (unit conversions, labels, structured values)
                 - list: Specific units only
+            format: Output representation. ``"flat"`` retains the legacy
+                one-level mapping, ``"prefix"`` prefixes keys with the source
+                container ID, ``"nested"`` groups them under that ID, and
+                ``"graph"`` separates timeline coordinates from conversions.
 
         Returns:
             Dict mapping timeline_id/unit_name/cmap-label to value.
         """
-        result: dict[str, Any] = {self.source_id: self.axis}
+        coordinates: dict[str, Any] = {self.source_id: self.axis}
 
         # Add child/member coordinates
         if include_children:
             for tid in self.source._get_related_timeline_ids():
-                result[tid] = self.get(tid)
+                coordinates[tid] = self.get(tid)
 
-        # Add C-Map conversions
-        if conversion_units == "all":
+        conversions: dict[str, Any] = {}
+        if conversion_units is None or conversion_units == "all":
             for label, value, _suffix in self._conversion_rows():
-                result[label] = value
+                conversions[label] = value
         elif conversion_units:
             for unit in conversion_units:
-                result[unit.name] = self.get_unit(unit)
+                value = self.get_unit(unit)
+                if value is not None:
+                    conversions[unit.value] = value
 
-        return result
+        if format == "graph":
+            return {"coordinates": coordinates, "conversions": conversions}
+
+        if format not in ("flat", "prefix", "nested"):
+            raise ValueError(
+                f"Unknown format: {format!r}. Use 'flat', 'prefix', "
+                "'nested', or 'graph'"
+            )
+
+        result = {**coordinates, **conversions}
+        if format == "flat":
+            return result
+
+        container_id = getattr(self.source, "id", self.source_id)
+        if format == "nested":
+            return {container_id: result}
+
+        return {f"{container_id}/{key}": value for key, value in result.items()}
 
     def _unit_for(self, timeline_id: str) -> "TimeUnit | None":
         """Get the unit associated with a timeline ID."""
@@ -799,7 +838,13 @@ class TimeStamp(Stamp):
 
     def __repr__(self) -> str:
         interp = " (interpolated)" if self.is_interpolated else ""
-        return f"TimeStamp(axis={self.axis}, source={self.source_id!r}{interp})"
+        conversions = "".join(
+            f", {label}={value!r}" for label, value, _suffix in self._conversion_rows()
+        )
+        return (
+            f"TimeStamp(axis={self.axis}, source={self.source_id!r}"
+            f"{conversions}{interp})"
+        )
 
     def __str__(self) -> str:
         """Readable cross-section showing all reachable coordinates and units.

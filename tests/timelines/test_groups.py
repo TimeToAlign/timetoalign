@@ -585,7 +585,7 @@ class TestGetTimestampAt:
             units=False,
         )
 
-        assert result["audio"].tolist() == [75.0, 75.0]
+        assert result["audio"].tolist() == [75.0, 75.01538461538462]
         assert result["dgt1"].tolist() == [2438, 2438]
 
     def test_get_timestamps_at_requires_id_for_plain_values(

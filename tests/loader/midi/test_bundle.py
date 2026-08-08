@@ -295,8 +295,8 @@ class TestMidiStoreSummary:
         summary = store.summary()
 
         # Exact counts
-        assert summary["notes_count"] == 2
-        assert summary["controls_count"] == 1
+        assert summary["tables"]["notes"]["count"] == 2
+        assert summary["tables"]["controls"]["count"] == 1
 
 
 class TestMidiStoreToTimeline:

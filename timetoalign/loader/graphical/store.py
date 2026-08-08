@@ -7,9 +7,12 @@ cohesive unit for graphical timeline processing and visualization.
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from timetoalign.storage.store import EventStore
 
 from .segment import GraphicalSegment
 from .source import ImageSource
@@ -21,7 +24,7 @@ module_logger = logging.getLogger(__name__)
 
 
 @dataclass
-class GraphicalStore:
+class GraphicalStore(EventStore):
     """Store for graphical timeline data.
 
     Combines:
@@ -60,6 +63,38 @@ class GraphicalStore:
         # Sort segments by timeline offset
         self.segments = sorted(self.segments, key=lambda s: s.timeline_offset)
 
+    def __iter__(self) -> Iterator[Any]:
+        """Iterate over the optional graphical event table."""
+        if self.events is not None:
+            yield self.events
+
+    def __len__(self) -> int:
+        """Return the number of graphical event tables."""
+        return int(self.events is not None)
+
+    def __getitem__(self, name: str) -> Any:
+        """Get the optional graphical event table.
+
+        Args:
+            name: The event table name, which must be ``"events"``.
+
+        Returns:
+            The graphical event table.
+
+        Raises:
+            KeyError: If the store has no event table or the name is invalid.
+        """
+        if name == "events" and self.events is not None:
+            return self.events
+        raise KeyError(f"Unknown data: {name!r}. Valid: {self.keys()}")
+
+    def __repr__(self) -> str:
+        return (
+            f"GraphicalStore(sources={len(self.sources)}, "
+            f"segments={len(self.segments)}, "
+            f"length={self.total_length:.1f})"
+        )
+
     @property
     def n_sources(self) -> int:
         """Number of image sources."""
@@ -76,6 +111,15 @@ class GraphicalStore:
         if not self.segments:
             return 0.0
         return max(s.timeline_end for s in self.segments)
+
+    def items(self) -> Iterator[tuple[str, Any]]:
+        """Iterate over the optional graphical event table."""
+        if self.events is not None:
+            yield ("events", self.events)
+
+    def keys(self) -> tuple[str, ...]:
+        """Return the optional graphical event table name."""
+        return ("events",) if self.events is not None else ()
 
     # --- Coordinate Conversion ---
 
@@ -354,67 +398,30 @@ class GraphicalStore:
         }
 
     def summary(self) -> dict[str, Any]:
-        """Get a summary of the store contents.
-
-        Returns a dictionary with graphical store statistics:
-        - n_sources: Number of image sources
-        - n_segments: Number of path segments
-        - total_length: Total timeline length in pixels
-        - metadata: Store metadata
+        """Extend the store summary with graphical-level facts.
 
         Returns:
-            Dict with summary information.
+            Summary with table information and graphical-level facts.
 
         Examples:
             >>> store = GraphicalStore(sources=[src], segments=[seg])
             >>> store.summary()
-            {"n_sources": 1, "n_segments": 1, "total_length": 500.0, ...}
+            {
+                "tables": {},
+                "facts": {
+                    "n_sources": 1,
+                    "n_segments": 1,
+                    "total_length": 500.0,
+                },
+            }
         """
-        return {
-            "n_sources": len(self.sources),
-            "n_segments": len(self.segments),
-            "total_length": self.total_length,
-            **self.metadata,
-        }
-
-    def _repr_html_(self) -> str:
-        """Return an HTML representation for Jupyter display.
-
-        Renders the store as an HTML summary showing sources, segments,
-        and total timeline length.
-
-        Returns:
-            HTML string for display in Jupyter notebooks.
-        """
-        rows = []
-
-        # Sources info
-        for i, src in enumerate(self.sources):
-            dims = f"{src.width}×{src.height}" if hasattr(src, "width") else "unknown"
-            rows.append(f"<tr><td>Source {i}</td><td>{dims}</td><td>—</td></tr>")
-
-        # Segments info
-        for i, seg in enumerate(self.segments):
-            offset = seg.timeline_offset
-            end = seg.timeline_end
-            rows.append(
-                f"<tr><td>Segment {i}</td>"
-                f"<td>{offset:.1f} – {end:.1f}</td>"
-                f"<td>{seg.length:.1f} px</td></tr>"
-            )
-
-        header = "<tr><th>Item</th><th>Position / Size</th><th>Length</th></tr>"
-        table_html = f"<table>{header}{''.join(rows)}</table>"
-
-        return (
-            f"<div><strong>GraphicalStore</strong> "
-            f"({len(self.sources)} sources, {len(self.segments)} segments, "
-            f"{self.total_length:.1f} px total){table_html}</div>"
+        result = super().summary()
+        result["facts"].update(
+            {
+                "n_sources": len(self.sources),
+                "n_segments": len(self.segments),
+                "total_length": self.total_length,
+                **self.metadata,
+            }
         )
-
-    def __repr__(self) -> str:
-        return (
-            f"GraphicalStore(sources={len(self.sources)}, "
-            f"segments={len(self.segments)}, "
-            f"length={self.total_length:.1f})"
-        )
+        return result

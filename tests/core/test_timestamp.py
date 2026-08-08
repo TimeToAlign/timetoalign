@@ -23,9 +23,7 @@ class TestTimeStampBasics:
 
         assert ts.axis == 50.0
         assert ts.source_id == tl.id
-        # Note: is_interpolated is True by default (row_index=-1)
-        # Only False if created from a table with exact row match
-        assert ts.is_interpolated
+        assert ts.is_interpolated is False
 
     def test_get_timestamp_from_coordinate(self):
         """Get timestamp from a Coordinate object."""

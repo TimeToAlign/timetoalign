@@ -958,6 +958,9 @@ class EnharmonicPitch(TwelveTETPitchMixin, BaseModel):
     def __hash__(self) -> int:
         return hash((type(self).__name__, self.midi_number))
 
+    def __str__(self) -> str:
+        return f"{_PC_TO_LABEL[self.pitch_class]}{self.octave}"
+
     def __repr__(self) -> str:
         return f"EP({_PC_TO_LABEL[self.pitch_class]}{self.octave})"
 
@@ -1058,6 +1061,9 @@ class MidiPitch(EnharmonicPitch):
         if format is None or format == "midi":
             return str(self.midi_number)
         return super().get(format=format)
+
+    def __str__(self) -> str:
+        return str(self.midi_number)
 
     def __repr__(self) -> str:
         return f"MP({self.midi_number})"

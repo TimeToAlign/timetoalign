@@ -23,6 +23,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
+from html import escape
 from typing import TYPE_CHECKING, Any
 
 import pyarrow as pa
@@ -164,23 +165,40 @@ class EventStore(ABC):
     def summary(self) -> dict[str, Any]:
         """Get a summary of the store contents.
 
-        Returns a dictionary mapping table/data names to summary information:
-        - unit: The time unit of the data
-        - range: Tuple of (min_coord, max_coord) for events
-        - count: Number of events in the table
+        The summary contract separates per-table data from store-level facts::
 
-        Subclasses may override to provide additional domain-specific
-        information (e.g., event type breakdown, has_rests for ScoreStore).
+            {
+                "tables": {
+                    table_name: {
+                        "unit": str,
+                        "count": int,
+                        "range": (float, float),
+                    }
+                },
+                "facts": {fact_name: fact_value},
+            }
+
+        Subclasses may extend ``facts`` with domain-specific information, but
+        must preserve this two-key structure and the exact table entry shape.
 
         Returns:
-            Dict mapping table names to summary dicts.
+            A dictionary containing ``tables`` and ``facts`` mappings.
 
         Examples:
             >>> store = SomeStore(...)
             >>> store.summary()
-            {"notes": {"unit": "quarters", "range": (0.0, 120.5), "count": 498}}
+            {
+                "tables": {
+                    "notes": {
+                        "unit": "quarters",
+                        "count": 498,
+                        "range": (0.0, 120.5),
+                    }
+                },
+                "facts": {},
+            }
         """
-        result: dict[str, Any] = {}
+        tables: dict[str, dict[str, Any]] = {}
 
         for name, data in self.items():
             info: dict[str, Any] = {
@@ -229,9 +247,9 @@ class EventStore(ABC):
             else:
                 info["range"] = (0.0, 0.0)
 
-            result[name] = info
+            tables[name] = info
 
-        return result
+        return {"tables": tables, "facts": {}}
 
     def _repr_html_(self) -> str:
         """Return an HTML representation for Jupyter display.
@@ -245,21 +263,33 @@ class EventStore(ABC):
         summary = self.summary()
 
         rows = []
-        for name, info in summary.items():
-            unit = info.get("unit", "unknown")
-            count = info.get("count", 0)
-            coord_range = info.get("range", (0.0, 0.0))
+        for name, info in summary["tables"].items():
+            unit = info["unit"]
+            count = info["count"]
+            coord_range = info["range"]
             range_str = f"{coord_range[0]:.2f} – {coord_range[1]:.2f}"
             rows.append(
-                f"<tr><td><strong>{name}</strong></td>"
-                f"<td>{unit}</td><td>{range_str}</td><td>{count}</td></tr>"
+                f"<tr><td><strong>{escape(name)}</strong></td>"
+                f"<td>{escape(unit)}</td><td>{range_str}</td><td>{count}</td></tr>"
             )
 
-        class_name = self.__class__.__name__
+        fact_rows = [
+            f"<tr><td><strong>{escape(name)}</strong></td><td>{escape(str(value))}</td></tr>"
+            for name, value in summary["facts"].items()
+        ]
+
+        class_name = escape(self.__class__.__name__)
         header = "<tr><th>Table</th><th>Unit</th><th>Range</th><th>Events</th></tr>"
         table_html = f"<table>{header}{''.join(rows)}</table>"
+        facts_html = ""
+        if fact_rows:
+            facts_header = "<tr><th>Fact</th><th>Value</th></tr>"
+            facts_html = f"<table>{facts_header}{''.join(fact_rows)}</table>"
 
-        return f"<div><strong>{class_name}</strong> ({self.event_count} events total){table_html}</div>"
+        return (
+            f"<div><strong>{class_name}</strong> "
+            f"({self.event_count} events total){table_html}{facts_html}</div>"
+        )
 
     # endregion
 
@@ -669,7 +699,7 @@ class MatchData:
 
 
 @dataclass
-class AlignmentStore:
+class AlignmentStore(EventStore):
     """Container for aligned multimodal data.
 
     AlignmentStore bundles:
@@ -721,6 +751,32 @@ class AlignmentStore:
             cmaps=[],
             matches=MatchData.empty(),
             metadata={},
+        )
+
+    def __iter__(self) -> Iterator[EventData]:
+        """Iterate over the aligned event tables."""
+        yield from self.events
+
+    def __len__(self) -> int:
+        """Return the number of aligned event tables."""
+        return len(self.events)
+
+    def __getitem__(self, name: str) -> EventData:
+        """Get an aligned event table by name.
+
+        Args:
+            name: The event table name.
+
+        Returns:
+            The named event table.
+        """
+        return self.events[name]
+
+    def __repr__(self) -> str:
+        return (
+            f"AlignmentStore(events={self.event_count}, "
+            f"matches={self.match_count}, "
+            f"cmaps={self.cmap_count})"
         )
 
     @property
@@ -831,25 +887,28 @@ class AlignmentStore:
         """Get a summary of the alignment store.
 
         Returns:
-            Dict with event counts, match counts, domains, etc.
+            Summary with table information and alignment-level facts.
         """
-        return {
-            "event_count": self.event_count,
-            "match_count": self.match_count,
-            "cmap_count": self.cmap_count,
-            "domains": [d.name for d in self.domains],
-            "store_names": (
-                list(self.events.keys()) if hasattr(self.events, "keys") else []
-            ),
-            **self.metadata,
-        }
-
-    def __repr__(self) -> str:
-        return (
-            f"AlignmentStore(events={self.event_count}, "
-            f"matches={self.match_count}, "
-            f"cmaps={self.cmap_count})"
+        result = super().summary()
+        result["facts"].update(
+            {
+                "event_count": self.event_count,
+                "match_count": self.match_count,
+                "cmap_count": self.cmap_count,
+                "domains": sorted(domain.name for domain in self.domains),
+                "store_names": list(self.events.keys()),
+                **self.metadata,
+            }
         )
+        return result
+
+    def items(self) -> Iterator[tuple[str, EventData]]:
+        """Iterate over aligned event table names and data."""
+        yield from self.events.items()
+
+    def keys(self) -> tuple[str, ...]:
+        """Return aligned event table names in canonical order."""
+        return self.events.keys()
 
 
 # endregion

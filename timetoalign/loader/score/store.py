@@ -185,17 +185,17 @@ class ScoreStore(EventStore):
     # endregion
 
     def summary(self) -> dict[str, Any]:
-        """Get summary of all stores."""
-        return {
-            "notes_count": len(self.notes),
-            "measures_count": len(self.measures),
-            "controls_count": len(self.controls),
-            "annotations_count": len(self.annotations),
-            "has_rests": (
-                self.notes.has_rests if hasattr(self.notes, "has_rests") else None
-            ),
-            **self.metadata,
-        }
+        """Extend the store summary with score-level facts."""
+        result = super().summary()
+        result["facts"].update(
+            {
+                "has_rests": (
+                    self.notes.has_rests if hasattr(self.notes, "has_rests") else None
+                ),
+                **self.metadata,
+            }
+        )
+        return result
 
     def create_timeline(
         self,

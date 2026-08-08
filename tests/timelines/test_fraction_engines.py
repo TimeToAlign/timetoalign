@@ -169,5 +169,5 @@ def test_fraction_timestamp_coordinate_uses_stored_pair() -> None:
     assert coordinate.value == Fraction(2, 3)
     assert isinstance(coordinate.value, Fraction)
 
-    interpolated = timeline.get_timestamp(0.5)
-    assert interpolated.is_interpolated is True
+    direct_query = timeline.get_timestamp(0.5)
+    assert direct_query.is_interpolated is False

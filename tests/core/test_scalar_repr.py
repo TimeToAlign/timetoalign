@@ -9,6 +9,7 @@ canonical ♯ (U+266F) / ♭ (U+266D) characters.
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 from timetoalign.core.enums import TimeUnit
@@ -46,7 +47,7 @@ class TestPitchScalarRepr:
             (GenericPitchClass(0), "GPC(C)", "C"),
             (GenericPitch(0, 4), "GP(C4)", "C4"),
             (SpecificPitchClass(step="C", alter=1), "SPC(C♯)", "C♯"),
-            (EnharmonicPitch(56), "EP(G♯/A♭3)", "A♭3"),
+            (EnharmonicPitch(56), "EP(G♯/A♭3)", "G♯/A♭3"),
             (EnharmonicPitch(60), "EP(C4)", "C4"),
             (MidiPitch(60), "MP(60)", "60"),
             (SpecificPitch(step="C", alter=1, octave=4), "SP(C♯4)", "C♯4"),
@@ -61,6 +62,49 @@ class TestPitchScalarRepr:
         # integer; its __str__ override mirrors the repr's inner label.
         assert str(EnharmonicPitchClass(0)) == "C"
         assert str(EnharmonicPitchClass(1)) == "C♯/D♭"
+
+
+def test_enharmonic_pitch_string_preserves_ambiguity() -> None:
+    assert str(EnharmonicPitch(61)) == "C♯/D♭4"
+    assert str(EnharmonicPitch(60)) == "C4"
+
+
+def test_enharmonic_and_specific_pitch_strings_are_distinguishable() -> None:
+    enharmonic = EnharmonicPitch(61)
+    specific = SpecificPitch.from_string("C♯4")
+
+    assert str(enharmonic) == "C♯/D♭4"
+    assert str(specific) == "C♯4"
+    assert str(enharmonic) != str(specific)
+
+
+def test_dataframe_distinguishes_enharmonic_and_specific_pitch() -> None:
+    frame = pd.DataFrame(
+        {
+            "ep": [EnharmonicPitch(61)],
+            "sp": [SpecificPitch.from_string("C♯4")],
+        }
+    )
+
+    assert frame.to_string(index=False) == "    ep  sp\nC♯/D♭4 C♯4"
+
+
+@pytest.mark.parametrize(
+    ("scalar", "expected_str", "expected_repr"),
+    [
+        (EnharmonicPitchClass(1), "C♯/D♭", "EPC(C♯/D♭)"),
+        (EnharmonicPitch(61), "C♯/D♭4", "EP(C♯/D♭4)"),
+        (MidiPitch(61), "61", "MP(61)"),
+    ],
+)
+def test_enharmonic_scalar_strings_match_repr_pretty_tokens(
+    scalar: EnharmonicPitchClass | EnharmonicPitch,
+    expected_str: str,
+    expected_repr: str,
+) -> None:
+    assert str(scalar) == expected_str
+    assert repr(scalar) == expected_repr
+    assert str(scalar) == repr(scalar).partition("(")[2][:-1]
 
 
 class TestShallowScalarRepr:
@@ -136,7 +180,7 @@ class TestNoteAndMeasureStr:
             duration=Duration(1.0, TimeUnit.quarters),
             pitch=EnharmonicPitch(61),
         )
-        assert str(n) == "C♯4 @0 quarters+1 quarters"
+        assert str(n) == "C♯/D♭4 @0 quarters+1 quarters"
 
     def test_rest(self):
         rest = Note(

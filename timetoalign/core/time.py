@@ -66,7 +66,7 @@ from typing import Any, ClassVar, NamedTuple, Union
 
 import pyarrow as pa
 import pyarrow.compute as pc
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from .enums import Domain, NumberType, TimeUnit
 from .fields import (
@@ -419,6 +419,13 @@ class Coordinate(TimeScalar):
                 )
             data = {"value": value, "unit": unit, **data}
         super().__init__(**data)
+
+    @model_validator(mode="after")
+    def _normalize_discrete_value(self) -> Coordinate:
+        """Store coordinates in inherently discrete units as integers."""
+        if self.unit.is_discrete and not isinstance(self.value, int):
+            object.__setattr__(self, "value", round(self.value))
+        return self
 
     def __index__(self) -> int:
         if isinstance(self.value, int) and not isinstance(self.value, bool):
