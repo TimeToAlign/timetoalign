@@ -70,7 +70,7 @@ The bundle translates between these two namespaces transparently.
 ```python
 >>> bundle = AlignmentBundle()
 >>> bundle.add_timeline(score_timeline, uid="score")
->>> bundle.add_timeline(audio_timeline, uid="audio", aligned_to="score")
+>>> bundle.add_timeline(audio_timeline, uid="audio", grouped_with="score")
 >>> stamp = bundle.get_matchstamp_at(100.0, "score")
 >>> stamp.get("audio")
 45.5
@@ -83,7 +83,7 @@ The bundle translates between these two namespaces transparently.
 | [add_group](#timetoalign.alignment.AlignmentBundle.add_group) | Add a pre-built TimelineGroup with all its timelines at once. |
 | [add_match_claim_field](#timetoalign.alignment.AlignmentBundle.add_match_claim_field) | Add a columnar ``MatchClaimField`` of cross-group claims. |
 | [add_match_claims](#timetoalign.alignment.AlignmentBundle.add_match_claims) | Add MatchClaims connecting timelines across different groups. |
-| [add_timeline](#timetoalign.alignment.AlignmentBundle.add_timeline) | Add a timeline, optionally aligned to an existing timeline. |
+| [add_timeline](#timetoalign.alignment.AlignmentBundle.add_timeline) | Add a timeline, optionally grouped with an existing timeline. |
 | [are_commensurable](#timetoalign.alignment.AlignmentBundle.are_commensurable) | Check if two timelines can be connected via transfer. |
 | [create_match_claims](#timetoalign.alignment.AlignmentBundle.create_match_claims) | Create MatchClaims from a list of event pairs. |
 | [diagram](#timetoalign.alignment.AlignmentBundle.diagram) | Generate ASCII diagram for this bundle. |
@@ -210,17 +210,17 @@ alignment.AlignmentBundle.add_timeline(
     timeline,
     *,
     uid=None,
-    aligned_to=None,
+    grouped_with=None,
     as_group=None,
     start=None,
     end=None,
 )
 ```
 
-Add a timeline, optionally aligned to an existing timeline.
+Add a timeline, optionally grouped with an existing timeline.
 
 This is the primary method for adding timelines to the bundle.
-Timelines can be standalone or aligned to existing timelines.
+Timelines can be standalone or grouped with existing timelines. Group membership makes timelines commensurable through interpolation; it does not by itself assert any MatchClaim between them.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
@@ -228,9 +228,9 @@ Timelines can be standalone or aligned to existing timelines.
 |------------|-------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
 | timeline   | \'Timeline\'                                                | The Timeline to add.                                                                                                                                                                                                                                                                         | _required_ |
 | uid        | [str](`str`) \| None                                        | Optional explicit ID. If None, uses timeline.id.                                                                                                                                                                                                                                             | `None`     |
-| aligned_to | [str](`str`) \| None                                        | ID of existing timeline to align with. If provided, both timelines become part of the same group. If the target timeline is not yet in a group, a new group is created with the target as reference.                                                                                         | `None`     |
+| grouped_with | [str](`str`) \| None                                        | ID of an existing timeline to share a group with. If provided, both timelines become part of the same group. If the target timeline is not yet in a group, a new group is created with the target as reference.                                                                                         | `None`     |
 | as_group   | [str](`str`) \| None                                        | Name for the group if creating a new one.                                                                                                                                                                                                                                                    | `None`     |
-| start      | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Where this timeline's 0-origin starts in the group. - CoordinateSpec: Coordinate in the aligned_to timeline - IdCoordinate: Coordinate with explicit timeline_id (preferred) - float: Coordinate in the aligned_to timeline - None: Use group's current start (default for linear alignment) | `None`     |
+| start      | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Where this timeline's 0-origin starts in the group. - CoordinateSpec: Coordinate in the grouped_with timeline - IdCoordinate: Coordinate with explicit timeline_id (preferred) - float: Coordinate in the grouped_with timeline - None: Use group's current start (default for linear alignment) | `None`     |
 | end        | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Where this timeline's end (length) aligns in the group. - Same options as start - None: Use group's current end (default for linear alignment)                                                                                                                                               | `None`     |
 
 #### Returns {.doc-section .doc-section-returns}
@@ -244,14 +244,14 @@ Timelines can be standalone or aligned to existing timelines.
 | Name   | Type                       | Description                                       |
 |--------|----------------------------|---------------------------------------------------|
 |        | [ValueError](`ValueError`) | If uid already exists in bundle.                  |
-|        | [KeyError](`KeyError`)     | If aligned_to references a non-existent timeline. |
+|        | [KeyError](`KeyError`)     | If grouped_with references a non-existent timeline. |
 
 #### Examples {.doc-section .doc-section-examples}
 
 Linear (full-extent) alignment:
 
     >>> bundle.add_timeline(audio, uid="dgt1")
-    >>> bundle.add_timeline(midi, uid="dlt1", aligned_to="dgt1")
+    >>> bundle.add_timeline(midi, uid="dlt1", grouped_with="dgt1")
 
 Partial alignment (SUPRA piano roll) using IdCoordinate:
 
@@ -260,7 +260,7 @@ Partial alignment (SUPRA piano roll) using IdCoordinate:
     >>> bundle.add_timeline(
     ...     holes,
     ...     uid="dgt1_holes",
-    ...     aligned_to="dgt1",
+    ...     grouped_with="dgt1",
     ...     start=IdCoordinate(15343.0, TimeUnit.pixels, "dgt1"),
     ...     end=IdCoordinate(293119.0, TimeUnit.pixels, "dgt1"),
     ... )

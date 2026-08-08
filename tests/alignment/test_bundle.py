@@ -154,13 +154,13 @@ class TestTimelineManagement:
 class TestGroupManagement:
     """Tests for creating and managing timeline groups."""
 
-    def test_add_timeline_aligned_to_creates_group(
+    def test_add_timeline_grouped_with_creates_group(
         self, simple_timeline: Timeline, second_timeline: Timeline
     ) -> None:
-        """Adding timeline with aligned_to creates a group."""
+        """Adding timeline with grouped_with creates a group."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1")
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")
+        bundle.add_timeline(second_timeline, uid="tl2", grouped_with="tl1")
 
         assert bundle.n_groups == 1
         assert bundle.n_timelines == 2
@@ -168,10 +168,10 @@ class TestGroupManagement:
     def test_group_contains_both_timelines(
         self, simple_timeline: Timeline, second_timeline: Timeline
     ) -> None:
-        """Group contains both source and aligned timeline."""
+        """Group contains both source and grouped timeline."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1")
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")
+        bundle.add_timeline(second_timeline, uid="tl2", grouped_with="tl1")
 
         group = bundle.default_group
         assert group is not None
@@ -185,7 +185,7 @@ class TestGroupManagement:
         """Group reference is the first timeline added."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1")
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")
+        bundle.add_timeline(second_timeline, uid="tl2", grouped_with="tl1")
 
         group = bundle.default_group
         assert group is not None
@@ -199,7 +199,7 @@ class TestGroupManagement:
         bundle = AlignmentBundle()
 
         with pytest.raises(KeyError, match="not in bundle"):
-            bundle.add_timeline(simple_timeline, uid="tl1", aligned_to="nonexistent")
+            bundle.add_timeline(simple_timeline, uid="tl1", grouped_with="nonexistent")
 
     def test_add_timeline_as_group(self, simple_timeline: Timeline) -> None:
         """Can create timeline as reference of a named group."""
@@ -217,7 +217,7 @@ class TestGroupManagement:
         """Can get the group containing a timeline."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1", as_group="grp1")
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")
+        bundle.add_timeline(second_timeline, uid="tl2", grouped_with="tl1")
 
         group = bundle.get_group_for_timeline("tl2")
         assert group is not None
@@ -248,7 +248,7 @@ class TestGroupManagement:
         bundle.add_timeline(
             section,
             uid="section",
-            aligned_to="reference",
+            grouped_with="reference",
             start=Coordinate(25.0, TimeUnit.seconds),
             end=IdCoordinate(125.0, TimeUnit.seconds, "reference"),
         )
@@ -283,7 +283,7 @@ class TestGroupManagement:
             bundle.add_timeline(
                 section,
                 uid="section",
-                aligned_to="reference",
+                grouped_with="reference",
                 start=Coordinate(25.0, TimeUnit.pixels),
             )
 
@@ -313,7 +313,9 @@ class TestCoordinateTransfer:
         """Transfer within group uses linear interpolation."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1")  # length=100
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")  # length=200
+        bundle.add_timeline(
+            second_timeline, uid="tl2", grouped_with="tl1"
+        )  # length=200
 
         # 50/100 = 0.5, so in tl2: 0.5 * 200 = 100
         result = bundle.transfer(50.0, "tl1", "tl2")
@@ -329,7 +331,9 @@ class TestCoordinateTransfer:
         """Transfer works correctly at boundaries."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1")  # length=100
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")  # length=200
+        bundle.add_timeline(
+            second_timeline, uid="tl2", grouped_with="tl1"
+        )  # length=200
 
         # Start: 0 -> 0
         assert bundle.transfer(0.0, "tl1", "tl2") == 0.0
@@ -365,7 +369,9 @@ class TestCoordinateTransfer:
         """Can transfer an interval."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1")  # length=100
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")  # length=200
+        bundle.add_timeline(
+            second_timeline, uid="tl2", grouped_with="tl1"
+        )  # length=200
 
         result = bundle.transfer_interval(25.0, 75.0, "tl1", "tl2")
         assert result is not None
@@ -424,10 +430,10 @@ class TestOrderIndependence:
     def test_two_timelines_order_1(
         self, simple_timeline: Timeline, second_timeline: Timeline
     ) -> None:
-        """Adding tl1 first, then tl2 aligned to tl1."""
+        """Adding tl1 first, then tl2 grouped with tl1."""
         bundle = AlignmentBundle(id="test_bundle")
         bundle.add_timeline(simple_timeline, uid="tl1")
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")
+        bundle.add_timeline(second_timeline, uid="tl2", grouped_with="tl1")
 
         # Transfer should work
         result = bundle.transfer(50.0, "tl1", "tl2")
@@ -446,18 +452,18 @@ class TestOrderIndependence:
         tl2_1 = Timeline(length=200, uid="t2")
         tl3_1 = Timeline(length=50, uid="t3")
         b1.add_timeline(tl1_1, uid="tl1")
-        b1.add_timeline(tl2_1, uid="tl2", aligned_to="tl1")
-        b1.add_timeline(tl3_1, uid="tl3", aligned_to="tl1")
+        b1.add_timeline(tl2_1, uid="tl2", grouped_with="tl1")
+        b1.add_timeline(tl3_1, uid="tl3", grouped_with="tl1")
 
-        # Order 2: tl2, tl1, tl3 (tl2 first, then tl1 aligned to tl2)
+        # Order 2: tl2, tl1, tl3 (tl2 first, then tl1 grouped with tl2)
         # Note: This changes the reference, so let's test with same reference
         b2 = AlignmentBundle(id="b2")
         tl1_2 = Timeline(length=100, uid="t1")
         tl2_2 = Timeline(length=200, uid="t2")
         tl3_2 = Timeline(length=50, uid="t3")
         b2.add_timeline(tl1_2, uid="tl1")
-        b2.add_timeline(tl3_2, uid="tl3", aligned_to="tl1")
-        b2.add_timeline(tl2_2, uid="tl2", aligned_to="tl1")
+        b2.add_timeline(tl3_2, uid="tl3", grouped_with="tl1")
+        b2.add_timeline(tl2_2, uid="tl2", grouped_with="tl1")
 
         # Both should give same transfer results
         # tl1 -> tl2: 50/100 * 200 = 100
@@ -481,7 +487,7 @@ class TestOrderIndependence:
         """Summary output is deterministic (sorted keys)."""
         bundle = AlignmentBundle(id="test_bundle", name="Test")
         bundle.add_timeline(simple_timeline, uid="tl1")
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")
+        bundle.add_timeline(second_timeline, uid="tl2", grouped_with="tl1")
 
         summary = bundle.summary()
 
@@ -517,7 +523,7 @@ class TestCommensurability:
         """Timelines in same group are commensurable."""
         bundle = AlignmentBundle()
         bundle.add_timeline(simple_timeline, uid="tl1")
-        bundle.add_timeline(second_timeline, uid="tl2", aligned_to="tl1")
+        bundle.add_timeline(second_timeline, uid="tl2", grouped_with="tl1")
 
         assert bundle.are_commensurable("tl1", "tl2") is True
 
@@ -552,8 +558,8 @@ class TestMethodChaining:
         bundle = (
             AlignmentBundle()
             .add_timeline(tl1, uid="tl1")
-            .add_timeline(tl2, uid="tl2", aligned_to="tl1")
-            .add_timeline(tl3, uid="tl3", aligned_to="tl1")
+            .add_timeline(tl2, uid="tl2", grouped_with="tl1")
+            .add_timeline(tl3, uid="tl3", grouped_with="tl1")
         )
 
         assert bundle.n_timelines == 3
@@ -573,11 +579,11 @@ def _make_cross_group_bundle() -> (
 
     Group A ("score_group"):
         - score_tl (length=200)   [bundle uid: "score"]
-        - image_tl (length=400)   [bundle uid: "image", aligned to "score"]
+        - image_tl (length=400)   [bundle uid: "image", grouped with "score"]
 
     Group B ("recording_group"):
         - audio_tl (length=100)   [bundle uid: "audio"]
-        - midi_tl  (length=100)   [bundle uid: "midi", aligned to "audio"]
+        - midi_tl  (length=100)   [bundle uid: "midi", grouped with "audio"]
 
     Returns:
         (bundle, score_tl, image_tl, audio_tl, midi_tl)
@@ -589,9 +595,9 @@ def _make_cross_group_bundle() -> (
 
     bundle = AlignmentBundle(id="xgroup_test")
     bundle.add_timeline(score_tl, uid="score", as_group="score_group")
-    bundle.add_timeline(image_tl, uid="image", aligned_to="score")
+    bundle.add_timeline(image_tl, uid="image", grouped_with="score")
     bundle.add_timeline(audio_tl, uid="audio", as_group="recording_group")
-    bundle.add_timeline(midi_tl, uid="midi", aligned_to="audio")
+    bundle.add_timeline(midi_tl, uid="midi", grouped_with="audio")
 
     return bundle, score_tl, image_tl, audio_tl, midi_tl
 

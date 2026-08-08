@@ -1084,7 +1084,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle <span class="op">=</span> AlignmentBundle()</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.add_timeline(score_timeline, uid<span class="op">=</span><span class="st">"score"</span>)</span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.add_timeline(audio_timeline, uid<span class="op">=</span><span class="st">"audio"</span>, aligned_to<span class="op">=</span><span class="st">"score"</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.add_timeline(audio_timeline, uid<span class="op">=</span><span class="st">"audio"</span>, grouped_with<span class="op">=</span><span class="st">"score"</span>)</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamp <span class="op">=</span> bundle.get_matchstamp_at(<span class="fl">100.0</span>, <span class="st">"score"</span>)</span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamp.get(<span class="st">"audio"</span>)</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fl">45.5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1113,7 +1113,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td><a href="#timetoalign.alignment.AlignmentBundle.add_timeline">add_timeline</a></td>
-<td>Add a timeline, optionally aligned to an existing timeline.</td>
+<td>Add a timeline, optionally grouped with an existing timeline.</td>
 </tr>
 <tr class="odd">
 <td><a href="#timetoalign.alignment.AlignmentBundle.are_commensurable">are_commensurable</a></td>
@@ -1365,13 +1365,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    timeline,</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
 <span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    uid<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    aligned_to<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    grouped_with<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    as_group<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    start<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    end<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Add a timeline, optionally aligned to an existing timeline.</p>
-<p>This is the primary method for adding timelines to the bundle. Timelines can be standalone or aligned to existing timelines.</p>
+<p>Add a timeline, optionally grouped with an existing timeline.</p>
+<p>This is the primary method for adding timelines to the bundle. Timelines can be standalone or grouped with existing timelines. Group membership makes timelines commensurable through interpolation; it does not by itself assert any MatchClaim between them.</p>
 <section id="parameters-3" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
 <table class="caption-top table">
@@ -1403,9 +1403,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>None</code></td>
 </tr>
 <tr class="odd">
-<td>aligned_to</td>
+<td>grouped_with</td>
 <td><code>str</code> | None</td>
-<td>ID of existing timeline to align with. If provided, both timelines become part of the same group. If the target timeline is not yet in a group, a new group is created with the target as reference.</td>
+<td>ID of an existing timeline to share a group with. If provided, both timelines become part of the same group. If the target timeline is not yet in a group, a new group is created with the target as reference.</td>
 <td><code>None</code></td>
 </tr>
 <tr class="even">
@@ -1417,7 +1417,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td>start</td>
 <td><code>CoordinateSpec</code> | None</td>
-<td>Where this timeline’s 0-origin starts in the group. - CoordinateSpec: Coordinate in the aligned_to timeline - IdCoordinate: Coordinate with explicit timeline_id (preferred) - float: Coordinate in the aligned_to timeline - None: Use group’s current start (default for linear alignment)</td>
+<td>Where this timeline’s 0-origin starts in the group. - CoordinateSpec: Coordinate in the grouped_with timeline - IdCoordinate: Coordinate with explicit timeline_id (preferred) - float: Coordinate in the grouped_with timeline - None: Use group’s current start (default for linear alignment)</td>
 <td><code>None</code></td>
 </tr>
 <tr class="even">
@@ -1472,7 +1472,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="even">
 <td></td>
 <td><code>KeyError</code></td>
-<td>If aligned_to references a non-existent timeline.</td>
+<td>If grouped_with references a non-existent timeline.</td>
 </tr>
 </tbody>
 </table>
@@ -1481,14 +1481,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-2">Examples</h4>
 <p>Linear (full-extent) alignment:</p>
 <pre><code>&gt;&gt;&gt; bundle.add_timeline(audio, uid="dgt1")
-&gt;&gt;&gt; bundle.add_timeline(midi, uid="dlt1", aligned_to="dgt1")</code></pre>
+&gt;&gt;&gt; bundle.add_timeline(midi, uid="dlt1", grouped_with="dgt1")</code></pre>
 <p>Partial alignment (SUPRA piano roll) using IdCoordinate:</p>
 <pre><code>&gt;&gt;&gt; from timetoalign import IdCoordinate, TimeUnit
 &gt;&gt;&gt; bundle.add_timeline(image, uid="dgt1")  # Full image
 &gt;&gt;&gt; bundle.add_timeline(
 ...     holes,
 ...     uid="dgt1_holes",
-...     aligned_to="dgt1",
+...     grouped_with="dgt1",
 ...     start=IdCoordinate(15343.0, TimeUnit.pixels, "dgt1"),
 ...     end=IdCoordinate(293119.0, TimeUnit.pixels, "dgt1"),
 ... )</code></pre>

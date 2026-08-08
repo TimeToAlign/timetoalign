@@ -509,7 +509,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>midi <span class="op">=</span> Timeline(length<span class="op">=</span><span class="dv">2880</span>, unit<span class="op">=</span>TimeUnit.ticks, uid<span class="op">=</span><span class="st">"midi"</span>)</span>
 <span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>audio <span class="op">=</span> AlignmentBundle(name<span class="op">=</span><span class="st">"audio"</span>)</span>
 <span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>audio.add_timeline(perf, as_group<span class="op">=</span><span class="st">"performance"</span>)</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>audio.add_timeline(midi, aligned_to<span class="op">=</span><span class="st">"perf"</span>)</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>audio.add_timeline(midi, grouped_with<span class="op">=</span><span class="st">"perf"</span>)</span>
 <span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>merged <span class="op">=</span> AlignmentBundle.from_bundles([symbolic, audio], name<span class="op">=</span><span class="st">"merged"</span>)</span>
 <span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>merged</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>

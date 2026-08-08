@@ -160,7 +160,7 @@ class TestSUPRAAlignmentBundle:
         bundle.add_timeline(
             holes_timeline,
             uid="dgt1_holes",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(
                 float(aton_loader.first_hole.value), TimeUnit.seconds, "dgt1"
             ),
@@ -188,7 +188,7 @@ class TestSUPRAAlignmentBundle:
         bundle.add_timeline(
             holes_timeline,
             uid="dgt1_holes",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(
                 float(aton_loader.first_hole.value), TimeUnit.seconds, "dgt1"
             ),  # 15343.0
@@ -226,7 +226,7 @@ class TestSUPRAAlignmentBundle:
         bundle.add_timeline(
             holes_timeline,
             uid="dgt1_holes",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(
                 float(aton_loader.first_hole.value), TimeUnit.seconds, "dgt1"
             ),
@@ -275,7 +275,7 @@ class TestSUPRAOrderIndependence:
         bundle.add_timeline(
             holes_tl,
             uid="dgt1_holes",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
             end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
@@ -303,7 +303,7 @@ class TestSUPRAOrderIndependence:
         b1.add_timeline(
             holes_tl_1,
             uid="dgt1_holes",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
             end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
@@ -317,7 +317,7 @@ class TestSUPRAOrderIndependence:
         b2.add_timeline(
             holes_tl_2,
             uid="holes",
-            aligned_to="image",
+            grouped_with="image",
             start=IdCoordinate(15343.0, TimeUnit.seconds, "image"),
             end=IdCoordinate(293119.0, TimeUnit.seconds, "image"),
         )
@@ -346,14 +346,14 @@ class TestSUPRAOrderIndependence:
         b1.add_timeline(
             holes1,
             uid="dgt1_holes",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
             end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
         b1.add_timeline(
             midi1,
             uid="dlt1",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
             end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
@@ -368,14 +368,14 @@ class TestSUPRAOrderIndependence:
         b2.add_timeline(
             midi2,
             uid="dlt1",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
             end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
         b2.add_timeline(
             holes2,
             uid="dgt1_holes",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
             end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )
@@ -424,7 +424,7 @@ class TestSUPRASummary:
         bundle.add_timeline(
             holes_timeline,
             uid="dgt1_holes",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(
                 float(aton_loader.first_hole.value), TimeUnit.seconds, "dgt1"
             ),
@@ -455,7 +455,7 @@ class TestSUPRASummary:
         b1.add_timeline(
             holes1,
             uid="dgt1_holes",
-            aligned_to="dgt1",
+            grouped_with="dgt1",
             start=IdCoordinate(15343.0, TimeUnit.seconds, "dgt1"),
             end=IdCoordinate(293119.0, TimeUnit.seconds, "dgt1"),
         )

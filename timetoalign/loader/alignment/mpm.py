@@ -1080,13 +1080,13 @@ class MpmLoader(AlignmentLoader):
         bundle = AlignmentBundle(name=self._name)
         bundle.add_timeline(self._score_clt, uid=_SCORE_CLT_ID, as_group=_SCORE_GROUP)
         bundle.add_timeline(
-            self._score_dlt, uid=_SCORE_DLT_ID, aligned_to=_SCORE_CLT_ID
+            self._score_dlt, uid=_SCORE_DLT_ID, grouped_with=_SCORE_CLT_ID
         )
         bundle.add_timeline(self._perf_cpt, uid=_PERF_CPT_ID, as_group=_PERF_GROUP)
-        bundle.add_timeline(self._perf_dpt, uid=_PERF_DPT_ID, aligned_to=_PERF_CPT_ID)
+        bundle.add_timeline(self._perf_dpt, uid=_PERF_DPT_ID, grouped_with=_PERF_CPT_ID)
         if self._perf_dgt is not None:
             bundle.add_timeline(
-                self._perf_dgt, uid=_PERF_DGT_ID, aligned_to=_PERF_CPT_ID
+                self._perf_dgt, uid=_PERF_DGT_ID, grouped_with=_PERF_CPT_ID
             )
         bundle.add_match_claims(self._claims)
         return bundle

@@ -127,7 +127,7 @@ perf = ContinuousPhysicalTimeline(length=6.0, uid="perf")
 midi = DiscreteLogicalTimeline(length=2880, uid="midi")
 audio = AlignmentBundle(name="audio")
 audio.add_timeline(perf, as_group="performance")
-audio.add_timeline(midi, aligned_to="perf")
+audio.add_timeline(midi, grouped_with="perf")
 
 merged = AlignmentBundle.from_bundles([symbolic, audio], name="merged")
 merged
