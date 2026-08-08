@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 
 from timetoalign.core import TimeUnit
-from timetoalign.core.enums import FlowMode, IncompletePosition
+from timetoalign.core.enums import FlowControlElement, FlowMode, IncompletePosition
 from timetoalign.loader.score import Ms3Loader
 from timetoalign.storage.events import EventData
 from timetoalign.timelines import Flow, FlowMap, MeasureUnit, ScoreFlowController
@@ -927,6 +927,295 @@ class TestFlowInvariants:
         assert diag.mc == 4
         assert "'A1'" in diag.message
         assert "'A2'" in diag.message
+
+
+# endregion
+
+# region Guarded default-flow traversal
+
+
+def _guarded_flow_controller(n: int, **columns) -> ScoreFlowController:
+    """Build a controller from a synthetic measure table.
+
+    Fills the mandatory measure fields (``mc``/``mn``/``duration``/``start``/
+    ``timesig``) for ``n`` uniform 4/4 measures and overlays any flow-control
+    columns supplied by name, mirroring the real column-to-``MeasureUnit``
+    pipeline via the public constructor.
+    """
+    import pyarrow as pa
+
+    table = {
+        "mc": list(range(1, n + 1)),
+        "mn": [str(i) for i in range(1, n + 1)],
+        "duration": [{"value": 4.0}] * n,
+        "start": [{"value": float(4 * i)} for i in range(n)],
+        "timesig": ["4/4"] * n,
+    }
+    table.update(columns)
+    return ScoreFlowController(_MockMeasureData(pa.table(table)))
+
+
+def _mc_playthrough(flow: Flow) -> list[int]:
+    """Flatten a computed flow to its MC visitation sequence."""
+    sequence: list[int] = []
+    for section in flow.sections:
+        sequence.extend(range(section.mc_start, section.mc_end))
+    return sequence
+
+
+class TestGuardedFlowTraversal:
+    """The default flow is a guarded transition system.
+
+    Every fixture is a synthetic measure table built through the public
+    ``ScoreFlowController`` constructor; assertions are exact. See
+    ``README.md`` → "Guarded default-flow traversal" for the topologies.
+    """
+
+    def test_repeat_back_edge_outranks_unarmed_coda_jump(self) -> None:
+        """An owed repeat plays before an armed al-coda exit fires.
+
+        The inner repeat-end at MC 4 is also the armed "to coda" trigger (via
+        the section-end convention, no explicit ``coda`` marker). The repeat
+        back-edge outranks the coda jump, so the post-D.S. pass replays the
+        inner ``2, 3, 4`` before exiting to ``codab``. The old ordering fired
+        the coda jump first and dropped that repetition
+        (``[1, 2, 3, 4, 2, 3, 4, 5, 2, 3, 4, 6]``).
+        """
+        controller = _guarded_flow_controller(
+            6,
+            next=[[2], [3], [4], [5], [2], [-1]],
+            segno=[None, "segno", None, None, None, None],
+            coda=[None, None, None, None, None, "codab"],
+            markers=[None, "segno", None, None, None, "codab"],
+            start_repeat=[False, True, False, False, False, False],
+            end_repeat=[False, False, False, True, False, False],
+            jump_bwd=[None, None, None, None, "segno", None],
+            jump_fwd=[None, None, None, None, "codab", None],
+            play_until=[None, None, None, None, "coda", None],
+            section_break=[False, False, False, True, False, False],
+        )
+
+        sequence = _mc_playthrough(controller.compute_flow(FlowMode.default))
+
+        assert sequence == [1, 2, 3, 4, 2, 3, 4, 5, 2, 3, 4, 2, 3, 4, 6]
+        # The inner section [2, 4) is entered on both the natural and the
+        # post-D.S. pass, so measures 2/3/4 each appear four times.
+        assert sequence.count(2) == 4
+        assert sequence.count(4) == 4
+
+    def test_unterminating_flow_reports_cycle_instead_of_truncating(self) -> None:
+        """A bare D.C. with no Fine is reported as a cycle, not spun.
+
+        The lasso check stops the traversal at ``[1, 2]`` and appends a single
+        ``flow_cycle`` diagnostic naming the closing D.S./D.C. edge. The old
+        traversal produced 60 rows (``2 * 30``) and no diagnostic.
+        """
+        from timetoalign.timelines import FlowDiagnostic
+
+        controller = _guarded_flow_controller(
+            2,
+            next=[[2], [1]],
+            jump_bwd=[None, "start"],
+        )
+
+        flow = controller.compute_flow(FlowMode.default)
+        sequence = _mc_playthrough(flow)
+        assert sequence == [1, 2]
+
+        diagnostics = controller.flow_diagnostics(FlowMode.default)
+        assert len(diagnostics) == 1
+        diag = diagnostics[0]
+        assert isinstance(diag, FlowDiagnostic)
+        assert diag.kind == "flow_cycle"
+        assert diag.section_id == "A"
+        assert diag.mc == 1
+        assert "MC 2" in diag.message
+        assert "MC 1" in diag.message
+
+    def test_doppia_coda_selects_target_by_pass(self) -> None:
+        """Forward targets stay scalar across pass-indexed arming.
+
+        A comma belongs to the literal destination name in the first fixture.
+        The second fixture arms the same real single-target idiom twice and
+        resolves ``codab`` on both passes before the lasso closes.
+        """
+        literal_controller = _guarded_flow_controller(
+            6,
+            next=[[2], [3], [4], [5], [2], [-1]],
+            segno=[None, "segno", None, None, None, None],
+            coda=[None, None, "coda", None, None, "codab,varcoda"],
+            markers=[None, "segno", "coda", None, None, "codab,varcoda"],
+            jump_bwd=[None, None, None, None, "segno", None],
+            jump_fwd=[None, None, None, None, "codab,varcoda", None],
+            play_until=[None, None, None, None, "coda", None],
+        )
+
+        literal_sequence = _mc_playthrough(
+            literal_controller.compute_flow(FlowMode.default)
+        )
+        assert literal_sequence == [1, 2, 3, 4, 5, 2, 3, 6]
+        assert literal_controller._coda_targets(
+            "codab,varcoda", {"codab,varcoda": 6}
+        ) == (6,)
+
+        repeated_controller = _guarded_flow_controller(
+            5,
+            next=[[2], [3], [4], [5], [2]],
+            segno=[None, "segno", None, None, None],
+            coda=[None, None, "coda", "codab", None],
+            markers=[None, "segno", "coda", "codab", None],
+            jump_bwd=[None, None, None, None, "segno"],
+            jump_fwd=[None, None, None, None, "codab"],
+            play_until=[None, None, None, None, "coda"],
+        )
+
+        repeated_sequence = _mc_playthrough(
+            repeated_controller.compute_flow(FlowMode.default)
+        )
+        assert repeated_sequence == [1, 2, 3, 4, 5, 2, 3, 4, 5]
+        assert repeated_sequence.count(4) == 2
+        assert repeated_sequence.count(5) == 2
+        assert [d.kind for d in repeated_controller.flow_diagnostics()] == [
+            "flow_cycle"
+        ]
+
+    def test_repeat_end_with_single_candidate_auto_resolves(self) -> None:
+        """One open jump-to instant resolves without a diagnostic.
+
+        The only candidate upstream of the repeat-end at MC 3 is the
+        conventional left-open piece-start (MC 1).
+        """
+        controller = _guarded_flow_controller(
+            3,
+            next=[[2], [3], [1]],
+            end_repeat=[False, False, True],
+        )
+
+        targets, diagnostics = controller._repeat_end_resolution()
+
+        assert targets == {3: 1}
+        assert diagnostics == []
+
+    def test_repeat_end_with_multiple_candidates_reports_ambiguity(self) -> None:
+        """Several explicit starts resolve nearest-first with a diagnostic.
+
+        Both repeat starts are open at MC 4. The inner start at MC 3 wins,
+        while the diagnostic records the outer start at MC 2.
+        """
+        from timetoalign.timelines import FlowDiagnostic
+
+        controller = _guarded_flow_controller(
+            4,
+            next=[[2], [3], [4], [3]],
+            start_repeat=[False, True, True, False],
+            end_repeat=[False, False, False, True],
+        )
+
+        targets, diagnostics = controller._repeat_end_resolution()
+
+        assert targets == {4: 3}
+        assert len(diagnostics) == 1
+        diag = diagnostics[0]
+        assert isinstance(diag, FlowDiagnostic)
+        assert diag.kind == "ambiguous_repeat_end"
+        assert diag.mc == 4
+        assert "MC 3" in diag.message
+        assert "MC 2" in diag.message
+
+    def test_repeat_end_with_no_candidate_is_dangling(self) -> None:
+        """A repeat-end with no scope or backward edge emits no jump.
+
+        The explicit MC 2 start closes at MC 3. MC 5 has no open explicit
+        start and its encoded successor terminates, so a
+        ``dangling_repeat_end`` diagnostic names it.
+        """
+        from timetoalign.timelines import FlowDiagnostic
+
+        controller = _guarded_flow_controller(
+            5,
+            next=[[2], [3], [2], [5], [-1]],
+            start_repeat=[False, True, False, False, False],
+            end_repeat=[False, False, True, False, True],
+        )
+
+        targets, diagnostics = controller._repeat_end_resolution()
+
+        assert targets == {3: 2}
+        assert len(diagnostics) == 1
+        diag = diagnostics[0]
+        assert isinstance(diag, FlowDiagnostic)
+        assert diag.kind == "dangling_repeat_end"
+        assert diag.mc == 5
+
+        # No repeat-end jump is emitted for the dangling MC 5.
+        repeat_jumps = [
+            jump
+            for jump in controller.get_jumps()
+            if jump.control_type == FlowControlElement.repeat_end
+        ]
+        assert all(
+            jump.from_position != controller._qb_at_mc_end(5) for jump in repeat_jumps
+        )
+
+
+class TestRegistryTraversalAgreement:
+    """Canonical registry repeat jumps match executable default-flow edges."""
+
+    @pytest.mark.parametrize(
+        ("relative_path", "expected"),
+        [
+            pytest.param(
+                "couperin_concerts/c05n05_musete.measures.tsv",
+                {16: 1, 31: 17, 58: 32},
+                id="musete",
+            ),
+            pytest.param(
+                "couperin_concerts/c11n08_Rondeau.measures.tsv",
+                {9: 1, 18: 10, 27: 19, 60: 28},
+                id="rondeau",
+            ),
+            pytest.param(
+                (
+                    "beethoven_op18-4iv_multimodal/op18_no4_mov4_flow/"
+                    "op18_no4_mov4_flow.measures.tsv"
+                ),
+                {9: 1, 18: 10, 27: 19, 44: 28, 84: 78, 93: 85, 102: 95},
+                id="op18",
+            ),
+        ],
+    )
+    def test_registry_repeat_map_matches_default_traversal(
+        self,
+        data_dir: Path,
+        relative_path: str,
+        expected: dict[int, int],
+    ) -> None:
+        """The exact registry map is the first repeat edge executed."""
+        loader = Ms3Loader()
+        loader.load(data_dir / relative_path)
+        controller = ScoreFlowController(loader.store.measures)
+
+        start_mc_by_qb = {
+            controller._qb_at_mc(unit.mc): unit.mc for unit in controller.iter_units()
+        }
+        end_mc_by_qb = {
+            controller._qb_at_mc_end(unit.mc): unit.mc
+            for unit in controller.iter_units()
+        }
+        registry = controller.get_flow_control_registry()
+        repeat_map = {
+            end_mc_by_qb[jump.from_position]: start_mc_by_qb[jump.to_position]
+            for jump in registry.jumps
+            if jump.control_type == FlowControlElement.repeat_end
+        }
+
+        assert repeat_map == expected
+
+        sequence = controller.compute_flow(FlowMode.default).to_mc_sequence()
+        first_repeat_edges = {
+            end_mc: sequence[sequence.index(end_mc) + 1] for end_mc in expected
+        }
+        assert first_repeat_edges == expected
 
 
 # endregion

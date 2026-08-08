@@ -1172,6 +1172,95 @@ and the segment-naming integration test. The detect-and-report invariant above
 is the right home for "this volta arrangement looks wrong": a malformed flow is
 surfaced as a `FlowDiagnostic`, not silently re-partitioned.
 
+#### Guarded default-flow traversal (`TestGuardedFlowTraversal`)
+
+**Purpose.** Pin the default-flow traversal as a *guarded transition system*.
+At each visited MC a fixed total order over edge kinds decides which eligible
+out-edge fires, the traversal reports rather than raises on a flow that cannot
+terminate, coda destinations are selected per pass, and repeat-ends resolve
+through a nearest-first candidate generator. All fixtures are built from
+synthetic measure tables through the public `ScoreFlowController` constructor
+(a PyArrow table wrapped in the shared `_MockMeasureData`), so they exercise the
+real column-to-`MeasureUnit` pipeline without any specimen file. Every
+assertion is exact.
+
+The traversal moves in score (MC) order; a `next` array that points elsewhere
+only marks a measure as a jump origin/target and shapes the atomic partition —
+it is never followed as the traversal path. The fixtures below are laid out
+with that in mind (e.g. a coda destination that must be revisited is placed
+*before* its jump origin in MC order).
+
+**Edge-kind total order — repeat back-edge outranks an un-armed coda jump.**
+The out-edges at an MC are ranked: (1) an armed Fine stop, (2) an unexhausted
+repeat back-edge, (3) an armed coda/segno play-until jump, (4) a D.S./D.C.
+jump, (5) the sequential successor. The Fine is a hard stop and outranks a
+still-owed repeat (an al-Fine pass ends at the Fine); below it, a section still
+owing a repeat plays it before an al-coda exit fires. Fixture (six MCs, 4/4): a
+segno block `MC 2` opening an inner
+repeat `[MC 2, MC 4]`, a D.S.-al-coda origin at `MC 5` (`jump_bwd=segno`,
+`play_until=coda`, `jump_fwd=codab`) that resets the block, and a `codab`
+tail at `MC 6`. `MC 4` is both the inner repeat-end and — via the section-end
+"to coda" convention, since the score carries no explicit `coda` marker — the
+armed trigger point.
+
+- Old behaviour fired the coda jump first, so on the post-jump pass the inner
+  repeat was skipped: `[1, 2, 3, 4, 2, 3, 4, 5, 2, 3, 4, 6]`.
+- New behaviour runs the owed repeat before the coda exit:
+  `[1, 2, 3, 4, 2, 3, 4, 5, 2, 3, 4, 2, 3, 4, 6]` (the post-jump pass now
+  contains the inner `2, 3, 4` a second time). This fails on the old code and
+  passes on the new.
+
+**Lasso cycle detection — report, never spin.** The old traversal bounded
+itself with `len(units) * 30` iterations and then *silently truncated*. It is
+replaced by a lasso check over the whole traversal state (position, per-block
+pass counts, and armed-jump configuration): revisiting a state means a
+guard-disabled edge closes a loop, so the traversal stops and appends a
+`FlowDiagnostic(kind="flow_cycle", …)` naming the looping section(s) and the
+edge that closes them. Fixture (two MCs): `MC 1 → MC 2`, and `MC 2` is a bare
+D.C. (`jump_bwd=start`, `next=[1]`) with no Fine or Coda to ever end it.
+
+- Old behaviour produced 60 rows (`2 * 30`) of `1, 2, 1, 2, …` and *no*
+  diagnostic.
+- New behaviour stops after `[1, 2]` and reports exactly one
+  `flow_cycle` diagnostic (`section_id="A"`, `mc=1`) whose message names the
+  `D.S./D.C. jump` edge at `MC 2` re-entering `MC 1`. The test asserts the old
+  code emits no such diagnostic and the row count is bounded.
+
+**Scalar coda targets and pass-indexed arming.** `jump_fwd` is one marker name,
+including when the name itself contains a comma. A six-MC fixture gives the
+destination marker the literal name `codab,varcoda` and asserts that the
+al-coda exit reaches it. A second fixture arms the same single-target `codab`
+exit twice; both arming passes resolve the same scalar destination, and the
+per-origin arming counter remains part of the guarded traversal state.
+
+**Candidate repeat-end resolution.** `_repeat_end_resolution()` maintains the
+open explicit repeat-start scopes. Segno and coda markers are jump targets for
+their own instructions and never repeat-end candidates; the conventional piece
+start is considered only when no explicit repeat start is open and the source
+encodes an edge back to the first MC. An end with no open explicit scope and no
+backward edge is dangling. Loader-specific one-bar and coda-volta execution
+inferences remain outside the registry and cannot become repeat candidates.
+
+- **exactly one explicit scope** → resolve without a diagnostic;
+- **several explicit scopes** → resolve to the nearest and record the other
+  open scopes in an `ambiguous_repeat_end` diagnostic;
+- **no explicit scope, edge to the first MC present** → use the implicit piece
+  start;
+- **no explicit scope or backward edge** → emit `dangling_repeat_end` and no
+  registry jump.
+
+The default traversal and `FlowControlRegistry` both consume this one resolved
+repeat-end map. `TestRegistryTraversalAgreement` pins the exact canonical maps
+for Musete (`16→1`, `31→17`, `58→32`), Rondeau (`9→1`, `18→10`,
+`27→19`, `60→28`), and op18 (`9→1`, `18→10`, `27→19`, `44→28`,
+`84→78`, `93→85`, `102→95`), then checks each first executable repeat
+edge against its registry target.
+
+`flow_diagnostics(mode)` computes the requested mode and stores traversal
+diagnostics separately for each mode. Repeat counters are saturated at their
+exhaustion bound before lasso-state comparison, so an exhausted repeat cannot
+hide a cycle while long finite chains of legal repeats remain complete.
+
 ---
 
 ### `test_flow_intervals.py` - Interval-Built FlowMaps
