@@ -122,6 +122,24 @@ def qb_sections_table(controller, mode: FlowMode = FlowMode.default) -> pd.DataF
     )
 
 
+def diagnostics_table(controller, mode: FlowMode = FlowMode.default) -> pd.DataFrame:
+    """One row per traversal diagnostic from ``flow_diagnostics(mode)``; empty when the flow traverses cleanly."""
+    diagnostics = controller.flow_diagnostics(mode)
+    if not diagnostics:
+        return pd.DataFrame(columns=["kind", "section_id", "mc", "message"])
+    return pd.DataFrame(
+        [
+            {
+                "kind": d.kind,
+                "section_id": d.section_id,
+                "mc": d.mc,
+                "message": d.message,
+            }
+            for d in diagnostics
+        ]
+    )
+
+
 def export_flows(controller, name: str) -> Path:
     """Write every available flow to ``{DATA_DIR}/flows/{name}.csv`` in `.flow.csv` format.
 
@@ -238,6 +256,49 @@ qb_sections_table(controller)
 # %%
 # Export all available flows for this piece to {DATA_DIR}/flows/{piece_name}.csv.
 export_flows(controller, piece_name)
+
+# %% [markdown]
+# ---
+#
+# ## Traversal diagnostics
+#
+# `check_invariants()` examines the folded atomic graph — the static section
+# partition and its `to` edges. `flow_diagnostics()` is its traversal-time
+# companion: it reports what surfaces only while the repeat-ends are resolved
+# and the default flow is walked — a `flow_cycle` where a guard-disabled edge
+# re-enters an already-visited MC and the walk would never terminate (the
+# re-entered MC is named), the defensive `flow_nonconvergence` ceiling, an
+# `ambiguous_repeat_end` where several open repeat scopes compete (the nearest
+# is chosen), or a `dangling_repeat_end` whose `repeats=end` has no supported
+# jump target. Like every diagnostic surface here, traversal reports rather than
+# raises on a defective source: a malformed score still yields a Flow and a
+# table of findings instead of an exception.
+#
+# The two surfaces are independent. A score whose folded graph satisfies every
+# invariant can still fail to traverse, and a graph-level violation need not be
+# what stops the walk — as the three scores below show.
+
+# %%
+diagnostics_table(load_controller("score_1988-Ciume_e_brincadeira"))
+
+# %%
+diagnostics_table(load_controller("score_1361-Medrosa-Anacleto_de_Medeiros"))
+
+# %%
+diagnostics_table(load_controller("score_133-Digitalis-Irineu_de_Almeida"))
+
+# %% [markdown]
+# `score_1361-Medrosa` traverses cleanly — its frame is empty. `score_1988-Ciume_e_brincadeira`
+# is the case where the two surfaces diverge: `check_invariants()` finds nothing
+# in the folded graph, yet the default flow reports a `flow_cycle`, because its
+# D.S./D.C. edge re-enters an earlier MC with its jump guard already spent.
+# `score_133-Digitalis` is the mislabeled-volta specimen: alongside the
+# `volta_follows_volta` violations that `check_invariants()` reports for its
+# folded graph, traversal adds a `dangling_repeat_end` — a `repeats=end` with no
+# open repeat-start scope and no encoded backward edge, so no back-jump is
+# produced and the resolution falls through. Neither surface repairs anything;
+# both expose the source's under-determined flow for a subsequent reading to
+# re-encode.
 
 # %% [markdown]
 # ---
