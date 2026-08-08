@@ -12,9 +12,9 @@ listing:
 ---
 
 These tutorials take you from zero to a working multimodal alignment,
-introducing one concept at a time.  Each notebook uses real-world data
-from the project's specimen collection and can be run locally after
-installing the library with `pip install "timetoalign[tutorial]"`.
+introducing one concept at a time. They begin with hand-built timelines and
+reach loading real data in the fourth notebook. Each notebook can be run
+locally after installing the library with `pip install "timetoalign[tutorial]"`.
 
 **Prerequisites:** Python 3.11+, basic familiarity with Jupyter notebooks.
 
@@ -26,38 +26,34 @@ installing the library with `pip install "timetoalign[tutorial]"`.
 
 ## Topics at a Glance
 
-The tutorials are designed to be followed in order, grouped into the
-same four topics used throughout the documentation:
+The tutorials are designed to be followed in order, following a learning curve
+from foundations through practical data work to the internals of the model:
 
-### Timelines, Events & Maps
+### Foundations
 
 - [Quickstart](tutorials/tut00_quickstart.ipynb) ---
-  A five-minute tour of Timelines, Groups, Bundles, and Grids.
-- [Timelines, Events, and Maps](tutorials/tut01a_timelines_events_maps.ipynb) ---
-  Loading, EventStore, Coordinate, and ConversionMap.
-- [Children, Regions, and Timestamps](tutorials/tut01b_children_regions_timestamps.ipynb) ---
-  Hierarchy and cross-section queries.
+  What the library is for, in five minutes: one section per tutorial that follows.
+- [Timelines and Coordinates](tutorials/tut01_timelines_and_coordinates.ipynb) ---
+  Coordinates, units, domains, the six timeline classes, and conversion maps.
+- [Nesting and Timestamps](tutorials/tut02_nesting_and_timestamps.ipynb) ---
+  Children, offsets, regions, segment lines, and the cross-section a timestamp gives you.
+- [Events on a Timeline](tutorials/tut03_events.ipynb) ---
+  Adding events, EventData, the shared filter vocabulary, and one timestamp per event.
 
-### TimelineGroups
+### Working with Data
 
-- [Timeline Groups and Commensurability](tutorials/tut02_timeline_groups.ipynb) ---
-  TimelineGroup, coordinate transfer, and partial alignment.
+- [Loading Real Data](tutorials/tut04_loading_data.ipynb) ---
+  The two-phase loader contract, EventStores, timeline ids, and what a loader builds for you.
+- [Timeline Groups](tutorials/tut05_timeline_groups.ipynb) ---
+  Commensurability, interpolation between peers, group timestamps, and partial alignment.
+- [Alignment Bundles and MatchClaims](tutorials/tut06_alignment_bundles.ipynb) ---
+  Claims, claim types, MatchLines and WarpMaps, MatchStamps, and support policies.
+- [Flow Control and Grids](tutorials/tut07_flow_and_grids.ipynb) ---
+  Folded and unfolded time, FlowMaps, apply_flow, and metrical grids.
 
-### AlignmentBundles
+### Under the Hood
 
-- [Alignment Bundles](tutorials/tut03_alignment_bundles.ipynb) ---
-  MatchfileLoader, AlignmentBundle, and cross-group transfer.
-
-### In-depth Topics
-
-- [Flow Control and Grids](tutorials/tut04_flow_and_grids.ipynb) ---
-  BeatGrid, repeats, and metrical structure.
-
-### Data & Type Model
-
-- [DataFields and Layered EventData](tutorials/tut05_datafields_and_eventdata.ipynb) ---
-  The Protocol/Scalar/Field triple, raw and semantic fields, discovery,
-  and Parquet-embedded metadata.
-- [Pitch and Harmony across Formats](tutorials/tut06_pitch_and_harmony.ipynb) ---
-  Cross-format pitch equivalence and the typed view each format affords,
-  applied to pitch and harmony.
+- [The Data Model](tutorials/tut08_data_model.ipynb) ---
+  Why PyArrow, the three layers, raw and semantic fields, blueprints, and Parquet metadata.
+- [Pitch and Harmony across Formats](tutorials/tut09_pitch_and_harmony.ipynb) ---
+  What each format knows about a note, and why the library refuses to invent the rest.

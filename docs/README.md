@@ -30,12 +30,16 @@ complete alignment workflows.
 
 | File | Title | Topics |
 |------|-------|--------|
-| `tut00_quickstart` | Quickstart | Five-minute tour of Timelines, Groups, Bundles, and Grids |
-| `tut01a_timelines_events_maps` | Timelines, Events, and Maps | Loading, EventStore, Coordinate, ConversionMap |
-| `tut01b_children_regions_timestamps` | Children, Regions, and Timestamps | Hierarchy, cross-section queries |
-| `tut02_timeline_groups` | Timeline Groups and Commensurability | TimelineGroup, coordinate transfer, partial alignment |
-| `tut03_alignment_bundles` | Alignment Bundles | MatchfileLoader, AlignmentBundle, cross-group transfer |
-| `tut04_flow_and_grids` | Flow Control and Grids | BeatGrid, repeats, metrical structure |
+| `tut00_quickstart` | Quickstart | What the library is for, in five minutes: one section per tutorial that follows |
+| `tut01_timelines_and_coordinates` | Timelines and Coordinates | Coordinates, units, domains, the six timeline classes, and conversion maps |
+| `tut02_nesting_and_timestamps` | Nesting and Timestamps | Children, offsets, regions, segment lines, and the cross-section a timestamp gives you |
+| `tut03_events` | Events on a Timeline | Adding events, EventData, the shared filter vocabulary, and one timestamp per event |
+| `tut04_loading_data` | Loading Real Data | The two-phase loader contract, EventStores, timeline ids, and what a loader builds for you |
+| `tut05_timeline_groups` | Timeline Groups | Commensurability, interpolation between peers, group timestamps, and partial alignment |
+| `tut06_alignment_bundles` | Alignment Bundles and MatchClaims | Claims, claim types, MatchLines and WarpMaps, MatchStamps, and support policies |
+| `tut07_flow_and_grids` | Flow Control and Grids | Folded and unfolded time, FlowMaps, apply_flow, and metrical grids |
+| `tut08_data_model` | The Data Model | Why PyArrow, the three layers, raw and semantic fields, blueprints, and Parquet metadata |
+| `tut09_pitch_and_harmony` | Pitch and Harmony across Formats | What each format knows about a note, and why the library refuses to invent the rest |
 
 ### How-to notebooks (`howto-notebooks/`)
 

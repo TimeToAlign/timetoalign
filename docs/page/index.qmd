@@ -42,13 +42,15 @@ This documentation follows the
     first principles, using real-world data.
 
     - [Quickstart](tutorials/tut00_quickstart.ipynb)
-    - [Timelines, Events, and Maps](tutorials/tut01a_timelines_events_maps.ipynb)
-    - [Children, Regions, and Timestamps](tutorials/tut01b_children_regions_timestamps.ipynb)
-    - [Timeline Groups and Commensurability](tutorials/tut02_timeline_groups.ipynb)
-    - [Alignment Bundles](tutorials/tut03_alignment_bundles.ipynb)
-    - [Flow Control and Grids](tutorials/tut04_flow_and_grids.ipynb)
-    - [DataFields and Layered EventData](tutorials/tut05_datafields_and_eventdata.ipynb)
-    - [Pitch and Harmony across Formats](tutorials/tut06_pitch_and_harmony.ipynb)
+    - [Timelines and Coordinates](tutorials/tut01_timelines_and_coordinates.ipynb)
+    - [Nesting and Timestamps](tutorials/tut02_nesting_and_timestamps.ipynb)
+    - [Events on a Timeline](tutorials/tut03_events.ipynb)
+    - [Loading Real Data](tutorials/tut04_loading_data.ipynb)
+    - [Timeline Groups](tutorials/tut05_timeline_groups.ipynb)
+    - [Alignment Bundles and MatchClaims](tutorials/tut06_alignment_bundles.ipynb)
+    - [Flow Control and Grids](tutorials/tut07_flow_and_grids.ipynb)
+    - [The Data Model](tutorials/tut08_data_model.ipynb)
+    - [Pitch and Harmony across Formats](tutorials/tut09_pitch_and_harmony.ipynb)
 
 [**How-To Guides**](howto.qmd)
 :   Task-oriented recipes grouped by topic.

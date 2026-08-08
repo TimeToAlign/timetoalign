@@ -24,32 +24,32 @@ website:
     - title: "Tutorials"
       contents:
         - tutorials.qmd
-        - section: "Timelines, Events & Maps"
+        - text: "Quickstart"
+          href: tutorials/tut00_quickstart.ipynb
+        - section: "Foundations"
           contents:
-            - text: "Quickstart"
-              href: tutorials/tut00_quickstart.ipynb
-            - text: "Timelines, Events, and Maps"
-              href: tutorials/tut01a_timelines_events_maps.ipynb
-            - text: "Children, Regions, and Timestamps"
-              href: tutorials/tut01b_children_regions_timestamps.ipynb
-        - section: "TimelineGroups"
+            - text: "Timelines and Coordinates"
+              href: tutorials/tut01_timelines_and_coordinates.ipynb
+            - text: "Nesting and Timestamps"
+              href: tutorials/tut02_nesting_and_timestamps.ipynb
+            - text: "Events on a Timeline"
+              href: tutorials/tut03_events.ipynb
+        - section: "Working with Data"
           contents:
-            - text: "Timeline Groups and Commensurability"
-              href: tutorials/tut02_timeline_groups.ipynb
-        - section: "AlignmentBundles"
-          contents:
-            - text: "Alignment Bundles"
-              href: tutorials/tut03_alignment_bundles.ipynb
-        - section: "In-depth Topics"
-          contents:
+            - text: "Loading Real Data"
+              href: tutorials/tut04_loading_data.ipynb
+            - text: "Timeline Groups"
+              href: tutorials/tut05_timeline_groups.ipynb
+            - text: "Alignment Bundles and MatchClaims"
+              href: tutorials/tut06_alignment_bundles.ipynb
             - text: "Flow Control and Grids"
-              href: tutorials/tut04_flow_and_grids.ipynb
-        - section: "Data & Type Model"
+              href: tutorials/tut07_flow_and_grids.ipynb
+        - section: "Under the Hood"
           contents:
-            - text: "DataFields and Layered EventData"
-              href: tutorials/tut05_datafields_and_eventdata.ipynb
+            - text: "The Data Model"
+              href: tutorials/tut08_data_model.ipynb
             - text: "Pitch and Harmony across Formats"
-              href: tutorials/tut06_pitch_and_harmony.ipynb
+              href: tutorials/tut09_pitch_and_harmony.ipynb
 
     - title: "How-To Guides"
       contents:

@@ -16,7 +16,7 @@
 # %% [markdown]
 # # Inspect, Correct, and Re-Define Flows for Brazilian Choros
 #
-# For a full API tour, see `tut04_flow_and_grids.ipynb`. The condensed primer below covers
+# For a full API tour, see `tut07_flow_and_grids.ipynb`. The condensed primer below covers
 # only what is needed to read the inspection cells in this notebook.
 #
 # A score is **folded** — repeated sections appear once on the page but play
