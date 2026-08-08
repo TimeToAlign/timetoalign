@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.2.0](https://github.com/TimeToAlign/timetoalign/compare/v1.1.0...v1.2.0) (2026-08-08)
+
+
+### Features
+
+* **flow:** add FlowMap.from_dict and fill placed gaps with empty segments ([e8c2fce](https://github.com/TimeToAlign/timetoalign/commit/e8c2fce1292fbf0b8a2390a5f5df82d622b94ba3))
+* **flow:** place FlowMap spans at given coordinates instead of appending ([1fcd274](https://github.com/TimeToAlign/timetoalign/commit/1fcd274a6fd62714debf77f50b3865aa899d034f))
+* **timelines:** guard the default-flow traversal and report traversal diagnostics ([c5ff3a2](https://github.com/TimeToAlign/timetoalign/commit/c5ff3a28365f1ad0844d78a37be780e5b6e5dde9))
+
+
+### Bug Fixes
+
+* **core:** accept integer-valued float ratio members at the rational wire boundary ([bfe8d77](https://github.com/TimeToAlign/timetoalign/commit/bfe8d77ca59a6011310b5af48e8d9b12bdf8e3ac))
+* **testdata:** extract corpora atomically and verify completeness before trusting the cache ([50cadab](https://github.com/TimeToAlign/timetoalign/commit/50cadabfd0594a57b7f6ee8906bd9a1c61555fa7))
+* **tests:** point MIDI integration specimens at the midi corpus ([0c23fb3](https://github.com/TimeToAlign/timetoalign/commit/0c23fb3b046c529b34e2130fa74f1c5ec35b444b))
+
+
+### Performance Improvements
+
+* **midi:** add a mido-backed parser option to ScoreMidiLoader ([bffed90](https://github.com/TimeToAlign/timetoalign/commit/bffed90e029d192a6cd512f550775e66cf50a6ea))
+
+
+### Documentation
+
+* **core:** document exact binary-expansion semantics for float-to-Fraction conversion ([991032c](https://github.com/TimeToAlign/timetoalign/commit/991032c3eee8f373d4bdf4b0f22089383ff4ad03))
+* **howto:** demonstrate traversal diagnostics on the Choros flows notebook ([3465a00](https://github.com/TimeToAlign/timetoalign/commit/3465a006774479ebb09e35488a20413f7e28f58f))
+* show placing flows and inverted cuts in the FlowMap how-to ([4c274bf](https://github.com/TimeToAlign/timetoalign/commit/4c274bf13f724e99647869e478f90732dbd5cab0))
+
 ## [1.1.0](https://github.com/TimeToAlign/timetoalign/compare/v1.0.1...v1.1.0) (2026-07-30)
 
 
