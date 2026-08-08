@@ -288,9 +288,9 @@ class TestGetFieldsSatisfying:
         """``GenericPitchLike`` requires ``pitch_class`` — finds EP + SP."""
         host = _MixinHost(_make_table_with_pitches_and_coordinates())
         fields = host.get_fields_satisfying(GenericPitchLike)
-        names = sorted(f.name for f in fields)
-        assert "midi_pitch" in names
-        assert "specific_pitch" in names
+        assert {field.name for field in fields} == {"midi_pitch", "specific_pitch"}
+        assert not any(isinstance(field, CoordinateField) for field in fields)
+        assert not any(isinstance(field, DurationField) for field in fields)
 
     def test_time_scalar_like_finds_coordinate_and_duration(self) -> None:
         host = _MixinHost(_make_table_with_pitches_and_coordinates())

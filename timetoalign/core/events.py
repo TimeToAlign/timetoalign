@@ -723,8 +723,16 @@ class SpecificPitchClass(TwelveTETPitchMixin, BaseModel):
         }
 
     @classmethod
-    def from_label(cls, label: str) -> SpecificPitchClass:
-        step, alter, _ = _parse_pitch_label(label)
+    def from_string(cls, value: str) -> SpecificPitchClass:
+        """Construct a spelled pitch class from its written string.
+
+        Args:
+            value: Pitch-class string such as ``"C♯"`` or ``"D♭"``.
+
+        Returns:
+            The parsed specific pitch class.
+        """
+        step, alter, _ = _parse_pitch_label(value)
         return cls(step=step, alter=alter)
 
     @classmethod
@@ -1205,12 +1213,23 @@ class SpecificPitch(TwelveTETPitchMixin, BaseModel):
         }
 
     @classmethod
-    def from_label(cls, label: str) -> SpecificPitch:
-        step, alter, octave = _parse_pitch_label(label)
+    def from_string(cls, value: str) -> SpecificPitch:
+        """Construct a spelled pitch from its written string.
+
+        Args:
+            value: Pitch string including its octave, such as ``"C♯4"``.
+
+        Returns:
+            The parsed specific pitch.
+
+        Raises:
+            ValueError: If the pitch string has no octave.
+        """
+        step, alter, octave = _parse_pitch_label(value)
         if octave is None:
             raise ValueError(
-                f"Octave required for SpecificPitch, got {label!r}. "
-                f"Use SpecificPitchClass.from_label() for octave-free pitches."
+                f"Octave required for SpecificPitch, got {value!r}. "
+                f"Use SpecificPitchClass.from_string() for octave-free pitches."
             )
         return cls(step=step, alter=alter, octave=octave)
 

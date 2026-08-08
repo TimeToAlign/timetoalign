@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import warnings
 from pathlib import Path
 from typing import Any, ClassVar
 
 import pyarrow as pa
 
-# Suppress pkg_resources deprecation warning from partitura
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=UserWarning, module="partitura.*")
-    warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+from timetoalign.core.backends import suppressed_backend_warnings
+
+with suppressed_backend_warnings():
     import partitura as pt
     from partitura.score import Part, PartGroup, Score
 
@@ -114,14 +112,15 @@ class ScoreMidiLoader(MidiLoader):
 
         # Load score using partitura
         # Note: partitura can return Score, Part, PartGroup, or list
-        score_data = pt.load_score_midi(
-            source,
-            part_voice_assign_mode=self._part_voice_assign_mode,
-            quantization_unit=self._quantization_unit,
-            estimate_voice_info=self._estimate_voice_info,
-            estimate_key=self._estimate_key,
-            assign_note_ids=self._assign_note_ids,
-        )
+        with suppressed_backend_warnings():
+            score_data = pt.load_score_midi(
+                source,
+                part_voice_assign_mode=self._part_voice_assign_mode,
+                quantization_unit=self._quantization_unit,
+                estimate_voice_info=self._estimate_voice_info,
+                estimate_key=self._estimate_key,
+                assign_note_ids=self._assign_note_ids,
+            )
 
         # Normalize to a list of parts
         parts: list[Part] = []

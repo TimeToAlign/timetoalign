@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import bisect
-import warnings
 from fractions import Fraction
 from numbers import Integral
 from pathlib import Path
 from typing import Any
 
-# Suppress pkg_resources deprecation warning from partitura
-with warnings.catch_warnings():
-    warnings.filterwarnings("ignore", category=UserWarning, module="partitura.*")
-    warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+from timetoalign.core.backends import suppressed_backend_warnings
+
+with suppressed_backend_warnings():
     import partitura as pt
     import partitura.score as pts
 
@@ -102,23 +100,16 @@ class PartituraLoader(ScoreLoader):
         self,
         *,
         force_note_ids: bool = True,
-        silence_warnings: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize PartituraLoader.
 
         Args:
             force_note_ids: If True, force note IDs from partitura.
-            silence_warnings: If True, suppress warnings from the partitura
-                library (e.g. "ignoring direction type: metronome",
-                "Found repeat without end"). Partitura can emit numerous
-                warnings for complex scores; this flag sets a warning filter
-                to clean up loader output.
             **kwargs: Additional arguments passed to parent ScoreLoader.
         """
         super().__init__(**kwargs)
         self._force_note_ids = force_note_ids
-        self._silence_warnings = silence_warnings
         self._anacrusis_offset: float = 0.0
 
     @property
@@ -136,27 +127,13 @@ class PartituraLoader(ScoreLoader):
         return self._anacrusis_offset
 
     def _load_source(self, source: Path) -> ScoreStore:
-        """Load score and return ScoreStore.
-
-        When ``silence_warnings=True`` was passed at construction, all
-        warnings from the partitura library are suppressed.
-        """
-        import contextlib
-        import warnings
-
-        if self._silence_warnings:
-            ctx = warnings.catch_warnings()
-        else:
-            ctx = contextlib.nullcontext()
-
-        with ctx:
-            if self._silence_warnings:
-                warnings.filterwarnings("ignore", module="partitura")
-            return self._do_load(source)
+        """Load score and return ScoreStore."""
+        return self._do_load(source)
 
     def _do_load(self, source: Path) -> ScoreStore:
         """Core loading logic for a single source file."""
-        score = pt.load_score(str(source), force_note_ids=self._force_note_ids)
+        with suppressed_backend_warnings():
+            score = pt.load_score(str(source), force_note_ids=self._force_note_ids)
 
         # Flatten parts
         parts = []

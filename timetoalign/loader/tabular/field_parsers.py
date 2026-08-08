@@ -10,7 +10,7 @@ wrapping an arbitrary user-supplied callable.
 The hierarchy:
 
 * :class:`FieldParser` — abstract base; every concrete subclass
-  implements :meth:`FieldParser.emit`.
+  implements :meth:`FieldParser.from_array`.
 * :class:`CompositeFieldParser` — one source column splits into many
   fields by separator or named/positional regex.
 * :class:`CallableFieldParser` — escape hatch wrapping a user-provided
@@ -20,19 +20,19 @@ Atomic / typed column emission is handled by the :class:`DataField`
 hierarchy directly — :class:`IntField`, :class:`FloatField`,
 :class:`StringField`, :class:`RationalField`, and every paired
 :class:`SemanticField` subclass support blueprint construction
-(``IntField(name="x")``) and :meth:`DataField.emit`-time
+(``IntField(name="x")``) and :meth:`DataField.from_array`-time
 materialisation.  The Step-1 dispatcher
 :func:`resolve_field_parser` returns either a DataField blueprint or a
-FieldParser — both expose a uniform ``emit(source, name=...)`` API.
+FieldParser — both expose a uniform ``from_array(source, name=...)`` API.
 
 The resolution table maps user-friendly inputs (``int`` / ``float`` /
 ``str`` / ``Fraction`` types, ``pa.DataType`` instances, raw / paired
 ``DataField`` subclasses, ``FieldParser`` instances, or callables) to
 the appropriate producer.
 
-Bulk-emission contract: every parser / blueprint ``emit()`` is
+Bulk-emission contract: every parser / blueprint ``from_array()`` is
 vectorized over the source array — never a per-row Python loop in
-client code.  ``RationalField.emit`` walks the source as a Python
+client code.  ``RationalField.from_array`` walks the source as a Python
 iterable once because PyArrow has no general fraction parser; this is
 the single accepted exception, and it is contained inside the
 ``_build_rational_struct`` helper.
@@ -72,13 +72,13 @@ __all__ = [
 class FieldParser:
     """Abstract base for column-to-field processors.
 
-    Subclasses implement :meth:`emit` to turn a source ``pa.Array``
+    Subclasses implement :meth:`from_array` to turn a source ``pa.Array``
     into a single :class:`DataField`.  The output's name comes from the
     parser's own ``name`` (when set) or from the source column name
-    passed to :meth:`emit`.
+    passed to :meth:`from_array`.
 
     Args:
-        name: Optional override.  When ``None``, :meth:`emit` falls back
+        name: Optional override.  When ``None``, :meth:`from_array` falls back
             to the source column name supplied by the caller.
     """
 
@@ -90,7 +90,7 @@ class FieldParser:
         """Override name, or ``None`` if the source column name is used."""
         return self._name
 
-    def emit(self, source: pa.Array, *, name: str | None = None) -> DataField:
+    def from_array(self, source: pa.Array, *, name: str | None = None) -> DataField:
         """Resolve *source* into a typed :class:`DataField`.
 
         Args:
@@ -115,7 +115,7 @@ class FieldParser:
             return self._name
         if fallback is None:
             raise ValueError(
-                f"{type(self).__name__}.emit requires a name= override "
+                f"{type(self).__name__}.from_array requires a name= override "
                 "or a fallback name from the caller"
             )
         return fallback
@@ -178,7 +178,7 @@ class CompositeFieldParser(FieldParser):
             producer-like entries.  Resolution goes through
             :func:`resolve_field_parser`.
         name: Optional name for the resulting :class:`StructField`.
-            Defaults to the source column name passed to :meth:`emit`.
+            Defaults to the source column name passed to :meth:`from_array`.
     """
 
     def __init__(
@@ -273,10 +273,10 @@ class CompositeFieldParser(FieldParser):
 
         return {key: pa.array(values, type=pa.string()) for key, values in bins.items()}
 
-    def emit(self, source: pa.Array, *, name: str | None = None) -> StructField:
-        """Emit a :class:`StructField` whose sub-fields are the parts.
+    def from_array(self, source: pa.Array, *, name: str | None = None) -> StructField:
+        """Build a :class:`StructField` whose sub-fields are the parts.
 
-        Each sub-producer's ``emit()`` defines the typed semantics of
+        Each sub-producer's ``from_array()`` defines the typed semantics of
         that part.  Nested composites and rational sub-fields nest
         cleanly inside the resulting struct.
         """
@@ -286,7 +286,7 @@ class CompositeFieldParser(FieldParser):
         pa_fields: list[pa.Field] = []
         pa_arrays: list[pa.Array] = []
         for key, producer in zip(self._part_keys, self._part_producers):
-            sub_field = producer.emit(parts_in[key], name=key)
+            sub_field = producer.from_array(parts_in[key], name=key)
             pa_fields.append(sub_field.field)
             data = sub_field.data
             if data is None:
@@ -331,7 +331,7 @@ class CallableFieldParser(FieldParser):
         super().__init__(name=name)
         self._fn = fn
 
-    def emit(self, source: pa.Array, *, name: str | None = None) -> DataField:
+    def from_array(self, source: pa.Array, *, name: str | None = None) -> DataField:
         out_name = (
             self._name
             if self._name is not None
@@ -354,10 +354,10 @@ def resolve_field_parser(
     """Resolve an entry in ``column_specs`` to a producer.
 
     A producer is either a :class:`DataField` blueprint (whose
-    :meth:`DataField.emit` materialises the live field) or a
-    :class:`FieldParser` instance (whose :meth:`FieldParser.emit`
+    :meth:`DataField.from_array` materialises the live field) or a
+    :class:`FieldParser` instance (whose :meth:`FieldParser.from_array`
     consumes the source array).  Both expose a uniform
-    ``emit(source, name=...)`` API so the loader does not need to
+    ``from_array(source, name=...)`` API so the loader does not need to
     branch on the producer's category.
 
     Resolution chain:
@@ -383,7 +383,7 @@ def resolve_field_parser(
             (in which case the entry MUST carry its own ``name=``).
 
     Returns:
-        A producer with a uniform ``emit(source, name=...)`` API.
+        A producer with a uniform ``from_array(source, name=...)`` API.
 
     Raises:
         TypeError: When *value* matches no recognised shape.

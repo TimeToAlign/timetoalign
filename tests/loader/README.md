@@ -652,7 +652,7 @@ shape), and caches it.  Tested invariants:
   *non-default* affordance over the raw MIDI number, alongside the
   default `specific_pitch` struct;
 - a declared affordance is surfaced by `get_field(<ScalarClass>)`,
-  `has_field`, `get_fields_satisfying(PitchLike)`, and `get_pitch_field`;
+  `has_field`, `get_fields_satisfying(GenericPitchLike)`, and `get_pitch_field`;
 - the two number-only views are interchangeable at lookup time: every raw
   MIDI-number affordance answers both `get_field(EnharmonicPitch)` and
   `get_field(MidiPitch)` from the same atomic column;

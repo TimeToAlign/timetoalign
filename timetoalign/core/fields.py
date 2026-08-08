@@ -217,7 +217,7 @@ class DataField(ABC):
       whose type comes from the subclass's class-level
       ``_blueprint_pa_type`` default.  ``data`` may also be omitted
       (defaults to ``None``).  Blueprints are intended to be
-      materialised later via :meth:`emit`.
+      materialised later via :meth:`from_array`.
 
     Args:
         data: The PyArrow array holding field values, or ``None`` for
@@ -430,7 +430,7 @@ class DataField(ABC):
 
     # -- blueprint materialisation ------------------------------------------
 
-    def emit(
+    def from_array(
         self,
         source: pa.Array | pa.ChunkedArray,
         *,
@@ -459,7 +459,7 @@ class DataField(ABC):
         """
         if not self.is_empty:
             raise TypeError(
-                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"{type(self).__name__}.from_array() can only be called on a blueprint "
                 f"(empty DataField); this instance has live data"
             )
         out_name = name if name is not None else self.name
@@ -554,7 +554,7 @@ class IntField(NumericField):
     """A :class:`NumericField` pinned to ``pa.int64`` for blueprint use.
 
     Constructing ``IntField(name="x")`` yields a schema-only field of
-    type ``pa.int64()`` suitable for :meth:`emit`-time materialisation.
+    type ``pa.int64()`` suitable for :meth:`from_array`-time materialisation.
     Live-mode construction (``IntField(data, field)``) still validates
     the field type via the :class:`NumericField` base.
     """
@@ -566,7 +566,7 @@ class FloatField(NumericField):
     """A :class:`NumericField` pinned to ``pa.float64`` for blueprint use.
 
     Constructing ``FloatField(name="x")`` yields a schema-only field of
-    type ``pa.float64()`` suitable for :meth:`emit`-time materialisation.
+    type ``pa.float64()`` suitable for :meth:`from_array`-time materialisation.
     Live-mode construction still validates the field type via the
     :class:`NumericField` base.
     """
@@ -607,7 +607,7 @@ class StringField(DataField):
                 f"StringField requires a string type, got {self._field.type}"
             )
 
-    def emit(
+    def from_array(
         self,
         source: pa.Array | pa.ChunkedArray,
         *,
@@ -620,7 +620,7 @@ class StringField(DataField):
         """
         if not self.is_empty:
             raise TypeError(
-                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"{type(self).__name__}.from_array() can only be called on a blueprint "
                 f"(empty DataField); this instance has live data"
             )
         out_name = name if name is not None else self.name
@@ -991,7 +991,7 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
         * **Plain blueprint:** pass only ``name=<str>``.  The
           SemanticField is materialised with the class's
           :attr:`pa_schema` and the supplied name, and is intended to
-          be promoted to a live field by :meth:`emit` against a source
+          be promoted to a live field by :meth:`from_array` against a source
           array.  :attr:`is_blueprint` is also ``True`` in this mode;
           :attr:`_blueprint_source_fields` remains ``None``.
 
@@ -1191,7 +1191,7 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
             f"Unsupported source type for {cls.__name__}.from_field: {type(source).__name__}"
         )
 
-    def emit(
+    def from_array(
         self,
         source: pa.Array | pa.ChunkedArray,
         *,
@@ -1216,13 +1216,16 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
         """
         if not self.is_empty:
             raise TypeError(
-                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"{type(self).__name__}.from_array() can only be called on a blueprint "
                 f"(empty DataField); this instance has live data"
             )
         cls = type(self)
         schema = cls.pa_schema
         if schema is None:
-            raise TypeError(f"{cls.__name__} has no derived pa_schema; cannot emit")
+            raise TypeError(
+                f"{cls.__name__} has no derived pa_schema; "
+                "cannot materialise from an array"
+            )
         out_name = name if name is not None else self.name
         field_names = [schema.field(i).name for i in range(schema.num_fields)]
 
@@ -1255,7 +1258,7 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
                     casted = pc.cast(source, pa.string())
             else:
                 raise TypeError(
-                    f"{cls.__name__}.emit: unsupported sub-field type {sub_type!r}"
+                    f"{cls.__name__}.from_array: unsupported sub-field type {sub_type!r}"
                 )
             struct_arr = pa.StructArray.from_arrays([casted], fields=list(schema))
             pa_field = pa.field(out_name, schema)
@@ -1265,7 +1268,7 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
         scalar_cls = cls.scalar_cls
         if scalar_cls is None:
             raise TypeError(
-                f"{cls.__name__}.emit fallback requires a paired scalar_cls"
+                f"{cls.__name__}.from_array fallback requires a paired scalar_cls"
             )
         if isinstance(source, pa.ChunkedArray):
             source = source.combine_chunks()
@@ -2621,7 +2624,7 @@ class RationalField(NumberField):
         data, field = source
         return cls(data, field)
 
-    def emit(
+    def from_array(
         self,
         source: pa.Array | pa.ChunkedArray,
         *,
@@ -2636,7 +2639,7 @@ class RationalField(NumberField):
         """
         if not self.is_empty:
             raise TypeError(
-                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"{type(self).__name__}.from_array() can only be called on a blueprint "
                 f"(empty DataField); this instance has live data"
             )
         out_name = name if name is not None else self.name
@@ -2747,7 +2750,7 @@ class DenominateNumberField(RationalField):
             unit = cls._resolve_unit(field, None)
         return cls(data, field, unit=unit)
 
-    def emit(
+    def from_array(
         self,
         source: pa.Array | pa.ChunkedArray,
         *,
@@ -2755,14 +2758,14 @@ class DenominateNumberField(RationalField):
     ) -> "DenominateNumberField":
         """Parse a source column as fractions and stamp unit metadata.
 
-        Equivalent to :meth:`RationalField.emit` followed by attaching
+        Equivalent to :meth:`RationalField.from_array` followed by attaching
         the blueprint's bound :attr:`unit` as a versioned
         :data:`TIMETOALIGN_METADATA_KEY` blob (``{"unit": ...}``) on the
         emitted field.
         """
         if not self.is_empty:
             raise TypeError(
-                f"{type(self).__name__}.emit() can only be called on a blueprint "
+                f"{type(self).__name__}.from_array() can only be called on a blueprint "
                 f"(empty DataField); this instance has live data"
             )
         out_name = name if name is not None else self.name

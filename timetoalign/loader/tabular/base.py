@@ -88,7 +88,7 @@ def _merge_field_type_metadata(pa_field: pa.Field, field_type: str) -> pa.Field:
     """Return *pa_field* with a TTA blob carrying ``field_type``.
 
     If *pa_field* already carries a ``TIMETOALIGN_METADATA_KEY`` payload
-    (e.g. ``DenominateNumberField.emit()`` writes ``{"unit": ...}``), the
+    (e.g. ``DenominateNumberField.from_array()`` writes ``{"unit": ...}``), the
     existing payload is preserved and ``"field_type"`` is added /
     overwritten on top.  Metadata entries under any other key are passed
     through unchanged.
@@ -354,7 +354,7 @@ class TabularLoader(EventLoader):
         ``TIMETOALIGN_METADATA_KEY``) is appended to ``self._extra_schema_fields``.  The
         metadata stamp lets downstream filtering (``get_events(properties=False)``)
         recognise column-spec emissions as *fields* rather than raw
-        property columns.  Any metadata the producer's ``emit()`` had
+        property columns.  Any metadata the producer's ``from_array()`` had
         already attached (e.g. ``DenominateNumberField`` writes the
         ``unit``) is preserved and merged with the ``field_type`` key.
 
@@ -365,7 +365,7 @@ class TabularLoader(EventLoader):
             decide which raw source columns survive as property columns).
 
         Returns:
-            A dict mapping emit names to emitted DataField objects (for
+            A dict mapping output names to materialised DataField objects (for
             Step 2 lookup).
         """
         emitted: dict[str, DataField] = {}
@@ -380,7 +380,7 @@ class TabularLoader(EventLoader):
                     consumed.add(str(df.columns[source_key]))
             else:
                 consumed.add(source_key)
-            data_field = producer.emit(source_arr, name=emit_name)
+            data_field = producer.from_array(source_arr, name=emit_name)
             emitted[emit_name] = data_field
             data = data_field.data
             if data is None:

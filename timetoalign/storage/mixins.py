@@ -504,7 +504,7 @@ class SemanticFieldAccessMixin:
     redundant semantic struct.  The promotion is materialised lazily by
     :meth:`get_fields` (and therefore by ``get_field`` /
     ``get_pitch_field`` / ``get_fields_satisfying``) via the paired
-    class's ``emit()``, and cached.  The raw column stays raw and
+    class's ``from_array()``, and cached.  The raw column stays raw and
     queryable; the affordance is reached only when asked for.
     """
 
@@ -731,7 +731,7 @@ class SemanticFieldAccessMixin:
         whose ``afforded_cls`` matches *field_type* (exact class when
         *strict*, else a subclass), and whose ``column`` is present as a
         non-struct (atomic) column on the table, promote the raw column to
-        a live ``afforded_cls`` via its blueprint ``emit()`` and cache it.
+        a live ``afforded_cls`` via its blueprint ``from_array()`` and cache it.
 
         Returns the matches in declaration order (an empty list when none
         apply).
@@ -772,7 +772,7 @@ class SemanticFieldAccessMixin:
         *,
         raise_on_failure: bool,
     ) -> SemanticField[Any] | None:
-        """Promote one declared raw-column affordance through ``emit()``.
+        """Promote one declared raw-column affordance through ``from_array()``.
 
         This is the single raw-column promotion path shared by class-based
         discovery and source-field blueprints.  A ``None`` result means that
@@ -808,7 +808,7 @@ class SemanticFieldAccessMixin:
         if isinstance(arr, pa.ChunkedArray):
             arr = arr.combine_chunks()
         try:
-            field = field_type(name=column).emit(arr, name=column)
+            field = field_type(name=column).from_array(arr, name=column)
         except (TypeError, KeyError, ValueError, pa.ArrowInvalid) as exc:
             if not raise_on_failure:
                 return None
@@ -837,7 +837,7 @@ class SemanticFieldAccessMixin:
 
         Args:
             protocol: A ``runtime_checkable`` Protocol (e.g.
-                ``PitchLike``, ``TimeScalarLike``).
+                ``GenericPitchLike``, ``TimeScalarLike``).
 
         Returns:
             A list of paired ``SemanticField`` instances (may be empty).
@@ -991,7 +991,7 @@ class SemanticFieldAccessMixin:
             SpecificPitchClassField,
             SpecificPitchField,
         )
-        from timetoalign.core.protocols import PitchLike
+        from timetoalign.core.protocols import GenericPitchLike
 
         if pitch_field_type is not None:
             return self.get_field(pitch_field_type)
@@ -1000,7 +1000,7 @@ class SemanticFieldAccessMixin:
         # via the priority list (SP > EP > SPC > GPC).  Other pitch
         # scalar fields not in the priority list fall back after the
         # priority sweep.
-        all_pitch_fields = self.get_fields_satisfying(PitchLike)
+        all_pitch_fields = self.get_fields_satisfying(GenericPitchLike)
         if not all_pitch_fields:
             raise KeyError(
                 "No pitch field found in table. "
@@ -1169,7 +1169,7 @@ class SemanticFieldAccessMixin:
 
         # Keep blueprint resolution aligned with class-based affordance
         # discovery: a declared raw atomic source is packed by the paired
-        # field's ``emit()`` before the normal struct-backed constructor is
+        # field's ``from_array()`` before the normal struct-backed constructor is
         # attempted.  This also preserves the requested EP/MP view class.
         if not pa.types.is_struct(pa_field.type):
             promoted = self._materialize_afforded(

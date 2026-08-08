@@ -8,14 +8,21 @@ import pytest
 from pydantic import ValidationError
 
 from timetoalign.core.enums import TimeUnit
-from timetoalign.core.events import DcmlHarmony, Measure, MidiPitch, Note, SpecificPitch
+from timetoalign.core.events import (
+    DcmlHarmony,
+    Measure,
+    MidiPitch,
+    Note,
+    SpecificPitch,
+    SpecificPitchClass,
+)
 from timetoalign.core.protocols import (
     DcmlHarmonyLike,
     EnharmonicPitchLike,
+    GenericPitchLike,
     HarmonyLabelLike,
     MeasureLike,
     NoteLike,
-    PitchLike,
     SemanticTypeLike,
 )
 from timetoalign.core.time import Coordinate
@@ -40,10 +47,10 @@ class TestMidiPitch:
         assert p.midi_number == 59
         assert p.pitch_class == 11
 
-    def test_pitchlike_conformance(self) -> None:
-        """MidiPitch satisfies PitchLike protocol."""
+    def test_generic_pitch_like_conformance(self) -> None:
+        """MidiPitch satisfies the root pitch protocol."""
         p = MidiPitch(midi_number=64)
-        assert isinstance(p, PitchLike)
+        assert isinstance(p, GenericPitchLike)
 
     def test_enharmonic_pitch_like_conformance(self) -> None:
         """MidiPitch satisfies EnharmonicPitchLike protocol."""
@@ -117,10 +124,30 @@ class TestSpecificPitch:
         assert p.octave == 3
         assert p.fifths == 8  # auto-derived: G=1 + 7*1=8
 
-    def test_pitchlike_conformance(self) -> None:
-        """SpecificPitch satisfies PitchLike protocol."""
+    def test_generic_pitch_like_conformance(self) -> None:
+        """SpecificPitch satisfies the root pitch protocol."""
         p = SpecificPitch(step="C", alter=0, octave=4)
-        assert isinstance(p, PitchLike)
+        assert isinstance(p, GenericPitchLike)
+
+    def test_from_string(self) -> None:
+        """Construct a spelled pitch from its string representation."""
+        assert SpecificPitch.from_string("C♯4") == SpecificPitch(
+            step="C", alter=1, octave=4
+        )
+
+    def test_pitch_from_label_is_removed(self) -> None:
+        """Pitch construction exposes no harmony-label constructor."""
+        assert not hasattr(SpecificPitch, "from_label")
+
+    def test_pitch_class_from_string(self) -> None:
+        """Construct a spelled pitch class from its string representation."""
+        assert SpecificPitchClass.from_string("D♭") == SpecificPitchClass(
+            step="D", alter=-1
+        )
+
+    def test_pitch_class_from_label_is_removed(self) -> None:
+        """Pitch-class construction exposes no harmony-label constructor."""
+        assert not hasattr(SpecificPitchClass, "from_label")
 
     def test_midi_number_computation_c4(self) -> None:
         """SpecificPitch for C4 computes midi_number == 60."""

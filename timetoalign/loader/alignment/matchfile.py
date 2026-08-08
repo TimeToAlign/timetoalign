@@ -27,8 +27,12 @@ from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-import partitura as pt
 from typing_extensions import Self
+
+from timetoalign.core.backends import suppressed_backend_warnings
+
+with suppressed_backend_warnings():
+    import partitura as pt
 
 from timetoalign.alignment.claims import Agent, MatchClaim, MatchMetadata
 from timetoalign.core import AgentType, TimeUnit, resolve_id
@@ -346,13 +350,10 @@ class MatchfileLoader(AlignmentLoader):
         Args:
             path: Path to the .match file.
         """
-        import warnings
-
         self._logger.debug(f"Loading {path.name}")
 
         # Parse with partitura
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
+        with suppressed_backend_warnings():
             perf, alignment, score = pt.load_match(str(path), create_score=True)
 
         # Extract header info from file
@@ -372,7 +373,8 @@ class MatchfileLoader(AlignmentLoader):
         # Build note array for score metadata and score IDs. The exact beat
         # coordinates are read from the matchfile source text below because
         # partitura's note array materialises them as float32 values.
-        score_na = pt.compute_note_array(score)
+        with suppressed_backend_warnings():
+            score_na = pt.compute_note_array(score)
         score_by_id = {score_na[i]["id"]: score_na[i] for i in range(len(score_na))}
         exact_score_coords = self._read_exact_score_coordinates(path)
         if set(score_by_id) != set(exact_score_coords):

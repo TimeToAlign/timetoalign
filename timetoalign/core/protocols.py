@@ -18,12 +18,10 @@ Hierarchy Overview::
     │       └── WesternTertianHarmonyLike
     │           └── RomanNumeralHarmonyLike
     │               └── DcmlHarmonyLike
-    └── PitchLike                          Pitch-bearing objects
-        ├── GenericPitchLike              Pitch class only
-        │   └── SpecificPitchClassLike     + spelling (step, alter, fifths)
-        ├── EnharmonicPitchLike           + octave (midi_number) [EP]
-        │   └── SpecificPitchLike         + spelling (step, alter, fifths, cents) [SP]
-        └── (future: MicrotonalPitchLike)
+    └── GenericPitchLike                  Pitch class only
+        ├── SpecificPitchClassLike         + spelling (step, alter, fifths)
+        └── EnharmonicPitchLike           + octave (midi_number) [EP]
+            └── SpecificPitchLike         + spelling (step, alter, fifths, cents) [SP]
 
 The ``TwelveTETPitchMixin`` is a concrete mixin (not a Protocol) that adds
 12-TET pitch methods (``pitch_class``, ``to()``, ``get()``) to scalar classes.
@@ -202,21 +200,7 @@ class IntervalEventLike(TimedObjectLike, Protocol):
 
 
 @runtime_checkable
-class PitchLike(SemanticTypeLike, Protocol):
-    """Abstract root for ALL pitch-like objects.
-
-    Deliberately minimal: does not require ``pitch_class`` or
-    ``midi_number``.  12-TET capabilities are added via
-    ``TwelveTETPitchMixin``.  This allows future microtonal pitch
-    systems to satisfy ``PitchLike`` without implementing 12-TET
-    concepts.
-    """
-
-    pass
-
-
-@runtime_checkable
-class GenericPitchLike(PitchLike, Protocol):
+class GenericPitchLike(SemanticTypeLike, Protocol):
     """Pitch class only (no octave, no spelling).
 
     The minimal 12-TET pitch representation: just the pitch class
@@ -253,7 +237,7 @@ class SpecificPitchClassLike(GenericPitchLike, Protocol):
 
 
 @runtime_checkable
-class EnharmonicPitchLike(PitchLike, Protocol):
+class EnharmonicPitchLike(GenericPitchLike, Protocol):
     """Enharmonic pitch: MIDI-level representation with octave.
 
     Called "enharmonic" because it **equates** enharmonic equivalents
@@ -265,11 +249,6 @@ class EnharmonicPitchLike(PitchLike, Protocol):
     @property
     def midi_number(self) -> int:
         """MIDI note number (0-127)."""
-        ...
-
-    @property
-    def pitch_class(self) -> int:
-        """Pitch class (0-11, C=0)."""
         ...
 
     @property
@@ -332,7 +311,7 @@ class NoteLike(IntervalEventLike, Protocol):
     """
 
     @property
-    def pitch(self) -> PitchLike | None:
+    def pitch(self) -> GenericPitchLike | None:
         """The pitch of the note, or ``None`` for rests."""
         ...
 
@@ -487,12 +466,12 @@ class PitchBasedHarmonyLike(HarmonyLabelLike, Protocol):
     """
 
     @property
-    def root(self) -> PitchLike | None:
+    def root(self) -> GenericPitchLike | None:
         """Root pitch (reference component), or ``None``."""
         ...
 
     @property
-    def bass(self) -> PitchLike | None:
+    def bass(self) -> GenericPitchLike | None:
         """Bass note (reference OHR), or ``None``."""
         ...
 

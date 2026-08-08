@@ -116,7 +116,7 @@ The Coordinate class is the atomic unit for all temporal positioning in TTA. Tes
 **Purpose:** Validates construction and protocol conformance for the score-level
 scalars `MidiPitch`, `SpecificPitch`, `Note`, `Measure`, and `DcmlHarmony`.
 
-**Test Categories:** construction, protocol conformance (`PitchLike`,
+**Test Categories:** construction, protocol conformance (`GenericPitchLike`,
 `NoteLike`, `MeasureLike`, `HarmonyLabelLike`, `DcmlHarmonyLike`,
 `SemanticTypeLike`), `semantic_type`, `metadata_dict`, and immutability.
 

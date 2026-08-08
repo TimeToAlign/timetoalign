@@ -6,7 +6,7 @@ Two domains are exercised:
   ``StringField``, ``RationalField``, ``DenominateNumberField``, and
   paired :class:`SemanticField` subclasses all accept ``name=`` for
   blueprint construction and expose a uniform
-  ``emit(source, name=...)`` materialisation entry point.
+  ``from_array(source, name=...)`` materialisation entry point.
 * **Resolver** — :func:`resolve_field_parser` maps user-facing inputs
   (Python types, ``pa.DataType``, raw / paired ``DataField``
   subclasses, blueprint instances, ``FieldParser`` instances,
@@ -60,25 +60,25 @@ class TestIntFieldBlueprint:
         assert bp.name == "channel"
         assert bp.pa_type == pa.int64()
 
-    def test_emit_casts_strings_to_int64(self) -> None:
+    def test_from_array_casts_strings_to_int64(self) -> None:
         bp = IntField(name="channel")
-        result = bp.emit(pa.array(["1", "2", "3"]))
+        result = bp.from_array(pa.array(["1", "2", "3"]))
         assert isinstance(result, IntField)
         assert isinstance(result, NumericField)
         assert result.pa_type == pa.int64()
         assert result.data.to_pylist() == [1, 2, 3]
         assert result.name == "channel"
 
-    def test_emit_with_name_override(self) -> None:
+    def test_from_array_with_name_override(self) -> None:
         bp = IntField(name="channel")
-        result = bp.emit(pa.array([10, 20]), name="velocity")
+        result = bp.from_array(pa.array([10, 20]), name="velocity")
         assert result.name == "velocity"
 
-    def test_emit_on_live_field_raises(self) -> None:
+    def test_from_array_on_live_field_raises(self) -> None:
         bp = IntField(name="x")
-        live = bp.emit(pa.array([1, 2, 3]))
+        live = bp.from_array(pa.array([1, 2, 3]))
         with pytest.raises(TypeError, match="blueprint"):
-            live.emit(pa.array([1]))
+            live.from_array(pa.array([1]))
 
 
 class TestFloatFieldBlueprint:
@@ -88,9 +88,9 @@ class TestFloatFieldBlueprint:
         assert bp.is_empty is True
         assert bp.pa_type == pa.float64()
 
-    def test_emit_casts_strings_to_float(self) -> None:
+    def test_from_array_casts_strings_to_float(self) -> None:
         bp = FloatField(name="x")
-        result = bp.emit(pa.array(["0.5", "1.5", "2.5"]))
+        result = bp.from_array(pa.array(["0.5", "1.5", "2.5"]))
         assert isinstance(result, FloatField)
         assert result.pa_type == pa.float64()
         assert result.data.to_pylist() == [0.5, 1.5, 2.5]
@@ -103,15 +103,15 @@ class TestStringFieldBlueprint:
         assert bp.is_empty is True
         assert bp.pa_type == pa.string()
 
-    def test_emit_passes_string_through(self) -> None:
+    def test_from_array_passes_string_through(self) -> None:
         bp = StringField(name="note_id")
-        result = bp.emit(pa.array(["n1", "n2", "n3"]))
+        result = bp.from_array(pa.array(["n1", "n2", "n3"]))
         assert isinstance(result, StringField)
         assert result.data.to_pylist() == ["n1", "n2", "n3"]
 
-    def test_emit_casts_non_string_input(self) -> None:
+    def test_from_array_casts_non_string_input(self) -> None:
         bp = StringField(name="x")
-        result = bp.emit(pa.array([1, 2, 3]))
+        result = bp.from_array(pa.array([1, 2, 3]))
         assert isinstance(result, StringField)
         assert result.data.to_pylist() == ["1", "2", "3"]
 
@@ -123,23 +123,23 @@ class TestRationalFieldBlueprint:
         assert bp.is_empty is True
         assert pa.types.is_struct(bp.pa_type)
 
-    def test_emit_parses_fraction_strings(self) -> None:
+    def test_from_array_parses_fraction_strings(self) -> None:
         bp = RationalField(name="ratio")
-        result = bp.emit(pa.array(["3/4", "1/2", "7/8"]))
+        result = bp.from_array(pa.array(["3/4", "1/2", "7/8"]))
         assert isinstance(result, RationalField)
         py = result.data.to_pylist()
         assert py[0] == {"value": 0.75, "numerator": 3, "denominator": 4}
         assert py[1] == {"value": 0.5, "numerator": 1, "denominator": 2}
         assert py[2] == {"value": 0.875, "numerator": 7, "denominator": 8}
 
-    def test_emit_handles_null_input(self) -> None:
+    def test_from_array_handles_null_input(self) -> None:
         bp = RationalField(name="ratio")
-        result = bp.emit(pa.array(["3/4", None, "1/2"]))
+        result = bp.from_array(pa.array(["3/4", None, "1/2"]))
         assert result.data.is_null().to_pylist() == [False, True, False]
 
-    def test_emit_zero_denominator_becomes_null(self) -> None:
+    def test_from_array_zero_denominator_becomes_null(self) -> None:
         bp = RationalField(name="ratio")
-        result = bp.emit(pa.array(["3/4", "3/0"]))
+        result = bp.from_array(pa.array(["3/4", "3/0"]))
         assert result.data.is_null().to_pylist() == [False, True]
 
 
@@ -155,9 +155,9 @@ class TestDenominateNumberFieldBlueprint:
         assert bp.is_empty is True
         assert bp.unit == TimeUnit.quarters
 
-    def test_emit_parses_fractions_and_stamps_unit(self) -> None:
+    def test_from_array_parses_fractions_and_stamps_unit(self) -> None:
         bp = DenominateNumberField(name="duration", unit=TimeUnit.quarters)
-        result = bp.emit(pa.array(["3/4", "1/2"]))
+        result = bp.from_array(pa.array(["3/4", "1/2"]))
         assert isinstance(result, DenominateNumberField)
         assert result.unit == TimeUnit.quarters
         py = result.data.to_pylist()
@@ -174,21 +174,21 @@ class TestSemanticFieldBlueprint:
     def test_measure_number_blueprint_emits_struct(self) -> None:
         bp = MeasureNumberField(name="measure_number")
         assert bp.is_empty is True
-        result = bp.emit(pa.array([1, 2, 16]))
+        result = bp.from_array(pa.array([1, 2, 16]))
         assert isinstance(result, MeasureNumberField)
         assert result[0] == MeasureNumber(value=1)
         assert result[2] == MeasureNumber(value=16)
 
     def test_id_blueprint_packs_string(self) -> None:
         bp = IdField(name="note_id")
-        result = bp.emit(pa.array(["abc", "def"]))
+        result = bp.from_array(pa.array(["abc", "def"]))
         assert isinstance(result, IdField)
         assert result[0] == Id(value="abc")
         assert result[1] == Id(value="def")
 
     def test_enharmonic_pitch_blueprint_packs_int(self) -> None:
         bp = EnharmonicPitchField(name="midi_pitch")
-        result = bp.emit(pa.array([60, 62, 64]))
+        result = bp.from_array(pa.array([60, 62, 64]))
         assert isinstance(result, EnharmonicPitchField)
         assert result[0] == EnharmonicPitch(midi_number=60)
         assert result[2] == EnharmonicPitch(midi_number=64)
@@ -253,7 +253,7 @@ class TestResolveFieldParser:
 
     def test_live_data_field_rejected(self) -> None:
         # A live DataField must not appear in column_specs.
-        live = IntField(name="x").emit(pa.array([1, 2]))
+        live = IntField(name="x").from_array(pa.array([1, 2]))
         with pytest.raises(TypeError, match="blueprint"):
             resolve_field_parser(live)
 
@@ -288,7 +288,9 @@ class TestCompositeFieldParser:
             parts=[IntField(name="measure"), RationalField(name="onset")],
             name="position",
         )
-        result = parser.emit(pa.array(["1+3/8", "2+1/4", "16+0/1"]), name="position")
+        result = parser.from_array(
+            pa.array(["1+3/8", "2+1/4", "16+0/1"]), name="position"
+        )
         assert isinstance(result, StructField)
         assert result.field.name == "position"
         assert result.field_names == ["measure", "onset"]
@@ -301,7 +303,7 @@ class TestCompositeFieldParser:
             parts={"measure": int, "onset": Fraction},
             name="position",
         )
-        result = parser.emit(pa.array(["1+3/8", "2+1/4"]), name="position")
+        result = parser.from_array(pa.array(["1+3/8", "2+1/4"]), name="position")
         assert result.field_names == ["measure", "onset"]
         assert result.get_sub_field("measure").data.to_pylist() == [1, 2]
 
@@ -322,7 +324,7 @@ class TestCompositeFieldParser:
             parts={"measure": int, "onset": Fraction},
             name="position",
         )
-        result = parser.emit(pa.array(["1+3/8", "2+1/4"]), name="position")
+        result = parser.from_array(pa.array(["1+3/8", "2+1/4"]), name="position")
         assert result.get_sub_field("measure").data.to_pylist() == [1, 2]
 
     def test_regex_positional_groups(self) -> None:
@@ -332,7 +334,7 @@ class TestCompositeFieldParser:
             parts=[IntField(name="measure"), RationalField(name="onset")],
             name="position",
         )
-        result = parser.emit(pa.array(["1+3/8", "2+1/4"]), name="position")
+        result = parser.from_array(pa.array(["1+3/8", "2+1/4"]), name="position")
         assert result.get_sub_field("measure").data.to_pylist() == [1, 2]
 
     def test_separator_mismatch_produces_null_row(self) -> None:
@@ -341,7 +343,7 @@ class TestCompositeFieldParser:
             parts=[IntField(name="measure"), RationalField(name="onset")],
         )
         # Second row has no separator → its parts are null.
-        result = parser.emit(pa.array(["1+3/8", "no_separator"]), name="x")
+        result = parser.from_array(pa.array(["1+3/8", "no_separator"]), name="x")
         measures = result.get_sub_field("measure").data.to_pylist()
         assert measures == [1, None]
 
@@ -364,7 +366,7 @@ class TestCallableFieldParser:
             return NumericField(arr.cast(pa.int64()), pa.field(name, pa.int64()))
 
         parser = CallableFieldParser(my_fn, name="forwarded")
-        result = parser.emit(pa.array(["1", "2"]), name="ignored")
+        result = parser.from_array(pa.array(["1", "2"]), name="ignored")
         assert isinstance(result, NumericField)
         assert result.field.name == "forwarded"
 
@@ -373,7 +375,7 @@ class TestCallableFieldParser:
             return NumericField(arr.cast(pa.int64()), pa.field("x", pa.int64()))
 
         parser = CallableFieldParser(my_fn)
-        result = parser.emit(pa.array(["10", "20"]), name="ignored")
+        result = parser.from_array(pa.array(["10", "20"]), name="ignored")
         assert isinstance(result, NumericField)
 
 
@@ -382,22 +384,22 @@ class TestCallableFieldParser:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
-class TestResolveAndEmit:
-    """The producer returned by the resolver exposes a working emit()."""
+class TestResolveAndFromArray:
+    """The producer returned by the resolver exposes a working from_array()."""
 
     def test_python_type_then_emit(self) -> None:
         producer = resolve_field_parser(int, default_name="velocity")
-        result = producer.emit(pa.array(["1", "2", "3"]), name="velocity")
+        result = producer.from_array(pa.array(["1", "2", "3"]), name="velocity")
         assert isinstance(result, IntField)
         assert result.data.to_pylist() == [1, 2, 3]
 
     def test_pa_type_then_emit(self) -> None:
         producer = resolve_field_parser(pa.float64(), default_name="x")
-        result = producer.emit(pa.array([0.5, 1.5]), name="x")
+        result = producer.from_array(pa.array([0.5, 1.5]), name="x")
         assert isinstance(result, FloatField)
 
     def test_semantic_class_then_emit_packs_struct(self) -> None:
         producer = resolve_field_parser(IdField, default_name="note_id")
-        result = producer.emit(pa.array(["abc", "def"]), name="note_id")
+        result = producer.from_array(pa.array(["abc", "def"]), name="note_id")
         assert isinstance(result, IdField)
         assert result[0] == Id(value="abc")

@@ -15,7 +15,7 @@ Flat module layout (no sub-packages):
 * :mod:`timetoalign.core.enums` — ``Domain``, ``TimeUnit``, ``NumberType``,
   …
 * :mod:`timetoalign.core.ids` — ``ScopedId``, ``IdGenerator``.
-* :mod:`timetoalign.core.protocols` — ``PitchLike``, ``HarmonyLike``, …
+* :mod:`timetoalign.core.protocols` — pitch, harmony, and time protocols.
 * :mod:`timetoalign.core.timestamp` — ``TimeStamp``, ``TimeIntervalStamp``.
 """
 
