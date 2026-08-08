@@ -2115,8 +2115,10 @@ def struct_to_rational(struct: dict[str, Any]) -> Fraction:
     """Recover the exact ``Fraction`` from a canonical rational struct dict.
 
     The float ``value`` member is deliberately ignored: it is a lossy
-    projection, so a struct without an exact ratio has no exact
-    ``Fraction`` to return.
+    projection, so a value-only cell (null numerator and denominator) has no
+    exact ``Fraction`` to return here. Requesting ``NumberType.fraction`` via
+    :func:`struct_to_coordinate` instead preserves the stored double's exact
+    binary expansion; it never uses ``limit_denominator()`` to invent a plausible rational.
 
     Args:
         struct: A dict shaped like :data:`RATIONAL_STRUCT_TYPE`.
@@ -2146,6 +2148,12 @@ def struct_to_coordinate(
     struct: dict[str, Any], number_type: NumberType
 ) -> int | float | Fraction:
     """Decode a canonical Arrow coordinate cell to its requested number type.
+
+    For a value-only float cell (null numerator and denominator) requested as
+    a ``Fraction``, returns the stored double's exact binary expansion; e.g.,
+    ``0.1`` becomes ``Fraction(3602879701896397, 36028797018963968)``. It never uses
+    ``limit_denominator()``, because an inexact float must not be silently
+    dressed up as a plausible rational.
 
     Args:
         struct: Dictionary shaped like :data:`RATIONAL_STRUCT_TYPE`.
