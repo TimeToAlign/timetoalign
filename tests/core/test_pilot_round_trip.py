@@ -27,8 +27,9 @@ from timetoalign.core.fields import (
     build_struct_array,
     derive_arrow_struct,
     parquet_metadata_for_model,
+    struct_to_coordinate,
 )
-from timetoalign.core.time import Coordinate, struct_to_coordinate
+from timetoalign.core.time import Coordinate
 
 
 class TestSpecificPitchRoundTrip:

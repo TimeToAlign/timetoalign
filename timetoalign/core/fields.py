@@ -51,7 +51,7 @@ import pyarrow.compute as pc
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
 
-from .enums import TimeUnit
+from .enums import NumberType, TimeUnit
 
 T = TypeVar("T", bound=BaseModel)
 """The pydantic scalar a ``SemanticField`` is paired with."""
@@ -2083,6 +2083,34 @@ def rational_to_struct(value: Any) -> dict[str, Any]:
     }
 
 
+def coordinate_to_struct(
+    coordinate: int | float | Fraction | dict[str, Any],
+) -> dict[str, Any]:
+    """Encode one coordinate as the canonical Arrow struct dictionary.
+
+    Integer and rational coordinates retain an exact numerator and denominator.
+    Floating-point coordinates retain only their value because no exact ratio was
+    supplied by the caller. A canonical struct dictionary passes through unchanged.
+
+    Args:
+        coordinate: Coordinate value or an already encoded coordinate cell.
+
+    Returns:
+        A dictionary shaped like :data:`RATIONAL_STRUCT_TYPE`.
+
+    Raises:
+        TypeError: If the coordinate is not a supported numeric value.
+        ValueError: If a dictionary does not have the canonical shape.
+    """
+    if isinstance(coordinate, dict):
+        if not is_rational_wire(coordinate):
+            raise ValueError(f"Invalid coordinate dict structure: {coordinate}")
+        return coordinate
+    if isinstance(coordinate, (Fraction, int)) and not isinstance(coordinate, bool):
+        return rational_to_struct(coordinate)
+    return rational_to_wire(coordinate)
+
+
 def struct_to_rational(struct: dict[str, Any]) -> Fraction:
     """Recover the exact ``Fraction`` from a canonical rational struct dict.
 
@@ -2112,6 +2140,26 @@ def struct_to_rational(struct: dict[str, Any]) -> Fraction:
     if denominator == 0:
         raise ValueError("rational struct denominator must be non-zero")
     return Fraction(numerator, denominator)
+
+
+def struct_to_coordinate(
+    struct: dict[str, Any], number_type: NumberType
+) -> int | float | Fraction:
+    """Decode a canonical Arrow coordinate cell to its requested number type.
+
+    Args:
+        struct: Dictionary shaped like :data:`RATIONAL_STRUCT_TYPE`.
+        number_type: Numeric representation to return.
+
+    Returns:
+        The coordinate in the requested numeric representation.
+    """
+    value = wire_to_rational(struct)
+    if number_type == NumberType.fraction:
+        return value if isinstance(value, Fraction) else Fraction(value)
+    if number_type == NumberType.int:
+        return int(value)
+    return float(value)
 
 
 def rational_to_wire(value: Fraction | int | float) -> dict[str, Any]:

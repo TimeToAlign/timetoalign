@@ -10,9 +10,23 @@ import pyarrow.compute as pc
 from timetoalign.core import Coordinate, CoordinateSpec, CoordinateValue
 from timetoalign.storage import EventData
 
-from .coordinate_ops import exact_coordinate_value, shift_coordinate
+from .coordinate_ops import (
+    coordinate_numeric_value,
+    exact_coordinate_value,
+    shift_coordinate,
+)
 
 SEGMENT_EVENT_TYPE = "Segment"
+
+
+def _decoded_rows(data: EventData) -> list[dict[str, Any]]:
+    """Return rows with every rational-shaped column decoded."""
+    rows = list(data)
+    for name in data.table.column_names:
+        values = data.column_values(name)
+        for row, value in zip(rows, values, strict=True):
+            row[name] = value
+    return rows
 
 
 class EventsMixin:
@@ -351,9 +365,8 @@ class EventsMixin:
         offset_exact = exact_coordinate_value(child_offset)
         if offset_exact is None:
             return None
-        for event in child._events:
-            for field in ("start", "end", "duration"):
-                value = event.get(field)
+        for field in ("start", "end", "duration"):
+            for value in child._events.column_values(field):
                 exact = exact_coordinate_value(value)
                 if exact is None or float(exact + offset_exact) != axis:
                     continue
@@ -362,9 +375,8 @@ class EventsMixin:
 
     def _find_exact_event_coordinate(self, axis: float) -> Fraction | None:
         """Find an exact coordinate pair in this timeline's own events."""
-        for event in self._events:
-            for field in ("start", "end", "duration"):
-                value = event.get(field)
+        for field in ("start", "end", "duration"):
+            for value in self._events.column_values(field):
                 exact = exact_coordinate_value(value)
                 if exact is not None and float(exact) == axis:
                     return exact
@@ -387,9 +399,7 @@ class EventsMixin:
         for key in keys:
             val = event.get(key)
             if val is not None:
-                if isinstance(val, dict) and "value" in val:
-                    return float(val["value"])
-                return float(val)
+                return float(coordinate_numeric_value(val))
         return None
 
     def get_events_at(
@@ -460,7 +470,7 @@ class EventsMixin:
         """Get events at a coordinate in this timeline (local, no children)."""
         result = []
 
-        for event in self.get_events(include_children=False):
+        for event in _decoded_rows(self.get_events(include_children=False)):
             temporal_type = event.get("temporal_type")
 
             if temporal_type == "instant":
@@ -482,7 +492,7 @@ class EventsMixin:
 
     def _sorted_event_dicts(self) -> list[dict[str, Any]]:
         """Return events as dicts sorted by start coordinate."""
-        events_list = list(self.get_events(include_children=False))
+        events_list = _decoded_rows(self.get_events(include_children=False))
         events_list.sort(
             key=lambda e: self._extract_coord_value(e, "start", "instant") or 0.0
         )

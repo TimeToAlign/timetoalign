@@ -106,6 +106,7 @@ from .fields import (
     StructField,
     build_coordinate_struct_array,
     build_struct_array,
+    coordinate_to_struct,
     derive_arrow_schema,
     derive_arrow_struct,
     is_rational_wire,
@@ -117,6 +118,7 @@ from .fields import (
     rational_to_wire,
     register_value_projector,
     resolve_source_fields,
+    struct_to_coordinate,
     struct_to_rational,
     wire_to_rational,
 )
@@ -141,7 +143,6 @@ from .time import (
     TimeScalarField,
     TimeScalarValue,
     resolve_coordinate_spec,
-    struct_to_coordinate,
 )
 from .timestamp import (
     TimeIntervalStamp,
@@ -213,6 +214,7 @@ __all__ = [
     "TIMETOALIGN_METADATA_KEY",
     "build_coordinate_struct_array",
     "build_struct_array",
+    "coordinate_to_struct",
     "derive_arrow_schema",
     "derive_arrow_struct",
     "is_rational_wire",
@@ -225,6 +227,7 @@ __all__ = [
     "register_value_projector",
     "resolve_source_fields",
     "struct_to_rational",
+    "struct_to_coordinate",
     "wire_to_rational",
     # Pitch scalars + paired Fields
     "EnharmonicPitch",

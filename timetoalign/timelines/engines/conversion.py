@@ -255,34 +255,25 @@ class ConversionMapsMixin:
         # Copy and convert events if requested
         if copy_events:
             converted_events = []
-            for event in self._events:
+            coordinate_values = {
+                name: self._events.column_values(name)
+                for name in ("instant", "start", "end", "duration")
+            }
+            for index, event in enumerate(self._events):
                 # Skip segment events
                 if event.get("event_type") == SEGMENT_EVENT_TYPE:
                     continue
 
                 converted = dict(event)
                 for coord_col in ("instant", "start", "end"):
-                    val = converted.get(coord_col)
+                    val = coordinate_values[coord_col][index]
                     if val is not None:
-                        # Handle coordinate struct or raw value
-                        if isinstance(val, dict) and "value" in val:
-                            converted[coord_col] = float(cmap(val["value"]))
-                        else:
-                            converted[coord_col] = float(cmap(val))
+                        converted[coord_col] = float(cmap(val))
 
                 # Convert duration if present
-                if converted.get("duration") is not None:
-                    duration_val = converted["duration"]
-                    if isinstance(duration_val, dict) and "value" in duration_val:
-                        # Duration needs to be converted using rate, not absolute value
-                        # For linear maps: derived_duration = source_duration * scalar
-                        converted["duration"] = float(
-                            cmap(duration_val["value"])
-                        ) - float(cmap(0))
-                    else:
-                        converted["duration"] = float(cmap(duration_val)) - float(
-                            cmap(0)
-                        )
+                duration_val = coordinate_values["duration"][index]
+                if duration_val is not None:
+                    converted["duration"] = float(cmap(duration_val)) - float(cmap(0))
 
                 converted_events.append(converted)
 
@@ -419,7 +410,7 @@ class ConversionMapsMixin:
     def _get_number_type_for_timeline(self, timeline_id: str) -> NumberType | None:
         """Get the numeric representation used by this timeline or a descendant."""
         timeline = self._find_descendant(timeline_id)
-        return timeline._number_type if timeline is not None else None
+        return timeline.number_type if timeline is not None else None
 
     def _get_related_timeline_ids(self) -> list[str]:
         """Get IDs of the direct child timelines.

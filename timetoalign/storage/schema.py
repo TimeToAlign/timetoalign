@@ -12,7 +12,6 @@ the field level, not per-row.
 
 from __future__ import annotations
 
-from fractions import Fraction
 from typing import Any, Callable
 
 import pyarrow as pa
@@ -49,13 +48,7 @@ def make_coordinate_type(unit: TimeUnit) -> pa.StructType:
     Returns:
         A PyArrow struct type.
     """
-    return pa.struct(
-        [
-            pa.field("value", pa.float64(), nullable=True),
-            pa.field("numerator", pa.int64(), nullable=True),
-            pa.field("denominator", pa.int64(), nullable=True),
-        ]
-    )
+    return RATIONAL_STRUCT_TYPE
 
 
 def make_rational_field(
@@ -125,43 +118,6 @@ def is_coordinate_type(dtype: pa.DataType) -> bool:
 
     field_names = {f.name for f in dtype}
     return field_names == {"value", "numerator", "denominator"}
-
-
-def coordinate_to_struct(
-    coord: int | float | Fraction | dict[str, Any],
-) -> dict[str, Any]:
-    """Convert a coordinate value to struct dict for PyArrow.
-
-    Args:
-        coord: The coordinate value (int, float, Fraction, or already-converted dict).
-
-    Returns:
-        Dict with 'value', 'numerator', 'denominator' keys.
-    """
-    # If already a struct dict, return as-is (idempotent)
-    if isinstance(coord, dict):
-        if "value" in coord:
-            return coord
-        raise ValueError(f"Invalid coordinate dict structure: {coord}")
-    if isinstance(coord, Fraction):
-        return {
-            "value": float(coord),
-            "numerator": coord.numerator,
-            "denominator": coord.denominator,
-        }
-    elif isinstance(coord, int):
-        return {
-            "value": float(coord),
-            "numerator": coord,
-            "denominator": 1,
-        }
-    else:
-        # float - no exact Fraction representation
-        return {
-            "value": float(coord),
-            "numerator": None,
-            "denominator": None,
-        }
 
 
 # endregion

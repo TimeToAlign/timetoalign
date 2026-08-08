@@ -7,11 +7,10 @@ from fractions import Fraction
 import pyarrow as pa
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.core.time import struct_to_coordinate
+from timetoalign.core.fields import coordinate_to_struct, struct_to_coordinate
 from timetoalign.loader import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
-    coordinate_to_struct,
     extend_schema,
     get_base_field_names,
     get_unit_from_schema,

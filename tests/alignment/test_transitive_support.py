@@ -5,8 +5,8 @@ purely synthetic fixture (no corpus data):
 
 1. A query assembles the transitive cross-group union — it reaches every
    timeline of both merged bundles, including timelines only reachable through
-   a bridge timeline whose bridging anchor is expressed in a derived unit and
-   must be reconciled to its native alignment unit before warping.
+   a bridge timeline whose unit-bearing anchor is converted to its native unit
+   before warping.
 2. A coordinate below the first alignment anchor is governed by
    ``support_policy`` (``omit`` / ``clamp`` / ``extrapolate``) and never yields
    a negative coordinate under any policy.
@@ -55,7 +55,7 @@ def _make_bundles() -> tuple[AlignmentBundle, AlignmentBundle]:
 
     Returns:
         ``(merged, b_bundle)``. ``merged`` is A ∪ B bridged at a1=50 ↔
-        b_bridge=5 (a derived-unit anchor). ``b_bundle`` is B alone, for the
+        b_bridge=5 seconds (a derived-unit anchor). ``b_bundle`` is B alone, for the
         parity check.
     """
     # Bundle A: a per-claim-list star, each timeline in its own group.
@@ -99,10 +99,19 @@ def _make_bundles() -> tuple[AlignmentBundle, AlignmentBundle]:
     bundle_b.add_match_claim_field(field)
 
     merged = AlignmentBundle.from_bundles([bundle_a, bundle_b], name="merged")
-    # Bridge a1=50 <-> b_bridge=5. b_bridge is native samples, so the anchor is
-    # recorded as 5 *samples* — a value that is really 5 seconds.
-    merged.create_match_claims(
-        [({"start": 50.0}, "a1:clt1", {"start": 5.0}, "b_bridge:dpt1")]
+    merged.add_match_claims(
+        [
+            MatchClaim(
+                timeline_a_id="a1:clt1",
+                timeline_b_id="b_bridge:dpt1",
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id="a1:clt1",
+                    coordinate_a=Coordinate(50.0, TimeUnit.quarters),
+                    timeline_b_id="b_bridge:dpt1",
+                    coordinate_b=Coordinate(5.0, TimeUnit.seconds),
+                ),
+            )
+        ]
     )
     return merged, bundle_b
 
@@ -126,7 +135,7 @@ class TestTransitiveUnion:
             "a1:clt1": 50.0,
             "a2:cpt1": 50.0,
             "a3:cpt2": 25.0,
-            "b_bridge:dpt1": 5.0,
+            "b_bridge:dpt1": 500.0,
             "b1:dpt2": 1300.0,
             "b2:dpt3": 750.0,
         }
@@ -137,8 +146,8 @@ class TestTransitiveUnion:
         assert all(value >= 0 for value in stamp.coordinates.values())
 
     def test_b_portion_parity_with_b_bundle_at_reconciled_coordinate(self) -> None:
-        # The bridge anchor 5 (seconds on a samples timeline) reconciles to 500
-        # native samples; B's own query there must agree on the transferred
+        # The bridge anchor 5 seconds converts to 500 native samples; B's own
+        # query there must agree on the transferred
         # timelines b1/b2.
         merged, b_bundle = _make_bundles()
         union = merged.get_matchstamp_at(50, "a1:clt1")
@@ -148,6 +157,47 @@ class TestTransitiveUnion:
         assert b_only.get("b2:dpt3") == 750.0
         assert union.get("b1:dpt2") == b_only.get("b1:dpt2")
         assert union.get("b2:dpt3") == b_only.get("b2:dpt3")
+
+    def test_mixed_claim_units_normalize_each_anchor(self) -> None:
+        source = Timeline(length=1000, unit=TimeUnit.samples, uid="source")
+        source.add_conversion_map(
+            ScalarMap(
+                scalar=0.01,
+                source_unit=TimeUnit.samples,
+                target_unit=TimeUnit.seconds,
+            )
+        )
+        target = Timeline(length=100, unit=TimeUnit.seconds, uid="target")
+        bundle = AlignmentBundle()
+        bundle.add_timeline(source, uid="source", as_group="source_group")
+        bundle.add_timeline(target, uid="target", as_group="target_group")
+        source_coordinates = [
+            Coordinate(2.0, TimeUnit.seconds),
+            Coordinate(400.0, TimeUnit.samples),
+            Coordinate(6.0, TimeUnit.seconds),
+        ]
+        claims = [
+            MatchClaim(
+                timeline_a_id="source",
+                timeline_b_id="target",
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id="source",
+                    coordinate_a=source_coordinate,
+                    timeline_b_id="target",
+                    coordinate_b=Coordinate(target_coordinate, TimeUnit.seconds),
+                ),
+            )
+            for source_coordinate, target_coordinate in zip(
+                source_coordinates, [20.0, 40.0, 60.0], strict=True
+            )
+        ]
+        bundle.add_match_claims(claims)
+
+        warp = bundle._get_or_build_warp_map("source", "target")
+
+        assert warp is not None
+        assert warp.source_coords.tolist() == [200.0, 400.0, 600.0]
+        assert bundle.transfer(300.0, "source", "target") == 30.0
 
 
 # endregion

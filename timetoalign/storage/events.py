@@ -37,13 +37,16 @@ from timetoalign.core import (
     NumberType,
     TimeUnit,
     resolve_coordinate_spec,
+)
+from timetoalign.core.fields import (
+    coordinate_to_struct,
+    struct_to_coordinate,
     struct_to_rational,
 )
 
 from .mixins import SemanticFieldAccessMixin
 from .parsing import ArrayValidator, CoordinateParser
 from .schema import (
-    coordinate_to_struct,
     extend_schema,
     get_base_field_names,
     is_coordinate_type,
@@ -759,11 +762,10 @@ class EventData(SemanticFieldAccessMixin):
         def _fraction_of(v: Any) -> Fraction | None:
             if not isinstance(v, dict):
                 return None
-            num = v.get("numerator")
-            den = v.get("denominator")
-            if num is None or den is None:
+            try:
+                return struct_to_rational(v)
+            except (TypeError, ValueError, ZeroDivisionError):
                 return None
-            return Fraction(num, den)
 
         def _add_or_float(
             left: Any, right: Any, left_val: float, right_val: float
@@ -1686,10 +1688,9 @@ class EventData(SemanticFieldAccessMixin):
                 values.append(default)
                 continue
             try:
-                values.append(struct_to_rational(cell))
-            except (ValueError, TypeError):
-                raw = cell.get("value")
-                values.append(Fraction(raw) if raw is not None else default)
+                values.append(struct_to_coordinate(cell, NumberType.fraction))
+            except (ValueError, TypeError, ZeroDivisionError):
+                values.append(default)
         return values
 
     def select(self, fields: list[str]) -> pa.Table:
@@ -1741,27 +1742,13 @@ class EventData(SemanticFieldAccessMixin):
         if self.count == 0:
             return None
 
-        use_fraction = self._number_type == NumberType.fraction
-
-        # Decode the authoritative pair before comparing fraction coordinates.
-        # Float-only coordinates remain floats; they are never promoted to a
-        # guessed Fraction merely because the table's number type is fraction.
         coordinate_values: list[float | Fraction] = []
         for field_name in ["start", "end"]:
             for cell in self._table.column(field_name).to_pylist():
                 if cell is None or cell.get("value") is None:
                     continue
 
-                value: float | Fraction = cell["value"]
-                if use_fraction:
-                    numerator = cell.get("numerator")
-                    denominator = cell.get("denominator")
-                    if numerator is not None and denominator is not None:
-                        try:
-                            value = Fraction(numerator, denominator)
-                        except (TypeError, ValueError, ZeroDivisionError):
-                            pass
-                coordinate_values.append(value)
+                coordinate_values.append(struct_to_coordinate(cell, self._number_type))
 
         if not coordinate_values:
             return None
@@ -1894,13 +1881,24 @@ class EventData(SemanticFieldAccessMixin):
                                 pass  # Use default unit
 
                     if coordinates:
-                        # Capture unit in closure for lambda
                         field_unit = unit
                         df[field_name] = df[field_name].apply(
-                            lambda s, u=field_unit: self._struct_to_coordinate(s, u)
+                            lambda s, u=field_unit: (
+                                Coordinate(
+                                    struct_to_coordinate(s, self._number_type), u
+                                )
+                                if s is not None
+                                else None
+                            )
                         )
                     else:
-                        df[field_name] = df[field_name].apply(self._struct_to_number)
+                        df[field_name] = df[field_name].apply(
+                            lambda s: (
+                                struct_to_coordinate(s, self._number_type)
+                                if s is not None
+                                else None
+                            )
+                        )
 
             return df
         else:
@@ -1933,61 +1931,5 @@ class EventData(SemanticFieldAccessMixin):
             self._table.slice(0, max(n, 0)), self._unit, self._number_type
         )
         return preview.to_dataframe()
-
-    def _struct_to_number(self, struct: dict | None) -> Any:
-        """Convert a coordinate struct to a native Python number.
-
-        Extracts the appropriate number type from the internal struct representation:
-        - Returns Fraction if numerator/denominator are present and valid
-        - Returns float if only value is present
-        - Returns None for null coordinates
-
-        Args:
-            struct: A dict with 'value', 'numerator', 'denominator' keys,
-                    or None for null coordinates.
-
-        Returns:
-            Fraction, float, or None.
-        """
-        if struct is None:
-            return None
-
-        from fractions import Fraction
-
-        num = struct.get("numerator")
-        den = struct.get("denominator")
-
-        if num is not None and den is not None:
-            # Handle NaN values from pandas conversion (int64 with nulls -> float)
-            try:
-                num_int = int(num)
-                den_int = int(den)
-                return Fraction(num_int, den_int)
-            except (ValueError, TypeError):
-                pass
-
-        # Fall back to float value
-        return struct.get("value")
-
-    def _struct_to_coordinate(
-        self, struct: dict | None, unit: TimeUnit
-    ) -> "Coordinate | None":
-        """Convert a coordinate struct to a Coordinate object with unit.
-
-        Args:
-            struct: A dict with 'value', 'numerator', 'denominator' keys,
-                    or None for null coordinates.
-            unit: The time unit for the coordinate.
-
-        Returns:
-            Coordinate object or None.
-        """
-        if struct is None:
-            return None
-
-        from timetoalign.core.time import Coordinate
-
-        value = self._struct_to_number(struct)
-        return Coordinate(value=value, unit=unit)
 
     # endregion

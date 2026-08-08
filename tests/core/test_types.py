@@ -1,5 +1,7 @@
 """Tests for core/types.py."""
 
+from __future__ import annotations
+
 from fractions import Fraction
 
 import pytest
@@ -123,6 +125,22 @@ class TestCoordinateConversions:
         """to_fraction() approximates float value."""
         c = Coordinate(0.75, TimeUnit.seconds)
         assert c.to_fraction() == Fraction(3, 4)
+
+    def test_to_dict_matches_exact_storage_cell(self) -> None:
+        coordinate = Coordinate(Fraction(10, 3), TimeUnit.quarters)
+        assert coordinate.to_dict() == {
+            "value": 10 / 3,
+            "numerator": 10,
+            "denominator": 3,
+        }
+
+    def test_float_to_dict_has_no_fabricated_ratio(self) -> None:
+        coordinate = Coordinate(2.5, TimeUnit.seconds)
+        assert coordinate.to_dict() == {
+            "value": 2.5,
+            "numerator": None,
+            "denominator": None,
+        }
 
 
 class TestCoordinateProperties:

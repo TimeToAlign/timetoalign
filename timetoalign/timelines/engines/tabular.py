@@ -194,29 +194,22 @@ class TabularExportMixin:
             get_timestamp: Get timestamp by coordinate.
             get_event: Get the raw event dict by ID.
         """
-        event = self.get_event(event_id)
-        if event is None:
+        events = self.get_events(include_children=True, id=event_id)
+        if len(events) == 0:
             raise KeyError(
                 f"Event {event_id!r} not found on timeline {self._id!r} "
                 f"({self.n_events} events)"
             )
 
-        # Extract coordinate from the start field
-        start_val = event.get("start")
+        start_val = events.column_values("start")[0]
         if start_val is None:
             raise ValueError(f"Event {event_id!r} has no 'start' coordinate")
-        if isinstance(start_val, dict) and "value" in start_val:
-            start_coord = float(start_val["value"])
-        else:
-            start_coord = float(start_val)
+        start_coord = float(start_val)
 
         # Check if this is an interval event
-        end_val = event.get("end")
+        end_val = events.column_values("end")[0]
         if end_val is not None:
-            if isinstance(end_val, dict) and "value" in end_val:
-                end_coord = float(end_val["value"])
-            else:
-                end_coord = float(end_val)
+            end_coord = float(end_val)
             return self.get_interval_stamp(
                 start_coord,
                 end_coord,
@@ -256,29 +249,29 @@ class TabularExportMixin:
             get_timestamp_of: Get a single event's timestamp.
             get_events: Filter events by type or coordinate range.
         """
+        events = self.get_events(include_children=True)
+        ids = events.column_values("id")
+        indices = {event_id: index for index, event_id in enumerate(ids)}
+        starts = events.column_values("start")
+        ends = events.column_values("end")
+        event_types = events.column_values("event_type")
         rows = []
         for event_id in event_ids:
-            event = self.get_event(event_id)
-            if event is None:
+            if event_id not in indices:
                 raise KeyError(
                     f"Event {event_id!r} not found on timeline {self._id!r} "
                     f"({self.n_events} events)"
                 )
 
-            start_val = event.get("start")
+            index = indices[event_id]
+            start_val = starts[index]
             if start_val is None:
                 raise ValueError(f"Event {event_id!r} has no 'start' coordinate")
-            if isinstance(start_val, dict) and "value" in start_val:
-                start = float(start_val["value"])
-            else:
-                start = float(start_val)
+            start = float(start_val)
 
-            end_val = event.get("end")
+            end_val = ends[index]
             if end_val is not None:
-                if isinstance(end_val, dict) and "value" in end_val:
-                    end = float(end_val["value"])
-                else:
-                    end = float(end_val)
+                end = float(end_val)
                 temporal_type = "interval"
             else:
                 end = float("nan")
@@ -289,7 +282,7 @@ class TabularExportMixin:
                     "event_id": event_id,
                     "start": start,
                     "end": end,
-                    "event_type": event.get("event_type", ""),
+                    "event_type": event_types[index] or "",
                     "temporal_type": temporal_type,
                 }
             )
@@ -637,7 +630,7 @@ class TabularExportMixin:
             recursion_limit=recursion_limit,
             include_self=False,
         ):
-            child_pa_type = _get_pa_type(child._number_type)
+            child_pa_type = _get_pa_type(child.number_type)
             field_arrs[child.id] = child._compute_local_coordinates(
                 axis, offset=float(child_offset.value)
             )
@@ -916,17 +909,16 @@ class TabularExportMixin:
         if include_ids and include_events and coordinates is None:
             all_events = self.get_events(include_children=True)
             coord_to_ids: dict[float, str] = {}
-            for event in all_events:
-                start = event.get("start")
+            for event_id, start in zip(
+                all_events.column_values("id"),
+                all_events.column_values("start"),
+                strict=True,
+            ):
                 if start is None:
                     continue
-                if isinstance(start, dict) and "value" in start:
-                    coord_val = float(start["value"])
-                else:
-                    coord_val = float(start)
-                event_id = event.get("id", "")
+                coord_val = float(start)
                 if coord_val not in coord_to_ids:
-                    coord_to_ids[coord_val] = event_id
+                    coord_to_ids[coord_val] = event_id or ""
 
             axis_name = df.columns[0]
             ids = []

@@ -98,10 +98,7 @@ class SegmentsMixin:
                     for col in ("instant", "start", "end"):
                         val = adj.get(col)
                         if val is not None:
-                            if isinstance(val, dict) and "value" in val:
-                                adj[col] = shift_coordinate(val, start, subtract=True)
-                            else:
-                                adj[col] = shift_coordinate(val, start, subtract=True)
+                            adj[col] = shift_coordinate(val, start, subtract=True)
                     adjusted.append(adj)
                 if adjusted:
                     segment.add_events(adjusted)
@@ -224,8 +221,6 @@ class SegmentsMixin:
 
         for event in events_sorted:
             val = event.get(field)
-            if isinstance(val, dict) and "value" in val:
-                val = val["value"]
 
             ev_start_value = event.get("start", event.get("instant"))
             ev_end_value = event.get("end")

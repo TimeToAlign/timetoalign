@@ -22,6 +22,7 @@ import pandas as pd
 import pyarrow as pa
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core.fields import RATIONAL_STRUCT_TYPE
 
 module_logger = logging.getLogger(__name__)
 
@@ -92,7 +93,7 @@ class CoordinateParser:
                     pa.array([], type=pa.int64()),
                     pa.array([], type=pa.int64()),
                 ],
-                names=["value", "numerator", "denominator"],
+                fields=list(RATIONAL_STRUCT_TYPE),
             )
 
         # Dispatch based on number_type
@@ -152,21 +153,13 @@ class CoordinateParser:
         den_arr = np.ones(n, dtype=np.int64)
 
         # Build struct array with proper field types
-        coord_type = pa.struct(
-            [
-                pa.field("value", pa.float64(), nullable=True),
-                pa.field("numerator", pa.int64(), nullable=True),
-                pa.field("denominator", pa.int64(), nullable=True),
-            ]
-        )
-
         return pa.StructArray.from_arrays(
             [
                 pa.array(value_arr, type=pa.float64()),
                 pa.array(num_arr, type=pa.int64()),
                 pa.array(den_arr, type=pa.int64()),
             ],
-            fields=list(coord_type),
+            fields=list(RATIONAL_STRUCT_TYPE),
         )
 
     @staticmethod
@@ -189,21 +182,13 @@ class CoordinateParser:
         value_arr = arr.astype(np.float64)
 
         # Build struct array with proper field types
-        coord_type = pa.struct(
-            [
-                pa.field("value", pa.float64(), nullable=True),
-                pa.field("numerator", pa.int64(), nullable=True),
-                pa.field("denominator", pa.int64(), nullable=True),
-            ]
-        )
-
         return pa.StructArray.from_arrays(
             [
                 pa.array(value_arr, type=pa.float64()),
                 pa.nulls(n, type=pa.int64()),
                 pa.nulls(n, type=pa.int64()),
             ],
-            fields=list(coord_type),
+            fields=list(RATIONAL_STRUCT_TYPE),
         )
 
     @staticmethod
@@ -233,20 +218,13 @@ class CoordinateParser:
         if first_val is None:
             # All null array
             n = len(arr)
-            coord_type = pa.struct(
-                [
-                    pa.field("value", pa.float64(), nullable=True),
-                    pa.field("numerator", pa.int64(), nullable=True),
-                    pa.field("denominator", pa.int64(), nullable=True),
-                ]
-            )
             return pa.StructArray.from_arrays(
                 [
                     pa.nulls(n, type=pa.float64()),
                     pa.nulls(n, type=pa.int64()),
                     pa.nulls(n, type=pa.int64()),
                 ],
-                fields=list(coord_type),
+                fields=list(RATIONAL_STRUCT_TYPE),
                 mask=pa.array(null_mask),
             )
 
@@ -351,14 +329,6 @@ class CoordinateParser:
             )
 
         # Build struct array with proper field types and null mask
-        coord_type = pa.struct(
-            [
-                pa.field("value", pa.float64(), nullable=True),
-                pa.field("numerator", pa.int64(), nullable=True),
-                pa.field("denominator", pa.int64(), nullable=True),
-            ]
-        )
-
         # Create null mask for the struct array (True = null)
         null_mask = is_null.to_numpy()
 
@@ -370,7 +340,7 @@ class CoordinateParser:
 
         return pa.StructArray.from_arrays(
             [value_pa, num_pa, den_pa],
-            fields=list(coord_type),
+            fields=list(RATIONAL_STRUCT_TYPE),
             mask=pa.array(null_mask),
         )
 
@@ -406,21 +376,13 @@ class CoordinateParser:
         values = numerators.astype(np.float64) / denominators.astype(np.float64)
 
         # Build struct array with proper field types
-        coord_type = pa.struct(
-            [
-                pa.field("value", pa.float64(), nullable=True),
-                pa.field("numerator", pa.int64(), nullable=True),
-                pa.field("denominator", pa.int64(), nullable=True),
-            ]
-        )
-
         return pa.StructArray.from_arrays(
             [
                 pa.array(values, type=pa.float64(), mask=null_mask),
                 pa.array(numerators, type=pa.int64(), mask=null_mask),
                 pa.array(denominators, type=pa.int64(), mask=null_mask),
             ],
-            fields=list(coord_type),
+            fields=list(RATIONAL_STRUCT_TYPE),
             mask=pa.array(null_mask),
         )
 
@@ -453,13 +415,6 @@ class CoordinateParser:
         if exact_mask.any():
             numerators[exact_mask] = np.asarray(values[exact_mask], dtype=np.int64)
 
-        coord_type = pa.struct(
-            [
-                pa.field("value", pa.float64(), nullable=True),
-                pa.field("numerator", pa.int64(), nullable=True),
-                pa.field("denominator", pa.int64(), nullable=True),
-            ]
-        )
         pair_null_mask = ~exact_mask
         return pa.StructArray.from_arrays(
             [
@@ -467,7 +422,7 @@ class CoordinateParser:
                 pa.array(numerators, type=pa.int64(), mask=pair_null_mask),
                 pa.array(denominators, type=pa.int64(), mask=pair_null_mask),
             ],
-            fields=list(coord_type),
+            fields=list(RATIONAL_STRUCT_TYPE),
             mask=pa.array(null_mask),
         )
 

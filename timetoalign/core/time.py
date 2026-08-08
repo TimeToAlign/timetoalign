@@ -70,14 +70,17 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 from .enums import Domain, NumberType, TimeUnit
 from .fields import (
+    RATIONAL_STRUCT_TYPE,
     TIMETOALIGN_METADATA_KEY,
     DenominateNumberField,
     ScalarVocabulary,
     SemanticField,
     StructField,
+    coordinate_to_struct,
     data_shaped,
     parse_metadata_blob,
     register_value_projector,
+    struct_to_coordinate,
 )
 
 # ---------------------------------------------------------------------------
@@ -96,30 +99,6 @@ DurationValue = TimeScalarValue
 DISCRETE_UNITS = frozenset(
     {"ticks", "pulses", "divs", "samples", "pixels", "px", "frames"}
 )
-
-
-def struct_to_coordinate(
-    struct: dict[str, Any],
-    number_type: NumberType,
-) -> int | float | Fraction:
-    """Convert an Arrow coordinate struct to its requested numeric value.
-
-    Args:
-        struct: Mapping with ``value``, ``numerator``, and ``denominator`` keys.
-        number_type: Numeric representation to return.
-
-    Returns:
-        The coordinate value in the requested numeric representation.
-    """
-    if number_type == NumberType.fraction:
-        if struct["numerator"] is not None and struct["denominator"] is not None:
-            return Fraction(struct["numerator"], struct["denominator"])
-        return Fraction(struct["value"]).limit_denominator()
-    if number_type == NumberType.int:
-        if struct["numerator"] is not None:
-            return int(struct["numerator"])
-        return int(struct["value"])
-    return struct["value"]
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +233,10 @@ class TimeScalar(ScalarVocabulary, BaseModel):
             "domain": self.domain.value,
             "number_type": self.number_type.name,
         }
+
+    def to_dict(self) -> dict[str, Any]:
+        """Render the numeric value exactly as an Arrow coordinate cell."""
+        return coordinate_to_struct(self.value)
 
     # -- internal helper used by all operators -----------------------------
 
@@ -833,11 +816,7 @@ def _time_value_projector(
     _model_cls: type[BaseModel], _name: str, _info: object
 ) -> list[pa.Field]:
     """Project ``value`` onto the denormalised storage struct."""
-    return [
-        pa.field("value", pa.float64(), nullable=True),
-        pa.field("numerator", pa.int64(), nullable=True),
-        pa.field("denominator", pa.int64(), nullable=True),
-    ]
+    return list(RATIONAL_STRUCT_TYPE)
 
 
 def _drop_field_projector(
@@ -938,11 +917,7 @@ def _build_denominated_struct(value_arr: pa.Array) -> pa.StructArray:
     null_int = pa.array([None] * n, type=pa.int64())
     return pa.StructArray.from_arrays(
         [value_arr, null_int, null_int],
-        fields=[
-            pa.field("value", pa.float64(), nullable=True),
-            pa.field("numerator", pa.int64(), nullable=True),
-            pa.field("denominator", pa.int64(), nullable=True),
-        ],
+        fields=list(RATIONAL_STRUCT_TYPE),
     )
 
 
@@ -1023,16 +998,7 @@ def _field_arithmetic_struct(
                 {"value": float(result), "numerator": None, "denominator": None}
             )
 
-    return pa.array(
-        rows,
-        type=pa.struct(
-            [
-                pa.field("value", pa.float64()),
-                pa.field("numerator", pa.int64()),
-                pa.field("denominator", pa.int64()),
-            ]
-        ),
-    )
+    return pa.array(rows, type=RATIONAL_STRUCT_TYPE)
 
 
 def _coord_field_from_value(

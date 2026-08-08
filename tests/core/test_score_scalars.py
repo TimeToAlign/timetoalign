@@ -285,6 +285,28 @@ class TestNote:
         )
         assert note.instrument is None
 
+    def test_to_dict_embeds_exact_coordinate_cells(self) -> None:
+        note = Note(
+            start=Coordinate(Fraction(1, 3), TimeUnit.quarters),
+            duration=Coordinate(Fraction(2, 3), TimeUnit.quarters),
+        )
+        data = note.to_dict()
+        assert data["start"] == {
+            "value": 1 / 3,
+            "numerator": 1,
+            "denominator": 3,
+        }
+        assert data["duration"] == {
+            "value": 2 / 3,
+            "numerator": 2,
+            "denominator": 3,
+        }
+        restored = Note.from_row(data)
+        assert restored is not None
+        assert restored.start.value == Fraction(1, 3)
+        assert restored.duration is not None
+        assert restored.duration.value == Fraction(2, 3)
+
 
 # ---------------------------------------------------------------------------
 # Measure
@@ -365,6 +387,30 @@ class TestMeasure:
             key_signature="C",
         )
         assert m.semantic_type == "Measure"
+
+    def test_to_dict_embeds_exact_coordinate_cells(self) -> None:
+        measure = Measure(
+            id=1,
+            mn="1",
+            start=Coordinate(Fraction(1, 3), TimeUnit.quarters),
+            end=Coordinate(Fraction(13, 3), TimeUnit.quarters),
+        )
+        data = measure.to_dict()
+        assert data["start"] == {
+            "value": 1 / 3,
+            "numerator": 1,
+            "denominator": 3,
+        }
+        assert data["end"] == {
+            "value": 13 / 3,
+            "numerator": 13,
+            "denominator": 3,
+        }
+        restored = Measure.from_row(data)
+        assert restored is not None
+        assert restored.start.value == Fraction(1, 3)
+        assert restored.end is not None
+        assert restored.end.value == Fraction(13, 3)
 
     def test_frozen_immutable(self) -> None:
         """Measure is frozen (immutable)."""

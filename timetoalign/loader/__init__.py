@@ -45,12 +45,12 @@ structures and table metadata.
 
 from __future__ import annotations
 
+from timetoalign.core.fields import coordinate_to_struct
 from timetoalign.storage.schema import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
     ComputedField,
     Field,
-    coordinate_to_struct,
     extend_schema,
     get_base_field_names,
     get_unit_from_schema,

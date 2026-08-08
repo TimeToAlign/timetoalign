@@ -43,6 +43,7 @@ from .fields import (
     data_shaped,
     install_paired_field_registry,
     register_value_projector,
+    wire_to_rational,
 )
 from .ids import ScopedId
 from .protocols import TwelveTETPitchMixin
@@ -1959,21 +1960,14 @@ class Note(ScalarVocabulary, BaseModel):
         on ``NoteEventData`` (columnar separation).
         """
         d: dict[str, object] = {
-            "start": self.start.to_dict() if hasattr(self.start, "to_dict") else None,
-            "end": (
-                self.end.to_dict()
-                if (self.end is not None and hasattr(self.end, "to_dict"))
-                else None
-            ),
+            "start": self.start.to_dict(),
+            "end": self.end.to_dict() if self.end is not None else None,
             "voice": self.voice,
             "staff": self.staff,
             "velocity": self.velocity,
             "instrument": self.instrument,
         }
-        if self.duration is None:
-            d["duration"] = None
-        elif hasattr(self.duration, "to_dict"):
-            d["duration"] = self.duration.to_dict()
+        d["duration"] = self.duration.to_dict() if self.duration is not None else None
         return d
 
     @classmethod
@@ -1991,11 +1985,10 @@ class Note(ScalarVocabulary, BaseModel):
             if isinstance(raw, Coordinate):
                 return raw
             if isinstance(raw, dict):
-                v = raw.get("value")
-                if v is None:
+                if raw.get("value") is None:
                     return None
                 unit = raw.get("unit", TimeUnit.quarters)
-                return Coordinate(v, unit)
+                return Coordinate(wire_to_rational(raw), unit)
             return None
 
         def _coerce_duration(raw: Any) -> Duration | None:
@@ -2006,11 +1999,10 @@ class Note(ScalarVocabulary, BaseModel):
             if isinstance(raw, Coordinate):
                 return Duration(raw.value, raw.unit)
             if isinstance(raw, dict):
-                v = raw.get("value")
-                if v is None:
+                if raw.get("value") is None:
                     return None
                 unit = raw.get("unit", TimeUnit.quarters)
-                return Duration(v, unit)
+                return Duration(wire_to_rational(raw), unit)
             return None
 
         start = _coerce_coord(start_raw)
@@ -2172,17 +2164,9 @@ class Measure(ScalarVocabulary, BaseModel):
         return {
             "id": self.id,
             "mn": self.mn,
-            "start": self.start.to_dict() if hasattr(self.start, "to_dict") else None,
-            "end": (
-                self.end.to_dict()
-                if (self.end is not None and hasattr(self.end, "to_dict"))
-                else None
-            ),
-            "duration": (
-                self.duration.to_dict()
-                if (self.duration is not None and hasattr(self.duration, "to_dict"))
-                else None
-            ),
+            "start": self.start.to_dict(),
+            "end": self.end.to_dict() if self.end is not None else None,
+            "duration": self.duration.to_dict() if self.duration is not None else None,
             "time_signature": list(self.time_signature),
             "key_signature": self.key_signature,
             "nominal_length": self.nominal_length,
@@ -2207,11 +2191,10 @@ class Measure(ScalarVocabulary, BaseModel):
             if isinstance(raw, Coordinate):
                 return raw
             if isinstance(raw, dict):
-                v = raw.get("value")
-                if v is None:
+                if raw.get("value") is None:
                     return None
                 unit = raw.get("unit", TimeUnit.quarters)
-                return Coordinate(v, unit)
+                return Coordinate(wire_to_rational(raw), unit)
             return None
 
         def _coerce_duration(raw: Any) -> Duration | None:
@@ -2222,11 +2205,10 @@ class Measure(ScalarVocabulary, BaseModel):
             if isinstance(raw, Coordinate):
                 return Duration(raw.value, raw.unit)
             if isinstance(raw, dict):
-                v = raw.get("value")
-                if v is None:
+                if raw.get("value") is None:
                     return None
                 unit = raw.get("unit", TimeUnit.quarters)
-                return Duration(v, unit)
+                return Duration(wire_to_rational(raw), unit)
             return None
 
         start = _coerce_coord(row.get("start"))

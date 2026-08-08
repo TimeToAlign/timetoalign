@@ -45,6 +45,10 @@ storage constructor tests, but are intentionally not accepted by
 
 ## Exact rational coordinates
 
+Loader schema tests import coordinate encoders and decoders from
+`timetoalign.core.fields`, the sole owner of the rational Arrow cell and its
+converter family. Parser outputs are compared against that canonical type.
+
 The score-side loader tests assert the numerator and denominator stored with
 logical coordinates, not only their floating-point convenience values. MS3
 measure starts, durations, and ends are compared with exact `Fraction`

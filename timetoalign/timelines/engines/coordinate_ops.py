@@ -5,20 +5,19 @@ from __future__ import annotations
 from fractions import Fraction
 from typing import Any
 
-from timetoalign.core import struct_to_rational
-from timetoalign.storage.schema import coordinate_to_struct
+from timetoalign.core.fields import (
+    coordinate_to_struct,
+    struct_to_rational,
+    wire_to_rational,
+)
 
 
 def exact_coordinate_value(value: Any) -> Fraction | None:
     """Return an exact coordinate value when one is available."""
     if isinstance(value, dict):
-        numerator = value.get("numerator")
-        denominator = value.get("denominator")
-        if numerator is None or denominator is None:
-            return None
         try:
             return struct_to_rational(value)
-        except ValueError:
+        except (TypeError, ValueError, ZeroDivisionError):
             return None
     if isinstance(value, Fraction):
         return value
@@ -33,7 +32,7 @@ def coordinate_numeric_value(value: Any) -> Fraction | float:
     if exact is not None:
         return exact
     if isinstance(value, dict):
-        return float(value["value"])
+        return wire_to_rational(value)
     if hasattr(value, "value"):
         return value.value
     return float(value)

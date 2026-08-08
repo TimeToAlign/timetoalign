@@ -28,6 +28,7 @@ from timetoalign.core import (
     IdCoordinate,
     IdGenerator,
     SupportPolicy,
+    TimeUnit,
     resolve_coordinate_spec,
     resolve_id,
 )
@@ -42,7 +43,7 @@ from .warpmap import AmbiguousWarpMapError, WarpMap
 if TYPE_CHECKING:
     import pyarrow as pa
 
-    from timetoalign.core.enums import Domain, TimeUnit
+    from timetoalign.core.enums import Domain
     from timetoalign.core.timestamp import ConversionMapsSpec
     from timetoalign.display.ascii import Diagram
     from timetoalign.maps.base import ConversionMap
@@ -726,9 +727,6 @@ class AlignmentBundle:
                     continue
                 try:
                     warped = float(warp(coord))
-                    conv = self._get_claim_to_native_converter(tgt_other_tl_id)
-                    if conv is not None:
-                        warped = float(conv(warped))
                     result = target_group.convert(
                         warped, source=tgt_other_tl_id, target=actual_to_id
                     )
@@ -1357,7 +1355,8 @@ class AlignmentBundle:
         # Scan the per-claim Python list as before (small for the other
         # alignment loaders) ...
         relevant_claims: list[MatchClaim] = []
-        for c in self.cross_group_claims:
+        for raw_claim in self.cross_group_claims:
+            c = self._claim_in_native_units(raw_claim)
             if not c.is_synchronous or c.start_anchor is None:
                 continue
             anchor = c.start_anchor
@@ -1373,7 +1372,10 @@ class AlignmentBundle:
         # ... then query each columnar field vectorized, materialising only
         # the matched rows (never the whole field).
         for claim_field in self.cross_group_claim_fields:
-            relevant_claims.extend(claim_field.at(timeline_id, coordinate).to_claims())
+            relevant_claims.extend(
+                self._claim_in_native_units(claim)
+                for claim in claim_field.at(timeline_id, coordinate).to_claims()
+            )
 
         if not relevant_claims:
             raise ValueError(
@@ -1733,7 +1735,6 @@ class AlignmentBundle:
                     source_group,
                     other_group,
                     support_policy,
-                    actual_timeline_id,
                 )
                 if transferred is None:
                     continue
@@ -2138,8 +2139,37 @@ class AlignmentBundle:
         self._matchline_cache.clear()
         self._matchgraph_cache.clear()
         self._cache_claims_hash = 0
-        if hasattr(self, "_claim_converter_cache"):
-            self._claim_converter_cache.clear()
+
+    def _claim_in_native_units(self, claim: MatchClaim) -> MatchClaim:
+        """Return a claim whose anchors use each timeline's native unit."""
+
+        def _native(timeline_id: str, coordinate: Coordinate) -> Coordinate:
+            bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+            timeline = self.timelines.get(bundle_uid)
+            if timeline is None or coordinate.unit == timeline.unit:
+                return coordinate
+            if coordinate.unit == TimeUnit.number:
+                return Coordinate(coordinate.value, timeline.unit)
+            return timeline.get_coordinate(coordinate)
+
+        updates: dict[str, Any] = {}
+        for name in ("start_anchor", "end_anchor"):
+            anchor = getattr(claim, name)
+            if anchor is None:
+                continue
+            coordinate_a = _native(anchor.timeline_a_id, anchor.coordinate_a)
+            coordinate_b = _native(anchor.timeline_b_id, anchor.coordinate_b)
+            if (
+                coordinate_a is not anchor.coordinate_a
+                or coordinate_b is not anchor.coordinate_b
+            ):
+                updates[name] = anchor.model_copy(
+                    update={
+                        "coordinate_a": coordinate_a,
+                        "coordinate_b": coordinate_b,
+                    }
+                )
+        return claim.model_copy(update=updates) if updates else claim
 
     def _get_or_build_match_line(self, source_tl_id: str) -> MatchLine | None:
         """Get or lazily build a MatchLine for the given source timeline.
@@ -2174,6 +2204,7 @@ class AlignmentBundle:
         claims = list(self.cross_group_claims)
         for claim_field in self.cross_group_claim_fields:
             claims.extend(claim_field.connecting(source_tl_id).to_claims())
+        claims = [self._claim_in_native_units(claim) for claim in claims]
 
         try:
             match_line = MatchLine.from_claims(
@@ -2337,88 +2368,6 @@ class AlignmentBundle:
             return []
         return list(tl._conversion_maps.values())
 
-    def _get_claim_to_native_converter(
-        self, timeline_id: str
-    ) -> "ConversionMap | None":
-        """Get a converter from claim-space coordinates to native units.
-
-        MatchClaim anchors sometimes carry coordinates in a derived unit
-        (e.g. EEP note onsets in seconds on an audio DPT whose native
-        unit is samples).  This method detects the mismatch by comparing
-        the claim coordinate range against the timeline's native range
-        and each C-Map's target range.
-
-        The result is the *inverse* of the matching C-Map, i.e. a
-        function ``derived_unit → native_unit`` (e.g. seconds → samples).
-
-        Results are cached per timeline in ``_claim_converter_cache``.
-
-        Args:
-            timeline_id: Actual timeline ID.
-
-        Returns:
-            A callable (inverse C-Map) converting claim coordinates to
-            the timeline's native unit, or None if no conversion needed.
-        """
-        if not hasattr(self, "_claim_converter_cache"):
-            self._claim_converter_cache: dict[str, Any] = {}
-
-        _SENTINEL = object()
-        cached = self._claim_converter_cache.get(timeline_id, _SENTINEL)
-        if cached is not _SENTINEL:
-            return cached
-
-        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
-        tl = self.timelines.get(bundle_uid)
-        if tl is None or not tl._conversion_maps:
-            self._claim_converter_cache[timeline_id] = None
-            return None
-
-        # Find the max claim coordinate for this timeline
-        max_claim_coord = 0.0
-        for claim in self.cross_group_claims:
-            anchor = claim.start_anchor
-            if anchor is None:
-                continue
-            c = anchor.get_coordinate_for(timeline_id)
-            if c is not None and c.value > max_claim_coord:
-                max_claim_coord = float(c.value)
-                if max_claim_coord > 1000:
-                    break
-
-        # Columnar stores answer the same question with a masked pc.max.
-        for claim_field in self.cross_group_claim_fields:
-            field_max = claim_field.max_coordinate(timeline_id)
-            if field_max is not None and field_max > max_claim_coord:
-                max_claim_coord = field_max
-
-        if max_claim_coord == 0:
-            self._claim_converter_cache[timeline_id] = None
-            return None
-
-        tl_length = float(tl.length.value)
-
-        # If max claim coord is within 1% of the timeline's length,
-        # claims are in the native unit — no conversion needed.
-        if max_claim_coord > tl_length * 0.01:
-            self._claim_converter_cache[timeline_id] = None
-            return None
-
-        # Claims are much smaller than the native range — find which
-        # C-Map's target range covers the claim range.
-        for cmap in tl._conversion_maps.values():
-            try:
-                converted_length = float(cmap(tl_length))
-                if max_claim_coord <= converted_length * 1.1:
-                    inv = cmap.inverse()
-                    self._claim_converter_cache[timeline_id] = inv
-                    return inv
-            except Exception:
-                continue
-
-        self._claim_converter_cache[timeline_id] = None
-        return None
-
     def _timeline_length(self, timeline_id: str) -> float | None:
         """Return a timeline's length in its native unit, or None."""
         bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
@@ -2426,49 +2375,6 @@ class AlignmentBundle:
         if tl is None or tl.length is None:
             return None
         return float(tl.length.value)
-
-    def _reconcile_entering_coordinate(
-        self, timeline_id: str, coordinate: float, hull_low: float, hull_high: float
-    ) -> float:
-        """Bring an entering coordinate into a WarpMap's source hull via C-Maps.
-
-        A coordinate reached through a claim anchor may be expressed in a unit
-        that differs from the one the target WarpMap's anchors use — e.g. a
-        measure boundary stored in seconds on a samples timeline, warping into
-        an alignment whose anchors are native samples. When ``coordinate`` lies
-        outside ``[hull_low, hull_high]`` but one of the timeline's conversion
-        maps (applied forward or inverse) lands it inside, that reinterpretation
-        is returned. Otherwise ``coordinate`` is returned unchanged and its
-        support is judged as-is.
-
-        Args:
-            timeline_id: Actual timeline id the coordinate lives on.
-            coordinate: The entering coordinate.
-            hull_low: Lower bound of the WarpMap's source-anchor hull.
-            hull_high: Upper bound of the WarpMap's source-anchor hull.
-
-        Returns:
-            The reconciled coordinate, or the original when no C-Map fits.
-        """
-        if hull_low <= coordinate <= hull_high:
-            return coordinate
-        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
-        tl = self.timelines.get(bundle_uid)
-        conversion_maps = getattr(tl, "_conversion_maps", None)
-        if not conversion_maps:
-            return coordinate
-        for cmap in conversion_maps.values():
-            for reinterpret in ("forward", "inverse"):
-                try:
-                    if reinterpret == "forward":
-                        candidate = float(cmap(coordinate))
-                    else:
-                        candidate = float(cmap.inverse()(coordinate))
-                except Exception:
-                    continue
-                if hull_low <= candidate <= hull_high:
-                    return candidate
-        return coordinate
 
     def _clip_to_length(self, timeline_id: str, coordinate: float) -> float:
         """Clip a coordinate into ``[0, length]`` for a target timeline."""
@@ -2508,30 +2414,20 @@ class AlignmentBundle:
         self,
         warp: WarpMap,
         entering: float,
-        source_tl_id: str,
         target_tl_id: str,
         support_policy: SupportPolicy,
-        *,
-        reconcile: bool = True,
     ) -> float | None:
         """Warp one coordinate into a target timeline under a support policy.
 
-        Unless ``reconcile`` is False, the entering coordinate is first
-        reconciled to the WarpMap's source hull via the source timeline's
-        C-Maps (handling derived-unit anchors). It is then classified:
-        out-of-support when it still lies outside the hull, or when the produced
-        coordinate would fall outside ``[0, length]``.
+        The coordinate is out of support when it lies outside the source hull
+        or when the produced coordinate falls outside the target timeline's
+        ``[0, length]`` range.
 
         Args:
             warp: The source → target WarpMap.
             entering: The source coordinate to transfer.
-            source_tl_id: Actual timeline id of the source.
             target_tl_id: Actual timeline id of the target.
             support_policy: The active policy.
-            reconcile: Whether the entering coordinate may be reinterpreted
-                through the source timeline's C-Maps. False for the query
-                timeline's own authoritative coordinate, which is always taken
-                in its native unit.
 
         Returns:
             The target coordinate (always within ``[0, length]``), or None when
@@ -2540,24 +2436,14 @@ class AlignmentBundle:
         source_coords = warp.source_coords
         hull_low = float(source_coords[0])
         hull_high = float(source_coords[-1])
-        reconciled = (
-            self._reconcile_entering_coordinate(
-                source_tl_id, float(entering), hull_low, hull_high
-            )
-            if reconcile
-            else float(entering)
-        )
+        entering = float(entering)
         length = self._timeline_length(target_tl_id)
 
         def _produce(value: float) -> float:
-            out = float(warp(value))
-            conv = self._get_claim_to_native_converter(target_tl_id)
-            if conv is not None:
-                out = float(conv(out))
-            return out
+            return float(warp(value))
 
-        produced = _produce(reconciled)
-        within_hull = hull_low <= reconciled <= hull_high
+        produced = _produce(entering)
+        within_hull = hull_low <= entering <= hull_high
         within_length = produced >= 0.0 and (length is None or produced <= length)
         if within_hull and within_length:
             return produced
@@ -2565,7 +2451,7 @@ class AlignmentBundle:
         if support_policy is SupportPolicy.omit:
             return None
         if support_policy is SupportPolicy.clamp:
-            clamped = min(max(reconciled, hull_low), hull_high)
+            clamped = min(max(entering, hull_low), hull_high)
             return self._clip_to_length(target_tl_id, _produce(clamped))
         # extrapolate: keep the linear extrapolation, clipped into range.
         return self._clip_to_length(target_tl_id, produced)
@@ -2577,7 +2463,6 @@ class AlignmentBundle:
         source_group: TimelineGroup,
         target_group: TimelineGroup,
         support_policy: SupportPolicy,
-        query_tl_id: str,
     ) -> tuple[str, float] | None:
         """Transfer a coordinate from one group to another via WarpMap.
 
@@ -2587,9 +2472,7 @@ class AlignmentBundle:
         Each transfer is governed by ``support_policy``
         (see :meth:`_transfer_coordinate`); a transfer omitted under the
         ``omit`` policy is skipped so another timeline in the target group may
-        still be reached. The entering coordinate is reconciled to the
-        WarpMap's source unit unless the source *is* the query timeline, whose
-        coordinate is authoritative in its native unit.
+        still be reached.
 
         Args:
             coordinate: Source coordinate.
@@ -2597,8 +2480,6 @@ class AlignmentBundle:
             source_group: Source group.
             target_group: Target group.
             support_policy: How out-of-support transfers are handled.
-            query_tl_id: Actual timeline id of the original query, whose
-                coordinate is never reconciled.
 
         Returns:
             ``(target_timeline_id, transferred_coordinate)`` or ``None``.
@@ -2612,10 +2493,8 @@ class AlignmentBundle:
                 transferred = self._transfer_coordinate(
                     warp,
                     coordinate,
-                    source_tl_id,
                     target_tl_id,
                     support_policy,
-                    reconcile=source_tl_id != query_tl_id,
                 )
             except Exception:
                 continue
@@ -2645,10 +2524,8 @@ class AlignmentBundle:
                     transferred = self._transfer_coordinate(
                         warp,
                         float(intermediate),
-                        src_other_tl_id,
                         target_tl_id,
                         support_policy,
-                        reconcile=src_other_tl_id != query_tl_id,
                     )
                 except Exception:
                     continue

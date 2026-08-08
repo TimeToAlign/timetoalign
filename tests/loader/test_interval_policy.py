@@ -17,8 +17,8 @@ import pytest
 
 from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.core.enums import IntervalPolicy
+from timetoalign.core.fields import coordinate_to_struct
 from timetoalign.storage import EventData
-from timetoalign.storage.schema import coordinate_to_struct
 from timetoalign.testdata import ensure_data
 
 ensure_data("tabular")

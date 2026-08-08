@@ -281,9 +281,6 @@ class RegionsMixin:
 
         for event in events_sorted:
             val = event.get(field)
-            # Normalize struct values
-            if isinstance(val, dict) and "value" in val:
-                val = val["value"]
 
             ev_start_value = event.get("start", event.get("instant"))
             ev_end_value = event.get("end")
@@ -470,8 +467,6 @@ class RegionsMixin:
                 val = event.get(name)
                 if val is None:
                     return False
-                if isinstance(val, dict) and "value" in val:
-                    val = val["value"]
                 if isinstance(val, str):
                     return bool(val.strip())
                 return bool(val)
@@ -486,8 +481,6 @@ class RegionsMixin:
                     val = event.get(key)
                     if val is None:
                         return False
-                    if isinstance(val, dict) and "value" in val:
-                        val = val["value"]
                     # Support list of acceptable values
                     if isinstance(expected, (list, tuple, set, frozenset)):
                         if val not in expected:

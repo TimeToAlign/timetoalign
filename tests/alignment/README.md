@@ -113,8 +113,8 @@ properties are proven with a synthetic fixture that owns no corpus data:
 
 1. A query reaches **every** timeline of **both** merged bundles, including
    timelines that are only reachable through a bridge timeline, and only after
-   that bridge timeline's derived-unit coordinate is reconciled to its native
-   alignment unit.
+   every derived-unit claim anchor is converted explicitly to its timeline's
+   native unit before WarpMap construction.
 2. A coordinate below the first alignment anchor produces **no negative
    coordinate under any policy**, and the three policies produce exact,
    distinct results.
@@ -142,7 +142,13 @@ bridged with `create_match_claims`:
   | 800 | 2500 | 1200 |
 
   The field's `b_bridge` hull is therefore `[200, 800]`.
-- **Bridge A↔B.** `create_match_claims` anchors `a1 = 50` to `b_bridge = 5`.
+- **Bridge A↔B.** A unit-bearing claim anchors `a1 = 50 quarters` to
+  `b_bridge = 5 seconds`. The bridge C-Map converts the latter to exactly
+  `500 samples` before its WarpMap is built. A separate mixed-unit assertion
+  combines native-sample and seconds anchors on the same timeline and checks
+  their exact normalized source coordinates; no range or magnitude inference
+  participates. `TimeUnit.number` remains the explicit unitless form and is
+  interpreted in the referenced timeline's native unit.
   Because `b_bridge`'s native unit is samples, the anchor is recorded as
   `b_bridge = 5` *samples* — a value that is really 5 seconds (the derived
   unit), the same "seconds-on-a-samples-timeline" shape as the specimen.

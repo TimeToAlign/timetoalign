@@ -624,6 +624,14 @@ two bugs wearing one coat. Pinning a single encoding, and asserting the
 fixpoint rather than merely "it round-trips", makes both failure modes
 regressions rather than discoveries.
 
+### Coordinate cell rendering
+
+`Coordinate.to_dict()` and `Duration.to_dict()` emit the same three-key cell
+that `EventData` writes to Arrow. Integer and `Fraction` values carry exact
+integer numerator and denominator fields; floats carry null ratio fields.
+Tests compare the complete dictionaries and verify that `Note.to_dict()` and
+`Measure.to_dict()` embed those cells unchanged.
+
 ---
 
 ## Running Tests
