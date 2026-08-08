@@ -2090,7 +2090,8 @@ def coordinate_to_struct(
 
     Integer and rational coordinates retain an exact numerator and denominator.
     Floating-point coordinates retain only their value because no exact ratio was
-    supplied by the caller. A canonical struct dictionary passes through unchanged.
+    supplied by the caller. A canonical struct dictionary retains its shape and
+    losslessly normalizes integer-valued float ratio members to integers.
 
     Args:
         coordinate: Coordinate value or an already encoded coordinate cell.
@@ -2105,10 +2106,37 @@ def coordinate_to_struct(
     if isinstance(coordinate, dict):
         if not is_rational_wire(coordinate):
             raise ValueError(f"Invalid coordinate dict structure: {coordinate}")
-        return coordinate
+        return _normalize_rational_wire_components(coordinate)
     if isinstance(coordinate, (Fraction, int)) and not isinstance(coordinate, bool):
         return rational_to_struct(coordinate)
     return rational_to_wire(coordinate)
+
+
+def _coerce_rational_component(component: Any, label: str) -> int:
+    """Return one exact ratio component as an integer."""
+    if isinstance(component, int) and not isinstance(component, bool):
+        return component
+    if isinstance(component, float) and component.is_integer():
+        return int(component)
+    if isinstance(component, float):
+        raise ValueError(
+            f"rational struct {label} must be an integer or integer-valued float, "
+            f"got non-integral float {component!r}"
+        )
+    raise ValueError(
+        f"rational struct {label} must be an integer or integer-valued float, "
+        f"got {component!r}"
+    )
+
+
+def _normalize_rational_wire_components(struct: dict[str, Any]) -> dict[str, Any]:
+    """Normalize present canonical ratio members without changing float-only cells."""
+    normalized = dict(struct)
+    for label in ("numerator", "denominator"):
+        component = normalized.get(label)
+        if component is not None:
+            normalized[label] = _coerce_rational_component(component, label)
+    return normalized
 
 
 def struct_to_rational(struct: dict[str, Any]) -> Fraction:
@@ -2120,6 +2148,10 @@ def struct_to_rational(struct: dict[str, Any]) -> Fraction:
     :func:`struct_to_coordinate` instead preserves the stored double's exact
     binary expansion; it never uses ``limit_denominator()`` to invent a plausible rational.
 
+    Integer-valued float ratio members are accepted and converted losslessly to
+    integers for compatibility with artifacts written by earlier releases.
+    Fractional float ratio members are rejected rather than rounded.
+
     Args:
         struct: A dict shaped like :data:`RATIONAL_STRUCT_TYPE`.
 
@@ -2127,18 +2159,11 @@ def struct_to_rational(struct: dict[str, Any]) -> Fraction:
         ``Fraction(numerator, denominator)``.
 
     Raises:
-        ValueError: If either component is missing, non-integral, or the
-            denominator is zero.
+        ValueError: If either component is missing, fractional, or otherwise
+            non-integral, or the denominator is zero.
     """
-    components: list[int] = []
-    for label in ("numerator", "denominator"):
-        component = struct.get(label)
-        if not isinstance(component, int) or isinstance(component, bool):
-            raise ValueError(
-                f"rational struct {label} must be an integer, got {component!r}"
-            )
-        components.append(component)
-    numerator, denominator = components
+    numerator = _coerce_rational_component(struct.get("numerator"), "numerator")
+    denominator = _coerce_rational_component(struct.get("denominator"), "denominator")
     if denominator == 0:
         raise ValueError("rational struct denominator must be non-zero")
     return Fraction(numerator, denominator)
@@ -2154,6 +2179,9 @@ def struct_to_coordinate(
     ``0.1`` becomes ``Fraction(3602879701896397, 36028797018963968)``. It never uses
     ``limit_denominator()``, because an inexact float must not be silently
     dressed up as a plausible rational.
+
+    Integer-valued float ratio members from artifacts written by earlier
+    releases are accepted losslessly; fractional float members are rejected.
 
     Args:
         struct: Dictionary shaped like :data:`RATIONAL_STRUCT_TYPE`.
@@ -2236,6 +2264,9 @@ def wire_to_rational(wire: dict[str, Any]) -> Fraction | float:
     deliberately total over the shape and rejects everything else, so a
     stale encoding surfaces as a ``TypeError`` at the boundary instead
     of a silently wrong number downstream.
+
+    Integer-valued float ratio members from artifacts written by earlier
+    releases are accepted losslessly; fractional float members are rejected.
 
     Args:
         wire: A dict as produced by :func:`rational_to_wire`.

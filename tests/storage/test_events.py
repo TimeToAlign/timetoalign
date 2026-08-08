@@ -9,7 +9,7 @@ from fractions import Fraction
 
 import pyarrow as pa
 
-from timetoalign.core import TimeUnit
+from timetoalign.core import NumberType, TimeUnit
 from timetoalign.storage.events import EventData
 from timetoalign.timelines import ContinuousLogicalTimeline
 
@@ -75,6 +75,71 @@ class TestColumnValues:
     def test_non_coordinate_column_passes_through(self) -> None:
         data = self._data()
         assert data.column_values("event_type") == ["Note", "Note", "Beat"]
+
+
+class TestLegacyFloatRatioMembers:
+    """Compatibility with rational cells persisted by earlier releases."""
+
+    @staticmethod
+    def _legacy_type() -> pa.StructType:
+        return pa.struct(
+            [
+                pa.field("value", pa.float64()),
+                pa.field("numerator", pa.float64()),
+                pa.field("denominator", pa.float64()),
+            ]
+        )
+
+    def test_to_dataframe_decodes_integer_valued_float_members(self) -> None:
+        table = pa.table(
+            {
+                "start": pa.array(
+                    [
+                        {
+                            "value": 8379000.0,
+                            "numerator": 8379000.0,
+                            "denominator": 1.0,
+                        }
+                    ],
+                    type=self._legacy_type(),
+                )
+            }
+        )
+        data = EventData(table, TimeUnit.quarters, NumberType.fraction)
+
+        assert data.to_dataframe()["start"].tolist() == [Fraction(8379000, 1)]
+
+    def test_from_dicts_normalizes_carried_coordinate_struct_members(self) -> None:
+        data = EventData.from_dicts(
+            [
+                {
+                    "event_type": "Note",
+                    "start": {
+                        "value": 8379000.0,
+                        "numerator": 8379000.0,
+                        "denominator": 1.0,
+                    },
+                    "legacy_coordinate": {
+                        "value": 2.5,
+                        "numerator": 5.0,
+                        "denominator": 2.0,
+                    },
+                }
+            ],
+            TimeUnit.quarters,
+            NumberType.fraction,
+        )
+        start = data.table.column("start").combine_chunks()
+        column = data.table.column("legacy_coordinate").combine_chunks()
+
+        assert start.to_pylist() == [
+            {"value": 8379000.0, "numerator": 8379000, "denominator": 1}
+        ]
+        assert column.type.field("numerator").type == pa.int64()
+        assert column.type.field("denominator").type == pa.int64()
+        assert column.to_pylist() == [{"value": 2.5, "numerator": 5, "denominator": 2}]
+        assert data.to_dataframe()["start"].tolist() == [Fraction(8379000, 1)]
+        assert data.to_dataframe()["legacy_coordinate"].tolist() == [Fraction(5, 2)]
 
 
 class TestCreateTimeline:

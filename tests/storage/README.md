@@ -21,6 +21,12 @@ when their inputs are exact, the generated pair is checked with Fraction
 arithmetic.  This is the same vectorized path used while assembling merged
 score tables.
 
+`EventData.from_dicts` also normalizes integer-valued float ratio members in
+canonical coordinate-shaped dictionaries to Arrow `int64` children. This
+applies to both base coordinates and carried extra coordinate structs, so the
+library does not reproduce the legacy float-member representation it accepts
+when reading older artifacts. Fractional float ratio members remain invalid.
+
 ## Test Files
 
 ### `test_events.py` - `EventData.create_timeline()`
@@ -44,6 +50,9 @@ values without reaching into `EventData`'s private `_table`.
   `{value, numerator, denominator}` used by `start`, `end`, `duration`, and
   any extra field sharing that shape -- decodes to an exact `Fraction` via
   `timetoalign.core.struct_to_rational`.
+- Integer-valued float ratio members from earlier persisted artifacts decode
+  losslessly, including through `to_dataframe()`; fractional members raise
+  rather than being rounded.
 - When a row's struct carries no exact ratio (missing or non-integral
   `numerator`/`denominator`), the float `value` member is used instead,
   wrapped in a `Fraction`.

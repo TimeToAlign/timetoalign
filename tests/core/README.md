@@ -558,8 +558,10 @@ version, the two writers (`metadata_blob_from_dict`,
    `RATIONAL_STRUCT_TYPE` (`{value, numerator, denominator}`), the library's
    only rational shape. Round-trips return the **exact** `Fraction`
    (`Fraction(3, 4)`, not `0.75`) because the parser reads the integer
-   components and ignores the lossy float projection; a struct whose
-   components are not integers raises `ValueError`.
+   components and ignores the lossy float projection. Integer-valued float
+   components from artifacts written by earlier releases are accepted and
+   losslessly normalized to integers; fractional float components raise
+   `ValueError` rather than being rounded.
 
 **Validity Rationale:** A single owner plus a required version means a stored
 table can always be interpreted, and a future payload change is a bump rather
@@ -587,6 +589,9 @@ keeps its exact ratio; anything else encodes as `{"value": x, "numerator":
 null, "denominator": null}` and decodes back to a plain `float`. The null
 ratio is the *only* marker of inexactness — the float `value` is a lossy
 projection and is never consulted when the ratio is present.
+Integer-valued float ratio members found in artifacts written by earlier
+releases decode losslessly as integers; ratio members with a fractional part
+are rejected and never rounded.
 `is_rational_wire` recognises the shape for the few slots (a `ConstantMap`
 value) whose payload is genuinely open-ended.
 
@@ -598,8 +603,10 @@ boundary instead of silently becoming something else.
 **What we validate:**
 
 1. **Codec.** Exact ratios survive `rational_to_wire` → `json` →
-   `wire_to_rational`; floats and ints encode with a null ratio and decode as
-   `float`; non-numeric input and stale string encodings raise.
+   `wire_to_rational`; integer-valued float ratio members decode exactly,
+   fractional float ratio members raise, floats and ints encode with a null
+   ratio and decode as `float`, and non-numeric input and stale string
+   encodings raise.
 2. **Fixpoint guarantee.** For a timeline, a `BeatGrid`, a map, an
    `AlignmentAnchor`, and a `MatchClaim`,
    `X.from_dict(json.loads(json.dumps(x.to_dict()))) .to_dict() == x.to_dict()`.

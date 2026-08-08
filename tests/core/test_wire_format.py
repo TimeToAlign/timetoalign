@@ -206,6 +206,33 @@ class TestRationalWireDict:
         assert decoded == Fraction(1, 3)
         assert isinstance(decoded, Fraction)
 
+    def test_legacy_integer_valued_float_ratio_decodes_exactly(self) -> None:
+        wire = {
+            "value": 8379000.0,
+            "numerator": 8379000.0,
+            "denominator": 1.0,
+        }
+        decoded = wire_to_rational(wire)
+        assert decoded == Fraction(8379000, 1)
+        assert isinstance(decoded, Fraction)
+
+    def test_mixed_integer_valued_float_and_int_ratio_decodes_exactly(self) -> None:
+        wire = {"value": 2.5, "numerator": 5.0, "denominator": 2}
+        decoded = wire_to_rational(wire)
+        assert decoded == Fraction(5, 2)
+        assert isinstance(decoded, Fraction)
+
+    def test_fractional_float_ratio_member_is_rejected(self) -> None:
+        wire = {"value": 5.5, "numerator": 5.5, "denominator": 1}
+        with pytest.raises(
+            ValueError,
+            match=(
+                r"numerator must be an integer or integer-valued float, "
+                r"got non-integral float 5\.5"
+            ),
+        ):
+            wire_to_rational(wire)
+
     def test_null_ratio_decodes_to_a_float(self) -> None:
         decoded = wire_to_rational(rational_to_wire(2.5))
         assert decoded == 2.5

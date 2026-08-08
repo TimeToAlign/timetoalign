@@ -40,6 +40,7 @@ from timetoalign.core import (
 )
 from timetoalign.core.fields import (
     coordinate_to_struct,
+    is_rational_wire,
     struct_to_coordinate,
     struct_to_rational,
 )
@@ -204,6 +205,11 @@ def _build_extra_field_schema(
         sample = _first_non_null(processed_rows, name)
 
         if isinstance(sample, dict):
+            if is_rational_wire(sample):
+                for row in processed_rows:
+                    value = row.get(name)
+                    if is_rational_wire(value):
+                        row[name] = coordinate_to_struct(value)
             # Infer the struct type from the carried dicts and keep it as a
             # real struct column.  Stamp paired-class metadata when the
             # shape is a known SemanticField so the affordance round-trips.
@@ -738,7 +744,7 @@ class EventData(SemanticFieldAccessMixin):
             val = processed.get(coord_col)
             if val is not None:
                 if isinstance(val, dict):
-                    if "value" not in val:
+                    if is_rational_wire(val) or "value" not in val:
                         processed[coord_col] = coordinate_to_struct(val)
                 else:
                     processed[coord_col] = coordinate_to_struct(val)

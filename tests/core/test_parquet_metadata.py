@@ -325,7 +325,7 @@ class TestCanonicalRationalStruct:
         )
         assert [struct_to_rational(d) for d in arr.to_pylist()] == values
 
-    def test_struct_to_rational_requires_integers(self) -> None:
+    def test_struct_to_rational_rejects_non_integral_components(self) -> None:
         with pytest.raises(ValueError, match="numerator must be an integer"):
             struct_to_rational({"value": 0.75, "numerator": None, "denominator": 4})
         with pytest.raises(ValueError, match="denominator must be an integer"):
