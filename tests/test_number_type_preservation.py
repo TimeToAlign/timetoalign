@@ -13,11 +13,12 @@ from __future__ import annotations
 import math
 from fractions import Fraction
 
-from timetoalign.alignment import MatchStamp
+from timetoalign.alignment import AlignmentBundle, MatchStamp
 from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
 from timetoalign.maps import ScalarMap, TicksToQuarters
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
+    ContinuousPhysicalTimeline,
     DiscreteLogicalTimeline,
     TimelineGroup,
 )
@@ -177,3 +178,94 @@ def test_matchstamp_typed_access_preserves_stored_fraction() -> None:
     coordinate = stamp.get_coordinate("score")
     assert coordinate == Coordinate(Fraction(1, 3), TimeUnit.quarters)
     assert isinstance(coordinate.value, Fraction)
+
+
+def _mixed_group() -> TimelineGroup:
+    """A group whose two members declare different representations."""
+    return TimelineGroup(
+        id="g",
+        timelines=[
+            ContinuousLogicalTimeline(length=100, unit=TimeUnit.quarters, uid="clt1"),
+            ContinuousPhysicalTimeline(length=60, unit=TimeUnit.seconds, uid="cpt1"),
+        ],
+    )
+
+
+def test_group_axis_follows_the_addressed_timeline_not_the_argument() -> None:
+    """A group stamp's axis is written the way its timeline writes numbers.
+
+    Asserted in both directions on one group, because the failure this
+    catches is reading the *argument's* Python type: that mistake spells a
+    float query as a float on an exact axis and an int query as a Fraction on
+    a float axis, and a one-directional check would clear half of it.
+    """
+    group = _mixed_group()
+
+    exact = group.get_timestamp_at(9.5, "clt1")
+    assert exact.axis == Fraction(19, 2)
+    assert isinstance(exact.axis, Fraction)
+
+    # Same position typed exactly: one answer per axis, not one per literal.
+    assert group.get_timestamp_at(Fraction(19, 2), "clt1").axis == exact.axis
+    assert isinstance(group.get_timestamp_at(10, "clt1").axis, Fraction)
+
+    # seconds are float-canonical, so an exact argument is written as a float.
+    for query in (10, 10.0, Fraction(10, 1)):
+        axis = group.get_timestamp_at(query, "cpt1").axis
+        assert axis == 10.0
+        assert isinstance(axis, float)
+
+
+def test_group_and_timeline_agree_on_the_same_position() -> None:
+    """The group path and the timeline path give one answer, not two.
+
+    A stamp from any source has identical structure and behaviour, so a
+    caller who reaches a position through a group rather than through its
+    member must not get a differently-typed axis.
+    """
+    group = _mixed_group()
+    timeline = group.get_timeline("clt1")
+
+    direct = timeline.get_timestamp(9.5).axis
+    via_group = group.get_timestamp_at(9.5, "clt1").axis
+
+    assert direct == via_group
+    assert type(direct) is type(via_group)
+
+
+def test_bundle_matchstamp_axis_follows_the_declared_type() -> None:
+    """A bundle's matchstamp axis is re-expressed like every other axis.
+
+    The bundle resolves its query against float graph nodes and WarpMap
+    feeds, which is the internal lane the rule deliberately leaves alone.
+    What it may not do is report that internal float as the axis: an exact
+    query on a fraction-canonical timeline came back as ``79.0`` before, so
+    the same position answered differently depending on the entry point.
+    """
+    score = ContinuousLogicalTimeline(length=100, unit=TimeUnit.quarters, uid="clt1")
+    bundle = AlignmentBundle(id="b")
+    bundle.add_timeline(score, uid="clt1", as_group="g")
+
+    for query in (Fraction(79, 1), 79.0, 79):
+        axis = bundle.get_matchstamp_at(query, "clt1").axis
+        assert axis == Fraction(79, 1)
+        assert isinstance(axis, Fraction)
+
+    fractional = bundle.get_matchstamp_at(32.5, "clt1")
+    assert fractional.axis == Fraction(65, 2)
+    assert isinstance(fractional.axis, Fraction)
+    assert fractional.get_coordinate("clt1") == Coordinate(
+        Fraction(65, 2), TimeUnit.quarters
+    )
+
+
+def test_bundle_matchstamp_axis_stays_float_on_a_float_axis() -> None:
+    """The other direction: an exact query on a float axis is written float."""
+    clock = ContinuousPhysicalTimeline(length=100, unit=TimeUnit.seconds, uid="cpt1")
+    bundle = AlignmentBundle(id="b-float")
+    bundle.add_timeline(clock, uid="cpt1", as_group="g")
+
+    for query in (25, 25.0, Fraction(25, 1)):
+        axis = bundle.get_matchstamp_at(query, "cpt1").axis
+        assert axis == 25.0
+        assert isinstance(axis, float)

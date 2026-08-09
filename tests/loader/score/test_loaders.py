@@ -11,6 +11,7 @@ from timetoalign.loader.score.ms3 import Ms3Loader
 from timetoalign.loader.score.music21 import Music21Loader
 from timetoalign.loader.score.partitura import PartituraLoader
 from timetoalign.loader.score.store import ScoreStore
+from timetoalign.testdata import ensure_data
 
 DATA_DIR = Path(__file__).parents[2] / "data" / "vienna_1x22"
 MIDI_SCORE_DIR = Path(__file__).parents[2] / "data" / "midi" / "score"
@@ -38,6 +39,47 @@ def _write_synthetic_notes(
         "\t".join(columns) + "\n" + "\t".join(values) + "\n", encoding="utf-8"
     )
     return path
+
+
+def _write_synthetic_annotation_facet(
+    path: Path, *, label_column: str, quarterbeats: str, duration_qb: str, duration: str
+) -> Path:
+    """Write one minimal MS3 chords/harmonies row carrying both duration columns."""
+    columns = ["mc", "mn", "quarterbeats", "duration_qb", "duration", label_column]
+    values = ["44", "44", quarterbeats, duration_qb, duration, "i"]
+    path.write_text(
+        "\t".join(columns) + "\n" + "\t".join(values) + "\n", encoding="utf-8"
+    )
+    return path
+
+
+def _write_label_facet_with_measures(
+    directory: Path, *, labels: list[tuple[str, str]], measure_end: tuple[str, str]
+) -> Path:
+    """Write a harmonies facet with no duration column, beside its measures.
+
+    Mirrors the DCML shape the derivation exists for: label positions stated
+    exactly, spans stated only as ms3's float ``duration_qb``, and the end of
+    the piece knowable only from the companion measures facet.
+    """
+    harmonies = directory / "piece.harmonies.tsv"
+    harmonies.write_text(
+        "\t".join(["mc", "mn", "quarterbeats", "duration_qb", "label"])
+        + "\n"
+        + "".join(
+            f"1\t1\t{quarterbeats}\t{duration_qb}\ti\n"
+            for quarterbeats, duration_qb in labels
+        ),
+        encoding="utf-8",
+    )
+    quarterbeats, act_dur = measure_end
+    (directory / "piece.measures.tsv").write_text(
+        "\t".join(["mc", "mn", "quarterbeats", "act_dur"])
+        + "\n"
+        + f"1\t1\t{quarterbeats}\t{act_dur}\n",
+        encoding="utf-8",
+    )
+    return harmonies
 
 
 def _exact_pair(coordinate: dict[str, object]) -> tuple[int, int]:
@@ -109,7 +151,14 @@ class TestMs3Loader:
         assert _exact_pair(row["end"]) == (1, 2)
 
     def test_pathological_derived_duration_mirrors_its_double(self, tmp_path):
-        """A derived decimal with a large binary denominator has no pair."""
+        """A derived decimal keeps its double, mirrored by its exact dyadic.
+
+        There is no such thing as a cell without a pair: the ratio side is
+        always populated, and for a value with no symbolic source it holds
+        the double's exact dyadic rather than a tidied-up ratio. The double
+        is numerically identical to that dyadic, which is why mirroring it is
+        not fabrication -- inventing ``1/3`` here would be.
+        """
         path = _write_synthetic_notes(
             tmp_path / "derived_decimal.notes.tsv",
             duration_qb="0.3333333333333333",
@@ -119,6 +168,125 @@ class TestMs3Loader:
         duration = row["duration"]
 
         assert duration["value"] == 0.3333333333333333
+        assert _exact_pair(duration) == (6004799503160661, 18014398509481984)
+        assert Fraction(*_exact_pair(duration)) == Fraction(0.3333333333333333)
+        assert Fraction(*_exact_pair(duration)) != Fraction(1, 3)
+
+    @pytest.mark.parametrize(
+        ("facet", "label_column", "store_attribute"),
+        [("chords", "chord", "controls"), ("harmonies", "label", "annotations")],
+    )
+    def test_annotation_facets_read_the_symbolic_duration_column(
+        self, tmp_path, facet, label_column, store_attribute
+    ):
+        """Chords and harmonies take the exact duration, like notes and measures.
+
+        The row is the shape that used to fail: a triplet position stated
+        exactly as ``695/4`` with a duration the source gives both ways. Read
+        from ``duration_qb`` the sum needs a 65-bit numerator and the load
+        raises; read from ``duration`` it is ``1043/6``.
+        """
+        path = _write_synthetic_annotation_facet(
+            tmp_path / f"triplet.{facet}.tsv",
+            label_column=label_column,
+            quarterbeats="695/4",
+            duration_qb="0.0833333333333333",
+            duration="1/48",
+        )
+
+        loader = Ms3Loader.from_file(path)
+        row = list(getattr(loader.store, store_attribute))[0]
+
+        assert _exact_pair(row["start"]) == (695, 4)
+        assert _exact_pair(row["duration"]) == (1, 12)
+        assert _exact_pair(row["end"]) == (1043, 6)
+
+    def test_harmony_label_spans_come_from_the_next_label(self, tmp_path):
+        """A label runs to the next one, exactly, and the last to the piece end.
+
+        A harmonies facet states no symbolic duration. Its ``duration_qb`` is
+        this same subtraction done in float, residue and all --
+        ``0.16666666666668561`` is not even the nearest double to ``1/6``.
+        Redoing it on the exact ``quarterbeats`` cells reads the value the
+        source already encodes rather than guessing one.
+        """
+        path = _write_label_facet_with_measures(
+            tmp_path,
+            labels=[
+                ("1003/2", "0.16666666666668561"),
+                ("1505/3", "0.3333333333333144"),
+                ("502", "2.0"),
+            ],
+            measure_end=("500", "1"),
+        )
+
+        rows = list(Ms3Loader.from_file(path).store.annotations)
+
+        # Each span is the next label's own position, minus this one's.
+        assert _exact_pair(rows[0]["duration"]) == (1, 6)
+        assert _exact_pair(rows[0]["end"]) == (1505, 3)
+        assert _exact_pair(rows[1]["duration"]) == (1, 3)
+        assert _exact_pair(rows[1]["end"]) == (502, 1)
+
+        # The float column would have given a 55-bit dyadic instead.
+        assert Fraction(*_exact_pair(rows[0]["duration"])) != Fraction(
+            0.16666666666668561
+        )
+
+        # The last label has no successor: 500 + 1x4 = 504 from the measures.
+        assert _exact_pair(rows[2]["duration"]) == (2, 1)
+        assert _exact_pair(rows[2]["end"]) == (504, 1)
+
+    def test_harmony_label_spans_fall_back_without_a_measures_facet(self, tmp_path):
+        """With no companion measures, the last label keeps the derived column.
+
+        The span of the final label is unknowable from the harmonies facet
+        alone, so the loader falls back rather than inventing an end. Earlier
+        labels still take their exact spans from their successors.
+        """
+        path = tmp_path / "lonely.harmonies.tsv"
+        path.write_text(
+            "mc\tmn\tquarterbeats\tduration_qb\tlabel\n"
+            "1\t1\t1003/2\t0.16666666666668561\ti\n"
+            "1\t1\t1505/3\t0.5\ti\n",
+            encoding="utf-8",
+        )
+
+        rows = list(Ms3Loader.from_file(path).store.annotations)
+
+        assert _exact_pair(rows[0]["duration"]) == (1, 6)
+        assert _exact_pair(rows[1]["duration"]) == (1, 2)
+
+    @pytest.mark.slow
+    @pytest.mark.parametrize(
+        ("corpus_name", "expected_facets"), [("score", 46), ("supra", 4)]
+    )
+    def test_every_corpus_annotation_facet_loads(self, corpus_name, expected_facets):
+        """All chords and harmonies files in a corpus load.
+
+        A sweep rather than a specimen on purpose: the exact-duration defect
+        survived a green suite because the files it broke were in no test's
+        load set, and any hand-picked replacement would leave the same gap.
+        ``supra`` carries the only files whose label spans are large enough
+        for the float column to overflow the coordinate struct.
+        """
+        corpus = Path(ensure_data(corpus_name))
+        facets = sorted(
+            path
+            for path in corpus.rglob("*.tsv")
+            if ".chords." in path.name or ".harmonies." in path.name
+        )
+
+        assert len(facets) == expected_facets
+
+        failures = []
+        for path in facets:
+            try:
+                Ms3Loader.from_file(path)
+            except Exception as error:  # noqa: BLE001 - reported, not swallowed
+                failures.append(f"{path.relative_to(corpus)}: {error}")
+
+        assert failures == []
 
     def test_woo71_note_coordinates_are_exact(self):
         """Populated WoO71 note coordinates carry exact pairs."""

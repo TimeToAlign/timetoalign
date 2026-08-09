@@ -177,10 +177,15 @@ class TestThoresenGroupSetup:
 
     def test_pixel_to_second_conversion(self, dgt1_group: TimelineGroup) -> None:
         """DGT1 pixels convert correctly to seconds."""
-        # Midpoint: half of pixels -> half of seconds
+        # The width is odd, so its midpoint falls between two pixels. A pixel
+        # axis holds integers, so the query is the pixel it names -- 2418 --
+        # and the answer is that pixel's position, not the half-pixel's.
         mid_pixels = DGT1_TOTAL_WIDTH / 2
         mid_seconds = dgt1_group.convert(mid_pixels, "dgt1", "audio")
-        assert mid_seconds == Coordinate(AUDIO_DURATION_SECONDS / 2, TimeUnit.seconds)
+        assert mid_seconds == Coordinate(
+            2418 / DGT1_TOTAL_WIDTH * AUDIO_DURATION_SECONDS, TimeUnit.seconds
+        )
+        assert mid_seconds == Coordinate(75.01551189245087, TimeUnit.seconds)
 
         # Endpoints
         assert dgt1_group.convert(0, "dgt1", "audio") == Coordinate(

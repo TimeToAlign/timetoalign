@@ -18,7 +18,7 @@ import pytest
 
 from timetoalign.testdata import ensure_data
 
-ensure_data("score", "target_flows", "vienna_1x22", "midi")
+ensure_data("score", "target_flows", "vienna_1x22", "midi", "supra")
 
 # region Path Constants
 

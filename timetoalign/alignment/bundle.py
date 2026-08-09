@@ -29,6 +29,7 @@ from timetoalign.core import (
     IdGenerator,
     SupportPolicy,
     TimeUnit,
+    express_as,
     resolve_coordinate_spec,
     resolve_id,
 )
@@ -1327,6 +1328,27 @@ class AlignmentBundle:
         )
         return [claim_field for claim_field in filtered if len(claim_field) > 0]
 
+    def _axis_on(self, coordinate: float, timeline_id: str) -> int | float | Fraction:
+        """Express a query coordinate the way *timeline_id* writes numbers.
+
+        The bundle's own lookups — graph node keys, WarpMap feeds, anchor
+        comparisons — run on floats, so a query stays float internally. The
+        axis a stamp reports is a different thing: it has crossed onto a
+        timeline's axis, and an axis writes every number in its declared
+        representation. Without this, the same position answered differently
+        depending on whether the caller happened to pass a float or a
+        Fraction, which is the argument-type inference the boundary rule
+        exists to remove.
+        """
+        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+        timeline = self.timelines.get(bundle_uid)
+        if timeline is not None:
+            return express_as(coordinate, timeline.number_type)
+        unit = self._get_unit_map().get(bundle_uid)
+        if unit is None:
+            return coordinate
+        return express_as(coordinate, unit.default_number_type)
+
     def _get_or_build_matchgraph(
         self,
         timeline_id: str,
@@ -1400,7 +1422,7 @@ class AlignmentBundle:
         mg = MatchGraph(
             claims=relevant_claims,
             units=graph_units,
-            axis=coordinate,
+            axis=self._axis_on(coordinate, timeline_id),
             source=self,
             source_id=timeline_id,
         )
@@ -1548,7 +1570,7 @@ class AlignmentBundle:
             anchor_edges=anchor_edges,
             inferred_edges=inferred_edges,
             units=units,
-            axis=coordinate,
+            axis=self._axis_on(coordinate, timeline_id),
             source=self,
             source_id=timeline_id,
             is_interpolated=not query_has_anchor,

@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field, replace
+from fractions import Fraction
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -93,7 +94,7 @@ class MatchStamp(Stamp):
     anchor_edges: list[tuple[str, str]] = field(default_factory=list)
     inferred_edges: list[tuple[str, str]] = field(default_factory=list)
     units: dict[str, str] = field(default_factory=dict)
-    axis: float | None = None
+    axis: int | float | Fraction | None = None
     source: "AlignmentBundle | None" = None
     source_id: str | None = None
     is_interpolated: bool = False
@@ -640,7 +641,7 @@ class MatchGraph:
         claims: list[MatchClaim] | None = None,
         *,
         units: dict[str, str] | None = None,
-        axis: float | None = None,
+        axis: int | float | Fraction | None = None,
         source: "AlignmentBundle | None" = None,
         source_id: str | None = None,
     ):
@@ -999,7 +1000,7 @@ class MatchGraph:
         claims: list[MatchClaim],
         *,
         units: dict[str, str] | None = None,
-        axis: float | None = None,
+        axis: int | float | Fraction | None = None,
         source: "AlignmentBundle | None" = None,
         source_id: str | None = None,
     ) -> "MatchGraph":

@@ -235,7 +235,12 @@ class TestIntervalFractionFidelity:
         assert self._pairs(data, "end") == [(17, 4)]
 
     def test_float_only_computed_fields_still_carry_both_sides(self) -> None:
-        """Keep computed coordinates float-only when inputs have no pair."""
+        """Bare float inputs still compute a coordinate with both sides.
+
+        Neither operand arrives with a ratio, but a stored cell always has
+        one, so the computed ``end`` carries the exact pair alongside its
+        double rather than a populated value and a hole.
+        """
         data = EventData.from_dicts(
             [{"event_type": "Note", "start": 3.5, "duration": 0.75}],
             unit=TimeUnit.quarters,

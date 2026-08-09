@@ -42,10 +42,23 @@ the two axes, only 4875 px / 150 s reduces to a dyadic ratio (`= 32.5`);
 4328 px / 150 s reduces to `2164/75`, which is **not** exactly representable in
 binary. What makes the assertions exact is that the tested coordinates sit at
 dyadic fractions (0.0, 0.5, 1.0) of the *integer* pixel endpoints, and the
-group interpolates `fraction × 150`: `2437.5/4875 = 0.5` and `2164/4328 = 0.5`
-both reduce exactly, and `0.5 × 150 = 75.0`, `1.0 × 150 = 150.0` are exact. So
-`2437.5 px ↔ 75.0 s`, `2164 px ↔ 75.0 s`, and `4328 px ↔ 150.0 s` are all
-bit-exact. Two comparisons remain `pytest.approx` because they are genuinely
+group interpolates `fraction × 150`: `2164/4328 = 0.5` reduces exactly, and
+`0.5 × 150 = 75.0`, `1.0 × 150 = 150.0` are exact. So `2164 px ↔ 75.0 s` and
+`4328 px ↔ 150.0 s` are bit-exact.
+
+**A half-pixel query is not a half-pixel coordinate.** `4875` is odd, so its
+midpoint `2437.5` falls between two pixels — and a pixel axis is int-canonical,
+so that query names pixel `2438` and the group answers with *that pixel's*
+position, `2438/4875 × 150 = 75.01538461538462 s`. It is asserted against the
+same expression rather than against `75.0`. The `75.0` these cases used to
+expect was the group path reading the un-rounded query while simultaneously
+reporting `ts["dgt1"] == 2438`: one stamp claiming two positions. Every
+projection of a stamp is now a projection of the one position its axis names,
+so the rounding is visible in the answer instead of only in the pixel column.
+The same correction applies to `test_thoresen_poc.py`, whose width `4835` puts
+its midpoint at pixel `2418`.
+
+Two comparisons remain `pytest.approx` because they are genuinely
 floating-point: `test_three_timeline_group` interpolates onto a partial
 timeline where the score coordinate is `100 * 30/90 = 33.333…`, a
 non-terminating ratio; and `test_round_trip_conversion` closes an audio →

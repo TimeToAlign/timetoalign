@@ -773,12 +773,13 @@ class TimelineGroup:
             if resolved.unit is not None
             else resolved.value
         )
+        # The row lookup below runs against the table's float column, so the
+        # search value stays float; the axis the stamp reports is written the
+        # way the addressed timeline writes numbers, whatever Python type the
+        # caller happened to pass. A bare float query and the same value as a
+        # Fraction must land on the same axis.
         coord_value = float(native_value)
-        exact_axis = (
-            Fraction(native_value, 1)
-            if isinstance(native_value, int)
-            else native_value if isinstance(native_value, Fraction) else None
-        )
+        axis_value = express_as(native_value, self._timelines[timeline_id].number_type)
 
         if self._timestamp_table is None:
             raise ValueError(f"Group '{self.id}' has no timestamps")
@@ -819,7 +820,7 @@ class TimelineGroup:
         # The TimeStamp will use InterpolationMaps for coordinate conversion
         # and _get_unit_map_for_timeline for C-Map access
         return TimeStamp(
-            axis=exact_axis if exact_axis is not None else coord_value,
+            axis=axis_value,
             source=self,
             source_id=timeline_id,
             row_index=row_index,

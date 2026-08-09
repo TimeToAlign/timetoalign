@@ -659,7 +659,10 @@ class TestGetTimestampAt:
 
         # Discrete timelines round to nearest integer: 2437.5 → 2438
         assert ts["dgt1"] == 2438
-        assert ts["audio"] == 75.0
+        # Every projection of the stamp is a projection of that one pixel, so
+        # the audio reading is pixel 2438's, not the half-pixel's.
+        assert ts["audio"] == 2438 / 4875 * 150
+        assert ts["audio"] == 75.01538461538462
 
     def test_interpolation_with_partial_timeline(
         self,
@@ -774,9 +777,12 @@ class TestConvert:
         result = group.convert(75.0, source="audio", target="dgt1")
         assert result == Coordinate(2438, TimeUnit.pixels)
 
-        # 2437.5 pixels -> 75 seconds
+        # 2437.5 pixels names pixel 2438, so the answer is pixel 2438's second
+        # position. A pixel axis holds integers; there is no half-pixel to
+        # convert from.
         result = group.convert(2437.5, source="dgt1", target="audio")
-        assert result == Coordinate(75.0, TimeUnit.seconds)
+        assert result == Coordinate(2438 / 4875 * 150, TimeUnit.seconds)
+        assert result == Coordinate(75.01538461538462, TimeUnit.seconds)
 
     def test_convert_same_timeline(
         self,
@@ -1016,8 +1022,9 @@ class TestGroupIntegration:
         assert group1.convert(4875.0, "dgt1", "audio") == Coordinate(
             150.0, TimeUnit.seconds
         )
+        # 2437.5 names pixel 2438 on an integer axis.
         assert group1.convert(2437.5, "dgt1", "audio") == Coordinate(
-            75.0, TimeUnit.seconds
+            2438 / 4875 * 150, TimeUnit.seconds
         )
 
         # Verify conversions in group2
@@ -1240,11 +1247,11 @@ class TestTimelineGroupTimestampAt:
         """Test bidirectional coordinate conversion."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        # From dgt to audio
+        # From dgt to audio. 2437.5 names pixel 2438 on an integer axis.
         ts = group.get_timestamp_at(2437.5, "dgt1")
         audio_coord = ts["audio"]
         assert audio_coord is not None
-        assert audio_coord == 75.0
+        assert audio_coord == 2438 / 4875 * 150
 
     def test_get_timestamp_at_unknown_timeline_raises(
         self,

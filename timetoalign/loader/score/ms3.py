@@ -380,6 +380,90 @@ class Ms3Loader(ScoreLoader):
             return Fraction(0)
         return None
 
+    def _piece_end_from_measures(self, source: Path) -> Fraction | None:
+        """Exact end of the piece, read from the companion measures facet.
+
+        A label's span runs to the next label; the final label runs to the end
+        of the piece, which a harmonies facet never states. The measures facet
+        states it exactly, as the furthest measure position plus that
+        measure's actual duration.
+
+        Args:
+            source: The harmonies file being loaded.
+
+        Returns:
+            The exact end position in quarters, or None when no measures
+            companion is available or its cells are not exact.
+        """
+        try:
+            import ms3
+        except ImportError:  # pragma: no cover - guarded by the caller's import
+            return None
+
+        for companion in self._discover_companions(source):
+            if self._parse_facet(companion) != "measures":
+                continue
+            try:
+                measures = ms3.load_tsv(str(companion))
+            except Exception:
+                logger.debug("Could not read measures companion: %s", companion)
+                return None
+
+            end: Fraction | None = None
+            for _, row in measures.iterrows():
+                start = self._resolve_quarterbeats(row)
+                act_dur = self._parse_fraction(row.get("act_dur"))
+                if not isinstance(start, Fraction) or act_dur is None:
+                    continue
+                candidate = start + act_dur * 4
+                if end is None or candidate > end:
+                    end = candidate
+            return end
+
+        return None
+
+    def _derive_label_spans(
+        self, starts: list[Fraction | float | None], source: Path
+    ) -> list[Fraction | None]:
+        """Span of each label: exactly up to the label that follows it.
+
+        A DCML harmonies facet carries no symbolic duration column. It states
+        ``duration_qb``, which is this very subtraction carried out in float —
+        and the float keeps the residue: a sixth of a quarter arrives as
+        ``0.16666666666668561``, which is not even the nearest double to 1/6.
+        Redoing the subtraction on the exact ``quarterbeats`` cells recovers
+        the value the source already encodes. That is the source's own
+        derivation without its rounding, not a semantics this loader invented,
+        and it is what keeps a label position exact instead of turning into a
+        56-bit dyadic that no longer fits the coordinate struct once added to
+        a position of any musical size.
+
+        Args:
+            starts: Resolved label positions, in file order.
+            source: The harmonies file, used to find the measures companion.
+
+        Returns:
+            One span per label, or None where the pair is not exact and the
+            caller should fall back to the derived column.
+        """
+        piece_end = self._piece_end_from_measures(source)
+        spans: list[Fraction | None] = []
+        for position, start in enumerate(starts):
+            following = (
+                starts[position + 1] if position + 1 < len(starts) else piece_end
+            )
+            if (
+                isinstance(start, Fraction)
+                and isinstance(following, Fraction)
+                and following >= start
+            ):
+                spans.append(following - start)
+            else:
+                # Out of order, missing, or inexact: say nothing rather than
+                # assert a span the source does not support.
+                spans.append(None)
+        return spans
+
     def _resolve_quarterbeats(self, row: "pd.Series") -> Fraction | float | None:
         """Resolve the quarterbeats coordinate from a TSV row.
 
@@ -812,12 +896,20 @@ class Ms3Loader(ScoreLoader):
 
         annotation_rows = []
 
-        for idx, row in df.iterrows():
-            # Temporal (with quarterbeats_all_endings fallback)
-            qb = self._resolve_quarterbeats(row)
+        # Temporal (with quarterbeats_all_endings fallback). Resolved up
+        # front because a label's span is defined by the label after it.
+        indexed_rows = list(df.iterrows())
+        starts = [self._resolve_quarterbeats(row) for _, row in indexed_rows]
+        label_spans = self._derive_label_spans(starts, source)
 
-            # Duration (if available)
-            dur_qb = self._coordinate_value(row.get("duration_qb"))
+        for position, (idx, row) in enumerate(indexed_rows):
+            qb = starts[position]
+
+            # Duration: the exact span to the next label, falling back to the
+            # source's own derived column where that span is not available.
+            dur_qb = label_spans[position]
+            if dur_qb is None:
+                dur_qb = self._resolve_duration(row, "duration")
 
             # Measure context
             mc = int(row["mc"]) if pd.notna(row.get("mc")) else None
@@ -925,7 +1017,7 @@ class Ms3Loader(ScoreLoader):
             qb = self._resolve_quarterbeats(row)
 
             # Duration (if available)
-            dur_qb = self._coordinate_value(row.get("duration_qb"))
+            dur_qb = self._resolve_duration(row, "duration")
 
             # Measure context
             mc = int(row["mc"]) if pd.notna(row.get("mc")) else None

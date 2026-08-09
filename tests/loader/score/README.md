@@ -80,7 +80,59 @@ different on `flow_only`: it completes repeat regions by inferring boundaries.
 - WoO71 MS3 measures begin with exact `(start, duration, end)` Fractions `(0, 1, 1)`,
   `(1, 2, 3)`, and `(3, 2, 5)`.
 - Symbolic triplet duration is exactly `1/3`; native `0.5` is exactly `1/2`; a derived
-  `0.3333333333333333` without a symbolic source remains value-only.
+  `0.3333333333333333` without a symbolic source keeps its double, mirrored by that
+  double's exact dyadic `6004799503160661/18014398509481984`. No cell is ever
+  pair-less — the assertion checks the mirror is the dyadic and **not** `1/3`, since
+  tidying it to `1/3` is the fabrication the exactness rules exist to forbid.
+- **Every facet reads the symbolic duration column, not just notes and measures.** An
+  ms3 TSV states a duration twice — exactly, as a whole-note fraction in `duration`,
+  and derived, as a float in `duration_qb` — and which one a facet reads is not a
+  matter of taste. Reading the float discards a representation the source actually
+  carries, and the loss is not confined to the last decimal: the exact dyadic of
+  `0.0833333333333333` has denominator `2**56`, so adding it to a position of any
+  musical size needs a numerator wider than the int64 the coordinate struct stores,
+  and the load fails outright. The chords and harmonies facets read the float and
+  broke on ordinary triplet durations; both now resolve the same way notes do.
+
+  Pinned on a chord row whose source cells are `quarterbeats = 695/4` and
+  `duration = 1/48` (whole notes), beside a `duration_qb` of `0.0833333333333333`:
+
+  | Coordinate | Exact value | Read from |
+  |---|---|---|
+  | start | `695/4` | `quarterbeats` |
+  | duration | `1/12` | `duration` × 4 — *not* the float column |
+  | end | `1043/6` | exact sum |
+
+  Taken from the float instead, the same duration is `6004799503160659/2**56` and the
+  end is `12526011763593139539/2**56`, whose numerator does not fit. The test asserts
+  the exact triple, so a facet quietly falling back to `duration_qb` fails on the
+  value rather than only on corpora large enough to overflow.
+- **A harmony label's span is stated by the label after it.** A DCML `harmonies`
+  facet has no symbolic duration column at all, so the rule above has nothing to
+  read. It does carry `duration_qb` — but that column *is* the label-to-label
+  subtraction already, carried out in float, and it keeps the residue: the label at
+  `1003/2` records `0.16666666666668561`, which is not even the nearest double to
+  `1/6`. Redoing the subtraction on the exact `quarterbeats` cells recovers what the
+  source encodes (`1505/3 − 1003/2 = 1/6`), so this is the source's own derivation
+  minus its rounding, not a semantics the loader invented. Snapping a float residue
+  to a tidy ratio stays forbidden — the value here is *read*, never guessed.
+
+  The final label has no successor, so its span runs to the end of the piece, taken
+  from the companion `measures` facet as the furthest measure position plus that
+  measure's `act_dur` × 4. Pinned on the Meistersinger prelude: the last label starts
+  at `1759/2` and the measures facet ends at `884 + 4 = 888`, giving `17/2` — the same
+  `8.5` ms3 derived, now exact. Where either end of a span is missing, out of order or
+  inexact, the loader says nothing and falls back to the derived column rather than
+  asserting a span the source does not support.
+
+- **The whole score corpus is loaded, not a chosen file.** All 46 `.chords.tsv` and
+  `.harmonies.tsv` files in the `score` corpus, and all 4 in `supra`, are loaded in
+  one slow-marked sweep. This is deliberately a sweep rather than a specimen: the
+  defect above sat behind a green suite because the affected files were in no test's
+  load set, and a hand-picked replacement specimen would reproduce exactly that gap.
+  `supra` is included because its Meistersinger harmonies are the only corpus files
+  exercising the label-span derivation at a magnitude where the float column
+  overflows. Marked slow; runs under `--runslow`.
 - All 4,753 populated WoO71 note coordinates carry exact numerator/denominator pairs; instant
   rows keep null ends and durations.
 - MS3 exposes spelled pitch once through `specific_pitch`, retains raw MIDI 59 for the first B3,
