@@ -16,7 +16,7 @@
 # %% [markdown]
 # # Loading Real Data
 #
-# *What you will build*
+# ## What you will build
 #
 # You will load Chopin's Étude Op. 10 No. 3 from MusicXML and a note table
 # exported by ms3, a Python toolkit for working with score corpora. The TSV has
@@ -27,7 +27,7 @@
 # {{< glossary Child >}} timelines and an exact {{< glossary Coordinate >}}
 # conversion derived from the file.
 #
-# *Before you start*
+# ## Before you start
 #
 # Complete the tutorial on {{< glossary Event >}}s,
 # [Events on a Timeline](tut03_events.ipynb), first.
@@ -414,11 +414,11 @@ future_doors
 # - You can choose among score, MIDI, tabular, alignment, graphical, and format loader families.
 # - You can use `create_timelines()` and recognize `create_bundle()` as entry points to multi-timeline work.
 #
-# *Next*
+# ## Next
 #
 # [Timeline Groups](tut05_timeline_groups.ipynb)
 #
-# *Go deeper*
+# ## Go deeper
 #
 # - [How to load data](../howto/how01_loading_data.ipynb)
 # - [How to use tabular loaders](../howto/how01_tabular_loaders.ipynb)

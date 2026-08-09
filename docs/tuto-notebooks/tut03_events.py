@@ -16,12 +16,16 @@
 # %% [markdown]
 # # Events on a Timeline
 #
-# **What you will build.** You will build a hand-made
+# ## What you will build
+#
+# You will build a hand-made
 # {{< glossary Timeline >}} in quarter-note units, place beats and notes on it,
 # and organise two voices as children. By the end, you will be able to select
 # musical content and read its positions throughout the hierarchy.
 #
-# **Before you start.** Complete
+# ## Before you start
+#
+# Complete
 # [Nesting and Timestamps](tut02_nesting_and_timestamps.ipynb) first.
 
 # %%
@@ -331,8 +335,12 @@ type_vocabulary
 # - You can read the axis and hierarchy coordinates in a timestamp table.
 # - You can distinguish the library's `EventType` vocabulary from project labels.
 #
-# **Next.** [Loading Real Data](tut04_loading_data.ipynb)
+# ## Next
 #
-# **Go deeper.** See
+# [Loading Real Data](tut04_loading_data.ipynb)
+#
+# ## Go deeper
+#
+# See
 # [Manual Timeline Construction](../howto/how01_manual_timeline_construction.ipynb)
 # and [Advanced Timestamps](../howto/how01_advanced_timestamps.ipynb).

@@ -16,16 +16,21 @@
 # %% [markdown]
 # # Alignment Bundles and MatchClaims
 #
-# *What you will build.* You will build a small {{< glossary AlignmentBundle >}}
+# ## What you will build
+#
+# You will build a small {{< glossary AlignmentBundle >}}
 # that connects a score, its tick grid, and an irregular performance. Its
 # alignment records stated evidence, so you can query one position across every
 # connected {{< glossary Timeline >}} and see whether the answer is exact or
 # interpolated.
 #
-# *Before you start.* Complete [Timeline Groups](tut05_timeline_groups.ipynb),
+# ## Before you start
+#
+# Complete [Timeline Groups](tut05_timeline_groups.ipynb),
 # which introduced interpolation within a group.
 
 # %%
+import warnings
 from collections import Counter
 from fractions import Fraction
 
@@ -249,10 +254,8 @@ map_summary = {
 map_summary
 
 # %% [markdown]
-# The reader has now met all three transfer mechanisms: a
-# {{< glossary ConversionMap >}} converts units on one timeline, group
-# interpolation moves within a group, and a WarpMap moves between groups using
-# claims as evidence.
+# You have now met all three transfer mechanisms: exact offsets between parent
+# and child, linear interpolation within a group, and warp maps across groups.
 
 # %% [markdown]
 # ## Querying
@@ -390,7 +393,7 @@ support_comparison
 # %% [markdown]
 # `omit` leaves the unsupported performance coordinate absent (`None`); it is
 # the conservative choice for analysis. `clamp` is useful when an interface
-# must remain at the nearest known boundary. I would extrapolate only a short
+# must remain at the nearest known boundary. Extrapolate only a short
 # distance when the local tempo trend is itself a defensible assumption.
 
 # %% [markdown]
@@ -402,7 +405,14 @@ support_comparison
 # %%
 match_files = sorted(vienna_data.glob("*.match"))
 match_loader = MatchfileLoader()
-match_loader.load(*match_files)
+with warnings.catch_warnings():
+    warnings.filterwarnings(
+        "ignore",
+        message=r"Quarter duration .*",
+        category=UserWarning,
+        module=r"partitura\.utils\.music",
+    )
+    match_loader.load(*match_files)
 vienna_bundle = match_loader.create_bundle()
 vienna_diagram = vienna_bundle.diagram(max_standalone=4, depth=0)
 print(vienna_diagram)
@@ -514,8 +524,12 @@ merge_summary
 # - You can load a 22-performance alignment into the same object you built.
 # - You can merge bundles and add only the bridge evidence you actually have.
 #
-# *Next.* [Flow Control and Grids](tut07_flow_and_grids.ipynb)
+# ## Next
 #
-# *Go deeper.* [Create a note alignment](../howto/how03_create_note_alignment.ipynb),
+# [Flow Control and Grids](tut07_flow_and_grids.ipynb)
+#
+# ## Go deeper
+#
+# [Create a note alignment](../howto/how03_create_note_alignment.ipynb),
 # [load the Vienna corpus](../howto/how03_loading_vienna_corpus.ipynb), and
 # [transfer annotations](../howto/how01_thoresen_annotation_transfer.ipynb).

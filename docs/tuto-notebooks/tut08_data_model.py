@@ -16,12 +16,17 @@
 # %% [markdown]
 # # The Data Model
 #
-# *What you will build.* You will load a table of Chopin notes, move from its
-# faithful Arrow columns to typed musical views, and promote a column yourself.
-# By the end, you can take any column and ask what typed musical value it affords,
-# while understanding why the table is Arrow-backed.
+# ## What you will build
 #
-# *Before you start.* Complete [Flow Control and Grids](tut07_flow_and_grids.ipynb).
+# You will load a table of Chopin notes, move from its faithful Arrow columns to
+# typed musical views, and promote a column yourself. By the end, you can take any
+# column and ask what typed musical value it affords, while understanding why the
+# table is Arrow-backed.
+#
+# ## Before you start
+#
+# Complete [Loading Real Data](tut04_loading_data.ipynb), which introduces loaders
+# and the `EventStore` used here.
 
 # %%
 from fractions import Fraction
@@ -94,6 +99,9 @@ primer_table.schema
 # {{< glossary Coordinate >}} or other scalar. “Affords” matters: loaders never
 # store semantic types, and requested views are computed lazily and cached rather
 # than baked into the table.
+# Here the loader-level `get_events()` assembles the loaded note table directly
+# from its `EventStore`; unlike a timeline's `get_events()`, it does not query a
+# timeline hierarchy or translate child coordinates.
 
 # %%
 loader = Ms3Loader.from_file(notes_path)
@@ -432,23 +440,31 @@ round_trip
 # %% [markdown]
 # ## What you learned
 #
-# - Explain how Arrow's columnar storage, nested schemas, and metadata make the
+# - You can explain how Arrow's columnar storage, nested schemas, and metadata make the
 #   library big-data-ready.
-# - Distinguish faithful raw columns, afforded semantic views, and indexed scalars.
-# - Explain the separate jobs of a Protocol, Scalar, and Field.
-# - Construct raw numeric, string, and struct fields by hand.
-# - Inspect a real onset's rational Layer 0 representation.
-# - Request coordinate and duration views that retain exact values and units.
-# - Promote a source column into a semantic Field yourself.
-# - Defer column resolution with a blueprint and `source_fields`.
-# - Attach extracted semantic schemas when building an `EventData` table from arrays.
-# - Discover, cache, and disambiguate semantic fields.
-# - Interpret the specific error raised by an ambiguous semantic-field request.
-# - Find fields by the shape of their scalars.
-# - Round-trip a semantic field through Parquet without losing its type or unit.
+# - You can distinguish faithful raw columns, afforded semantic views, and indexed
+#   scalars.
+# - You can explain the separate jobs of a Protocol, Scalar, and Field.
+# - You can construct raw numeric, string, and struct fields by hand.
+# - You can inspect a real onset's rational Layer 0 representation.
+# - You can request coordinate and duration views that retain exact values and units.
+# - You can promote a source column into a semantic Field yourself.
+# - You can defer column resolution with a blueprint and `source_fields`.
+# - You can attach extracted semantic schemas when building an `EventData` table from
+#   arrays.
+# - You can discover, cache, and disambiguate semantic fields.
+# - You can interpret the specific error raised by an ambiguous semantic-field
+#   request.
+# - You can find fields by the shape of their scalars.
+# - You can round-trip a semantic field through Parquet without losing its type or
+#   unit.
 #
-# *Next.* [Pitch and Harmony across Formats](tut09_pitch_and_harmony.ipynb)
+# ## Next
 #
-# *Go deeper.* [Loading data](../howto/how01_loading_data.ipynb),
+# [Pitch and Harmony across Formats](tut09_pitch_and_harmony.ipynb)
+#
+# ## Go deeper
+#
+# [Loading data](../howto/how01_loading_data.ipynb),
 # [tabular loaders](../howto/how01_tabular_loaders.ipynb), and
 # [coordinate mathematics](../howto/how01_coordinate_math.ipynb).

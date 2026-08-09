@@ -16,7 +16,7 @@
 # %% [markdown]
 # # Pitch and Harmony across Formats
 #
-# *What you will build*
+# ## What you will build
 #
 # You will build a typed comparison of pitch information from an ms3 table,
 # two MusicXML readers, a MIDI performance, and a note-alignment export. By
@@ -24,7 +24,7 @@
 # which preserve only a sounding pitch, then apply the same distinction to
 # harmony labels.
 #
-# *Before you start*
+# ## Before you start
 #
 # Complete [The Data Model](tut08_data_model.ipynb) first; this notebook reuses
 # its scalar, field, and protocol pattern.
@@ -134,8 +134,9 @@ chopin_loaders
 # %% [markdown]
 # ## Retrieve the event tables
 #
-# The earlier loading tutorial introduced `get_events`. Here it gives us the
-# {{< glossary Event >}} data from which every pitch view will be requested.
+# The data-model tutorial introduced the loader-level `get_events` route. Here
+# it gives us the {{< glossary Event >}} data from which every pitch view will
+# be requested.
 
 # %%
 chopin_events = {name: loader.get_events() for name, loader in chopin_loaders.items()}
@@ -598,5 +599,7 @@ harmony_field_result
 # then choose a guide that matches the format or alignment task in your own
 # research.
 #
-# *Go deeper* — [Load a parangonada note alignment](../howto/how03_parangonada.ipynb)
-# and [load CSV or TSV data](../howto/how04_loading_csv.ipynb).
+# ## Go deeper
+#
+# [Load a parangonada note alignment](../howto/how03_parangonada.ipynb) and
+# [load CSV or TSV data](../howto/how04_loading_csv.ipynb).

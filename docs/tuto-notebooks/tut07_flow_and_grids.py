@@ -46,7 +46,7 @@ from timetoalign.timelines import Flow, FlowMap, ScoreFlowController
 score_data = ensure_data("score")
 
 # %% [markdown]
-# ## 1. A page is not a performance
+# ## A page is not a performance
 #
 # A repeat sign or *Da Capo* changes traversal order without changing the page.
 # The written timeline is **folded**; the route actually played is **unfolded**.
@@ -83,7 +83,7 @@ page_and_performance
 # contains A, B, and C once each, but the performance repeats A and skips B.
 
 # %% [markdown]
-# ## 2. Naming the played spans
+# ## Naming the played spans
 #
 # A {{< glossary Region >}} gives a stable name to a span of the written score.
 # We reuse `create_region` from the nesting tutorial.
@@ -107,7 +107,7 @@ region_overview
 # played route refer to legible musical spans rather than unexplained numbers.
 
 # %% [markdown]
-# ## 3. Building the map
+# ## Building the map
 #
 # A {{< glossary FlowMap >}} records how folded spans are placed in played
 # order. `create_flow_map(intervals)` accepts a name, a Region, a `(start, end)`
@@ -135,7 +135,7 @@ map_overview
 # `list_flow_maps` retrieve and enumerate the attached maps.
 
 # %% [markdown]
-# ## 4. Unfolding one position
+# ## Unfolding one position
 #
 # `unfold_coordinate(coord)` takes one folded position and returns a list,
 # because repeated material can occur at several positions in performance.
@@ -160,7 +160,7 @@ unfold_report
 # positions do not carry the written timeline's quarter unit.
 
 # %% [markdown]
-# ## 5. Folding back
+# ## Folding back
 #
 # `fold(coord)` goes in the other direction: many possible performance
 # positions collapse to one position on the written page.
@@ -182,7 +182,7 @@ fold_report
 # one-to-many; folding is many-to-one.
 
 # %% [markdown]
-# ## 6. Assembling the whole unfolded timeline
+# ## Assembling the whole unfolded timeline
 #
 # `apply_flow(id)` constructs the complete played timeline. It preserves the
 # source's concrete type and makes one {{< glossary Child >}} timeline for every
@@ -207,7 +207,7 @@ unfolded_overview
 # named intervals are what make the route invertible through the `source` map.
 
 # %% [markdown]
-# ## 7. Inspecting repeat events
+# ## Inspecting repeat events
 #
 # Score loaders retain repeat signs and non-sequential destinations as
 # flow-control {{< glossary Event >}}s. Inspecting those parsed records first
@@ -236,7 +236,7 @@ repeat_events
 # destination and the following written measure.
 
 # %% [markdown]
-# ## 8. Computing and checking the route
+# ## Computing and checking the route
 #
 # A `ScoreFlowController` turns the parsed measure records into a
 # {{< glossary Flow >}} and its FlowMap. Diagnostics check the default
@@ -263,7 +263,7 @@ flow_report
 # problems; the displayed `none` means it found no such problem in this score.
 
 # %% [markdown]
-# ## 9. Segmenting the folded score
+# ## Segmenting the folded score
 #
 # Controller boundaries mark changes in the score's flow structure. A
 # {{< glossary SegmentLine >}} created from them turns the folded timeline into
@@ -292,7 +292,7 @@ segment_report
 # SegmentLine keeps those segments as children of one timeline.
 
 # %% [markdown]
-# ## 10. Metre as a queryable grid
+# ## Metre as a queryable grid
 #
 # A `BeatGrid` represents metre on an exact quarter-note axis. `from_tempo`
 # supplies a uniform tempo, meter, and duration, after which positions can be
@@ -328,7 +328,7 @@ grid_query
 # grid's quarter unit without changing it.
 
 # %% [markdown]
-# ## 11. Vectorised accessors
+# ## Vectorised accessors
 #
 # `beat_seconds()` and `measure_seconds()` provide NumPy arrays for bulk work.
 # The same grid can write label tracks for Sonic Visualiser or Audacity.
@@ -358,7 +358,7 @@ vector_report
 # tutorial artefact behind.
 
 # %% [markdown]
-# ## 12. Grids on a timeline
+# ## Grids on a timeline
 #
 # A physical timeline can create a metrical grid for its full extent or for one
 # named region. Each result links seconds and quarters in a

@@ -16,7 +16,9 @@
 # %% [markdown]
 # # Timeline Groups
 #
-# *What you will build* — You will put a Rachmaninoff score and performance
+# ## What you will build
+#
+# You will put a Rachmaninoff score and performance
 # into one {{< glossary TimelineGroup >}}, keeping the events loaded from both
 # MIDI files as {{< glossary Event >}}s on two {{< glossary Timeline >}}s. The
 # group's first stored pair links score tick 0 to performance
@@ -24,7 +26,9 @@
 # between those pairs, you will ask the group for the corresponding performance
 # {{< glossary Coordinate >}} and see that the answer was interpolated.
 #
-# *Before you start* — Complete [Loading Real Data](tut04_loading_data.ipynb).
+# ## Before you start
+#
+# Complete [Loading Real Data](tut04_loading_data.ipynb).
 
 # %%
 from fractions import Fraction
@@ -111,7 +115,9 @@ group_facts
 #
 # Adding the second member makes an `InterpolationMap` between each direction
 # of the pair. Use the group's public `convert` method to apply that map to one
-# score position.
+# score position. This interpolation is the second of three coordinate-transfer
+# mechanisms in the series, after the exact parent/child offsets introduced in
+# [Nesting and Timestamps](tut02_nesting_and_timestamps.ipynb).
 
 # %%
 assert group_facts["are_commensurable"]
@@ -186,8 +192,9 @@ batch_frame
 # ## The row view
 #
 # `get_timestamp_at_index` retrieves one stored pair by row number. Its result
-# is a {{< glossary GroupTimestamp >}}, a view over a boundary row rather than
-# a newly estimated position.
+# is a {{< glossary GroupTimestamp >}}, the second of three stamp types
+# introduced across the series, and a view over a boundary row rather than a
+# newly estimated position.
 
 # %%
 boundary_row = group.get_timestamp_at_index(0)
@@ -341,7 +348,11 @@ partial_checks
 # - You can lock, test a deliberate out-of-range change, and unlock a group.
 # - You can align a recording to only a named part of a score.
 #
-# *Next* — [Alignment Bundles and MatchClaims](tut06_alignment_bundles.ipynb)
+# ## Next
 #
-# *Go deeper* — [Coordinate Math](../howto/how01_coordinate_math.ipynb) and
+# [Alignment Bundles and MatchClaims](tut06_alignment_bundles.ipynb)
+#
+# ## Go deeper
+#
+# [Coordinate Math](../howto/how01_coordinate_math.ipynb) and
 # [Create a Note Alignment](../howto/how03_create_note_alignment.ipynb).

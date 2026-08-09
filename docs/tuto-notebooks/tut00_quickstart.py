@@ -58,7 +58,7 @@ from timetoalign.timelines import (
 vienna = ensure_data("vienna_1x22")
 
 # %% [markdown]
-# ## 1. Timelines and Coordinates
+# ## Timelines and Coordinates
 #
 # A {{< glossary Timeline >}} is a measured axis for one representation of the
 # music. A `Coordinate` places a value on that axis and keeps its unit attached.
@@ -75,7 +75,7 @@ audio_coordinate
 # and inspect timelines carefully.
 
 # %% [markdown]
-# ## 2. Nesting and Timestamps
+# ## Nesting and Timestamps
 #
 # Nested timelines are {{< glossary Child >}} objects. A
 # {{< glossary TimeStamp >}} reads one position across the parent and every
@@ -102,7 +102,7 @@ timestamp_coordinates
 # nested coordinate systems work.
 
 # %% [markdown]
-# ## 3. Events on a Timeline
+# ## Events on a Timeline
 #
 # An {{< glossary Event >}} records something that happens at an instant or
 # over an interval. Here three labelled cues become part of the audio timeline.
@@ -142,7 +142,7 @@ audio_events
 # musical events.
 
 # %% [markdown]
-# ## 4. Loading Real Data
+# ## Loading Real Data
 #
 # Loaders turn common research formats into the same kind of timeline. This
 # preview reads a small MusicXML score prepared in the setup, then shows what
@@ -174,7 +174,7 @@ loaded_score_preview
 # understand what it creates.
 
 # %% [markdown]
-# ## 5. Timeline Groups
+# ## Timeline Groups
 #
 # A {{< glossary TimelineGroup >}} relates commensurable timelines so that a
 # position on one can be transferred to another. Here their full extents are
@@ -200,7 +200,7 @@ coordinate_pair
 # [Timeline Groups](tut05_timeline_groups.ipynb) to control these relationships.
 
 # %% [markdown]
-# ## 6. Alignment Bundles
+# ## Alignment Bundles
 #
 # An {{< glossary AlignmentBundle >}} collects broader alignment evidence; its
 # basic link is a {{< glossary MatchClaim >}}. A synchronous claim holds an
@@ -231,7 +231,7 @@ anchor_coordinates
 # larger alignments.
 
 # %% [markdown]
-# ## 7. Repeat Unfolding
+# ## Repeat Unfolding
 #
 # A {{< glossary FlowMap >}} can unfold a printed passage that is played more
 # than once. Here the written opening from quarter 0 up to, but not including,
@@ -255,7 +255,7 @@ flow_preview
 # and metrical queries.
 
 # %% [markdown]
-# ## 8. The Data Model
+# ## The Data Model
 #
 # Arrow is the column-oriented table storage used underneath the library: it
 # keeps many event values compact and consistent. Asking a typed column for its
@@ -271,7 +271,7 @@ first_start
 # fields, scalars, and their tabular representation.
 
 # %% [markdown]
-# ## 9. Pitch and Harmony
+# ## Pitch and Harmony
 #
 # MIDI pitch can leave a black key's spelling open, while notation can preserve
 # the written accidental. TimeToAlign! keeps those meanings distinct.
@@ -288,7 +288,7 @@ pitch_pair
 # representations, spelling, and harmonic labels.
 
 # %% [markdown]
-# ## Series map
+# ## Series Map
 #
 # | Tutorial | Promise |
 # |---|---|

@@ -16,12 +16,13 @@
 # %% [markdown]
 # # Timelines and Coordinates
 #
-# **What you will build.** You will build two {{< glossary Timeline >}} objects
-# for the same 30 seconds of audio. One is a continuous axis measured in
-# seconds; the other is a {{< glossary Discrete >}} axis that counts whole
-# samples. You will then attach a {{< glossary ConversionMap >}} that supplies
-# a sample reading for the seconds axis without linking the two timeline
-# objects.
+# ## What you will build
+#
+# You will build two {{< glossary Timeline >}} objects for the same 30 seconds
+# of audio. One is a continuous axis measured in seconds; the other is a
+# {{< glossary Discrete >}} axis that counts whole samples. You will then
+# attach a {{< glossary ConversionMap >}} that supplies a sample reading for
+# the seconds axis without linking the two timeline objects.
 
 # %% [markdown]
 # ## Before you start
@@ -354,28 +355,30 @@ named_home = theme_on_audio.with_timeline("audio")
 # %% [markdown]
 # ## What you learned
 #
-# - Explain why a bare number cannot identify a position.
-# - Build a coordinate from a value and unit, and distinguish a duration from
+# - You can explain why a bare number cannot identify a position.
+# - You can build a coordinate from a value and unit, and distinguish a duration from
 #   a position.
-# - Use coordinate arithmetic and recognise its returned types.
-# - Distinguish physical, logical, and graphical domains in continuous and
+# - You can use coordinate arithmetic and recognise its returned types.
+# - You can distinguish physical, logical, and graphical domains in continuous and
 #   discrete forms.
-# - Construct a continuous seconds timeline and inspect its coordinate-valued extents.
-# - Ask a timeline to make a coordinate in its own unit.
-# - Resolve compatible coordinates and understand why unsupported units are
+# - You can construct a continuous seconds timeline and inspect its coordinate-valued extents.
+# - You can ask a timeline to make a coordinate in its own unit.
+# - You can resolve compatible coordinates and understand why unsupported units are
 #   refused.
-# - Construct the integer sample timeline for the same audio.
-# - Attach, retrieve, and use a seconds-to-samples conversion map.
-# - Distinguish a C-Map on one timeline from a relationship between separate timelines.
-# - Represent a rational logical position exactly.
-# - Convert between exact quarters and integer ticks.
-# - Recognise `ScalarMap`, `LinearMap`, and `ConversionMap` roles.
-# - Add a timeline identifier to a coordinate.
+# - You can construct the integer sample timeline for the same audio.
+# - You can attach, retrieve, and use a seconds-to-samples conversion map.
+# - You can distinguish a C-Map on one timeline from a relationship between separate timelines.
+# - You can represent a rational logical position exactly.
+# - You can convert between exact quarters and integer ticks.
+# - You can recognise `ScalarMap`, `LinearMap`, and `ConversionMap` roles.
+# - You can add a timeline identifier to a coordinate.
 
 # %% [markdown]
-# **Next:** [Nesting and Timestamps](tut02_nesting_and_timestamps.ipynb)
+# ## Next
 #
-# **Go deeper:**
+# [Nesting and Timestamps](tut02_nesting_and_timestamps.ipynb)
+#
+# ## Go deeper
 #
 # - [Coordinate Math](../howto/how01_coordinate_math.ipynb)
 # - [Manual Timeline Construction](../howto/how01_manual_timeline_construction.ipynb)

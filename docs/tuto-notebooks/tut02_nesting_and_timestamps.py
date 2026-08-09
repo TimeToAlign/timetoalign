@@ -38,7 +38,7 @@ from timetoalign.maps import TicksToQuarters
 from timetoalign.timelines import ContinuousLogicalTimeline
 
 # %% [markdown]
-# ## 1. Why nesting
+# ## Why nesting
 #
 # A piece contains movements, and a movement contains phrases; putting all
 # three on one flat axis discards those relationships. A {{< glossary Child >}}
@@ -59,7 +59,7 @@ structure
 # on the piece axis.
 
 # %% [markdown]
-# ## 2. Creating a child
+# ## Creating a child
 #
 # Start the piece with one direct child. `create_child` makes a child at the
 # beginning of its {{< glossary Parent >}} and returns it.
@@ -81,7 +81,7 @@ created_child_view
 # `introduction` begins at zero and fills that initial span.
 
 # %% [markdown]
-# ## 3. Adding a child at an offset
+# ## Adding a child at an offset
 #
 # Place an existing movement timeline three quarters along the piece. The
 # offset is measured on the parent's axis, and the relation is
@@ -105,7 +105,7 @@ added_child_view
 # parent to grow from 3 to 15 quarters instead of rejecting the child.
 
 # %% [markdown]
-# ## 4. Appending a child
+# ## Appending a child
 #
 # `append_child` places a child at the current end of its parent. Append a coda
 # to complete the planned twenty-quarter piece.
@@ -127,7 +127,7 @@ appended_child_view
 # five-quarter length extends the piece from 15 to the planned 20 quarters.
 
 # %% [markdown]
-# ## 5. Converting down and up
+# ## Converting down and up
 #
 # Lift a movement-local position into the piece, then subtract the same offset
 # to return. This is the first of three coordinate-transfer mechanisms in the
@@ -155,7 +155,7 @@ coordinate_round_trip
 # exact offset arithmetic.
 
 # %% [markdown]
-# ## 6. Many children at once
+# ## Many children at once
 #
 # A boundary list is a compact way to divide one timeline into named children:
 # *k* + 1 boundaries create *k* children.
@@ -185,7 +185,7 @@ phrase_inventory
 # offset on the movement.
 
 # %% [markdown]
-# ## 7. Seeing the shape
+# ## Seeing the shape
 #
 # A diagram makes containment visible. Its default view follows every level,
 # while `depth=1` stops after the piece's direct children.
@@ -204,7 +204,7 @@ print(shallow_shape)
 # not the hierarchy itself.
 
 # %% [markdown]
-# ## 8. A grandchild
+# ## A grandchild
 #
 # Because the movement sits inside the larger piece and the phrases sit inside
 # the movement, a phrase-local position crosses two offsets to reach the root.
@@ -234,7 +234,7 @@ grandchild_round_trip
 # the round trip is the proof.
 
 # %% [markdown]
-# ## 9. Segment lines
+# ## Segment lines
 #
 # When children tile their parent with no gaps or overlaps, the hierarchy is a
 # {{< glossary SegmentLine >}}. Every parent position then belongs to exactly
@@ -264,7 +264,7 @@ segment_line_view
 # of the selected movement span and preserves its child structure.
 
 # %% [markdown]
-# ## 10. Regions: naming a span without creating a child
+# ## Regions: naming a span without creating a child
 #
 # A {{< glossary Region >}} names a range without adding another coordinate
 # system. A child is a timeline with its own coordinates; a region is a name
@@ -296,7 +296,7 @@ region_view
 # enough.
 
 # %% [markdown]
-# ## 11. Timestamps
+# ## Timestamps
 #
 # `piece.get_timestamp(coord)` returns a {{< glossary TimeStamp >}}: a
 # cross-section answering, “given this position on the piece, which related
@@ -309,7 +309,6 @@ present_timeline_ids = timestamp.present_timelines
 movement_value = timestamp.get("movement")
 movement_coordinate_from_stamp = timestamp.get_coordinate("movement")
 phrase_coordinate_from_stamp = timestamp.get_coordinate("development")
-stamp_is_interpolated = timestamp.is_interpolated
 timestamp_view = {
     "is TimeStamp": is_timestamp,
     "present timelines": present_timeline_ids,
@@ -318,7 +317,6 @@ timestamp_view = {
     "get_coordinate('movement')": movement_coordinate_from_stamp,
     "get_coordinate('development')": phrase_coordinate_from_stamp,
     "coordinate value type": type(phrase_coordinate_from_stamp.value).__name__,
-    "is interpolated": stamp_is_interpolated,
 }
 timestamp_view
 
@@ -330,7 +328,7 @@ timestamp_view
 # This is the first of three stamp types introduced across the series.
 
 # %% [markdown]
-# ## 12. Reversing a conversion map
+# ## Reversing a conversion map
 #
 # `TicksToQuarters` points from ticks to quarters, but the piece needs a map
 # from quarters to ticks. `inverse()` flips the direction of a
@@ -352,7 +350,7 @@ conversion_direction
 # produces discrete tick positions.
 
 # %% [markdown]
-# ## 13. Conversion maps show up in an existing stamp
+# ## Conversion maps show up in an existing stamp
 #
 # Ask the earlier timestamp for ticks after attaching the map. A stamp retains
 # its source hierarchy and resolves available maps when an accessor is called.
@@ -374,7 +372,7 @@ tick_view
 # accessor and the output labels.
 
 # %% [markdown]
-# ## 14. A span instead of a point
+# ## A span instead of a point
 #
 # `get_interval_stamp(start, end)` extends the same cross-section idea over a
 # span and returns a {{< glossary TimeIntervalStamp >}}.
