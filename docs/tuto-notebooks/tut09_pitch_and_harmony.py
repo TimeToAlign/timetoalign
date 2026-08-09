@@ -75,7 +75,7 @@ vienna_data = ensure_data("vienna_1x22")
 # ## Faithfulness
 #
 # A typed view records what a source represented, not what another source
-# might let us infer. We begin with the two source facts that the rest of the
+# you might infer. Begin with the two source facts that the rest of the
 # notebook will compare.
 
 # %%
@@ -93,7 +93,7 @@ source_facts
 # %% [markdown]
 # ## Choose four source files
 #
-# To compare formats fairly, we use the same Chopin work in each source. The
+# To compare formats fairly, use the same Chopin work in each source. The
 # mapping pairs every path with the public loader that understands it.
 
 # %%
@@ -127,8 +127,8 @@ chopin_loaders = {
 chopin_loaders
 
 # %% [markdown]
-# The loader summaries show 498, 536, 547, and 3,874 loaded events. We next
-# ask each loader for its main event table, which narrows the score readers to
+# The loader summaries show 498, 536, 547, and 3,874 loaded events. Next, ask
+# each loader for its main event table, which narrows the score readers to
 # their note data.
 
 # %% [markdown]
@@ -181,7 +181,7 @@ def index_of_midi_pitch(pitch_field, midi_pitch):
 
 # %% [markdown]
 # The helper returns an integer row position and raises a clear `ValueError` if
-# the requested MIDI pitch is absent. We now apply exactly that rule four times.
+# the requested MIDI pitch is absent. Apply exactly that rule four times.
 
 # %% [markdown]
 # ## Locate MIDI pitch 61
@@ -224,7 +224,7 @@ c_sharp_by_format
 # ## Where they diverge
 #
 # The symbolic sources also represented spelling, so they afford
-# `SpecificPitch`. The MIDI performance did not; we ask for the same field
+# `SpecificPitch`. The MIDI performance did not; request the same field
 # deliberately and retain the resulting refusal as the cell value.
 
 # %%
@@ -287,7 +287,7 @@ pitch_field_checks
 # %% [markdown]
 # ## The pitch ladder
 #
-# Pitch types differ by how much they promise to know. We obtain the scalars
+# Pitch types differ by how much they promise to know. Obtain the scalars
 # from public fields, except for the octave-free spelling constructed with the
 # documented `from_string` factory.
 
@@ -386,7 +386,7 @@ four_format_comparison
 # ## A fifth source
 #
 # A parangonada export is a note alignment, rather than a score or a
-# recording. We first load the export directory so that its short summary is
+# recording. Begin by loading the export directory so that its short summary is
 # visible before asking it to build anything.
 
 # %%
@@ -410,7 +410,7 @@ eroica_bundle
 
 # %% [markdown]
 # The bundle summary shows 12 timelines arranged in six groups. The named
-# score timeline is the source we need for the comparison.
+# score timeline is the source needed for the comparison.
 
 # %% [markdown]
 # ## Select the score timeline
@@ -438,7 +438,7 @@ eroica_events
 
 # %% [markdown]
 # The event table confirms the same 251 rows, rational quarters, and no empty
-# result. We can now request its two faithful pitch views.
+# result. You can now request its two faithful pitch views.
 
 # %% [markdown]
 # ## Request the fifth source's pitch fields
@@ -460,7 +460,7 @@ eroica_pitch_fields
 # %% [markdown]
 # ## Select an aligned pitch
 #
-# MIDI pitch 63 genuinely occurs in this Beethoven export. We reuse the same
+# MIDI pitch 63 genuinely occurs in this Beethoven export. Reuse the same
 # first-occurrence rule rather than pretending this is another copy of C♯4.
 
 # %%

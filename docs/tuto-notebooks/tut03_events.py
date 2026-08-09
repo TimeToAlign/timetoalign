@@ -154,7 +154,7 @@ events_frame = all_events.to_dataframe(coordinates=True)
 events_view = events_frame[
     ["id", "temporal_type", "event_type", "start", "end", "duration"]
 ]
-events_view
+events_view.style.format({"start": repr, "end": repr, "duration": repr})
 
 # %% [markdown]
 # This is a view for human inspection, not the underlying storage. Coordinate

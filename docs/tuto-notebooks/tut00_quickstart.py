@@ -218,9 +218,9 @@ claim = MatchClaim.from_events(
 claim
 
 # %% [markdown]
-# The claim records the corresponding positions without rounding or dropping
-# units: 25/2 seconds corresponds to 415/24 quarters. A bundle can combine this
-# claim with wider alignment evidence. Open
+# The rendered claim shows the exact, unit-bearing positions `@25/2 seconds`
+# and `@415/24 quarters`. A bundle can combine this claim with wider alignment
+# evidence. Open
 # [Alignment Bundles](tut06_alignment_bundles.ipynb) to assemble and query
 # larger alignments.
 

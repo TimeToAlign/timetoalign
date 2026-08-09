@@ -130,6 +130,28 @@ shown_claim
 # its provenance. It is an assertion about one observed correspondence, not a
 # rule for the whole performance.
 
+# %%
+single_event_claim = MatchClaim.from_events(
+    score.get_event("score-c2"),
+    score.id,
+    performance.get_event("perf-c2"),
+    performance.id,
+    unit_a=score.unit,
+    unit_b=performance.unit,
+)
+construction_comparison = {
+    "standalone from_events claim": single_event_claim,
+    "claims registered by create_match_claims": len(claim_bundle.get_match_claims()),
+}
+construction_comparison
+
+# %% [markdown]
+# Reach for `MatchClaim.from_events()` when you have one event pair and want a
+# standalone claim; its `unit_a` and `unit_b` arguments make the two event
+# conventions explicit. Use `create_match_claims()` when you have several
+# pairs in a bundle: it gets the units from the registered timelines and adds
+# all four claims here to the bundle, as the output shows.
+
 # %% [markdown]
 # ## The kinds of claim
 #

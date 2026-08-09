@@ -27,7 +27,11 @@
 # %% [markdown]
 # ## Before you start
 #
-# This notebook continues from [Alignment Bundles](tut06_alignment_bundles.ipynb).
+# Complete [Nesting and Timestamps](tut02_nesting_and_timestamps.ipynb),
+# [Loading Real Data](tut04_loading_data.ipynb), and
+# [Timeline Groups](tut05_timeline_groups.ipynb) first. This notebook follows
+# [Alignment Bundles](tut06_alignment_bundles.ipynb) in reading order but does
+# not depend on its bundles or claims.
 
 # %%
 from fractions import Fraction

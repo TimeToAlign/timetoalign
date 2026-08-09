@@ -322,7 +322,7 @@ partial_checks
 # - You can retrieve a stored pair as a unit-bearing row view.
 # - You can inspect the full boundary table and recognize its plain-number representation.
 # - You can query a member's represented range.
-# - You can lock a group to protect its represented extent from accidental extension.
+# - You can explain what a group lock protects and when an extension must be made explicit.
 # - You can align a recording to only a named part of a score.
 #
 # ## Next

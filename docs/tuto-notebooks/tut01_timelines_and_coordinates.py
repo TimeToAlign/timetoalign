@@ -194,8 +194,9 @@ except ValueError as exc:
 coordinate_error
 
 # %% [markdown]
-# The rendered `ValueError` is deliberate: without a map from samples to
-# seconds, the library cannot say what sample 110250 means on this timeline.
+# The rendered `ValueError` is deliberate. C-Map is the library's shorthand
+# for a conversion map; without one from samples to seconds, the library cannot
+# say what sample 110250 means on this timeline.
 
 # %% [markdown]
 # ## The discrete twin
