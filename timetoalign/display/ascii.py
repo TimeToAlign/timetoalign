@@ -262,6 +262,15 @@ DEFAULT_WIDTH: int = 70
 DEFAULT_MAX_CHILDREN: int = 6
 DEFAULT_NAME_WIDTH: int = 12
 
+#: Width of one tree level: a branch glyph, a horizontal, and a space
+#: (``"├─ "``).  Each nesting level spends this much of the name column, which
+#: is what keeps coordinates and bars in the root's columns at every depth.
+_TREE_GUTTER: int = 3
+
+#: Narrowest bar a diagram will draw.  The name column may grow to fit a deep
+#: tree only until the bar would fall below this.
+_MIN_BAR_WIDTH: int = 20
+
 # endregion
 
 # region Helper Functions
@@ -374,8 +383,19 @@ def _build_child_row(
     Returns:
         Formatted row string.
     """
-    # Elide name if too long
-    display_name = _elide_name(child_name, name_width)
+    # The tree gutter and the name share one fixed-width block, so a row at
+    # any depth keeps its coordinates and bar in the root's columns: every
+    # ancestor level spends three of the name's characters on its glyph.
+    prefix = tree_chars["last"] if is_last else tree_chars["branch"]
+    ancestor_prefix = "".join(
+        "   " if ancestor_last else f"{tree_chars['vertical']}  "
+        for ancestor_last in ancestor_is_last
+    )
+    label_width = _TREE_GUTTER + name_width
+    display_name = _elide_name(
+        child_name, max(1, label_width - len(ancestor_prefix) - _TREE_GUTTER)
+    )
+    label = f"{ancestor_prefix}{prefix}{tree_chars['horizontal']} {display_name}"
 
     # Calculate bar position and width
     if parent_length > 0:
@@ -397,19 +417,11 @@ def _build_child_row(
     entry_coord = _format_coordinate(child_offset)
     exit_coord = _format_coordinate(child_offset + child_length)
 
-    # Choose tree character
-    prefix = tree_chars["last"] if is_last else tree_chars["branch"]
-    ancestor_prefix = "".join(
-        "   " if ancestor_last else f"{tree_chars['vertical']}  "
-        for ancestor_last in ancestor_is_last
-    )
-
     # Append event count after exit coordinate
     events_suffix = f" ({n_events} events)" if n_events > 0 else ""
 
     return (
-        f"  {ancestor_prefix}{prefix}{tree_chars['horizontal']} "
-        f"{display_name:<{name_width}} "
+        f"  {label:<{label_width}} "
         f"{entry_coord:>{coord_width}} "
         f"{''.join(bar_area)} "
         f"{exit_coord}{events_suffix}"
@@ -449,8 +461,6 @@ def _append_child_rows(
         line_prefix: Diagram indentation placed before every child row.
         ancestor_is_last: Whether each ancestor is last among its siblings.
     """
-    from timetoalign.timelines.types import SegmentLine
-
     if remaining_depth == 0 or timeline.n_children == 0:
         return
 
@@ -486,7 +496,7 @@ def _append_child_rows(
         )
         lines.append(line_prefix + row)
 
-        if next_depth != 0 and not isinstance(child, SegmentLine):
+        if next_depth != 0:
             _append_child_rows(
                 lines,
                 child,
@@ -517,6 +527,62 @@ def _append_child_rows(
 
     for index, (offset, child) in enumerate(last):
         append_child(offset, child, is_last=index == len(last) - 1)
+
+
+def _measure_name_width(
+    timeline: "Timeline",
+    *,
+    remaining_depth: int | None,
+    max_children: int,
+    minimum: int,
+) -> int:
+    """Return the name-column width the rendered child tree needs.
+
+    Walks exactly the children :func:`_append_child_rows` would render — same
+    depth limit, same per-level truncation — and asks each one how much of the
+    name column its own name plus its ancestors' glyphs claim. A child at
+    level *d* spends ``d * _TREE_GUTTER`` characters on those glyphs, so the
+    column must be that much wider than the name alone for the coordinates and
+    the bar to stay in the root's columns.
+
+    Every level gets the same name budget, *minimum*: a name longer than that
+    is elided as it always was, and the column grows only to absorb the tree
+    glyphs of the deepest rendered branch. A one-level diagram therefore keeps
+    the default width exactly.
+
+    Args:
+        timeline: Root timeline of the rendering.
+        remaining_depth: Levels still allowed, or ``None`` for no limit.
+        max_children: Maximum children shown at each level.
+        minimum: Name budget each level gets, and the floor for the result.
+
+    Returns:
+        The required name-column width, never below *minimum*.
+    """
+    required = minimum
+
+    def visit(parent: "Timeline", level: int, remaining: int | None) -> None:
+        nonlocal required
+        if remaining == 0 or parent.n_children == 0:
+            return
+        children = sorted(
+            (
+                (float(parent._child_offsets[child_id].value), child)
+                for child_id, child in parent._children.items()
+            ),
+            key=lambda item: item[0],
+        )
+        first, _, last = _get_children_to_display(children, max_children)
+        next_remaining = None if remaining is None else remaining - 1
+        for _, child in (*first, *last):
+            required = max(
+                required, level * _TREE_GUTTER + min(len(child.name), minimum)
+            )
+            if next_remaining != 0:
+                visit(child, level + 1, next_remaining)
+
+    visit(timeline, 0, remaining_depth)
+    return required
 
 
 def _build_region_row(
@@ -771,16 +837,31 @@ def timeline_diagram(
     coord_width = max(len(end_label), 5)
 
     # Calculate left margin to align with child bars
-    # Child structure: "  {tree}─ {name:<name_width} {coord:>coord_width} {bar}"
+    # Child structure: "  {tree glyphs + name:<gutter + name_width} "
+    #                  "{coord:>coord_width} {bar}"
     # For parent, we use empty tree prefix space and show unit label after bar
-    # Left margin: 2 (indent) + 3 (tree placeholder) + name_width + 1 + coord_width + 1
+    # Left margin: 2 (indent) + the label block + 1 + coord_width + 1
+    # Nested children spend part of the name column on their ancestors' tree
+    # glyphs, so widen it to what the rendered tree needs — up to the point
+    # where the bar would fall below its minimum.
+    right_label_len = len(end_label) + 1 + len(unit_label)
+    fixed_width = 2 + _TREE_GUTTER + 1 + coord_width + 1 + right_label_len + 1
     name_width = DEFAULT_NAME_WIDTH
-    left_margin = 2 + 3 + name_width + 1 + coord_width + 1
+    if _show_children and remaining_depth != 0:
+        name_width = min(
+            _measure_name_width(
+                timeline,
+                remaining_depth=remaining_depth,
+                max_children=max_children,
+                minimum=DEFAULT_NAME_WIDTH,
+            ),
+            max(DEFAULT_NAME_WIDTH, width - indent - fixed_width - _MIN_BAR_WIDTH),
+        )
+    left_margin = 2 + _TREE_GUTTER + name_width + 1 + coord_width + 1
 
     # Bar width: total - indent - left_margin - " end unit" - margins
-    right_label_len = len(end_label) + 1 + len(unit_label)
     bar_width = width - indent - left_margin - right_label_len - 1
-    bar_width = max(bar_width, 20)
+    bar_width = max(bar_width, _MIN_BAR_WIDTH)
 
     # 3. Get timeline character and build parent bar
     line_char = _get_timeline_char(timeline, unicode)
@@ -802,7 +883,7 @@ def timeline_diagram(
             remaining_depth=remaining_depth,
             max_children=max_children,
             bar_width=bar_width,
-            name_width=DEFAULT_NAME_WIDTH,
+            name_width=name_width,
             coord_width=coord_width,
             tree_chars=tree,
             use_unicode=unicode,
@@ -828,7 +909,7 @@ def timeline_diagram(
                 region_name=r_name,
                 parent_length=parent_length,
                 bar_width=bar_width,
-                name_width=DEFAULT_NAME_WIDTH,
+                name_width=name_width,
                 coord_width=coord_width,
                 region_chars=rgn_chars,
             )
@@ -841,7 +922,7 @@ def timeline_diagram(
             row = _build_cmap_row(
                 cmap=cmap,
                 bar_width=bar_width,
-                name_width=DEFAULT_NAME_WIDTH,
+                name_width=name_width,
                 coord_width=coord_width,
                 use_unicode=unicode,
                 cmap_chars=cm_chars,

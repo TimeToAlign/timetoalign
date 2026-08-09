@@ -991,8 +991,8 @@ class TestSegmentLineCasting:
             for index in range(segment_line.n_segments)
         ] == ["opening", "development", "closing"]
 
-    def test_nested_segment_line_diagram_collapses_segments(self) -> None:
-        """A nested SegmentLine occupies one row without segment rows."""
+    def test_nested_segment_line_diagram_shows_its_segments(self) -> None:
+        """A nested SegmentLine renders its segments like any other child."""
         parent = ContinuousPhysicalTimeline(length=8.0, uid="score")
         sections = SegmentLine[ContinuousPhysicalTimeline](
             length=0.0,
@@ -1010,11 +1010,14 @@ class TestSegmentLineCasting:
         parent.add_child(sections, offset=0.0)
 
         rendered = parent.diagram()
+        collapsed = parent.diagram(depth=1)
 
         assert "  └─ sections" in rendered
         assert rendered.count("sections") == 1
-        assert "opening" not in rendered
-        assert "closing" not in rendered
+        assert "     ├─ opening" in rendered
+        assert "     └─ closing" in rendered
+        assert "opening" not in collapsed
+        assert "closing" not in collapsed
 
     def test_as_segment_line_gap_names_first_offending_pair(self):
         """A gap reports both adjacent child IDs and exact offsets."""

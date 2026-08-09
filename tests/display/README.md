@@ -220,8 +220,14 @@ DiscreteGraphicalTimeline[page] (3 children)
   has following siblings
 - `max_children` truncation applies independently at every rendered level and
   uses the existing `... (N more children)` row
-- A `SegmentLine` child renders as one collapsed row even when unlimited
-  recursion is requested
+- A `SegmentLine` child expands like any other child — `depth` alone decides
+  how far the rendering descends, so `depth=True` reaches the segments of a
+  segment line and `depth=1` stops at the segment line's own row
+- Every rendered level puts its entry coordinate and bar in the **root's**
+  columns: a descendant's tree glyphs come out of the name column, never out
+  of the alignment (asserted structurally, not only as a golden string)
+- The name column widens by exactly the tree glyphs the deepest rendered
+  branch needs, so a one-level diagram is byte-identical to the default
 - `group_diagram` forwards `depth` to every member timeline
 
 **Depth rules tested:**
@@ -235,9 +241,12 @@ False → direct children only
 
 **Why this matters:**
 Nested timelines must preserve their hierarchy while sharing one root coordinate
-scale. Limiting depth keeps large structures readable, per-level truncation
-bounds every branch, and collapsing segment lines prevents their contiguous
-segments from expanding into redundant rows.
+scale. Limiting depth keeps large structures readable and per-level truncation
+bounds every branch — but the limit must be `depth` and nothing else. A
+timeline type may not silently hide its own children: a nested segment line
+(an IEEE 1599 edition is pages of accolades) would otherwise be undisplayable
+at any depth, so `depth` governs uniformly and callers who want one row ask
+for `depth=1`.
 
 #### 8. Group Diagram Tests (`TestGroupDiagram`)
 

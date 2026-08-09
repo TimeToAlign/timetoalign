@@ -852,8 +852,9 @@ measures.
     - Boundary-created children make the parent structurally segmentable;
       casting returns the parent's concrete dynamic SegmentLine class with the
       exact child count, names, and offsets
-    - A SegmentLine nested beneath a parent renders as one collapsed child row,
-      without rendering each of its segments as additional rows
+    - A SegmentLine nested beneath a parent renders its segments as further
+      rows like any other child: the diagram's `depth` argument alone decides
+      how far the rendering descends (`depth=1` stops at the segment line)
 
 18. **SegmentLine from_segmentation Tests**
     - Creates correct number of segments

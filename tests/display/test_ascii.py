@@ -11,6 +11,8 @@ Tests cover:
 
 from __future__ import annotations
 
+import re
+
 import pyarrow as pa
 import pytest
 
@@ -410,10 +412,10 @@ class TestTimelineDiagramRecursion:
             (
                 True,
                 "ContinuousPhysicalTimeline[recursive_root] (2 children)\n"
-                "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
-                "  ├─ child           10    ~~~~~~~~~~~~~~                  50\n"
-                "  │  └─ grandchild      15      ~~~                           25\n"
-                "  └─ tail            80                            ~~~     90",
+                "                       0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
+                "  ├─ child            10    ~~~~~~~~~~~~~                  50\n"
+                "  │  └─ grandchild    15     ~~~~                          25\n"
+                "  └─ tail             80                           ~~~     90",
             ),
             (
                 False,
@@ -437,10 +439,10 @@ class TestTimelineDiagramRecursion:
             (
                 2,
                 "ContinuousPhysicalTimeline[recursive_root] (2 children)\n"
-                "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
-                "  ├─ child           10    ~~~~~~~~~~~~~~                  50\n"
-                "  │  └─ grandchild      15      ~~~                           25\n"
-                "  └─ tail            80                            ~~~     90",
+                "                       0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
+                "  ├─ child            10    ~~~~~~~~~~~~~                  50\n"
+                "  │  └─ grandchild    15     ~~~~                          25\n"
+                "  └─ tail             80                           ~~~     90",
             ),
         ],
         ids=["unlimited", "direct-bool", "none", "direct-int", "two-levels"],
@@ -452,6 +454,35 @@ class TestTimelineDiagramRecursion:
     ) -> None:
         """Each supported depth renders the exact expected hierarchy."""
         assert timeline_diagram(self._make_hierarchy(), depth=depth) == expected
+
+    def test_every_level_shares_the_root_coordinate_columns(self) -> None:
+        """A descendant's coordinate column is the root's, not its own indent."""
+        rendered = timeline_diagram(self._make_hierarchy(), depth=True)
+        # The first number followed by a space on each row is its entry
+        # coordinate; the names of this hierarchy carry no digits.
+        columns = {
+            re.search(r"\d+(?:\.\d+)? ", line).end()
+            for line in rendered.split("\n")[1:]
+        }
+
+        assert len(columns) == 1
+
+    def test_name_column_widens_only_for_the_tree_glyphs(self) -> None:
+        """Nesting buys name room; a one-level diagram keeps the default."""
+        flat = ContinuousPhysicalTimeline(length=100, uid="flat_root")
+        flat.add_child(
+            ContinuousPhysicalTimeline(length=40, uid="flat_child", name="child"),
+            offset=10,
+        )
+
+        nested = timeline_diagram(self._make_hierarchy(), depth=True).split("\n")
+        one_level = timeline_diagram(self._make_hierarchy(), depth=1).split("\n")
+        flat_rendered = timeline_diagram(flat).split("\n")
+
+        # "grandchild" is 10 characters behind one level of tree glyphs, so the
+        # column grows by one to seat it; without descendants it never grows.
+        assert nested[2].index("10") == one_level[2].index("10") + 1
+        assert flat_rendered[2].index("10") == one_level[2].index("10")
 
     def test_false_equals_depth_one(self) -> None:
         """Boolean false preserves the direct-child rendering."""
@@ -484,14 +515,14 @@ class TestTimelineDiagramRecursion:
             "ContinuousPhysicalTimeline[truncate_root] (1 children)\n"
             "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
             "  └─ branch          20       ~~~~~~~~~~~~~~~~~~~~~        80\n"
-            "     ├─ leaf_0          20       ~~                           25\n"
-            "     ├─ leaf_1          30           ~                        35\n"
+            "     ├─ leaf_0       20       ~~                           25\n"
+            "     ├─ leaf_1       30           ~                        35\n"
             "     │  ... (3 more children)\n"
-            "     └─ leaf_5          70                        ~~          75"
+            "     └─ leaf_5       70                        ~~          75"
         )
 
-    def test_segment_line_child_stays_collapsed(self) -> None:
-        """A segment line child renders once without expanding its segments."""
+    def test_segment_line_child_expands_its_segments(self) -> None:
+        """A segment line child is a level like any other: ``depth`` rules it."""
         source = ContinuousPhysicalTimeline(length=30, uid="segment_source")
         segment_line = source.create_segment_line([0, 10, 20, 30])
         segment_line.name = "segments"
@@ -499,6 +530,14 @@ class TestTimelineDiagramRecursion:
         root.add_child(segment_line, offset=25)
 
         assert timeline_diagram(root, depth=True) == (
+            "ContinuousPhysicalTimeline[segment_root] (1 children)\n"
+            "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
+            "  └─ segments        25         ~~~~~~~~~~                 55\n"
+            "     ├─ segment_0    25         ~~~                        35\n"
+            "     ├─ segment_1    35            ~~~~                    45\n"
+            "     └─ segment_2    45                ~~~                 55"
+        )
+        assert timeline_diagram(root, depth=1) == (
             "ContinuousPhysicalTimeline[segment_root] (1 children)\n"
             "                      0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 100 seconds\n"
             "  └─ segments        25         ~~~~~~~~~~                 55"
