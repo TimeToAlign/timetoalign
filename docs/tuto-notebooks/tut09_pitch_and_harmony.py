@@ -79,117 +79,134 @@ vienna_data = ensure_data("vienna_1x22")
 # notebook will compare.
 
 # %%
-written_pitch = "C♯4"
-target_midi_number = 61
 source_facts = {
-    "score notation": written_pitch,
-    "MIDI performance": target_midi_number,
+    "score notation": "C♯4",
+    "MIDI performance": 61,
 }
 source_facts
 
 # %% [markdown]
 # The score fact includes a letter name and accidental; the MIDI fact is only
-# note number 61. Although both can describe the same key on a piano, the
+# MIDI pitch 61. Although both can describe the same key on a piano, the
 # second fact does not contain enough information to choose C♯4 over D♭4.
 
 # %% [markdown]
-# ## The pitch ladder
+# ## Choose four source files
 #
-# Pitch types differ by how much they promise to know. Here are three views of
-# the same sounding pitch, followed by the corresponding spelled and
-# enharmonic pitch-class views.
+# To compare formats fairly, we use the same Chopin work in each source. The
+# mapping pairs every path with the public loader that understands it.
 
 # %%
-enharmonic_pitch = EnharmonicPitch(source_facts["MIDI performance"])
-midi_pitch = MidiPitch(source_facts["MIDI performance"])
-specific_pitch = SpecificPitch.from_string(source_facts["score notation"])
-specific_pitch_class = SpecificPitchClass.from_string("C♯")
-enharmonic_pitch_class = EnharmonicPitchClass(specific_pitch.pitch_class)
-pitch_ladder = {
-    "enharmonic pitch": enharmonic_pitch,
-    "MIDI pitch": midi_pitch,
-    "specific pitch": specific_pitch,
-    "specific pitch class": specific_pitch_class,
-    "enharmonic pitch class": enharmonic_pitch_class,
-}
-pitch_ladder
-
-# %% [markdown]
-# `EP(C♯/D♭4)` deliberately displays both spellings: `EnharmonicPitch`
-# knows the octave and semitone but does not commit to an accidental.
-# `MidiPitch` presents the same stored `midi_number` numerically, while
-# `SpecificPitch` and `SpecificPitchClass` preserve the written spelling.
-
-# %% [markdown]
-# ## Protocols encode the ladder
-#
-# Protocols let an analysis require only the knowledge it needs. Testing the
-# scalar values against all four protocols makes their guarantees explicit.
-
-# %%
-pitch_protocols = {
-    "GenericPitchLike": GenericPitchLike,
-    "EnharmonicPitchLike": EnharmonicPitchLike,
-    "SpecificPitchClassLike": SpecificPitchClassLike,
-    "SpecificPitchLike": SpecificPitchLike,
-}
-protocol_values = {
-    "EnharmonicPitch": pitch_ladder["enharmonic pitch"],
-    "SpecificPitchClass": pitch_ladder["specific pitch class"],
-    "SpecificPitch": pitch_ladder["specific pitch"],
-}
-protocol_results = {
-    name: [isinstance(value, protocol) for value in protocol_values.values()]
-    for name, protocol in pitch_protocols.items()
-}
-protocol_checks = pd.DataFrame(protocol_results, index=protocol_values)
-protocol_checks
-
-# %% [markdown]
-# All three values expose a pitch class. The octave-bearing enharmonic value
-# satisfies `EnharmonicPitchLike`, and the spelled pitch class satisfies
-# `SpecificPitchClassLike`; only the fully spelled, octave-bearing value
-# satisfies `SpecificPitchLike`.
-
-# %% [markdown]
-# ## The same C♯4 from four formats
-#
-# Four earlier loaders expose typed pitch fields over their note
-# {{< glossary Event >}} data. One helper locates the first occurrence of
-# a requested MIDI note number so that the selection rule is identical for
-# every format.
-
-
-# %%
-def index_of_midi_number(pitch_field, midi_number):
-    """Return the index of the first non-null pitch with this MIDI number."""
-    for position, pitch in enumerate(pitch_field):
-        if pitch is not None and pitch.midi_number == midi_number:
-            return position
-    raise ValueError(f"MIDI note number {midi_number} does not occur")
-
-
-chopin_tsv = vienna_data / "ms3" / "chopin_op10_no3.notes.tsv"
-chopin_xml = vienna_data / "Chopin_op10_no3.musicxml"
-chopin_midi = vienna_data / "Chopin_op10_no3_p01.mid"
 chopin_sources = {
-    "ms3 TSV": (Ms3Loader, chopin_tsv),
-    "music21": (Music21Loader, chopin_xml),
-    "partitura": (PartituraLoader, chopin_xml),
-    "performance MIDI": (PerformanceMidiLoader, chopin_midi),
+    "ms3 TSV": (Ms3Loader, vienna_data / "ms3" / "chopin_op10_no3.notes.tsv"),
+    "music21": (Music21Loader, vienna_data / "Chopin_op10_no3.musicxml"),
+    "partitura": (PartituraLoader, vienna_data / "Chopin_op10_no3.musicxml"),
+    "performance MIDI": (
+        PerformanceMidiLoader,
+        vienna_data / "Chopin_op10_no3_p01.mid",
+    ),
 }
+chopin_sources
+
+# %% [markdown]
+# The dictionary shows one notes table, one MusicXML file read through two
+# libraries, and one performance MIDI file. These paths feed the loaders in
+# the next step.
+
+# %% [markdown]
+# ## Create the loaders
+#
+# Each loader uses the same public `from_file` construction route. Their short
+# representations report how many source files and events were loaded.
+
+# %%
 chopin_loaders = {
     name: loader_class.from_file(path)
     for name, (loader_class, path) in chopin_sources.items()
 }
+chopin_loaders
+
+# %% [markdown]
+# The loader summaries show 498, 536, 547, and 3,874 loaded events. We next
+# ask each loader for its main event table, which narrows the score readers to
+# their note data.
+
+# %% [markdown]
+# ## Retrieve the event tables
+#
+# The earlier loading tutorial introduced `get_events`. Here it gives us the
+# {{< glossary Event >}} data from which every pitch view will be requested.
+
+# %%
 chopin_events = {name: loader.get_events() for name, loader in chopin_loaders.items()}
+chopin_events
+
+# %% [markdown]
+# The representations show 498 rows for every symbolic reader and 3,874 for
+# the `MidiEventData` table. The differing row counts mean that the selection
+# below must not assume a common position.
+
+# %% [markdown]
+# ## Request a common pitch field
+#
+# `EnharmonicPitch` is the most informative pitch type shared by all four
+# sources. Asking by scalar type returns the matching typed field.
+
+# %%
 enharmonic_fields = {
     name: events.get_field(EnharmonicPitch) for name, events in chopin_events.items()
 }
+enharmonic_fields
+
+# %% [markdown]
+# Every displayed value is an `EnharmonicPitchField`. The first three fields
+# have length 498, while the MIDI field has length 3,874.
+
+# %% [markdown]
+# ## Define one selection rule
+#
+# A small helper makes the comparison reproducible: every field is searched
+# for the first non-null value whose public `midi_number` attribute is 61.
+
+
+# %%
+def index_of_midi_pitch(pitch_field, midi_pitch):
+    """Return the index of the first non-null value with this MIDI pitch."""
+    for position, pitch in enumerate(pitch_field):
+        if pitch is not None and pitch.midi_number == midi_pitch:
+            return position
+    raise ValueError(f"MIDI pitch {midi_pitch} does not occur")
+
+
+# %% [markdown]
+# The helper returns an integer row position and raises a clear `ValueError` if
+# the requested MIDI pitch is absent. We now apply exactly that rule four times.
+
+# %% [markdown]
+# ## Locate MIDI pitch 61
+#
+# The formats need not organise rows identically. Keeping their positions by
+# source lets us retrieve the corresponding typed value from each field.
+
+# %%
 c_sharp_indices = {
-    name: index_of_midi_number(field, target_midi_number)
+    name: index_of_midi_pitch(field, source_facts["MIDI performance"])
     for name, field in enharmonic_fields.items()
 }
+c_sharp_indices
+
+# %% [markdown]
+# The first occurrences are at row 83 in the ms3 table, row 81 in both
+# MusicXML readings, and row 931 in the MIDI stream. The positions are
+# selection details, not musical claims.
+
+# %% [markdown]
+# ## Compare the common view
+#
+# Indexing each typed field at its saved position gives the four scalar values
+# that the formats can be compared on without inventing a spelling.
+
+# %%
 c_sharp_by_format = {
     name: enharmonic_fields[name][position]
     for name, position in c_sharp_indices.items()
@@ -197,7 +214,7 @@ c_sharp_by_format = {
 c_sharp_by_format
 
 # %% [markdown]
-# Every loader returns `EP(C♯/D♭4)` for note number 61. The occurrence
+# Every loader returns `EP(C♯/D♭4)` for MIDI pitch 61. The occurrence
 # indices differ because these sources organise their rows differently, but
 # their `EnharmonicPitch` fields agree on the sounding pitch without choosing
 # a spelling.
@@ -229,27 +246,107 @@ midi_specific_error
 # %% [markdown]
 # ## What MIDI does afford
 #
-# MIDI does afford a numeric pitch view. Its scalar and the two field classes
-# also show the distinction between one value and columnar storage.
+# MIDI does afford a numeric pitch view. The scalar exposes both its stored
+# `midi_number` and its zero-based `pitch_class`.
 
 # %%
 midi_pitch_field = chopin_events["performance MIDI"].get_field(MidiPitch)
 numeric_c_sharp = midi_pitch_field[c_sharp_indices["performance MIDI"]]
-columnar_pitch_views = {
+numeric_pitch_view = {
     "MIDI scalar": numeric_c_sharp,
     "midi_number": numeric_c_sharp.midi_number,
+    "pitch_class": numeric_c_sharp.pitch_class,
+}
+numeric_pitch_view
+
+# %% [markdown]
+# `MP(61)` is the same datum as `EP(C♯/D♭4)` with a numeric face.
+# Its public attributes show MIDI pitch 61 and pitch class 1.
+
+# %% [markdown]
+# ## Recognise pitch fields
+#
+# Scalar values live in typed columns. Checking the two field classes makes
+# the scalar-versus-column distinction explicit.
+
+# %%
+pitch_field_checks = {
     "enharmonic field": isinstance(
         enharmonic_fields["performance MIDI"], EnharmonicPitchField
     ),
     "specific field": isinstance(specific_fields["ms3 TSV"], SpecificPitchField),
 }
-columnar_pitch_views
+pitch_field_checks
 
 # %% [markdown]
-# `MP(61)` is the same datum as `EP(C♯/D♭4)` with a numeric face.
-# `EnharmonicPitchField` and `SpecificPitchField` are the PyArrow-backed
-# columnar counterparts of their scalar types; indexing either field returns
-# a typed scalar.
+# Both checks are true. `EnharmonicPitchField` and `SpecificPitchField` are the
+# PyArrow-backed columnar counterparts of their scalar types; indexing either
+# field returns a typed scalar.
+
+# %% [markdown]
+# ## The pitch ladder
+#
+# Pitch types differ by how much they promise to know. We obtain the scalars
+# from public fields, except for the octave-free spelling constructed with the
+# documented `from_string` factory.
+
+# %%
+enharmonic_pitch = c_sharp_by_format["ms3 TSV"]
+midi_pitch = numeric_pitch_view["MIDI scalar"]
+specific_pitch = specific_fields["ms3 TSV"][c_sharp_indices["ms3 TSV"]]
+specific_pitch_class = SpecificPitchClass.from_string("C♯")
+enharmonic_pitch_class_field = enharmonic_fields["ms3 TSV"].convert_to(
+    EnharmonicPitchClass
+)
+enharmonic_pitch_class = enharmonic_pitch_class_field[c_sharp_indices["ms3 TSV"]]
+pitch_ladder = {
+    "enharmonic pitch": enharmonic_pitch,
+    "MIDI pitch": midi_pitch,
+    "specific pitch": specific_pitch,
+    "specific pitch class": specific_pitch_class,
+    "enharmonic pitch class": enharmonic_pitch_class,
+}
+pitch_ladder
+
+# %% [markdown]
+# `EP(C♯/D♭4)` deliberately displays both spellings: `EnharmonicPitch`
+# knows the octave and semitone but does not commit to an accidental.
+# `MidiPitch` presents the same stored `midi_number` numerically, while
+# `SpecificPitch` and `SpecificPitchClass` preserve the written spelling.
+# `EnharmonicPitchClass` drops the octave as well as the spelling.
+
+# %% [markdown]
+# ## Protocols encode the ladder
+#
+# Protocols let an analysis require only the knowledge it needs. Testing the
+# scalar values against all four protocols makes their guarantees explicit.
+
+# %%
+pitch_protocols = {
+    "GenericPitchLike": GenericPitchLike,
+    "EnharmonicPitchLike": EnharmonicPitchLike,
+    "SpecificPitchClassLike": SpecificPitchClassLike,
+    "SpecificPitchLike": SpecificPitchLike,
+}
+protocol_values = {
+    "EnharmonicPitch": pitch_ladder["enharmonic pitch"],
+    "SpecificPitchClass": pitch_ladder["specific pitch class"],
+    "SpecificPitch": pitch_ladder["specific pitch"],
+}
+protocol_checks = {
+    value_name: {
+        protocol_name: isinstance(value, protocol)
+        for protocol_name, protocol in pitch_protocols.items()
+    }
+    for value_name, value in protocol_values.items()
+}
+protocol_checks
+
+# %% [markdown]
+# All three values expose a pitch class. The octave-bearing enharmonic value
+# satisfies `EnharmonicPitchLike`, and the spelled pitch class satisfies
+# `SpecificPitchClassLike`; only the fully spelled, octave-bearing value
+# satisfies `SpecificPitchLike`.
 
 # %% [markdown]
 # ## Side by side
@@ -288,30 +385,113 @@ four_format_comparison
 # ## A fifth source
 #
 # A parangonada export is a note alignment, rather than a score or a
-# recording. `ParangonadaLoader` assembles its earlier
-# {{< glossary AlignmentBundle >}}, whose score {{< glossary Timeline >}}
-# carries note numbers and therefore joins the comparison at the enharmonic
-# level.
+# recording. We first load the export directory so that its short summary is
+# visible before asking it to build anything.
 
 # %%
 eroica_path = parangonar_data / "Beethoven_Eroica_op35-cpjku"
 parangonada_loader = ParangonadaLoader.from_file(eroica_path)
+parangonada_loader
+
+# %% [markdown]
+# The loader found five performers and 1,275 alignment claims. Those claims
+# are ready to be assembled into the structure introduced earlier.
+
+# %% [markdown]
+# ## Build the alignment bundle
+#
+# `create_bundle` turns the loaded export into an earlier
+# {{< glossary AlignmentBundle >}} without changing its pitch representation.
+
+# %%
 eroica_bundle = parangonada_loader.create_bundle()
+eroica_bundle
+
+# %% [markdown]
+# The bundle summary shows 12 timelines arranged in six groups. The named
+# score timeline is the source we need for the comparison.
+
+# %% [markdown]
+# ## Select the score timeline
+#
+# The score {{< glossary Timeline >}} carries the aligned score notes in
+# quarters. Selecting it keeps the performance timelines out of this example.
+
+# %%
 eroica_score_timeline = eroica_bundle.get_timeline("score:clt1")
+eroica_score_timeline
+
+# %% [markdown]
+# The timeline is 64 quarters long and reports 251 events. Its representation
+# also makes the quarters unit visible.
+
+# %% [markdown]
+# ## Retrieve the aligned score events
+#
+# The timeline's event table is the same public boundary used for the four
+# Chopin sources.
+
+# %%
 eroica_events = eroica_score_timeline.get_events()
-eroica_enharmonic_field = eroica_events.get_field(EnharmonicPitch)
-eroica_midi_field = eroica_events.get_field(MidiPitch)
-eroica_midi_number = 63
-eroica_pitch_index = index_of_midi_number(eroica_enharmonic_field, eroica_midi_number)
-eroica_pitch = eroica_enharmonic_field[eroica_pitch_index]
-eroica_numeric_pitch = eroica_midi_field[eroica_pitch_index]
+eroica_events
+
+# %% [markdown]
+# The event table confirms the same 251 rows, rational quarters, and no empty
+# result. We can now request its two faithful pitch views.
+
+# %% [markdown]
+# ## Request the fifth source's pitch fields
+#
+# The alignment stores MIDI pitches, so it affords both enharmonic and numeric
+# views but does not claim a written spelling.
+
+# %%
+eroica_pitch_fields = {
+    "enharmonic": eroica_events.get_field(EnharmonicPitch),
+    "numeric": eroica_events.get_field(MidiPitch),
+}
+eroica_pitch_fields
+
+# %% [markdown]
+# Both outputs are typed fields of length 251 over the same source column.
+# Indexing them at one saved position will preserve their different displays.
+
+# %% [markdown]
+# ## Select an aligned pitch
+#
+# MIDI pitch 63 genuinely occurs in this Beethoven export. We reuse the same
+# first-occurrence rule rather than pretending this is another copy of C♯4.
+
+# %%
+eroica_target_midi_pitch = 63
+eroica_pitch_index = index_of_midi_pitch(
+    eroica_pitch_fields["enharmonic"], eroica_target_midi_pitch
+)
+eroica_pitch_selection = {
+    "row": eroica_pitch_index,
+    "enharmonic view": eroica_pitch_fields["enharmonic"][eroica_pitch_index],
+    "numeric view": eroica_pitch_fields["numeric"][eroica_pitch_index],
+}
+eroica_pitch_selection
+
+# %% [markdown]
+# Row 0 contains `EP(D♯/E♭4)` and `MP(63)`. The two renderings expose
+# exactly what the shared source value supports.
+
+# %% [markdown]
+# ## Extend the comparison
+#
+# A final row places the note alignment beside the four earlier formats while
+# stating plainly that no specific spelling was represented.
+
+# %%
 eroica_row = pd.DataFrame(
     [
         {
             "format": "parangonada note alignment",
-            "enharmonic view": eroica_pitch,
+            "enharmonic view": eroica_pitch_selection["enharmonic view"],
             "specific view": "not represented",
-            "numeric view": eroica_numeric_pitch,
+            "numeric view": eroica_pitch_selection["numeric view"],
         }
     ]
 )
@@ -321,21 +501,18 @@ five_source_comparison = pd.concat(
 five_source_comparison
 
 # %% [markdown]
-# MIDI 63 genuinely occurs in this Beethoven export and renders as
-# `EP(D♯/E♭4)`. The example does not force the Chopin C♯4 into another
-# work: it demonstrates that alignment data carrying only note numbers makes
-# the same faithful choice as MIDI. The typed `MidiPitch` uses its compact
-# numeric rendering, `63`, inside the table.
+# The fifth row shows the same faithful choice as MIDI: alignment data carrying
+# only MIDI pitches supports an enharmonic view, not a written spelling. The
+# typed `MidiPitch` keeps its compact numeric rendering inside the table.
 
 # %% [markdown]
 # ## The same principle for harmony
 #
-# `HarmonyLabel` preserves a label and its declared standard, while
-# `DcmlHarmony.from_label` parses the structure genuinely encoded by a DCML
-# label. One parsed scalar then demonstrates the full harmony protocol chain.
+# `HarmonyLabel` names the general harmony-label type. For a DCML label, the
+# documented `DcmlHarmony.from_label` factory parses the encoded structure and
+# gives us a scalar for testing the full harmony protocol chain.
 
 # %%
-literal_harmony = HarmonyLabel(label="V65", standard="dcml")
 parsed_harmony = DcmlHarmony.from_label("V65", globalkey="C")
 harmony_protocol_checks = {
     "HarmonyLabelLike": isinstance(parsed_harmony, HarmonyLabelLike),
@@ -344,17 +521,19 @@ harmony_protocol_checks = {
     "DcmlHarmonyLike": isinstance(parsed_harmony, DcmlHarmonyLike),
 }
 harmony_views = {
-    "literal label": literal_harmony,
+    "general label class": HarmonyLabel,
     "parsed DCML harmony": parsed_harmony,
+    "label": parsed_harmony.label,
+    "declared standard": parsed_harmony.standard,
     "parsed protocols": harmony_protocol_checks,
 }
 harmony_views
 
 # %% [markdown]
-# The parsed `V65` satisfies all four protocols, from a labelled harmony to
-# the DCML-specific structure. Harmony keeps `from_label` because its source
-# value genuinely is a label; a pitch name is the pitch written as a string,
-# so pitch uses `from_string`.
+# The output identifies the general class without constructing it through a
+# Pydantic initializer. The parsed `V65` reports the `dcml` standard and
+# satisfies all four protocols, from a labelled harmony to DCML-specific
+# structure. Harmony uses `from_label`; pitch spelling uses `from_string`.
 
 # %% [markdown]
 # ## Building a harmony field
@@ -367,7 +546,7 @@ harmony_views
 harmony_progression = [
     DcmlHarmony.from_label("I", globalkey="C"),
     DcmlHarmony.from_label("viio7", globalkey="C"),
-    parsed_harmony,
+    harmony_views["parsed DCML harmony"],
 ]
 harmony_array = build_struct_array(DcmlHarmony, harmony_progression)
 harmony_arrow_field = pa.field("harmony", harmony_array.type)
@@ -389,25 +568,28 @@ harmony_field_result
 # ## What you learned
 #
 # - You can distinguish source representation from later musical inference.
-# - You can choose among enharmonic, MIDI, and specifically spelled pitch
-#   scalars and pitch classes.
-# - You can use pitch protocols to state how much pitch information an
-#   analysis requires.
-# - You can retrieve a common `EnharmonicPitch` view from four score and
-#   performance readers with one consistent selection rule.
-# - You can interpret the absence of `SpecificPitch` from MIDI as a
-#   faithfulness guarantee.
-# - You can read MIDI note numbers as `MidiPitch` values and recognise their
-#   columnar field counterparts.
-# - You can compare typed pitch affordances without replacing absent knowledge
-#   with an unexplained missing value.
-# - You can place a note-alignment export at the same enharmonic level as MIDI.
-# - You can distinguish a literal harmony label from a parsed DCML harmony and
-#   test the harmony protocol chain.
-# - You can build and index a typed `DcmlHarmonyField` through the standard
-#   Arrow route.
-# - You can carry this faithfulness principle into format-specific research
-#   workflows.
+# - You can pair four representations of one work with their public loaders.
+# - You can construct those loaders through their shared `from_file` route.
+# - You can retrieve the event table that each loader makes available.
+# - You can request the common `EnharmonicPitchField` from every format.
+# - You can define one explicit first-occurrence rule for MIDI pitches.
+# - You can retain each format's row position instead of assuming shared rows.
+# - You can compare four `EnharmonicPitch` scalars without inventing spelling.
+# - You can interpret the absence of `SpecificPitch` from MIDI faithfully.
+# - You can retrieve a `MidiPitch` and inspect its two numeric attributes.
+# - You can recognise the field counterparts of typed pitch scalars.
+# - You can obtain the pitch ladder through public fields and `from_string`.
+# - You can use pitch protocols to express an analysis's requirements.
+# - You can present represented and absent pitch views in one clear table.
+# - You can load a parangonada note-alignment export.
+# - You can assemble that export as an `AlignmentBundle`.
+# - You can select its score timeline without mixing in performances.
+# - You can retrieve the aligned score event table.
+# - You can request enharmonic and numeric fields from alignment data.
+# - You can select a genuine pitch from a second musical work.
+# - You can add the alignment source without claiming a written spelling.
+# - You can parse a DCML label and test the harmony protocol chain.
+# - You can build and index a typed `DcmlHarmonyField` through the Arrow route.
 #
 # ## Next
 #

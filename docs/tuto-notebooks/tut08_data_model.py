@@ -32,7 +32,6 @@ from typing import Protocol, runtime_checkable
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-from IPython.display import display
 from pydantic import BaseModel
 
 from timetoalign import EventData, Ms3Loader
@@ -259,7 +258,6 @@ address_scalars = [MetricalAddress(bar=3, beat=1), MetricalAddress(bar=3, beat=4
 address_struct = build_struct_array(MetricalAddress, address_scalars)
 address_schema = pa.field("primary_address", address_struct.type)
 address_from_field = MetricalAddressField.from_field((address_struct, address_schema))
-address_semantic_schema = address_from_field.to_field()
 promotion_examples = {
     "from_array": address_from_array[0],
     "from_field": address_from_field[1],
@@ -295,25 +293,46 @@ blueprint_result
 # loader's corresponding onset column.
 
 # %% [markdown]
+# ## Attaching semantic schemas
+#
+# `to_field()` extracts a column's semantic Arrow schema. `EventData.from_arrays()`
+# builds a table from parallel arrays, and its `extra_fields=` argument attaches such
+# schemas to source columns; here that creates two address columns for lookup practice.
+
+# %%
+address_semantic_schema = address_from_field.to_field()
+secondary_address_schema = address_semantic_schema.with_name("secondary_address")
+marker_arrays = {
+    "id": ["marker-1", "marker-2"],
+    "event_type": ["Marker", "Marker"],
+    "start": [0, 1],
+    "primary_address": address_struct,
+    "secondary_address": address_struct,
+}
+ambiguous_events = EventData.from_arrays(
+    marker_arrays,
+    unit=TimeUnit.quarters,
+    number_type=NumberType.fraction,
+    extra_fields=[address_semantic_schema, secondary_address_schema],
+)
+semantic_schema_setup = {
+    "events": ambiguous_events,
+    "primary schema metadata": address_semantic_schema.metadata,
+    "secondary schema metadata": secondary_address_schema.metadata,
+}
+semantic_schema_setup
+
+# %% [markdown]
+# The two-row `EventData` object now carries `MetricalAddressField` metadata on both
+# named struct columns. The following lookups use those attached schemas.
+
+# %% [markdown]
 # ## Finding fields
 #
 # Use `has_field()` and `get_fields()` for discovery, rely on identity caching for
 # repeated requests, and pass `name=` when a scalar class matches several columns.
 
 # %%
-secondary_address_schema = address_semantic_schema.with_name("secondary_address")
-ambiguous_events = EventData.from_arrays(
-    {
-        "id": ["marker-1", "marker-2"],
-        "event_type": ["Marker", "Marker"],
-        "start": [0, 1],
-        "primary_address": address_struct,
-        "secondary_address": address_struct,
-    },
-    unit=TimeUnit.quarters,
-    number_type=NumberType.fraction,
-    extra_fields=[address_semantic_schema, secondary_address_schema],
-)
 has_addresses = ambiguous_events.has_field(MetricalAddressField)
 address_fields = ambiguous_events.get_fields(MetricalAddressField)
 named_address = ambiguous_events.get_field(MetricalAddress, name="primary_address")
@@ -324,8 +343,19 @@ field_lookup_summary = {
     "cached object reused": cached_address is named_address,
     "name= selects a scalar": named_address[0],
 }
-display(field_lookup_summary)
+field_lookup_summary
 
+# %% [markdown]
+# Both address columns are discoverable, `name=` selects the primary one, and the
+# `True` cache result shows that repeating the same request returns the same object.
+
+# %% [markdown]
+# ## Ambiguous field requests
+#
+# Without `name=`, the scalar class does not identify which address column to use.
+# Catching the specific error lets the notebook show this deliberate refusal cleanly.
+
+# %%
 ambiguity = None
 try:
     ambiguous_events.get_field(MetricalAddress)
@@ -334,9 +364,8 @@ except MultipleFieldsError as exc:
 ambiguity
 
 # %% [markdown]
-# The summary shows discovery, disambiguation, and that repeated access returns the
-# identical cached object. The rendered `MultipleFieldsError` explains that a scalar
-# class alone is ambiguous and lists the column names accepted by `name=`.
+# The rendered `MultipleFieldsError` lists `primary_address` and `secondary_address`,
+# the column names that can disambiguate the request.
 
 # %% [markdown]
 # ## Discovery by protocol
@@ -360,9 +389,10 @@ pitch_discovery = [
 pitch_discovery
 
 # %% [markdown]
-# Exactly the `midi` and `specific_pitch` views satisfy this pitch shape; the start,
-# end, and duration fields do not. The next tutorial introduces the library's
-# `GenericPitchLike` root Protocol for this query across several formats.
+# Exactly the `midi` and `specific_pitch` views satisfy this pitch shape; the output
+# names their types `EnharmonicPitchField` and `SpecificPitchField`. The next tutorial
+# introduces both field types and the library's `GenericPitchLike` root Protocol for
+# queries across several formats.
 
 # %% [markdown]
 # ## Metadata survives Parquet
@@ -411,7 +441,9 @@ round_trip
 # - Request coordinate and duration views that retain exact values and units.
 # - Promote a source column into a semantic Field yourself.
 # - Defer column resolution with a blueprint and `source_fields`.
+# - Attach extracted semantic schemas when building an `EventData` table from arrays.
 # - Discover, cache, and disambiguate semantic fields.
+# - Interpret the specific error raised by an ambiguous semantic-field request.
 # - Find fields by the shape of their scalars.
 # - Round-trip a semantic field through Parquet without losing its type or unit.
 #

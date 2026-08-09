@@ -17,11 +17,16 @@
 # # Timelines and Coordinates
 #
 # **What you will build.** You will build two {{< glossary Timeline >}} objects
-# for the same 30 seconds of audio: one continuous axis in seconds and one
-# {{< glossary Discrete >}} axis in samples. A
-# {{< glossary ConversionMap >}} attached to the seconds timeline will provide
-# the sample reading, while keeping clear that the two timeline objects are not
-# thereby linked to each other.
+# for the same 30 seconds of audio. One is a continuous axis measured in
+# seconds; the other is a {{< glossary Discrete >}} axis that counts whole
+# samples. You will then attach a {{< glossary ConversionMap >}} that supplies
+# a sample reading for the seconds axis without linking the two timeline
+# objects.
+
+# %% [markdown]
+# ## Before you start
+#
+# Complete [Quickstart](tut00_quickstart.ipynb) first.
 
 # %%
 from fractions import Fraction
@@ -30,6 +35,7 @@ from timetoalign import (
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
+    ConversionMap,
     Coordinate,
     DiscreteGraphicalTimeline,
     DiscreteLogicalTimeline,
@@ -43,7 +49,7 @@ from timetoalign import (
     TimeUnit,
 )
 from timetoalign.core import Duration
-from timetoalign.maps import ConversionMap, TicksToQuarters
+from timetoalign.maps import TicksToQuarters
 
 # %% [markdown]
 # ## Why a number is not a position
@@ -106,14 +112,14 @@ elapsed = theme_end - theme_start
 # %% [markdown]
 # ## Three domains, two modalities
 #
-# `Domain` and `TimeUnit` encode what an axis measures; `NumberType` records
-# the Python numeric representation used for its values.
+# {{< glossary Domain >}} and `TimeUnit` encode what an axis measures;
+# `NumberType` records the Python numeric representation used for its values.
 #
 # | Domain | Typical units |
 # |---|---|
 # | Physical | seconds, samples |
 # | Logical | quarters, ticks |
-# | Graphical | coordinates, pixels |
+# | Graphical | pixels, points |
 
 # %%
 timeline_families = {
@@ -122,10 +128,7 @@ timeline_families = {
     Domain.graphical: (ContinuousGraphicalTimeline, DiscreteGraphicalTimeline),
 }
 {
-    "timeline classes": {
-        domain: tuple(timeline_type.__name__ for timeline_type in timeline_types)
-        for domain, timeline_types in timeline_families.items()
-    },
+    "timeline classes": timeline_families,
     "number types": tuple(NumberType),
     "seconds are discrete": TimeUnit.seconds.is_discrete,
     "samples are discrete": TimeUnit.samples.is_discrete,
@@ -165,10 +168,23 @@ audio = ContinuousPhysicalTimeline(length=30.0, uid="audio")
 # ## The timeline makes coordinates for you
 #
 # Because `audio` knows its own unit, `make_coordinate()` can add that unit for
-# you. `get_coordinate()` also resolves compatible coordinates into this axis.
+# you.
 
 # %%
 theme_on_audio = audio.make_coordinate(2.5)
+theme_on_audio
+
+# %% [markdown]
+# The output displays `Coordinate(2.5, seconds)`. The unit is visible because
+# the timeline returned a `Coordinate`, not a bare number.
+
+# %% [markdown]
+# ## Resolving a coordinate
+#
+# `get_coordinate()` resolves a compatible coordinate into a timeline's unit.
+# Without a suitable conversion map, it refuses instead of guessing.
+
+# %%
 unresolved_sample = Coordinate(110250, TimeUnit.samples)
 try:
     audio.get_coordinate(unresolved_sample)
@@ -177,9 +193,8 @@ except ValueError as exc:
 coordinate_error
 
 # %% [markdown]
-# `theme_on_audio` is `Coordinate(2.5, seconds)`. The rendered `ValueError` is
-# deliberate: without a map from samples to seconds, the library refuses to
-# guess what sample 110250 means on this timeline.
+# The rendered `ValueError` is deliberate: without a map from samples to
+# seconds, the library cannot say what sample 110250 means on this timeline.
 
 # %% [markdown]
 # ## The discrete twin
@@ -225,7 +240,6 @@ resolved_sample = audio.get_coordinate(unresolved_sample)
     "registered map": registered_sample_map,
     "resolves earlier request": resolved_sample,
     "is a ConversionMap": isinstance(registered_sample_map, ConversionMap),
-    "is a ScalarMap": isinstance(registered_sample_map, ScalarMap),
 }
 
 # %% [markdown]
@@ -255,7 +269,7 @@ resolved_sample = audio.get_coordinate(unresolved_sample)
 # Timeline Groups tutorial.
 
 # %% [markdown]
-# ## Logical time is rational
+# ## Exact logical coordinates
 #
 # Musical subdivisions are ratios. A triplet quaver at one third of a quarter
 # should remain exactly `Fraction(1, 3)`, rather than become a nearby float.
@@ -263,33 +277,59 @@ resolved_sample = audio.get_coordinate(unresolved_sample)
 # %%
 score = ContinuousLogicalTimeline(length=Fraction(4, 1), uid="score")
 triplet_quaver = score.make_coordinate(Fraction(1, 3))
-plain_float_third = 1 / 3
-ticks = DiscreteLogicalTimeline(length=1920, uid="ticks")
-ticks_to_quarters = TicksToQuarters(ppq=480)
-ticks.add_conversion_map(ticks_to_quarters)
-triplet_tick = ticks.get_coordinate(triplet_quaver)
-raw_quarter_round_trip = ticks.convert_to(triplet_tick, TimeUnit.quarters)
-rational_round_trip = Fraction(raw_quarter_round_trip.value).limit_denominator(480)
-triplet_round_trip = Coordinate(rational_round_trip, TimeUnit.quarters)
 {
-    "exact triplet": triplet_quaver,
-    "plain float": plain_float_third,
-    "triplet in ticks": triplet_tick,
-    "back in quarters": triplet_round_trip,
-    "named map is a ScalarMap": isinstance(ticks_to_quarters, ScalarMap),
-    "LinearMap is a ConversionMap": issubclass(LinearMap, ConversionMap),
+    "triplet coordinate": triplet_quaver,
+    "stored value type": type(triplet_quaver.value),
     "logical timeline": isinstance(score, timeline_families[Domain.logical]),
 }
 
 # %% [markdown]
-# The continuous logical timeline preserves the triplet as an exact
-# `Fraction`; the plain float shows the approximation that ordinary division
-# produces. In the reverse direction, the discrete timeline gives the integer
-# tick coordinate 160. At present `TicksToQuarters(ppq=480)` uses floating
-# division on the way back, so the example explicitly restores the bounded
-# rational before displaying the quarter coordinate. `ScalarMap` describes a
-# pure scale such as these named maps, while `LinearMap` also permits an offset;
-# both are general `ConversionMap` shapes.
+# The coordinate displays the exact fraction `1/3`, and its stored value is a
+# `Fraction`. A continuous logical timeline can therefore represent the
+# triplet without a floating-point approximation.
+
+# %% [markdown]
+# ## Quarters and ticks
+#
+# A ticks timeline counts discrete score positions. `TicksToQuarters` supplies
+# the conversion between those integer ticks and exact quarter-note values.
+
+# %%
+ticks = DiscreteLogicalTimeline(length=1920, uid="ticks")
+ticks_to_quarters = TicksToQuarters(ppq=480)
+ticks.add_conversion_map(ticks_to_quarters)
+triplet_tick = ticks.get_coordinate(triplet_quaver)
+triplet_round_trip = ticks.convert_to(triplet_tick, TimeUnit.quarters)
+{
+    "triplet in ticks": triplet_tick,
+    "back in quarters": triplet_round_trip,
+    "returned value is exact": isinstance(triplet_round_trip.value, Fraction),
+}
+
+# %% [markdown]
+# The triplet becomes integer tick 160 and converts directly back to
+# `Coordinate(Fraction(1, 3), quarters)`. The `True` value confirms that the
+# library itself preserved the fraction through the round trip.
+
+# %% [markdown]
+# ## Conversion-map shapes
+#
+# `ConversionMap` is the common interface for conversion rules. `ScalarMap`
+# multiplies by a scale factor, while `LinearMap` can also apply an offset.
+
+# %%
+map_family = {
+    "named map": ticks_to_quarters,
+    "named map is a ScalarMap": isinstance(ticks_to_quarters, ScalarMap),
+    "ScalarMap is a ConversionMap": issubclass(ScalarMap, ConversionMap),
+    "LinearMap is a ConversionMap": issubclass(LinearMap, ConversionMap),
+}
+map_family
+
+# %% [markdown]
+# The named ticks-to-quarters rule is a `ScalarMap`. The two `True` hierarchy
+# checks show that `ScalarMap` and `LinearMap` are both specialised forms of
+# the general `ConversionMap` interface.
 
 # %% [markdown]
 # ## Naming a coordinate's home
@@ -298,7 +338,7 @@ triplet_round_trip = Coordinate(rational_round_trip, TimeUnit.quarters)
 # timeline owns the position. `IdCoordinate` adds the timeline identifier.
 
 # %%
-explicit_home = IdCoordinate(resolved_sample.value, resolved_sample.unit, audio.id)
+explicit_home = IdCoordinate(theme_on_audio.value, theme_on_audio.unit, audio.id)
 named_home = theme_on_audio.with_timeline("audio")
 {
     "constructor": explicit_home,
@@ -321,12 +361,15 @@ named_home = theme_on_audio.with_timeline("audio")
 # - Distinguish physical, logical, and graphical domains in continuous and
 #   discrete forms.
 # - Construct a continuous seconds timeline and inspect its coordinate-valued extents.
-# - Ask a timeline to make or resolve coordinates, and understand why it
-#   refuses unsupported units.
+# - Ask a timeline to make a coordinate in its own unit.
+# - Resolve compatible coordinates and understand why unsupported units are
+#   refused.
 # - Construct the integer sample timeline for the same audio.
 # - Attach, retrieve, and use a seconds-to-samples conversion map.
 # - Distinguish a C-Map on one timeline from a relationship between separate timelines.
-# - Preserve rational logical positions and convert between quarters and ticks.
+# - Represent a rational logical position exactly.
+# - Convert between exact quarters and integer ticks.
+# - Recognise `ScalarMap`, `LinearMap`, and `ConversionMap` roles.
 # - Add a timeline identifier to a coordinate.
 
 # %% [markdown]

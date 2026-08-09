@@ -21,8 +21,8 @@
 # You will build an exact three-level {{< glossary Timeline >}} hierarchy: a
 # piece as the {{< glossary Root >}}, a movement inside it, and three phrases
 # inside the movement. You will be able to move a {{< glossary Coordinate >}}
-# in both directions through every level and ask for one cross-section through
-# the whole hierarchy.
+# in both directions through the hierarchy and inspect point and interval
+# cross-sections of its coordinate systems.
 
 # %% [markdown]
 # ## Before you start
@@ -59,30 +59,75 @@ structure
 # on the piece axis.
 
 # %% [markdown]
-# ## 2. A child at an offset
+# ## 2. Creating a child
 #
-# Place the movement on its {{< glossary Parent >}} at an exact offset. The
-# offset is the mapping between their coordinate systems: conversion only adds
-# or subtracts it, with no interpolation or numerical error.
+# Start the piece with one direct child. `create_child` makes a child at the
+# beginning of its {{< glossary Parent >}} and returns it.
 
 # %%
 piece = ContinuousLogicalTimeline(length=Fraction(3), uid="piece")
+initial_piece_length = piece.length
 introduction = piece.create_child(length=Fraction(3), uid="introduction")
+introduction_offset = piece.get_child_offset("introduction")
+created_child_view = {
+    "piece length": initial_piece_length,
+    "child ID": introduction.id,
+    "child offset": introduction_offset,
+}
+created_child_view
+
+# %% [markdown]
+# The piece is deliberately only three quarters long at first. The returned
+# `introduction` begins at zero and fills that initial span.
+
+# %% [markdown]
+# ## 3. Adding a child at an offset
+#
+# Place an existing movement timeline three quarters along the piece. The
+# offset is measured on the parent's axis, and the relation is
+# `parent_position = child_position + child_offset`.
+
+# %%
 movement = ContinuousLogicalTimeline(length=Fraction(12), uid="movement")
 movement_offset = piece.make_coordinate(structure["movement"][0])
 piece.add_child(movement, offset=movement_offset, allow_expansion=True)
+piece_length_after_movement = piece.length
+added_child_view = {
+    "movement offset": movement_offset,
+    "piece length before": initial_piece_length,
+    "piece length after": piece_length_after_movement,
+}
+added_child_view
+
+# %% [markdown]
+# The movement starts at parent position 3 and ends at 15 quarters. Because
+# that exceeds the piece's initial length, `allow_expansion=True` permits the
+# parent to grow from 3 to 15 quarters instead of rejecting the child.
+
+# %% [markdown]
+# ## 4. Appending a child
+#
+# `append_child` places a child at the current end of its parent. Append a coda
+# to complete the planned twenty-quarter piece.
+
+# %%
 coda = ContinuousLogicalTimeline(length=Fraction(5), uid="coda")
 piece.append_child(coda)
-movement_offset
+coda_offset = piece.get_child_offset("coda")
+final_piece_length = piece.length
+appended_child_view = {
+    "previous piece length": piece_length_after_movement,
+    "coda offset": coda_offset,
+    "final piece length": final_piece_length,
+}
+appended_child_view
 
 # %% [markdown]
-# `movement_offset` is a coordinate in quarters, so its representation keeps
-# both the exact value and the unit visible. `create_child` made the opening
-# span, while `append_child` placed the coda directly after the movement and
-# expanded the piece to its planned length.
+# The coda offset equals the previous piece length, so there is no gap. Its
+# five-quarter length extends the piece from 15 to the planned 20 quarters.
 
 # %% [markdown]
-# ## 3. Converting down and up
+# ## 5. Converting down and up
 #
 # Lift a movement-local position into the piece, then subtract the same offset
 # to return. This is the first of three coordinate-transfer mechanisms in the
@@ -110,7 +155,7 @@ coordinate_round_trip
 # exact offset arithmetic.
 
 # %% [markdown]
-# ## 4. Many children at once
+# ## 6. Many children at once
 #
 # A boundary list is a compact way to divide one timeline into named children:
 # *k* + 1 boundaries create *k* children.
@@ -140,7 +185,7 @@ phrase_inventory
 # offset on the movement.
 
 # %% [markdown]
-# ## 5. Seeing the shape
+# ## 7. Seeing the shape
 #
 # A diagram makes containment visible. Its default view follows every level,
 # while `depth=1` stops after the piece's direct children.
@@ -159,7 +204,7 @@ print(shallow_shape)
 # not the hierarchy itself.
 
 # %% [markdown]
-# ## 6. A grandchild
+# ## 8. A grandchild
 #
 # Because the movement sits inside the larger piece and the phrases sit inside
 # the movement, a phrase-local position crosses two offsets to reach the root.
@@ -189,7 +234,7 @@ grandchild_round_trip
 # the round trip is the proof.
 
 # %% [markdown]
-# ## 7. Segment lines
+# ## 9. Segment lines
 #
 # When children tile their parent with no gaps or overlaps, the hierarchy is a
 # {{< glossary SegmentLine >}}. Every parent position then belongs to exactly
@@ -219,7 +264,7 @@ segment_line_view
 # of the selected movement span and preserves its child structure.
 
 # %% [markdown]
-# ## 8. Regions: naming a span without creating a child
+# ## 10. Regions: naming a span without creating a child
 #
 # A {{< glossary Region >}} names a range without adding another coordinate
 # system. A child is a timeline with its own coordinates; a region is a name
@@ -251,67 +296,85 @@ region_view
 # enough.
 
 # %% [markdown]
-# ## 9. Timestamps
+# ## 11. Timestamps
 #
 # `piece.get_timestamp(coord)` returns a {{< glossary TimeStamp >}}: a
-# cross-section answering, “given this position on me, where am I in every
-# level below?”
+# cross-section answering, “given this position on the piece, which related
+# positions can I query?”
 
 # %%
 timestamp = piece.get_timestamp(root_position)
 is_timestamp = isinstance(timestamp, TimeStamp)
 present_timeline_ids = timestamp.present_timelines
 movement_value = timestamp.get("movement")
+movement_coordinate_from_stamp = timestamp.get_coordinate("movement")
 phrase_coordinate_from_stamp = timestamp.get_coordinate("development")
-movement_coordinate_from_stamp = movement.make_coordinate(
-    Fraction(movement_value).limit_denominator()
-)
-phrase_exact_from_stamp = development.make_coordinate(
-    Fraction(phrase_coordinate_from_stamp.value).limit_denominator()
-)
 stamp_is_interpolated = timestamp.is_interpolated
 timestamp_view = {
     "is TimeStamp": is_timestamp,
     "present timelines": present_timeline_ids,
-    "get('movement')": movement_coordinate_from_stamp,
-    "get_coordinate('development')": phrase_exact_from_stamp,
+    "get('movement')": movement_value,
+    "get(...) result type": type(movement_value).__name__,
+    "get_coordinate('movement')": movement_coordinate_from_stamp,
+    "get_coordinate('development')": phrase_coordinate_from_stamp,
+    "coordinate value type": type(phrase_coordinate_from_stamp.value).__name__,
     "is interpolated": stamp_is_interpolated,
 }
 timestamp_view
 
 # %% [markdown]
-# The stamp reads the piece, movement, and requested phrase from one root
-# position. `present_timelines` currently reports the source and active direct
-# child; `get_coordinate` also reaches the active grandchild and keeps its unit
-# visible. This is the first of three stamp types with the same interface and
-# progressively wider scope across the series.
+# These accessors have different scopes and return types. `present_timelines`
+# lists the source and active direct child, while `get_coordinate` can traverse
+# farther to the active grandchild. Raw `get` returns the float `5.5`; the typed
+# accessor returns a `Coordinate` with an exact `Fraction` value and its unit.
+# This is the first of three stamp types introduced across the series.
 
 # %% [markdown]
-# ## 10. Conversion maps show up in the stamp
+# ## 12. Reversing a conversion map
 #
-# Attach the tick C-Map from the previous tutorial to the root. A
-# {{< glossary ConversionMap >}} then becomes available through the same stamp
-# rather than through a separate query.
+# `TicksToQuarters` points from ticks to quarters, but the piece needs a map
+# from quarters to ticks. `inverse()` flips the direction of a
+# {{< glossary ConversionMap >}} before it is attached.
 
 # %%
 ticks_to_quarters = TicksToQuarters(ppq=480)
 quarters_to_ticks = ticks_to_quarters.inverse()
 piece.add_conversion_map(quarters_to_ticks)
+conversion_direction = {
+    "original": (ticks_to_quarters.source_unit, ticks_to_quarters.target_unit),
+    "inverse": (quarters_to_ticks.source_unit, quarters_to_ticks.target_unit),
+}
+conversion_direction
+
+# %% [markdown]
+# The original map reads `(ticks, quarters)`; its inverse reads
+# `(quarters, ticks)`. The inverse therefore accepts positions on the piece and
+# produces discrete tick positions.
+
+# %% [markdown]
+# ## 13. Conversion maps show up in an existing stamp
+#
+# Ask the earlier timestamp for ticks after attaching the map. A stamp retains
+# its source hierarchy and resolves available maps when an accessor is called.
+
+# %%
 ticks_from_method = timestamp.get_unit(TimeUnit.ticks)
 ticks_from_subscript = timestamp["ticks"]
 tick_view = {
     "get_unit(TimeUnit.ticks)": ticks_from_method,
     "timestamp['ticks']": ticks_from_subscript,
+    "result type": type(ticks_from_method).__name__,
 }
 tick_view
 
 # %% [markdown]
-# Both access paths return the same integer tick position. This is the payoff
-# of the previous tutorial: a conversion map attached to a timeline is already
-# part of every timestamp made from that hierarchy.
+# Both access paths find the newly attached map even though `timestamp` already
+# existed. These stamp accessors deliberately return the integer scalar `4080`
+# for the discrete tick unit; the requested unit remains explicit in the
+# accessor and the output labels.
 
 # %% [markdown]
-# ## 11. A span instead of a point
+# ## 14. A span instead of a point
 #
 # `get_interval_stamp(start, end)` extends the same cross-section idea over a
 # span and returns a {{< glossary TimeIntervalStamp >}}.
@@ -322,37 +385,41 @@ interval_end = piece.make_coordinate(Fraction(9))
 interval_stamp = piece.get_interval_stamp(interval_start, interval_end)
 is_interval_stamp = isinstance(interval_stamp, TimeIntervalStamp)
 development_interval_values = interval_stamp["development"]
-development_interval = tuple(
-    development.make_coordinate(Fraction(value).limit_denominator())
-    for value in development_interval_values
+development_interval_types = tuple(
+    type(value).__name__ for value in development_interval_values
 )
 interval_view = {
     "is TimeIntervalStamp": is_interval_stamp,
     "start on piece": interval_start,
     "end on piece": interval_end,
-    "development span": development_interval,
+    "interval_stamp['development']": development_interval_values,
+    "endpoint value types": development_interval_types,
 }
 interval_view
 
 # %% [markdown]
 # The result holds a start stamp and an end stamp from the same hierarchy. Its
-# subscript view pairs the two phrase-local positions, so one object describes
-# the span at both the piece and phrase levels.
+# subscript view reports the two phrase-local positions as the raw float pair
+# `(1.0, 2.0)`; it does not claim exact rational coordinates. The exact
+# `Coordinate` objects shown here are the original endpoints on the piece.
 
 # %% [markdown]
 # ## What you learned
 #
 # - You can preserve musical containment instead of flattening every level.
-# - You can add children with exact offsets, direct creation, or appending.
+# - You can create a child at the beginning of a parent.
+# - You can add an existing child at an exact offset and permit necessary growth.
+# - You can append a child at the current end of a parent.
 # - You can transfer a coordinate down and up with an exact round trip.
 # - You can create, list, count, retrieve, and locate many named children.
 # - You can inspect the full hierarchy or limit a diagram's depth.
 # - You can resolve a grandchild coordinate to the root and invert the path.
 # - You can recognize a segment line, find its child at a position, and slice it.
 # - You can choose regions for names on the current axis and children for local axes.
-# - You can use a timestamp to read coordinates across nested levels.
-# - You can read attached unit conversions directly from a timestamp.
-# - You can represent the same cross-section over a span with an interval stamp.
+# - You can distinguish a timestamp's raw and typed coordinate accessors.
+# - You can reverse a conversion map to obtain the direction a timeline needs.
+# - You can read a newly attached unit conversion from an existing timestamp.
+# - You can inspect a span across nested levels without disguising raw float values.
 
 # %% [markdown]
 # ## Next

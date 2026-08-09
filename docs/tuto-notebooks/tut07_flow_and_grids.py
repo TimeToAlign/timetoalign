@@ -143,14 +143,8 @@ map_overview
 # %%
 repeated_folded = written_score.get_coordinate(Fraction(1))
 skipped_folded = written_score.get_coordinate(Fraction(5))
-repeated_values = written_score.unfold_coordinate(repeated_folded, "played")
-skipped_values = written_score.unfold_coordinate(skipped_folded, "played")
-repeated_unfolded = [
-    written_score.make_coordinate(Fraction(value)) for value in repeated_values
-]
-skipped_unfolded = [
-    written_score.make_coordinate(Fraction(value)) for value in skipped_values
-]
+repeated_unfolded = written_score.unfold_coordinate(repeated_folded, "played")
+skipped_unfolded = written_score.unfold_coordinate(skipped_folded, "played")
 unfold_report = {
     "folded position in A": repeated_folded,
     "played positions": repeated_unfolded,
@@ -162,6 +156,8 @@ unfold_report
 # %% [markdown]
 # The position in A appears once in each rendition. The empty list for B is the
 # correct answer, not a failure: that written span is absent from this route.
+# This timeline convenience method returns plain numbers, so its played
+# positions do not carry the written timeline's quarter unit.
 
 # %% [markdown]
 # ## 5. Folding back
@@ -171,18 +167,19 @@ unfold_report
 
 # %%
 later_unfolded = repeated_unfolded[1]
-folded_value = written_score.fold(later_unfolded, "played")
-folded_coordinate = written_score.make_coordinate(Fraction(folded_value))
+folded_position = written_score.fold(later_unfolded, "played")
 fold_report = {
     "later performance position": later_unfolded,
-    "position on the page": folded_coordinate,
-    "matches the original": folded_coordinate == repeated_folded,
+    "position on the page": folded_position,
+    "matches the original value": folded_position == repeated_folded.value,
 }
 fold_report
 
 # %% [markdown]
-# The second rendition folds back to the same written position as the first.
-# Keep the directions distinct: unfolding is one-to-many; folding is many-to-one.
+# The second rendition folds back to the original written value. Like
+# `unfold_coordinate`, this convenience method returns a plain number rather
+# than a unit-bearing Coordinate. Keep the directions distinct: unfolding is
+# one-to-many; folding is many-to-one.
 
 # %% [markdown]
 # ## 6. Assembling the whole unfolded timeline
@@ -201,7 +198,6 @@ unfolded_overview = {
     "children": unfolded_children,
     "regions": unfolded_regions,
     "reverse map": reverse_map,
-    "earlier round trip": folded_coordinate,
 }
 unfolded_overview
 
@@ -211,11 +207,11 @@ unfolded_overview
 # named intervals are what make the route invertible through the `source` map.
 
 # %% [markdown]
-# ## 7. Flow from a real score
+# ## 7. Inspecting repeat events
 #
-# Score loaders retain repeat signs as flow-control {{< glossary Event >}}s.
-# A `ScoreFlowController` turns those records into a {{< glossary Flow >}} and
-# reports traversal problems without interrupting the notebook.
+# Score loaders retain repeat signs and non-sequential destinations as
+# flow-control {{< glossary Event >}}s. Inspecting those parsed records first
+# makes the controller's later route easier to understand.
 
 # %%
 score_dir = score_data / "beethoven_woo71"
@@ -226,43 +222,77 @@ score_loader = Ms3Loader.from_file(
 measure_data = score_loader.store.measures
 measure_table = measure_data.to_dataframe()
 repeat_mask = measure_table["start_repeat"] | measure_table["end_repeat"]
+repeat_columns = ["mc", "mn", "start_repeat", "end_repeat", "next"]
 repeat_rows = measure_table.loc[
     repeat_mask,
-    ["mc", "mn", "start_repeat", "end_repeat", "next"],
+    repeat_columns,
 ]
 repeat_events = repeat_rows.head(6)
+repeat_events
+
+# %% [markdown]
+# These six rows form three repeat-start and repeat-end pairs. The `next`
+# column shows the encoded destinations; each repeat end has both a backward
+# destination and the following written measure.
+
+# %% [markdown]
+# ## 8. Computing and checking the route
+#
+# A `ScoreFlowController` turns the parsed measure records into a
+# {{< glossary Flow >}} and its FlowMap. Diagnostics check the default
+# unfolding route without interrupting the notebook.
+
+# %%
 controller = score_loader.create_flow_controller()
 real_flow_map = controller.create_flow_map()
 real_flow = real_flow_map.flow
-diagnostics = controller.flow_diagnostics(real_flow.mode)
-score_timeline = score_loader.create_timeline(uid="woo71_folded")
-section_boundaries = controller.get_section_boundary_coordinates()
-score_segments = score_timeline.create_segment_line(
-    [score_timeline.origin, *section_boundaries, score_timeline.length]
-)
+diagnostics = controller.flow_diagnostics()
 flow_report = {
     "controller type": isinstance(controller, ScoreFlowController),
     "flow type": isinstance(real_flow, Flow),
     "flow-map type": isinstance(real_flow_map, FlowMap),
     "folded measures": real_flow.folded_length,
     "played measures": real_flow.unfolded_length,
-    "parsed repeat events": repeat_events.to_dict(orient="records"),
     "diagnostics": [item.kind for item in diagnostics] or "none",
-    "segments from flow boundaries": score_segments.n_children,
 }
 flow_report
 
 # %% [markdown]
-# The folded MS3 export contains explicit repeat starts, repeat ends, and
-# non-sequential `next` destinations. `create_segment_line` is the natural way
-# to turn controller boundaries into a {{< glossary SegmentLine >}} for
-# inspection. `flow_diagnostics(mode)` detects and reports issues such as
-# `flow_cycle`, `flow_nonconvergence`, `ambiguous_repeat_end`, and
-# `dangling_repeat_end`; this score reports none, and the method never raises
-# merely because it found a diagnostic.
+# The default route visits 505 measures from a 397-measure folded score.
+# `flow_diagnostics()` would return records for traversal or repeat-resolution
+# problems; the displayed `none` means it found no such problem in this score.
 
 # %% [markdown]
-# ## 8. Metre as a queryable grid
+# ## 9. Segmenting the folded score
+#
+# Controller boundaries mark changes in the score's flow structure. A
+# {{< glossary SegmentLine >}} created from them turns the folded timeline into
+# adjacent, inspectable sections.
+
+# %%
+score_timeline = score_loader.create_timeline(uid="woo71_folded")
+section_boundaries = controller.get_section_boundary_coordinates()
+boundary_coordinates = [
+    score_timeline.origin,
+    *[score_timeline.make_coordinate(boundary) for boundary in section_boundaries],
+    score_timeline.length,
+]
+score_segments = score_timeline.create_segment_line(boundary_coordinates)
+segment_report = {
+    "first boundaries": boundary_coordinates[:4],
+    "boundary count": len(boundary_coordinates),
+    "segment count": score_segments.n_children,
+    "segment line": score_segments,
+}
+segment_report
+
+# %% [markdown]
+# The first boundary coordinates retain their quarter unit. Fourteen
+# boundaries divide the score into thirteen adjacent segments, and the
+# SegmentLine keeps those segments as children of one timeline.
+
+# %% [markdown]
+# ## 10. Metre as a queryable grid
 #
 # A `BeatGrid` represents metre on an exact quarter-note axis. `from_tempo`
 # supplies a uniform tempo, meter, and duration, after which positions can be
@@ -278,26 +308,27 @@ grid = BeatGrid.from_tempo(
 quarter_position = grid.make_coordinate(Fraction(6))
 measure_number = grid.measure_at(quarter_position)
 beat_number = grid.beat_at(quarter_position)
-inverse_quarter_value = grid.quarter_at(
+inverse_quarter = grid.quarter_at(
     measure=2,
     beat=Fraction(3, 2),
 )
-inverse_quarter = grid.make_coordinate(inverse_quarter_value)
+inverse_coordinate = grid.make_coordinate(inverse_quarter)
 grid_query = {
     "quarter position": quarter_position,
     "measure": measure_number,
     "beat": beat_number,
-    "measure 2, beat 3/2": inverse_quarter,
+    "quarter_at value": inverse_quarter,
+    "as grid coordinate": inverse_coordinate,
 }
 grid_query
 
 # %% [markdown]
 # Six quarters is the start of measure 3 in this 3/4 grid. The inverse query
-# returns an exact rational coordinate: quarter positions and beat positions
-# remain `Fraction` values rather than drifting into floats.
+# returns the exact `Fraction(7, 2)`; `make_coordinate` gives that value the
+# grid's quarter unit without changing it.
 
 # %% [markdown]
-# ## 9. Vectorised accessors
+# ## 11. Vectorised accessors
 #
 # `beat_seconds()` and `measure_seconds()` provide NumPy arrays for bulk work.
 # The same grid can write label tracks for Sonic Visualiser or Audacity.
@@ -327,7 +358,7 @@ vector_report
 # tutorial artefact behind.
 
 # %% [markdown]
-# ## 10. Grids on a timeline
+# ## 12. Grids on a timeline
 #
 # A physical timeline can create a metrical grid for its full extent or for one
 # named region. Each result links seconds and quarters in a
@@ -379,7 +410,9 @@ metrical_overview
 # - You can unfold one written position to zero, one, or several played positions.
 # - You can fold a played position back to one place on the page.
 # - You can assemble and inspect a complete unfolded timeline.
-# - You can inspect parsed score repeats and obtain non-raising flow diagnostics.
+# - You can inspect repeat events retained by a score loader.
+# - You can compute a score route and obtain non-raising flow diagnostics.
+# - You can create a segment line from flow-section boundaries.
 # - You can query measure and beat positions while preserving rational quarters.
 # - You can access grid positions as arrays and export a real annotation CSV.
 # - You can create metrical grids for a complete timeline or one named region.

@@ -176,9 +176,11 @@ derived_types
 # A synchronous claim names two events, one event, or no events to become an
 # event match, projection, or anonymous anchor. A non-synchronous claim with
 # exactly one named event is a NOMATCH; here it points **from the performance**,
-# which has `perf-ornament`, **to the score**, which lacks it. With no named
-# event it is conceptual. `implicit` wins over every other discriminator because
-# it marks a relationship inferred by graph extension rather than asserted.
+# which has `perf-ornament`, **to the score**, which lacks it. There is no
+# dedicated conceptual constructor: passing an empty event to
+# `MatchClaim.nomatch()` leaves no named event, so the claim becomes
+# `conceptual`. `implicit` wins over every other discriminator because it marks
+# a relationship inferred by graph extension rather than asserted.
 
 # %% [markdown]
 # ## The bundle
@@ -402,38 +404,57 @@ match_files = sorted(vienna_data.glob("*.match"))
 match_loader = MatchfileLoader()
 match_loader.load(*match_files)
 vienna_bundle = match_loader.create_bundle()
+vienna_diagram = vienna_bundle.diagram(max_standalone=4, depth=0)
+print(vienna_diagram)
+
+# %% [markdown]
+# The diagram introduces the loaded bundle before any of its identifiers are
+# used. It shows one score timeline, 22 performance timelines, and the claims
+# that connect them. This is the same model built by hand above, only larger and
+# populated by a loader.
+
+# %% [markdown]
+# ## Reading a loaded cross-section
+#
+# We can discover the score identifier from its registered group, choose a
+# frequently matched score coordinate, and read that position across several
+# performances.
+
+# %%
+vienna_score_group_id = vienna_bundle.group_ids[0]
+vienna_score_group = vienna_bundle.get_group(vienna_score_group_id)
+vienna_score_id = vienna_score_group.timeline_ids[0]
 vienna_claims = vienna_bundle.get_match_claims()
-vienna_score_id = "score:clt1"
 vienna_score_coordinates = [
-    claim.get_coordinates_for(vienna_score_id)[0].value
+    claim.get_coordinates_for(vienna_score_id)[0]
     for claim in vienna_claims
     if claim.is_synchronous and claim.connects(vienna_score_id)
 ]
 coordinate_counts = Counter(vienna_score_coordinates)
-vienna_coordinate_value = coordinate_counts.most_common(1)[0][0]
-vienna_coordinate = Coordinate(
-    Fraction(vienna_coordinate_value).limit_denominator(), TimeUnit.quarters
-)
+vienna_coordinate = coordinate_counts.most_common(1)[0][0]
 vienna_stamp = vienna_bundle.get_matchstamp_at(vienna_coordinate, vienna_score_id)
 vienna_performance_ids = [
     timeline_id
     for timeline_id in vienna_stamp.present_timelines
     if timeline_id != vienna_score_id
 ][:4]
+vienna_shown_ids = [vienna_score_id, *vienna_performance_ids]
 vienna_cross_section = {
     timeline_id: vienna_stamp.get_coordinate(timeline_id)
-    for timeline_id in vienna_performance_ids
+    for timeline_id in vienna_shown_ids
 }
-vienna_cross_section = {vienna_score_id: vienna_coordinate, **vienna_cross_section}
-vienna_diagram = vienna_bundle.diagram(max_standalone=4, depth=0)
-print(vienna_diagram)
-vienna_cross_section
+vienna_result = {
+    "selected claim coordinate": vienna_coordinate,
+    "queried cross-section": vienna_cross_section,
+}
+vienna_result
 
 # %% [markdown]
-# The diagram shows the score, the performance timelines, and the loaded
-# claims. The final dictionary reads one commonly matched score position across
-# several performances. This is the same bundle built by hand above, only
-# larger and populated by a loader.
+# The score identifier comes from the bundle rather than a hardcoded string.
+# The selected claim coordinate retains its exact `Fraction(65, 2)`, while the
+# bundle query currently returns the equivalent source coordinate as the float
+# `32.5`; the performance coordinates remain integer ticks. The output shows
+# those library values directly, without reconstructing a rational for display.
 
 # %% [markdown]
 # ## Merging

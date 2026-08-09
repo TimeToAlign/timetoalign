@@ -120,8 +120,9 @@ note_rows
 # %% [markdown]
 # ## Getting them back
 #
-# `get_events` retrieves the content, while `n_events` reports how many events
-# the timeline holds.
+# `EventData` is the library's event table: for now, think of it as a pandas-like
+# table whose time fields know their unit. `get_events` retrieves that table,
+# while `n_events` reports how many events the timeline holds.
 
 # %%
 all_events = tl.get_events()
@@ -132,9 +133,9 @@ all_events = tl.get_events()
 }
 
 # %% [markdown]
-# `all_events` is an `EventData`: a typed, columnar table of events. Its count
-# matches the rows added above; the data-model tutorial explains the table in
-# full.
+# `all_events` is an `EventData`, and its count matches the rows added above.
+# Tutorial 8 explains how this table is stored; here, its familiar table
+# behaviour is enough.
 
 # %% [markdown]
 # ## Looking at it
@@ -158,11 +159,11 @@ events_view
 # %% [markdown]
 # ## Filtering
 #
-# Filters can select an event type, a half-open coordinate window, or both at
-# once.
+# Filters can select an event type and an onset window together. The window
+# includes events whose `start` is at least `min_coord` and strictly less than
+# `max_coord`; it does not test overlap or containment.
 
 # %%
-notes_by_type = tl.get_events(event_type="Note")
 window_start = tl.make_coordinate(Fraction(1))
 window_end = tl.make_coordinate(Fraction(4))
 events_in_window = tl.get_events(min_coord=window_start, max_coord=window_end)
@@ -171,47 +172,60 @@ notes_in_window = tl.get_events(
     min_coord=window_start,
     max_coord=window_end,
 )
-{
-    "notes": len(notes_by_type),
-    "events in window": len(events_in_window),
-    "notes in window": len(notes_in_window),
-}
+window_events_frame = events_in_window.to_dataframe(coordinates=True)
+window_event_view = window_events_frame[["id", "event_type", "start", "end"]]
+window_event_view
 
 # %% [markdown]
-# The three results build from `event_type`, through `min_coord` and
-# `max_coord`, to their combination. Every query method in the library shares
-# this filter vocabulary, so learning it once is enough.
+# The returned starts are 1, 2, and 3 quarters: the event at 4 quarters is
+# excluded. The interval ending at 5 quarters is included because selection is
+# by onset; an event does not need to be contained within the window. The C4
+# note ending at 1 quarter is absent because its start is below the minimum.
+# `notes_in_window` applies the same bounds together with `event_type="Note"`;
+# the next lookup reuses that result.
 
 # %% [markdown]
-# ## One event, one position
+# ## One event by identity
 #
-# Use an event identity for one exact lookup, or a coordinate to ask which
-# events are active there.
+# `get_event` uses an event identity for one exact lookup. Choose an identity
+# from the filtered notes, then retrieve its row from the timeline.
 
 # %%
 window_notes_frame = notes_in_window.to_dataframe(coordinates=True)
 selected_id = window_notes_frame.iloc[0]["id"]
 selected_event = tl.get_event(selected_id)
-window_frame = events_in_window.to_dataframe(coordinates=True)
-query_position = window_frame.iloc[0]["start"]
-events_at_position = tl.get_events_at(query_position)
-{
-    "event": {
-        "id": selected_event["id"],
-        "event_type": selected_event["event_type"],
-    },
-    "position": query_position,
-    "active event ids": [
-        event["id"]
-        for timeline_events in events_at_position.values()
-        for event in timeline_events
-    ],
+selected_event_view = {
+    "id": selected_event["id"],
+    "event_type": selected_event["event_type"],
+    "pitch": selected_event["pitch"],
 }
+selected_event_view
 
 # %% [markdown]
-# `get_event` returns the row with the chosen identity. At `query_position`,
-# `get_events_at` returns both instants exactly there and intervals that cover
-# the position, grouped by timeline.
+# `get_event` returns one event row, shown here through its identifying and
+# descriptive fields. It is a different return shape from the grouped lookup
+# in the next section.
+
+# %% [markdown]
+# ## Events active at one position
+#
+# `get_events_at` asks which events are active at a coordinate. Use 2 quarters,
+# where an instant and an interval coincide, so both rules are visible.
+
+# %%
+query_position = tl.make_coordinate(Fraction(2))
+events_at_position = tl.get_events_at(query_position)
+position_lookup = {
+    "position": query_position,
+    "events by timeline": events_at_position,
+}
+position_lookup
+
+# %% [markdown]
+# The top-level position retains its quarter-note unit. The nested dictionary
+# keeps the grouping returned by `get_events_at`: its `movement` list contains
+# the beat exactly at 2 quarters and the note whose interval covers that
+# position. Child timelines will add further keys once they exist.
 
 # %% [markdown]
 # ## Events in the hierarchy
@@ -244,43 +258,42 @@ lower_voice.add_events(
         }
     ]
 )
-root_event_count = tl.n_events
 hierarchy_events = tl.get_events(include_children=True)
 hierarchy_frame = hierarchy_events.to_dataframe(coordinates=True)
-hierarchy_frame["source_timeline"] = hierarchy_frame["source_timeline"].fillna(tl.id)
-hierarchy_frame[["id", "temporal_type", "event_type", "start", "source_timeline"]]
+hierarchy_view = hierarchy_frame[
+    ["id", "temporal_type", "event_type", "start", "source_timeline"]
+]
+hierarchy_view
 
 # %% [markdown]
-# The parent's eight events (`root_event_count`) become ten rows from
-# `movement`, `upper_voice`, and `lower_voice`; child coordinates have been
-# shifted into the parent's axis. Nesting came first because
-# `include_children=True` relies on that hierarchy.
+# The eight rows with a missing `source_timeline` belong to the parent itself:
+# that provenance field is populated only when an event is gathered from a
+# child. The two labelled child rows bring the total to ten, and their
+# coordinates have been shifted into the parent's axis. The missing values are
+# therefore the library's convention, not unknown event ownership.
 
 # %% [markdown]
 # ## A timestamp for every event
 #
 # One {{< glossary TimeStamp >}} row can cross-section the entire hierarchy at
-# each event's starting coordinate.
+# each event's starting coordinate. `get_timestamp_table` provides the
+# low-level PyArrow form of those rows.
 
 # %%
 event_positions = hierarchy_frame["start"].tolist()
-event_ids = hierarchy_frame["id"].tolist()
 timestamp_table = tl.get_timestamp_table(
     coordinates=event_positions,
 )
-timestamp_rows = tl.to_dataframe(
-    coordinates=event_positions,
-)
-timestamp_rows.index = event_ids
-timestamp_rows.index.name = "event_id"
-timestamp_rows
+timestamp_table
 
 # %% [markdown]
-# Each index label is an event identity, and its row shows the simultaneous
-# coordinate in the parent and both voices; `timestamp_table` is the same
-# result in columnar form. This table is complete because both children span
-# the parent's full eight quarters, so no event coordinate falls outside a
-# child's extent and no `NaN` is produced.
+# Rows come back in the same order as `event_positions`, including repeated
+# positions. `axis` is the queried position on the parent reference axis;
+# `movement`, `upper_voice`, and `lower_voice` are the simultaneous local
+# coordinates. The low-level Arrow table stores these columns as doubles, so it
+# does not return `Coordinate` or `Fraction` objects on this path. All four
+# columns are complete because both children span the parent's full eight
+# quarters.
 
 # %% [markdown]
 # ## `EventType`
@@ -311,10 +324,11 @@ type_vocabulary
 # - You can add interval events with exact starts, ends, and derived durations.
 # - You can retrieve an `EventData` and count a timeline's events.
 # - You can inspect event content as a pandas view without mistaking it for storage.
-# - You can combine event-type and coordinate-range filters.
-# - You can retrieve one event by identity or all events active at a coordinate.
-# - You can gather events from a parent and its children.
-# - You can read one hierarchy-wide timestamp row per queried event.
+# - You can combine event-type and half-open onset filters.
+# - You can retrieve one event by identity.
+# - You can preserve timeline grouping when finding events active at a coordinate.
+# - You can gather events from a parent and its children while reading provenance.
+# - You can read the axis and hierarchy coordinates in a timestamp table.
 # - You can distinguish the library's `EventType` vocabulary from project labels.
 #
 # **Next.** [Loading Real Data](tut04_loading_data.ipynb)

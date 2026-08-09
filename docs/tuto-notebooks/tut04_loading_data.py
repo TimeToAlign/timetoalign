@@ -18,11 +18,14 @@
 #
 # *What you will build*
 #
-# You will load Chopin's Étude Op. 10 No. 3 from MusicXML and an ms3 TSV,
-# producing the same kind of {{< glossary Timeline >}} you previously built by
-# hand. You will finish with a score timeline whose {{< glossary Child >}}
-# timelines, measure data, and {{< glossary Coordinate >}} conversion came
-# directly from the file.
+# You will load Chopin's Étude Op. 10 No. 3 from MusicXML and a note table
+# exported by ms3, a Python toolkit for working with score corpora. The TSV has
+# one note per tab-separated row; the [loading-data
+# guide](../howto/how01_loading_data.ipynb) compares its `Ms3Loader` with the
+# MusicXML loaders. You will finish with the same kind of
+# {{< glossary Timeline >}} you previously built by hand, including
+# {{< glossary Child >}} timelines and an exact {{< glossary Coordinate >}}
+# conversion derived from the file.
 #
 # *Before you start*
 #
@@ -32,9 +35,10 @@
 # %%
 from fractions import Fraction
 
-from IPython.display import display
+import pandas as pd
 
 from timetoalign import (
+    Coordinate,
     CsvLoader,
     EventStore,
     Loader,
@@ -86,11 +90,11 @@ source_files
 # %%
 two_phase_loader = PartituraLoader()
 two_phase_loader.load(musicxml_path)
-display(two_phase_loader)
-
 preview_timeline = two_phase_loader.create_timeline()
+
 partitura_loader = PartituraLoader.from_file(musicxml_path)
 phase_objects = {
+    "loaded, before timeline creation": two_phase_loader,
     "phase-two result": preview_timeline,
     "from_file result": partitura_loader,
     "follows Loader contract": isinstance(partitura_loader, Loader),
@@ -98,34 +102,81 @@ phase_objects = {
 phase_objects
 
 # %% [markdown]
-# The rendered loader between the two phases has one source but is not a
-# timeline. The final mapping shows the timeline made in phase two and a freshly
-# loaded shorthand instance; the remaining sections use that shorthand loader.
+# The first object is a loader holding one parsed source, while the phase-two
+# object is a timeline. `from_file()` returns another loaded loader, not a
+# timeline; the remaining sections use that shorthand loader.
 
 # %% [markdown]
 # ## The EventStore
 #
-# `loader.store` is what the loader parsed before any timeline exists. Rendering
-# the store as a table, followed by `store.summary()`, makes that intermediate
-# state inspectable.
+# `loader.store` holds the parser's separate note, measure, control, and
+# annotation tables before any timeline exists. This inventory uses
+# `store.summary()` for counts and reads each table's exact coordinate range.
 
 # %%
 score_store = partitura_loader.store
-display(score_store)
-
+store_contract = isinstance(score_store, EventStore)
 store_summary = score_store.summary()
-store_inspection = {
-    "follows EventStore contract": isinstance(score_store, EventStore),
-    "summary": store_summary,
-}
-store_inspection
+store_tables = store_summary["tables"]
+
+store_rows = []
+for category, event_data in score_store.items():
+    first_position, last_position = event_data.coordinate_range()
+    store_rows.append(
+        {
+            "category": category,
+            "count": store_tables[category]["count"],
+            "unit": event_data.unit,
+            "first position": Coordinate(first_position, event_data.unit),
+            "last position": Coordinate(last_position, event_data.unit),
+        }
+    )
+
+store_inventory = pd.DataFrame(store_rows)
+store_inventory_view = store_inventory.style.format(
+    {"first position": repr, "last position": repr}
+)
+store_inventory_view = store_inventory_view.set_caption(
+    f"Parsed table inventory — EventStore contract: {store_contract}"
+)
+store_inventory_view
 
 # %% [markdown]
-# The rows summarize format-specific tables for notes, measures, controls, and
-# annotations. A store is format-shaped, whereas a timeline is domain-shaped;
-# that difference is why loading and timeline creation are separate phases. The
-# current summary view projects its coordinate ranges as decimals; exact typed
-# coordinates remain rational and appear below.
+# Each row is a parser table with its count, unit, and exact range. The stored
+# endpoints are `Fraction` values; placing them in `Coordinate` objects keeps
+# both the rational value and `quarters` unit visible. The current `summary()`
+# dictionary serializes ranges and the anacrusis offset as floats, so it is used
+# here only for counts rather than rendered directly. The object also satisfies
+# the public `EventStore` contract: `isinstance(score_store, EventStore)` is
+# `True`.
+
+# %% [markdown]
+# ## One parsed record
+#
+# A store table contains parser records rather than timeline children. Select
+# one note now so that its transformation during timeline creation is concrete.
+
+# %%
+stored_note_data = score_store.notes
+stored_note_frame = stored_note_data.to_dataframe()
+stored_note_example = stored_note_frame.loc[
+    [0], ["id", "name", "event_type", "start", "end"]
+].copy()
+stored_note_id = stored_note_example.loc[0, "id"]
+
+for position_column in ("start", "end"):
+    stored_note_example[position_column] = [
+        Coordinate(value, stored_note_data.unit)
+        for value in stored_note_example[position_column]
+    ]
+
+stored_note_view = stored_note_example.style.format({"start": repr, "end": repr})
+stored_note_view
+
+# %% [markdown]
+# This is the first raw note record: B3 begins at zero quarters and ends at one
+# half. Its local id is `note:000001`. The timeline will preserve these musical
+# fields while placing the record under a queryable `notes` child.
 
 # %% [markdown]
 # ## Making the timeline
@@ -153,20 +204,18 @@ timeline_identity
 # ## What you got for free
 #
 # The loader has already separated each event category into a child timeline and
-# attached a quarters-to-ticks {{< glossary ConversionMap >}}. We can also ask
-# the familiar region API which {{< glossary Region >}} annotations were
-# created.
+# attached a quarters-to-ticks {{< glossary ConversionMap >}}.
 
 # %%
 child_ids = score_timeline.list_children()
-measure_region_ids = score_timeline.list_regions()
+stored_categories = tuple(store_inventory["category"])
 quarters_to_ticks = score_timeline.get_conversion_map(TimeUnit.ticks)
 
-quarter_position = score_timeline.make_coordinate(Fraction(6))
+quarter_position = score_timeline.make_coordinate(Fraction(13, 2))
 tick_position = score_timeline.convert_to(quarter_position, TimeUnit.ticks)
 loader_payoff = {
     "children": child_ids,
-    "measure regions": measure_region_ids,
+    "stored categories": stored_categories,
     "quarters-to-ticks map": quarters_to_ticks,
     "quarter position": quarter_position,
     "tick position": tick_position,
@@ -174,31 +223,75 @@ loader_payoff = {
 loader_payoff
 
 # %% [markdown]
-# The children correspond to the store's populated categories, and the map
-# turns an exact rational quarter position into an integer tick position. Both
-# positions remain coordinate objects, so their units stay visible. In this
-# release the measures are present as the `measures` child, but `list_regions()`
-# is empty: the score loader does not also materialize them as regions. The
-# children and conversion map are still the payoff of learning those structures
-# by hand first.
+# The child ids match the four stored categories. The map converts the library's
+# `Coordinate(Fraction(13, 2), quarters)` directly to `Coordinate(3120, ticks)`;
+# no rational value is reconstructed for display. Measures are available as the
+# `measures` child, but this score loader does not also materialize them as
+# {{< glossary Region >}} objects.
 
 # %% [markdown]
-# ## Querying it
+# ## Querying every child
 #
-# A loaded timeline uses the same `get_events()` query introduced in the
-# previous tutorial. Start with every category, then apply one familiar filter.
+# A loaded timeline uses the same `get_events()` query introduced previously.
+# Ask the parent for every event, then select one representative row from each
+# child for inspection.
 
 # %%
 loaded_events = score_timeline.get_events()
-display(loaded_events)
+loaded_event_frame = loaded_events.to_dataframe()
+event_examples = loaded_event_frame.drop_duplicates(subset="source_timeline")
+event_examples = event_examples.loc[
+    :, ["source_timeline", "event_type", "name", "start"]
+].copy()
+event_examples = event_examples.reset_index(drop=True)
+event_examples["start"] = [
+    score_timeline.make_coordinate(value) for value in event_examples["start"]
+]
 
-loaded_notes = score_timeline.get_events(event_type="Note")
-loaded_notes
+event_examples_view = event_examples.style.format({"start": repr})
+event_examples_view = event_examples_view.set_caption(
+    f"One row from each child among {len(loaded_events)} loaded events"
+)
+event_examples_view
 
 # %% [markdown]
-# The first table includes events gathered from every child. The second keeps
-# only `Note` events, using exactly the same `event_type` filter as a hand-built
-# timeline.
+# The four rows come from `notes`, `measures`, `controls`, and `annotations`, so
+# the parent query really does gather events from every child. The selected
+# fields show each event's source, type, name, and exact start coordinate; the
+# caption records that the complete result contains 547 events.
+
+# %% [markdown]
+# ## Narrowing by event type
+#
+# The same query can keep only notes. Convert a few selected fields to a table
+# so that both note content and exact positions remain visible.
+
+# %%
+loaded_notes = score_timeline.get_events(event_type="Note")
+loaded_note_frame = loaded_notes.to_dataframe()
+note_examples = loaded_note_frame.loc[
+    :3, ["id", "name", "event_type", "start", "end", "staff"]
+].copy()
+
+for position_column in ("start", "end"):
+    note_examples[position_column] = [
+        score_timeline.make_coordinate(value)
+        for value in note_examples[position_column]
+    ]
+
+timeline_note_id = f"notes:{stored_note_id}"
+assert note_examples.loc[0, "id"] == timeline_note_id
+note_examples_view = note_examples.style.format({"start": repr, "end": repr})
+note_examples_view = note_examples_view.set_caption(
+    f"First four of {len(loaded_notes)} Note events"
+)
+note_examples_view
+
+# %% [markdown]
+# These are actual note rows, not an `EventData` summary. The first is the B3
+# stored earlier: timeline creation preserves its fields and scopes its local id
+# `note:000001` as `notes:note:000001`. The table shows four of the 498 rows kept
+# by the familiar `event_type` filter.
 
 # %% [markdown]
 # ## The same music, a second way
@@ -213,7 +306,7 @@ ms3_timeline = ms3_loader.create_timeline(uid="ms3:clt1")
 ms3_events = ms3_timeline.get_events()
 ms3_notes = ms3_timeline.get_events(event_type="Note")
 
-partitura_note_count = store_summary["tables"]["notes"]["count"]
+partitura_note_count = len(loaded_notes)
 note_counts = {
     "MusicXML via PartituraLoader": partitura_note_count,
     "TSV via Ms3Loader": len(ms3_notes),
@@ -247,9 +340,9 @@ format_comparison
 # | Score | `Ms3Loader`, `Music21Loader`, `PartituraLoader` | Symbolic notation |
 # | MIDI | `ScoreMidiLoader`, `PerformanceMidiLoader` | Quantized scores or performed timing |
 # | Tabular | `TsvLoader`, `CsvLoader` | Custom delimited research tables |
-# | Alignment | Alignment loaders | Existing correspondences between representations |
-# | Graphical | Graphical loaders | Pages, images, and horizontal layout |
-# | Format | Format loaders | Structured JSON or XML needing a specialised reading |
+# | Alignment | {{< glossary MatchfileLoader >}} | Score-to-performance correspondences; introduced later |
+# | Graphical | `GraphicalLoader` | Pages, images, and horizontal layout |
+# | Format | `JsonLoader` | Structured JSON and XML |
 #
 # Each family has a how-to guide of its own:
 # [loading data](../howto/how01_loading_data.ipynb) ·
@@ -276,10 +369,10 @@ loader_families = {
 loader_families
 
 # %% [markdown]
-# The class objects show that these are importable public loaders, while the
-# example paths distinguish score MIDI from performance MIDI. Alignment,
-# graphical, and format families use specialized loaders covered by their
-# linked guides.
+# The class objects show that the score, MIDI, and tabular choices used here are
+# importable public loaders, while the example paths distinguish score MIDI
+# from performance MIDI. The remaining table rows name a concrete public loader
+# and link to the guide that introduces it.
 
 # %% [markdown]
 # ## Beyond one timeline
@@ -309,10 +402,14 @@ future_doors
 #
 # - You can replace hand construction with real files without changing the kind of timeline produced.
 # - You can separate `load()` from `create_timeline()` and use `from_file()` as their common shorthand.
-# - You can inspect `loader.store` and its `summary()` before creating a timeline.
+# - You can inspect exact table counts, units, and ranges in `loader.store`,
+#   and read `summary()` without relying on its float projections.
+# - You can distinguish a parser record in an `EventStore` from the corresponding event placed under a timeline child.
 # - You can assign a type-based timeline id, optionally prefixed by a role, while keeping a readable name separate.
-# - You can inspect loader-created children and conversion maps, and check whether regions were materialized.
-# - You can query all loaded events before narrowing them with the familiar event filter.
+# - You can inspect loader-created children and exact coordinate conversions,
+#   and recognise that this loader does not create regions.
+# - You can display representative rows from an all-child event query.
+# - You can narrow loaded events with the familiar event filter and inspect the resulting note rows.
 # - You can compare MusicXML and ms3 TSV note content through the same timeline API.
 # - You can choose among score, MIDI, tabular, alignment, graphical, and format loader families.
 # - You can use `create_timelines()` and recognize `create_bundle()` as entry points to multi-timeline work.

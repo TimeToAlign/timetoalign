@@ -17,39 +17,41 @@
 # # Quickstart
 #
 # One piece of music can exist at once as a recording, as notation, and as
-# images on a page. Each representation has its own
-# {{< glossary Coordinate >}} system and units.
+# images on a page. A {{< glossary Domain >}} says which kind of representation
+# an axis measures: physical, logical, or graphical. A continuous axis permits
+# positions between its marks; a {{< glossary Discrete >}} axis uses numbered
+# steps such as samples, ticks, or pixels.
 #
-# | {{< glossary Domain >}} | Continuous | {{< glossary Discrete >}} |
+# | Domain | Continuous | Discrete |
 # |---|---|---|
 # | Physical: recording | seconds | samples |
 # | Logical: notation | quarters | ticks |
 # | Graphical: page image | centimetres | pixels |
 #
-# TimeToAlign! represents these coordinate systems and the relationships
-# between them. It lets you place musical information on the appropriate axis,
-# then ask where the same instant or event lies in another representation.
+# TimeToAlign! represents these axes and the relationships between them. A
+# {{< glossary Coordinate >}} keeps a position together with the unit of its
+# axis, so the library can distinguish 12.5 seconds from 12.5 quarters.
 #
 # ## What you will build
 #
-# In five minutes, you will assemble a 30-second audio example, add structure
-# and events, connect it to a loaded score, and glimpse repeats, fields, and
-# pitch spelling. You will finish with a map to the tutorial that explains each
-# idea in full; the setup also locates the one small score used in the loading
-# preview.
+# In five minutes, you will connect a 30-second recording axis to a small loaded
+# score and inspect one exact cross-representation position. Each section gives
+# a short preview and points to the tutorial that develops that idea.
+
+# %% [markdown]
+# ## Before you start
+#
+# Use Python 3.11 or later in an environment with TimeToAlign! and its tutorial
+# dependencies installed; see [Getting Started](../index.qmd#getting-started).
 
 # %%
 from fractions import Fraction
 
 from timetoalign import MatchClaim, PartituraLoader
-from timetoalign.core import EnharmonicPitch, FlowMode, SpecificPitch
+from timetoalign.core import EnharmonicPitch, SpecificPitch
 from timetoalign.testdata import ensure_data
 from timetoalign.timelines import (
-    BeatGrid,
     ContinuousPhysicalTimeline,
-    Flow,
-    FlowMap,
-    PlaythroughSection,
     TimelineGroup,
 )
 
@@ -62,14 +64,15 @@ vienna = ensure_data("vienna_1x22")
 # music. A `Coordinate` places a value on that axis and keeps its unit attached.
 
 # %%
-audio = ContinuousPhysicalTimeline(length=30.0, uid="audio")
-audio_coordinate = audio.make_coordinate(12.5)
+audio = ContinuousPhysicalTimeline(length=Fraction(30), uid="audio")
+audio_coordinate = audio.make_coordinate(Fraction(25, 2))
 audio_coordinate
 
 # %% [markdown]
-# The result is 12.5 seconds on a 30-second audio axis, displayed with its unit.
-# Open [Timelines and Coordinates](tut01_timelines_and_coordinates.ipynb) to
-# build and inspect timelines carefully.
+# The result is the exact rational position 25/2 seconds on a 30-second audio
+# axis, displayed with its unit. Open
+# [Timelines and Coordinates](tut01_timelines_and_coordinates.ipynb) to build
+# and inspect timelines carefully.
 
 # %% [markdown]
 # ## 2. Nesting and Timestamps
@@ -79,17 +82,24 @@ audio_coordinate
 # child present there.
 
 # %%
-left_channel = ContinuousPhysicalTimeline(length=30.0, uid="left-channel")
-right_channel = ContinuousPhysicalTimeline(length=30.0, uid="right-channel")
-audio.add_child(left_channel, offset=0.0)
-audio.add_child(right_channel, offset=0.0)
+left_channel = ContinuousPhysicalTimeline(length=Fraction(30), uid="left-channel")
+right_channel = ContinuousPhysicalTimeline(length=Fraction(30), uid="right-channel")
+audio.add_child(left_channel, offset=Fraction(0))
+audio.add_child(right_channel, offset=Fraction(0))
 audio_timestamp = audio.get_timestamp(audio_coordinate)
-audio_timestamp
+timestamp_coordinates = {
+    "audio parent": audio_timestamp.get_coordinate(audio.id),
+    "left channel": audio_timestamp.get_coordinate(left_channel.id),
+    "right channel": audio_timestamp.get_coordinate(right_channel.id),
+}
+timestamp_coordinates
 
 # %% [markdown]
-# This timestamp shows the same 12.5-second position on the audio axis and both
-# channel children. Open [Nesting and Timestamps](tut02_nesting_and_timestamps.ipynb)
-# to learn how nested coordinate systems work.
+# The three named values show the parent and both children at the same exact
+# 25/2-second position. The timestamp itself is the cross-section used to
+# retrieve them. Open
+# [Nesting and Timestamps](tut02_nesting_and_timestamps.ipynb) to learn how
+# nested coordinate systems work.
 
 # %% [markdown]
 # ## 3. Events on a Timeline
@@ -135,18 +145,33 @@ audio_events
 # ## 4. Loading Real Data
 #
 # Loaders turn common research formats into the same kind of timeline. This
-# single loading expression reads a small MusicXML score prepared in the setup.
+# preview reads a small MusicXML score prepared in the setup, then shows what
+# the loader populated.
 
 # %%
-score = PartituraLoader.from_file(vienna / "Chopin_op10_no3.musicxml").create_timeline(
-    uid="score"
-)
-score
+score_loader = PartituraLoader.from_file(vienna / "Chopin_op10_no3.musicxml")
+score = score_loader.create_timeline(uid="score")
+score_children = score.list_children()
+score_notes = score.get_events(event_type="Note")
+score_measures = score.get_events(event_type="Measure")
+note_frame = score_notes.to_dataframe(coordinates=True)
+measure_frame = score_measures.to_dataframe(coordinates=True)
+preview_columns = ["name", "start", "end"]
+note_preview = note_frame.loc[0, preview_columns].to_dict()
+measure_preview = measure_frame.loc[0, preview_columns].to_dict()
+loaded_score_preview = {
+    "children": score_children,
+    "first note": note_preview,
+    "first measure": measure_preview,
+}
+loaded_score_preview
 
 # %% [markdown]
-# The result is a score timeline in quarters, with its notes and measures ready
-# to inspect. Open [Loading Real Data](tut04_loading_data.ipynb) to choose a
-# loader and understand what it creates.
+# The named children include notes and measures. The non-empty samples show one
+# event from each of those children; their positions are exact, unit-bearing
+# coordinates. Open
+# [Loading Real Data](tut04_loading_data.ipynb) to choose a loader and
+# understand what it creates.
 
 # %% [markdown]
 # ## 5. Timeline Groups
@@ -157,23 +182,30 @@ score
 
 # %%
 group = TimelineGroup(id="quickstart", timelines=[audio, score])
-score_value = group.convert(audio_coordinate, source=audio.id, target=score.id)
-score_fraction = Fraction(score_value).limit_denominator()
-score_coordinate = score.make_coordinate(score_fraction)
-coordinate_pair = {"audio": audio_coordinate, "score": score_coordinate}
+score_coordinate = group.convert(
+    timestamp_coordinates["audio parent"],
+    source=audio.id,
+    target=score.id,
+)
+coordinate_pair = {
+    "audio": timestamp_coordinates["audio parent"],
+    "score": score_coordinate,
+}
 coordinate_pair
 
 # %% [markdown]
-# The dictionary keeps both results as unit-bearing coordinates: 12.5 seconds
-# maps to an exact rational position in score quarters. Open
+# The dictionary shows what `convert` returns directly: the exact 25/2 seconds
+# maps to `Fraction(415, 24)` quarters, and both values remain unit-bearing
+# coordinates. Open
 # [Timeline Groups](tut05_timeline_groups.ipynb) to control these relationships.
 
 # %% [markdown]
 # ## 6. Alignment Bundles
 #
 # An {{< glossary AlignmentBundle >}} collects broader alignment evidence; its
-# basic link is a {{< glossary MatchClaim >}}. A claim can expose a
-# {{< glossary MatchStamp >}} for the corresponding positions.
+# basic link is a {{< glossary MatchClaim >}}. A synchronous claim holds an
+# {{< glossary AlignmentAnchor >}}: the two unit-bearing coordinates asserted
+# to correspond.
 
 # %%
 claim = MatchClaim.from_events(
@@ -184,54 +216,59 @@ claim = MatchClaim.from_events(
     unit_a=audio.unit,
     unit_b=score.unit,
 )
-matchstamp = claim.get_matchstamp(from_graph=False)
-alignment_preview = {"matchstamp": matchstamp, "positions": coordinate_pair}
-alignment_preview
+alignment_anchor = claim.start_anchor
+anchor_coordinates = {
+    alignment_anchor.timeline_a_id: alignment_anchor.coordinate_a,
+    alignment_anchor.timeline_b_id: alignment_anchor.coordinate_b,
+}
+anchor_coordinates
 
 # %% [markdown]
-# The matchstamp is shown beside the two unit-bearing positions for its claimed
-# musical instant. Open
+# The anchor displays the claimed instant without rounding or dropping units:
+# 25/2 seconds corresponds to 415/24 quarters. A bundle can combine this claim
+# with wider alignment evidence. Open
 # [Alignment Bundles](tut06_alignment_bundles.ipynb) to assemble and query
 # larger alignments.
 
 # %% [markdown]
-# ## 7. Flow and Grids
+# ## 7. Repeat Unfolding
 #
 # A {{< glossary FlowMap >}} can unfold a printed passage that is played more
-# than once. A beat grid then answers metrical questions with exact fractions.
+# than once. Here the written opening from quarter 0 up to, but not including,
+# quarter 4 is played twice.
 
 # %%
-section = PlaythroughSection(1, 2, ("A",))
-repeat_flow = Flow.from_sections([section, section], mode=FlowMode.default)
-quarter_span = (Fraction(0), Fraction(4))
-repeat_map = FlowMap.from_qb_sections(repeat_flow, [quarter_span] * 2)
-unfolded_positions = repeat_map.unfold_coordinate(Fraction(2))
-unfolded_coordinates = [score.make_coordinate(value) for value in unfolded_positions]
-beat_grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=30)
-beat_position = beat_grid.beat_at(Fraction(17, 4))
-flow_preview = {"unfolded": unfolded_coordinates, "beat": beat_position}
+opening_span = (Fraction(0), Fraction(4))
+played_spans = [opening_span, opening_span]
+repeat_map = score.create_flow_map(played_spans, id="quickstart-repeat")
+folded_coordinate = score.make_coordinate(Fraction(2))
+unfolded_values = repeat_map.unfold_coordinate(folded_coordinate.value)
+unfolded_coordinates = [score.make_coordinate(value) for value in unfolded_values]
+flow_preview = {"written": folded_coordinate, "played": unfolded_coordinates}
 flow_preview
 
 # %% [markdown]
-# The printed position at two quarters appears twice after unfolding, while the
-# grid reports beat 5/4 for quarter 17/4. Open
+# The written position at two quarters appears at two and six quarters in the
+# played order. This cell previews only repeat unfolding; the next tutorial
+# introduces metrical grids separately. Open
 # [Flow and Grids](tut07_flow_and_grids.ipynb) to model complete playthroughs
 # and metrical queries.
 
 # %% [markdown]
 # ## 8. The Data Model
 #
-# Timeline events are stored in typed columns. Asking for the `start` field
-# reconstructs the library object represented by the Arrow data.
+# Arrow is the column-oriented table storage used underneath the library: it
+# keeps many event values compact and consistent. Asking a typed column for its
+# `start` field reconstructs the library object represented in that storage.
 
 # %%
-first_start = audio_events.get_field("start")[0]
+first_start = score_notes.get_field("start")[0]
 first_start
 
 # %% [markdown]
-# The first value is a `Coordinate` in seconds, not a bare floating-point
-# number. Open [The Data Model](tut08_data_model.ipynb) to understand fields,
-# scalars, and their tabular representation.
+# The loaded note's first start value is an exact `Coordinate` in quarters, not
+# a bare number. Open [The Data Model](tut08_data_model.ipynb) to understand
+# fields, scalars, and their tabular representation.
 
 # %% [markdown]
 # ## 9. Pitch and Harmony
@@ -273,8 +310,8 @@ pitch_pair
 # - You can add events to a timeline and retrieve a non-empty selection.
 # - You can load a score file into the same timeline model.
 # - You can group timelines and transfer a coordinate between them.
-# - You can express one match claim and inspect its matchstamp.
-# - You can unfold a repeated position and query a beat grid exactly.
+# - You can express one match claim and inspect its exact anchor coordinates.
+# - You can unfold one written position into repeated played positions.
 # - You can retrieve a typed coordinate from an event-data field.
 # - You can distinguish an enharmonic pitch from a specifically spelled pitch.
 #
