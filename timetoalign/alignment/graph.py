@@ -34,7 +34,7 @@ import networkx as nx
 from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim
 from timetoalign.alignment.filters import ClaimFilter
 from timetoalign.core.enums import Domain, TimeUnit
-from timetoalign.core.time import Coordinate
+from timetoalign.core.time import Coordinate, CoordinateValue
 from timetoalign.core.timestamp import ConversionMapsSpec, Stamp
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ module_logger = logging.getLogger(__name__)
 
 
 # Type alias for graph nodes: (timeline_id, coordinate)
-GraphNode = tuple[str, float]
+GraphNode = tuple[str, CoordinateValue]
 
 
 # region MatchStamp
@@ -85,7 +85,7 @@ class MatchStamp(Stamp):
         45.5
     """
 
-    coordinates: dict[str, float] = field(default_factory=dict)
+    coordinates: dict[str, CoordinateValue] = field(default_factory=dict)
     anchor_edges: list[tuple[str, str]] = field(default_factory=list)
     inferred_edges: list[tuple[str, str]] = field(default_factory=list)
     units: dict[str, str] = field(default_factory=dict)
@@ -136,7 +136,23 @@ class MatchStamp(Stamp):
         Returns:
             The coordinate, or the default if the timeline is absent.
         """
-        return self.coordinates.get(timeline_id, default)
+        value = self.coordinates.get(timeline_id)
+        return default if value is None else float(value)
+
+    def get_coordinate(self, timeline_id: str) -> Coordinate | None:
+        """Get a typed coordinate without discarding an exact stored value.
+
+        Args:
+            timeline_id: The timeline to get a coordinate for.
+
+        Returns:
+            A Coordinate object, or None when the coordinate or unit is absent.
+        """
+        value = self.coordinates.get(timeline_id)
+        unit = self._unit_for(timeline_id)
+        if value is None or unit is None:
+            return None
+        return Coordinate(value, unit)
 
     def get_unit(self, unit: TimeUnit) -> float | None:
         """Get the query coordinate converted to a unit.
@@ -252,9 +268,9 @@ class MatchStamp(Stamp):
         """
         group_tl_ids = set(group.timeline_ids)
         return {
-            tl_id: coord
-            for tl_id, coord in self.coordinates.items()
-            if tl_id in group_tl_ids
+            timeline_id: float(coordinate)
+            for timeline_id, coordinate in self.coordinates.items()
+            if timeline_id in group_tl_ids
         }
 
     def filter_by_timelines(
@@ -325,7 +341,10 @@ class MatchStamp(Stamp):
         """
         if format == "graph":
             return {
-                "coordinates": dict(self.coordinates),
+                "coordinates": {
+                    timeline_id: self.get(timeline_id)
+                    for timeline_id in self.coordinates
+                },
                 "anchor_edges": list(self.anchor_edges),
                 "inferred_edges": list(self.inferred_edges),
             }
@@ -354,7 +373,9 @@ class MatchStamp(Stamp):
             )
 
         grouped: dict[str, dict[str, float | None]] = {}
-        for timeline_id, coordinate in self.coordinates.items():
+        for timeline_id in self.coordinates:
+            coordinate = self.get(timeline_id)
+            assert coordinate is not None
             bundle_uid = _bundle_uid(timeline_id)
             if self.source is None:
                 grouped.setdefault(bundle_uid, {})[timeline_id] = coordinate
@@ -736,8 +757,8 @@ class MatchGraph:
             anchor: The AlignmentAnchor to add.
             claim: The parent MatchClaim for metadata.
         """
-        node_a: GraphNode = (anchor.timeline_a_id, float(anchor.coordinate_a.value))
-        node_b: GraphNode = (anchor.timeline_b_id, float(anchor.coordinate_b.value))
+        node_a: GraphNode = (anchor.timeline_a_id, anchor.coordinate_a.value)
+        node_b: GraphNode = (anchor.timeline_b_id, anchor.coordinate_b.value)
 
         G.add_edge(
             node_a,
@@ -880,7 +901,8 @@ class MatchGraph:
                 except (KeyError, ValueError):
                     continue
 
-                other_node: GraphNode = (other_tl_id, other_coord)
+                other_value = float(other_coord.value)
+                other_node: GraphNode = (other_tl_id, other_value)
 
                 # Add implicit edge if not already connected
                 if not extended.has_edge(node, other_node):
@@ -889,7 +911,7 @@ class MatchGraph:
                         tl_a_id=timeline_id,
                         coord_a=coord,
                         tl_b_id=other_tl_id,
-                        coord_b=other_coord,
+                        coord_b=other_value,
                         unit_a=group.get_timeline(timeline_id).unit,
                         unit_b=group.get_timeline(other_tl_id).unit,
                         source_claim=source_claim,
@@ -1150,7 +1172,7 @@ class MatchGraph:
         component = nx.node_connected_component(self._graph, start_node)
 
         # Build coordinates dict
-        coordinates: dict[str, float] = {}
+        coordinates: dict[str, CoordinateValue] = {}
         for node in component:
             timeline_id, coord = node
             # If timeline already exists, keep the first coordinate

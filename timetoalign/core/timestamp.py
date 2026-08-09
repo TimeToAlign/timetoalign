@@ -362,7 +362,8 @@ class Stamp(ABC):
         unit = self._unit_for(self.source_id or "")
         if unit is None:
             unit = TimeUnit.seconds
-        return Coordinate(self.axis, unit)
+        exact_axis = getattr(self, "_exact_axis", None)
+        return Coordinate(exact_axis if exact_axis is not None else self.axis, unit)
 
     def get_conversion(self, key: str) -> Any:
         """Get the raw output of a conversion map addressed by name/selector.
@@ -510,6 +511,7 @@ class TimeStamp(Stamp):
     source_id: str
     row_index: int | None = field(default=None)
     conversion_maps: ConversionMapsSpec = field(default=True)
+    _exact_axis: Fraction | None = field(default=None, repr=False)
 
     def get(self, timeline_id: str, default: float | None = None) -> float | None:
         """Get coordinate on another timeline.
@@ -544,9 +546,10 @@ class TimeStamp(Stamp):
         # Strategy 1: exact offset arithmetic (Timeline with children)
         _get_child = getattr(self.source, "_get_child_coordinate", None)
         if _get_child is not None:
-            result = _get_child(timeline_id, self.axis)
+            axis = self._exact_axis if self._exact_axis is not None else self.axis
+            result = _get_child(timeline_id, axis)
             if result is not None:
-                return result
+                return float(result)
             # If child coordinate returned None but _contains_coordinate
             # said True, fall through to interpolation (should not happen
             # for Timeline, but is safe).
@@ -567,6 +570,45 @@ class TimeStamp(Stamp):
             result = round(result)
 
         return result
+
+    def get_coordinate(self, timeline_id: str) -> "Coordinate | None":
+        """Get a coordinate while retaining exact scalar information.
+
+        Raw access through :meth:`get` remains float-valued. This accessor
+        evaluates exact parent/child and group relationships separately so a
+        rational query is not approximated at the typed boundary.
+
+        Args:
+            timeline_id: The timeline to get a coordinate for.
+
+        Returns:
+            A Coordinate object, or None when the timeline is unavailable.
+        """
+        from ..core.time import Coordinate
+
+        unit = self._unit_for(timeline_id)
+        if unit is None:
+            return None
+
+        if timeline_id == self.source_id and self._exact_axis is not None:
+            return Coordinate(self._exact_axis, unit)
+
+        if self._exact_axis is not None:
+            child_getter = getattr(self.source, "_get_child_coordinate", None)
+            if child_getter is not None:
+                exact = child_getter(timeline_id, self._exact_axis)
+                if exact is not None:
+                    return Coordinate(exact, unit)
+
+            group_getter = getattr(
+                self.source, "_get_exact_interpolated_coordinate", None
+            )
+            if group_getter is not None:
+                exact = group_getter(timeline_id, self.source_id, self._exact_axis)
+                if exact is not None:
+                    return Coordinate(exact, unit)
+
+        return Stamp.get_coordinate(self, timeline_id)
 
     def get_unit(self, unit: "TimeUnit") -> int | float | Fraction | None:
         """Get coordinate converted to a specific unit.

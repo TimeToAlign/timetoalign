@@ -410,7 +410,7 @@ class TestCustomAlignment:
         result = group.convert(
             50.0, source=second_timeline.id, target=simple_timeline.id
         )
-        assert result == 12.5
+        assert result == Coordinate(12.5, simple_timeline.unit)
 
 
 # endregion

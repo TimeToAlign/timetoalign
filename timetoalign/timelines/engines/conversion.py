@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Iterator
 
@@ -11,6 +12,7 @@ from timetoalign.core import (
     Coordinate,
     CoordinateSpec,
     CoordinateValue,
+    IdCoordinate,
     NumberType,
     TimeUnit,
     resolve_coordinate_spec,
@@ -20,6 +22,8 @@ from timetoalign.maps import ConversionMap, InterpolationMap
 from .coordinate_ops import coordinate_numeric_value, exact_coordinate_value
 
 if TYPE_CHECKING:
+    from timetoalign.core.timestamp import ConversionMapsSpec, TimeStamp
+
     from ..base import Timeline
 
 SEGMENT_EVENT_TYPE = "Segment"
@@ -27,6 +31,54 @@ SEGMENT_EVENT_TYPE = "Segment"
 
 class ConversionMapsMixin:
     """Provide coordinate conversion operations for timeline instances."""
+
+    def get_timestamp(
+        self,
+        coord: CoordinateSpec,
+        unit: TimeUnit | str | None = None,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
+    ) -> TimeStamp:
+        """Get a timestamp while retaining an exact native scalar when available.
+
+        The tabular timestamp axis remains float-valued. This wrapper records
+        exactness separately for typed coordinate access, but only when the
+        caller's coordinate resolves to an integer or :class:`Fraction`.
+
+        Args:
+            coord: Coordinate to resolve on this timeline.
+            unit: Optional unit in which ``coord`` is expressed.
+            conversion_maps: C-Maps available through the returned stamp.
+
+        Returns:
+            A timestamp with exact scalar provenance when one exists.
+        """
+        timestamp = super().get_timestamp(
+            coord,
+            unit=unit,
+            conversion_maps=conversion_maps,
+        )
+        if unit is None:
+            native_coord = self.get_coordinate(coord)
+        else:
+            target_unit = TimeUnit(unit) if isinstance(unit, str) else unit
+            decomposed = resolve_coordinate_spec(coord)
+            if decomposed.timeline_id is None:
+                qualified_coord: CoordinateSpec = Coordinate(
+                    decomposed.value, target_unit
+                )
+            else:
+                qualified_coord = IdCoordinate(
+                    decomposed.value,
+                    target_unit,
+                    decomposed.timeline_id,
+                )
+            native_coord = self.get_coordinate(qualified_coord)
+
+        exact_axis = exact_coordinate_value(native_coord.value)
+        if exact_axis is None:
+            return timestamp
+        return replace(timestamp, _exact_axis=exact_axis)
 
     @property
     def n_conversion_maps(self) -> int:

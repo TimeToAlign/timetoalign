@@ -728,11 +728,11 @@ class TestConvert:
 
         # 75 seconds -> 2438 pixels (discrete: 2437.5 rounds to 2438)
         result = group.convert(75.0, source="audio", target="dgt1")
-        assert result == 2438
+        assert result == Coordinate(2438, TimeUnit.pixels)
 
         # 2437.5 pixels -> 75 seconds
         result = group.convert(2437.5, source="dgt1", target="audio")
-        assert result == 75.0
+        assert result == Coordinate(75.0, TimeUnit.seconds)
 
     def test_convert_same_timeline(
         self,
@@ -742,7 +742,7 @@ class TestConvert:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
 
         result = group.convert(1000.0, source="dgt1", target="dgt1")
-        assert result == 1000.0
+        assert result == Coordinate(1000.0, TimeUnit.pixels)
 
     def test_convert_returns_none_for_absent_target(
         self,
@@ -780,17 +780,17 @@ class TestConvert:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         raw = group.convert(75.0, source="audio", target="dgt1")
-        assert raw == 2438
+        assert raw == Coordinate(2438, TimeUnit.pixels)
         from_coord = group.convert(
             Coordinate(75.0, TimeUnit.seconds), source="audio", target="dgt1"
         )
-        assert from_coord == 2438
+        assert from_coord == Coordinate(2438, TimeUnit.pixels)
         from_id = group.convert(
             IdCoordinate(75.0, TimeUnit.seconds, "audio"),
             source="audio",
             target="dgt1",
         )
-        assert from_id == 2438
+        assert from_id == Coordinate(2438, TimeUnit.pixels)
 
     def test_convert_rejects_unsupported_type(
         self,
@@ -968,14 +968,22 @@ class TestGroupIntegration:
         group2 = TimelineGroup(id="DGT2_Group", timelines=[dgt2, audio])
 
         # Verify conversions in group1
-        assert group1.convert(0.0, "dgt1", "audio") == 0.0
-        assert group1.convert(4875.0, "dgt1", "audio") == 150.0
-        assert group1.convert(2437.5, "dgt1", "audio") == 75.0
+        assert group1.convert(0.0, "dgt1", "audio") == Coordinate(0.0, TimeUnit.seconds)
+        assert group1.convert(4875.0, "dgt1", "audio") == Coordinate(
+            150.0, TimeUnit.seconds
+        )
+        assert group1.convert(2437.5, "dgt1", "audio") == Coordinate(
+            75.0, TimeUnit.seconds
+        )
 
         # Verify conversions in group2
-        assert group2.convert(0.0, "dgt2", "audio") == 0.0
-        assert group2.convert(4328.0, "dgt2", "audio") == 150.0
-        assert group2.convert(2164.0, "dgt2", "audio") == 75.0
+        assert group2.convert(0.0, "dgt2", "audio") == Coordinate(0.0, TimeUnit.seconds)
+        assert group2.convert(4328.0, "dgt2", "audio") == Coordinate(
+            150.0, TimeUnit.seconds
+        )
+        assert group2.convert(2164.0, "dgt2", "audio") == Coordinate(
+            75.0, TimeUnit.seconds
+        )
 
     def test_three_timeline_group(self) -> None:
         """Test a group with three timelines and partial overlap."""
@@ -1038,11 +1046,12 @@ class TestGroupIntegration:
         original = 67.5
         dgt_coord = group.convert(original, source="audio", target="dgt")
         assert dgt_coord is not None
-        assert isinstance(dgt_coord, int)  # discrete → integer
+        assert isinstance(dgt_coord.value, int)  # discrete → integer
         back = group.convert(dgt_coord, source="dgt", target="audio")
+        assert back is not None
 
         # Quantization error: ≤ 0.5 * (150 / 4875) ≈ 0.0154 seconds
-        assert back == pytest.approx(original, abs=0.5 * 150.0 / 4875)
+        assert back.value == pytest.approx(original, abs=0.5 * 150.0 / 4875)
 
 
 # endregion

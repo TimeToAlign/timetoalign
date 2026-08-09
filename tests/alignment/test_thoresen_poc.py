@@ -16,9 +16,12 @@ Coordinate values come from Applications.ipynb and ground truth TSV files.
 
 from __future__ import annotations
 
+from fractions import Fraction
+
 import pytest
 
 from timetoalign.alignment import MatchClaim
+from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
@@ -177,13 +180,14 @@ class TestThoresenGroupSetup:
         # Midpoint: half of pixels -> half of seconds
         mid_pixels = DGT1_TOTAL_WIDTH / 2
         mid_seconds = dgt1_group.convert(mid_pixels, "dgt1", "audio")
-        assert mid_seconds == AUDIO_DURATION_SECONDS / 2
+        assert mid_seconds == Coordinate(AUDIO_DURATION_SECONDS / 2, TimeUnit.seconds)
 
         # Endpoints
-        assert dgt1_group.convert(0, "dgt1", "audio") == 0.0
-        assert (
-            dgt1_group.convert(DGT1_TOTAL_WIDTH, "dgt1", "audio")
-            == AUDIO_DURATION_SECONDS
+        assert dgt1_group.convert(0, "dgt1", "audio") == Coordinate(
+            Fraction(0), TimeUnit.seconds
+        )
+        assert dgt1_group.convert(DGT1_TOTAL_WIDTH, "dgt1", "audio") == Coordinate(
+            Fraction(AUDIO_DURATION_SECONDS), TimeUnit.seconds
         )
 
 

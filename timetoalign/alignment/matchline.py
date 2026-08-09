@@ -149,10 +149,12 @@ class MatchLine:
     def get_coordinate_pairs(
         self, target_timeline_id: str
     ) -> list[tuple[float, float]]:
-        """Extract (source_coord, target_coord) pairs for a target timeline.
+        """Extract raw numeric coordinate pairs for a target timeline.
 
         Only stamps that contain both the source and target timelines
-        contribute to the result. Pairs are ordered by source coordinate.
+        contribute to the result. Both elements are floats because these
+        pairs are the numeric input table consumed by interpolation maps.
+        Pairs are ordered by source coordinate.
 
         Args:
             target_timeline_id: The timeline to extract target coordinates
@@ -177,7 +179,7 @@ class MatchLine:
             if target_coord is None:
                 continue
             source_coord = stamp.get(self.source_timeline_id)
-            pairs.append((source_coord, target_coord))
+            pairs.append((float(source_coord), float(target_coord)))
         return pairs
 
     @classmethod

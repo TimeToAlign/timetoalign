@@ -6,6 +6,7 @@ provide a more ergonomic API for common conversions.
 
 from __future__ import annotations
 
+from fractions import Fraction
 from typing import Any
 
 from ..core.enums import TimeUnit
@@ -47,7 +48,7 @@ class TicksToQuarters(ScalarMap):
         """
         # Remove scalar from kwargs if present (from inverse() calls)
         kwargs.pop("scalar", None)
-        super().__init__(scalar=1 / ppq, **kwargs)
+        super().__init__(scalar=Fraction(1, ppq), **kwargs)
         self._ppq = ppq
 
     @property
@@ -180,7 +181,7 @@ class SamplesToSeconds(ScalarMap):
         """
         # Remove scalar from kwargs if present (from inverse() calls)
         kwargs.pop("scalar", None)
-        super().__init__(scalar=1 / sample_rate, **kwargs)
+        super().__init__(scalar=Fraction(1, sample_rate), **kwargs)
         self._sample_rate = sample_rate
 
     @property

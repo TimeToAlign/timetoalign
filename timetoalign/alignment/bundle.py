@@ -679,7 +679,8 @@ class AlignmentBundle:
             group = self.groups[from_group_id]
             actual_from_id = self._uid_to_timeline_id[from_timeline]
             actual_to_id = self._uid_to_timeline_id[to_timeline]
-            return group.convert(coord, actual_from_id, actual_to_id)
+            converted = group.convert(coord, actual_from_id, actual_to_id)
+            return None if converted is None else float(converted.value)
 
         # Cross-group transfer via MatchLine/WarpMap pipeline
         actual_from_id = self._uid_to_timeline_id[from_timeline]
@@ -714,7 +715,7 @@ class AlignmentBundle:
                     )
                     if intermediate is None:
                         continue
-                    return float(warp(float(intermediate)))
+                    return float(warp(float(intermediate.value)))
                 except Exception:
                     continue
 
@@ -735,7 +736,7 @@ class AlignmentBundle:
                     )
                     if result is None:
                         continue
-                    return float(result)
+                    return float(result.value)
                 except Exception:
                     continue
 
@@ -2526,7 +2527,7 @@ class AlignmentBundle:
                 try:
                     transferred = self._transfer_coordinate(
                         warp,
-                        float(intermediate),
+                        float(intermediate.value),
                         target_tl_id,
                         support_policy,
                     )

@@ -390,6 +390,7 @@ class TestFromClaims:
         assert pairs[0] == (0.0, 0.0)
         assert pairs[1] == (500.0, 50.0)
         assert pairs[2] == (1000.0, 100.0)
+        assert all(isinstance(value, float) for pair in pairs for value in pair)
 
     def test_from_claims_non_synchronous_excluded(self) -> None:
         """Non-synchronous claims do not produce stamps."""

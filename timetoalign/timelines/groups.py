@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Iterator, Literal, Sequence
 
 import numpy as np
@@ -33,6 +34,7 @@ import pyarrow as pa
 from timetoalign.core import (
     Coordinate,
     CoordinateSpec,
+    CoordinateValue,
     IdCoordinate,
     IdGenerator,
     resolve_coordinate_spec,
@@ -762,12 +764,18 @@ class TimelineGroup:
                 f"Available timelines: {self.timeline_ids}"
             )
 
-        coord_value = float(
+        native_value = (
             self.get_timeline(timeline_id)
             .get_coordinate(Coordinate(resolved.value, resolved.unit))
             .value
             if resolved.unit is not None
             else resolved.value
+        )
+        coord_value = float(native_value)
+        exact_axis = (
+            Fraction(native_value, 1)
+            if isinstance(native_value, int)
+            else native_value if isinstance(native_value, Fraction) else None
         )
 
         if self._timestamp_table is None:
@@ -813,6 +821,7 @@ class TimelineGroup:
             source_id=timeline_id,
             row_index=row_index,
             conversion_maps=conversion_maps,
+            _exact_axis=exact_axis,
         )
 
     def get_timestamps_at(
@@ -1094,7 +1103,7 @@ class TimelineGroup:
         target: str,
         *,
         relative_to: Literal["group", "original"] = "group",
-    ) -> float | None:
+    ) -> Coordinate | None:
         """Convert a coordinate from one timeline to another.
 
         This is a convenience method that gets the timestamp at the source
@@ -1112,8 +1121,8 @@ class TimelineGroup:
                 "original" - coordinate is relative to timeline's ORIGINAL origin
 
         Returns:
-            The converted coordinate, or None if target timeline is not
-            present at this coordinate.
+            A Coordinate in the target timeline's unit, or None if the target
+            timeline is not present at this coordinate.
 
         Raises:
             KeyError: If source or target timeline is not in the group.
@@ -1121,10 +1130,10 @@ class TimelineGroup:
 
         Examples:
             >>> group.convert(75.0, source="audio:1", target="dgt1:1")
-            2437.5
+            Coordinate(2437.5, pixels)
         """
         ts = self.get_timestamp_at(coordinate, source, relative_to=relative_to)
-        return ts[target]
+        return ts.get_coordinate(target)
 
     # endregion
 
@@ -1267,6 +1276,84 @@ class TimelineGroup:
             return None
         map_key = f"{source_id}:{target_id}"
         return self._interpolation_maps.get(map_key)
+
+    def _get_exact_interpolated_coordinate(
+        self,
+        target_id: str,
+        source_id: str | None,
+        source_coordinate: Fraction,
+    ) -> CoordinateValue | None:
+        """Interpolate exactly when both bounding pairs are known rationals.
+
+        Group timestamp columns remain float arrays for fast lookup. Their
+        first and last present values, however, represent the exact zero and
+        length of each member timeline. This method uses those authoritative
+        values for rational scalar queries and declines exact interpolation
+        when an internal boundary has no exact representation.
+
+        Args:
+            target_id: Timeline to convert into.
+            source_id: Timeline containing ``source_coordinate``.
+            source_coordinate: Exact coordinate on the source timeline.
+
+        Returns:
+            The exact converted value when it can be proven, otherwise None.
+        """
+        if source_id is None or target_id not in self._timelines:
+            return None
+        if target_id == source_id:
+            return source_coordinate
+        if self._timestamp_table is None:
+            return None
+
+        source_values = self._timestamp_table.column(source_id).to_pylist()
+        source_float = float(source_coordinate)
+        low_idx: int | None = None
+        high_idx: int | None = None
+        for index, value in enumerate(source_values):
+            if value is None:
+                continue
+            if value <= source_float:
+                low_idx = index
+            if value >= source_float and high_idx is None:
+                high_idx = index
+                break
+        if low_idx is None or high_idx is None:
+            return None
+
+        def exact_boundary(timeline_id: str, index: int) -> Fraction | None:
+            values = self._timestamp_table.column(timeline_id).to_pylist()
+            present = [i for i, value in enumerate(values) if value is not None]
+            if not present:
+                return None
+            if index == present[0]:
+                return Fraction(0, 1)
+            if index == present[-1]:
+                length = self._timelines[timeline_id].length.value
+                if isinstance(length, int):
+                    return Fraction(length, 1)
+                if isinstance(length, Fraction):
+                    return length
+            return None
+
+        source_low = exact_boundary(source_id, low_idx)
+        source_high = exact_boundary(source_id, high_idx)
+        target_low = exact_boundary(target_id, low_idx)
+        target_high = exact_boundary(target_id, high_idx)
+        if None in (source_low, source_high, target_low, target_high):
+            return None
+        assert source_low is not None
+        assert source_high is not None
+        assert target_low is not None
+        assert target_high is not None
+        if source_low == source_high:
+            return target_low
+
+        ratio = (source_coordinate - source_low) / (source_high - source_low)
+        result = target_low + ratio * (target_high - target_low)
+        if self._timelines[target_id].number_type == NumberType.int:
+            return round(result)
+        return result
 
     def _get_unit_map(self, unit: "TimeUnit") -> InterpolationMap | None:
         """Get InterpolationMap for unit-based conversion.

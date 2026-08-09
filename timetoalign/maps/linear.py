@@ -8,6 +8,7 @@ This module provides maps that perform affine transformations:
 
 from __future__ import annotations
 
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any
 
 from numpy.typing import NDArray
@@ -19,6 +20,13 @@ from .base import ConversionMap
 
 if TYPE_CHECKING:
     from typing_extensions import Self
+
+
+def _reciprocal(value: CoordinateValue) -> CoordinateValue:
+    """Return an exact reciprocal when the input is rational."""
+    if isinstance(value, (int, Fraction)):
+        return Fraction(1, 1) / value
+    return 1 / value
 
 
 # region LinearMap
@@ -113,8 +121,8 @@ class LinearMap(ConversionMap[CoordinateValue]):
     def inverse(self) -> Self:
         """Return the inverse map: y = (x - b) / a."""
         # Inverse of y = ax + b is x = (y - b) / a = (1/a)y - b/a
-        inv_scalar = 1 / self._scalar
-        inv_offset = -self._offset / self._scalar
+        inv_scalar = _reciprocal(self._scalar)
+        inv_offset = -self._offset * inv_scalar
         return self.__class__(
             scalar=inv_scalar,
             offset=inv_offset,
@@ -245,7 +253,7 @@ class ScalarMap(ConversionMap[CoordinateValue]):
     def inverse(self) -> Self:
         """Return the inverse map: y = x / a."""
         return self.__class__(
-            scalar=1 / self._scalar,
+            scalar=_reciprocal(self._scalar),
             source_unit=self._target_unit,
             target_unit=self._source_unit,
         )

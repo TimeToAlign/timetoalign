@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import json
 import wave
+from fractions import Fraction
 from pathlib import Path
 
 import pyarrow as pa
@@ -300,7 +301,7 @@ def test_audio_file_sample_rate_converts_coordinates(tmp_path: Path) -> None:
     for timeline in bundle.timelines.values():
         assert timeline.meta["sample_rate"] == 48000
         assert timeline.meta["sample_rate_provenance"] == "file"
-        assert timeline.get_conversion_map(TimeUnit.seconds)(960) == 0.02
+        assert timeline.get_conversion_map(TimeUnit.seconds)(960) == Fraction(1, 50)
         assert timeline.events.table.column("seconds").to_pylist() == (
             [0.0, 0.02, 0.04] if timeline.id == "rec-a:dpt1" else [0.0, 0.01, 0.03]
         )

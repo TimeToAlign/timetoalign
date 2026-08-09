@@ -83,8 +83,8 @@ def test_continuous_targets_preserve_map_numeric_types() -> None:
     exact_stamp = TimeStamp(axis=Fraction(160), source=score, source_id=score.id)
     stamped_quarters = exact_stamp.get_unit(TimeUnit.quarters)
 
-    assert seconds.value == 0.5
-    assert isinstance(seconds.value, float)
+    assert seconds.value == Fraction(1, 2)
+    assert isinstance(seconds.value, Fraction)
     assert quarters.value == Fraction(1, 3)
     assert isinstance(quarters.value, Fraction)
     assert stamped_quarters == Fraction(1, 3)
