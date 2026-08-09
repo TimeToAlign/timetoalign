@@ -429,6 +429,14 @@ class TestFromClaims:
         assert restored.start_anchor.coordinate_a.unit is TimeUnit.quarters
         assert restored.start_anchor.coordinate_b.value == 1.25
         assert restored.start_anchor.coordinate_b.unit is TimeUnit.seconds
+        assert MatchClaimField.from_claims([claim])._repr_html_() == (
+            "<div style='font-family: monospace;'><strong>MatchClaimField</strong> "
+            "<span style='color: #555;'>claims=1, timelines=2</span><table "
+            "style='border-collapse: collapse; margin-top: 4px;'><thead><tr><th>#</th>"
+            "<th>timeline A</th><th>coord A</th><th>timeline B</th><th>coord B</th>"
+            "</tr></thead><tbody><tr><td>0</td><td>score</td><td>7/3 quarters</td>"
+            "<td>audio</td><td>1.25 seconds</td></tr></tbody></table></div>"
+        )
 
     def test_from_claims_adopts_common_metadata(self) -> None:
         meta = MatchMetadata(

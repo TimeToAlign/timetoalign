@@ -956,12 +956,10 @@ class TestMatchClaim:
                 coordinate_b=Coordinate(866.0, TimeUnit.number),
             ),
         )
-        r = repr(claim)
-
-        assert "interval" in r
-        assert "dgt1" in r
-        assert "dgt2" in r
-        assert "0.0-975.0" in r
+        assert repr(claim) == (
+            "MatchClaim(interval: dgt1[0 number-975 number] <-> "
+            "dgt2[0 number-866 number] [ANCHOR])"
+        )
 
     def test_repr_non_synchronous(self) -> None:
         """A NOMATCH claim (orphaned event) renders the NOMATCH flag.
@@ -995,7 +993,7 @@ class TestMatchClaim:
         )
         assert claim.source_coordinate.value == 188.8
         assert repr(claim) == (
-            "MatchClaim(score:clt1@188.8 <-> perf:Chopin_Ashkenazy [NOMATCH])"
+            "MatchClaim(score:clt1@188.8 number <-> " "perf:Chopin_Ashkenazy [NOMATCH])"
         )
 
     def test_repr_nomatch_without_coordinate(self) -> None:
@@ -1023,8 +1021,8 @@ class TestMatchClaim:
         assert restored == claim
         assert restored.source_coordinate.value == 188.8
 
-    def test_repr_synchronous_instant_unchanged(self) -> None:
-        """Regression guard: an event_match instant repr shows the clean form.
+    def test_repr_synchronous_instant_with_units(self) -> None:
+        """An event-match instant repr shows unit-bearing coordinates.
 
         Two identified events on either side make this an event_match, which
         carries no badge — the common case must stay free of NOMATCH or any
@@ -1044,8 +1042,70 @@ class TestMatchClaim:
         )
         assert claim.source_coordinate is None
         assert repr(claim) == (
-            "MatchClaim(instant: score:1@100.0 <-> recording:1@45.5)"
+            "MatchClaim(instant: score:1@100 number <-> recording:1@45.5 number)"
         )
+
+    def test_exact_rational_rendering(self) -> None:
+        """Claims and anchors render rational coordinates exactly with units."""
+        anchor = AlignmentAnchor(
+            timeline_a_id="audio",
+            coordinate_a=Coordinate(Fraction(25, 2), TimeUnit.seconds),
+            timeline_b_id="score",
+            coordinate_b=Coordinate(Fraction(415, 24), TimeUnit.quarters),
+        )
+        claim = MatchClaim(
+            timeline_a_id="audio",
+            timeline_b_id="score",
+            start_anchor=anchor,
+        )
+
+        assert repr(claim) == (
+            "MatchClaim(instant: audio@25/2 seconds <-> "
+            "score@415/24 quarters [ANCHOR])"
+        )
+        assert str(claim) == (
+            "MatchClaim (synchronous, instant)\n"
+            "  Timeline A:  audio  @25/2 seconds\n"
+            "  Timeline B:  score  @415/24 quarters"
+        )
+        assert claim._repr_html_() == (
+            "<div style='font-family: monospace;'><strong>MatchClaim</strong> "
+            "<span style='background: #fff3e0; padding: 0 4px; border-radius: 3px; "
+            "font-size: 0.8em;'>ANCHOR</span><table style='border-collapse: collapse; "
+            "margin-top: 4px;'><tbody><tr><td>Timeline A</td><td><strong>audio"
+            "</strong></td><td>@25/2 seconds</td></tr><tr><td>Timeline B</td><td>"
+            "<strong>score</strong></td><td>@415/24 quarters</td></tr></tbody></table>"
+            "<div style='margin-top: 4px; color: #666; font-size: 0.85em;'>Try: "
+            "<code>claim.get_matchstamp()</code></div></div>"
+        )
+        assert repr(anchor) == (
+            "AlignmentAnchor(audio@25/2 seconds <-> score@415/24 quarters)"
+        )
+        assert str(anchor) == repr(anchor)
+        assert anchor._repr_html_() == (
+            "<div style='font-family: monospace;'><strong>AlignmentAnchor</strong>("
+            "audio@25/2 seconds &lt;-&gt; score@415/24 quarters)</div>"
+        )
+
+    @pytest.mark.parametrize(
+        ("coordinate", "expected"),
+        [
+            (Coordinate(480, TimeUnit.ticks), "480 ticks"),
+            (Coordinate(12.3456789, TimeUnit.seconds), "12.3456789 seconds"),
+        ],
+    )
+    def test_integer_and_float_coordinate_rendering(
+        self, coordinate: Coordinate, expected: str
+    ) -> None:
+        """Integer discrete and float coordinates retain their display type and unit."""
+        anchor = AlignmentAnchor(
+            timeline_a_id="a",
+            coordinate_a=coordinate,
+            timeline_b_id="b",
+            coordinate_b=coordinate,
+        )
+
+        assert repr(anchor) == f"AlignmentAnchor(a@{expected} <-> b@{expected})"
 
 
 # endregion

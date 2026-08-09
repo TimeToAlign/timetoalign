@@ -879,8 +879,8 @@ class TestMatchClaimDisplay:
         )
         s = str(claim)
         assert "synchronous, interval" in s
-        assert "[0 -- 10]" in s
-        assert "[0 -- 128]" in s
+        assert "[0 number -- 10 number]" in s
+        assert "[0 number -- 128 number]" in s
 
     def test_str_nomatch(self):
         """__str__ for a NOMATCH claim (orphaned event named on one side)."""

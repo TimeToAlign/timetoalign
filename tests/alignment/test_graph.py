@@ -7,6 +7,8 @@ This module tests the graph-building layer of the alignment infrastructure:
 
 from __future__ import annotations
 
+from fractions import Fraction
+
 import pytest
 
 from timetoalign.alignment import (
@@ -285,10 +287,38 @@ class TestMatchStamp:
         stamp = MatchStamp(
             coordinates={"tl_a": 100.0, "tl_b": 50.0},
         )
-        repr_str = repr(stamp)
-        assert "MatchStamp" in repr_str
-        assert "tl_a" in repr_str
-        assert "100.00" in repr_str
+        assert repr(stamp) == "MatchStamp(tl_a=100, tl_b=50)"
+
+    def test_exact_unit_bearing_renderings(self) -> None:
+        """All MatchStamp displays retain exact rational values and units."""
+        stamp = MatchStamp(
+            coordinates={"audio": Fraction(25, 2), "score": Fraction(415, 24)},
+            units={"audio": "seconds", "score": "quarters"},
+            anchor_edges=[("audio", "score")],
+        )
+
+        assert repr(stamp) == "MatchStamp(audio=25/2 seconds, score=415/24 quarters)"
+        assert str(stamp) == (
+            "MatchStamp (2 timelines, 1 edges)\n"
+            "  audio     25/2 seconds  anchor\n"
+            "  score  415/24 quarters  anchor"
+        )
+        assert stamp._repr_html_() == (
+            "<div style='font-family: monospace;'><strong>MatchStamp</strong> "
+            "<span style='background: #e3f2fd; padding: 0 4px; border-radius: 3px; "
+            "font-size: 0.8em;'>2 timelines, 1 edges</span><table "
+            "style='border-collapse: collapse; margin-top: 4px;'><thead><tr "
+            "style='border-bottom: 1px solid #ccc;'><th style='text-align: left; "
+            "padding: 2px 8px;'>ID</th><th style='text-align: right; padding: 2px 8px;'>"
+            "Coordinate</th><th style='text-align: left; padding: 2px 8px;'>Type</th>"
+            "</tr></thead><tbody><tr><td><strong>audio</strong></td><td "
+            "style='text-align: right;'>25/2 seconds</td><td><em>anchor</em></td></tr>"
+            "<tr><td><strong>score</strong></td><td style='text-align: right;'>"
+            "415/24 quarters</td><td><em>anchor</em></td></tr></tbody></table><div "
+            "style='margin-top: 4px; color: #666; font-size: 0.85em;'>Try: "
+            "<code>stamp.get(&lt;tl_id&gt;)</code>, <code>stamp.get_coordinate("
+            "&lt;tl_id&gt;)</code>, <code>stamp.get_unit(&lt;unit&gt;)</code></div></div>"
+        )
 
 
 # endregion

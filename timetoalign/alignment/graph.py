@@ -35,7 +35,11 @@ from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim
 from timetoalign.alignment.filters import ClaimFilter
 from timetoalign.core.enums import Domain, TimeUnit
 from timetoalign.core.time import Coordinate, CoordinateValue
-from timetoalign.core.timestamp import ConversionMapsSpec, Stamp
+from timetoalign.core.timestamp import (
+    ConversionMapsSpec,
+    Stamp,
+    _format_stamp_value,
+)
 
 if TYPE_CHECKING:
     from timetoalign.alignment.bundle import AlignmentBundle
@@ -452,7 +456,10 @@ class MatchStamp(Stamp):
         return super().axis_coordinate
 
     def __repr__(self) -> str:
-        tl_list = ", ".join(f"{k}={v:.2f}" for k, v in self.coordinates.items())
+        tl_list = ", ".join(
+            f"{timeline_id}={_format_stamp_value(value, self.units.get(timeline_id, ''))}"
+            for timeline_id, value in self.coordinates.items()
+        )
         return f"MatchStamp({tl_list})"
 
     def __str__(self) -> str:
@@ -474,17 +481,6 @@ class MatchStamp(Stamp):
         if not self.coordinates:
             return lines[0]
 
-        def _fmt(v: float) -> str:
-            """Format a coordinate value - never use scientific notation."""
-            if v == int(v) and abs(v) < 1e15:
-                return str(int(v))
-            elif abs(v) >= 1e6:
-                return str(int(round(v)))
-            elif abs(v) >= 1:
-                return f"{v:.6f}".rstrip("0").rstrip(".")
-            else:
-                return f"{v:.6f}".rstrip("0").rstrip(".")
-
         # Classify each timeline by edge type
         anchor_tls = set()
         for a, b in self.anchor_edges:
@@ -503,9 +499,9 @@ class MatchStamp(Stamp):
                 tag = "inferred"
             else:
                 tag = ""
-            entries.append((tl_id, _fmt(coord), tag))
-
-        from timetoalign.core.timestamp import _format_stamp_value
+            entries.append(
+                (tl_id, _format_stamp_value(coord, self.units.get(tl_id, "")), tag)
+            )
 
         for label, value, suffix in self._conversion_rows():
             entries.append((label, _format_stamp_value(value, suffix), ""))
@@ -531,17 +527,6 @@ class MatchStamp(Stamp):
 
         from timetoalign.display.html import affordance_line
 
-        def _fmt_html(v: float) -> str:
-            """Format coordinate without scientific notation."""
-            if v == int(v) and abs(v) < 1e15:
-                return str(int(v))
-            elif abs(v) >= 1e6:
-                return str(int(round(v)))
-            elif abs(v) >= 1:
-                return f"{v:.6f}".rstrip("0").rstrip(".")
-            else:
-                return f"{v:.6f}".rstrip("0").rstrip(".")
-
         n_edges = self.n_explicit_edges + self.n_inferred_edges
 
         # Classify timelines
@@ -557,7 +542,9 @@ class MatchStamp(Stamp):
         rows = []
         for tl_id, coord in self.coordinates.items():
             esc_id = html_mod.escape(tl_id)
-            formatted = _fmt_html(coord)
+            formatted = html_mod.escape(
+                _format_stamp_value(coord, self.units.get(tl_id, ""))
+            )
             if tl_id in anchor_tls:
                 tag = "<em>anchor</em>"
                 rows.append(
@@ -579,8 +566,6 @@ class MatchStamp(Stamp):
                     f"<td></td></tr>"
                 )
 
-        from timetoalign.core.timestamp import _format_stamp_value
-
         for label, value, suffix in self._conversion_rows():
             rows.append(
                 f"<tr><td style='color: #666;'>{html_mod.escape(label)}</td>"
@@ -595,6 +580,11 @@ class MatchStamp(Stamp):
             f"{self.n_timelines} timelines, {n_edges} edges</span>"
         )
 
+        affordances = [
+            "stamp.get(<tl_id>)",
+            "stamp.get_coordinate(<tl_id>)",
+            "stamp.get_unit(<unit>)",
+        ]
         return (
             f"<div style='font-family: monospace;'>"
             f"<strong>MatchStamp</strong>{badge}"
@@ -606,7 +596,7 @@ class MatchStamp(Stamp):
             f"</tr></thead>"
             f"<tbody>{''.join(rows)}</tbody>"
             f"</table>"
-            f"{affordance_line(['stamp.get(<tl_id>)', 'stamp.get_coordinate(<tl_id>)', 'stamp.get_unit(<unit>)'])}"
+            f"{affordance_line(affordances)}"
             f"</div>"
         )
 

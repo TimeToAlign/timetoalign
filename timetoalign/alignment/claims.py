@@ -60,6 +60,7 @@ from timetoalign.core.fields import (
     register_value_projector,
     wire_to_rational,
 )
+from timetoalign.core.timestamp import _format_coordinate
 
 if TYPE_CHECKING:
     from timetoalign.alignment.bundle import AlignmentBundle
@@ -338,8 +339,29 @@ class AlignmentAnchor(BaseModel):
     def __repr__(self) -> str:
         return (
             f"AlignmentAnchor("
-            f"{self.timeline_a_id}@{float(self.coordinate_a.value):.2f} <-> "
-            f"{self.timeline_b_id}@{float(self.coordinate_b.value):.2f})"
+            f"{self.timeline_a_id}@"
+            f"{_format_coordinate(self.coordinate_a)}"
+            f" <-> {self.timeline_b_id}@"
+            f"{_format_coordinate(self.coordinate_b)})"
+        )
+
+    def __str__(self) -> str:
+        """Return the anchor with exact, unit-bearing coordinates."""
+        return repr(self)
+
+    def _repr_html_(self) -> str:
+        """Return an HTML representation with exact, unit-bearing coordinates."""
+        import html as html_mod
+
+        coordinate_a = _format_coordinate(self.coordinate_a)
+        coordinate_b = _format_coordinate(self.coordinate_b)
+        return (
+            "<div style='font-family: monospace;'>"
+            "<strong>AlignmentAnchor</strong>("
+            f"{html_mod.escape(self.timeline_a_id)}@{html_mod.escape(coordinate_a)} "
+            "&lt;-&gt; "
+            f"{html_mod.escape(self.timeline_b_id)}@{html_mod.escape(coordinate_b)})"
+            "</div>"
         )
 
 
@@ -1102,7 +1124,7 @@ class MatchClaim(BaseModel):
             if self.source_coordinate is not None:
                 timeline_a = (
                     f"{self.timeline_a_id}@"
-                    f"{float(self.source_coordinate.value):.1f}"
+                    f"{_format_coordinate(self.source_coordinate)}"
                 )
             else:
                 timeline_a = self.timeline_a_id
@@ -1113,18 +1135,20 @@ class MatchClaim(BaseModel):
             start_b, end_b = self.get_coordinates_for(self.timeline_b_id)
             return (
                 f"MatchClaim({match_type}: "
-                f"{self.timeline_a_id}[{float(start_a.value):.1f}-"
-                f"{float(end_a.value):.1f}] <-> "
-                f"{self.timeline_b_id}[{float(start_b.value):.1f}-"
-                f"{float(end_b.value):.1f}]{badge})"
+                f"{self.timeline_a_id}["
+                f"{_format_coordinate(start_a)}-{_format_coordinate(end_a)}] <-> "
+                f"{self.timeline_b_id}["
+                f"{_format_coordinate(start_b)}-{_format_coordinate(end_b)}]{badge})"
             )
         else:
             return (
                 f"MatchClaim({match_type}: "
                 f"{self.timeline_a_id}@"
-                f"{float(self.start_anchor.coordinate_a.value):.1f} <-> "
+                f"{_format_coordinate(self.start_anchor.coordinate_a)}"
+                f" <-> "
                 f"{self.timeline_b_id}@"
-                f"{float(self.start_anchor.coordinate_b.value):.1f}{badge})"
+                f"{_format_coordinate(self.start_anchor.coordinate_b)}"
+                f"{badge})"
             )
 
     def __str__(self) -> str:
@@ -1141,17 +1165,6 @@ class MatchClaim(BaseModel):
               Event B:     e042 "Intro"
               Metadata:    agent=partitura, certainty=1.0
         """
-
-        def _fmt(v: float) -> str:
-            """Format coordinate without scientific notation."""
-            if v == int(v) and abs(v) < 1e15:
-                return str(int(v))
-            elif abs(v) >= 1e6:
-                return str(int(round(v)))
-            elif abs(v) >= 1:
-                return f"{float(v):.6f}".rstrip("0").rstrip(".")
-            else:
-                return f"{float(v):.6f}".rstrip("0").rstrip(".")
 
         def _event_str(ev_id: str | None, ev_name: str | None) -> str | None:
             """Format event info as 'id "name"' or just id/name if one is missing."""
@@ -1182,14 +1195,19 @@ class MatchClaim(BaseModel):
             if self.is_interval and self.end_anchor is not None:
                 lines.append(
                     f"  Timeline A:  {self.timeline_a_id}  "
-                    f"[{_fmt(self.start_anchor.coordinate_a.value)} -- "
-                    f"{_fmt(self.end_anchor.coordinate_a.value)}]"
+                    f"[{_format_coordinate(self.start_anchor.coordinate_a)} -- "
+                    f"{_format_coordinate(self.end_anchor.coordinate_a)}]"
                 )
             else:
                 lines.append(
                     f"  Timeline A:  {self.timeline_a_id}  "
-                    f"@{_fmt(self.start_anchor.coordinate_a.value)}"
+                    f"@{_format_coordinate(self.start_anchor.coordinate_a)}"
                 )
+        elif self.source_coordinate is not None:
+            lines.append(
+                f"  Timeline A:  {self.timeline_a_id}  "
+                f"@{_format_coordinate(self.source_coordinate)}"
+            )
         else:
             lines.append(f"  Timeline A:  {self.timeline_a_id}")
 
@@ -1203,13 +1221,13 @@ class MatchClaim(BaseModel):
             if self.is_interval and self.end_anchor is not None:
                 lines.append(
                     f"  Timeline B:  {self.timeline_b_id}  "
-                    f"[{_fmt(self.start_anchor.coordinate_b.value)} -- "
-                    f"{_fmt(self.end_anchor.coordinate_b.value)}]"
+                    f"[{_format_coordinate(self.start_anchor.coordinate_b)} -- "
+                    f"{_format_coordinate(self.end_anchor.coordinate_b)}]"
                 )
             else:
                 lines.append(
                     f"  Timeline B:  {self.timeline_b_id}  "
-                    f"@{_fmt(self.start_anchor.coordinate_b.value)}"
+                    f"@{_format_coordinate(self.start_anchor.coordinate_b)}"
                 )
         else:
             lines.append(f"  Timeline B:  {self.timeline_b_id}")
@@ -1239,17 +1257,6 @@ class MatchClaim(BaseModel):
         import html as html_mod
 
         from timetoalign.display.html import affordance_line
-
-        def _fmt(v: float) -> str:
-            """Format coordinate without scientific notation."""
-            if v == int(v) and abs(v) < 1e15:
-                return str(int(v))
-            elif abs(v) >= 1e6:
-                return str(int(round(v)))
-            elif abs(v) >= 1:
-                return f"{float(v):.6f}".rstrip("0").rstrip(".")
-            else:
-                return f"{float(v):.6f}".rstrip("0").rstrip(".")
 
         # Header badge derives from the claim kind. A plain event_match keeps
         # the instant/interval colour scheme; every other kind shows its name.
@@ -1301,16 +1308,23 @@ class MatchClaim(BaseModel):
         if self.is_synchronous and self.start_anchor is not None:
             if self.is_interval and self.end_anchor is not None:
                 coord_a = (
-                    f"[{_fmt(self.start_anchor.coordinate_a.value)} &ndash; "
-                    f"{_fmt(self.end_anchor.coordinate_a.value)}]"
+                    f"[{_format_coordinate(self.start_anchor.coordinate_a)} &ndash; "
+                    f"{_format_coordinate(self.end_anchor.coordinate_a)}]"
                 )
             else:
-                coord_a = f"@{_fmt(self.start_anchor.coordinate_a.value)}"
+                coord_a = f"@{_format_coordinate(self.start_anchor.coordinate_a)}"
 
             rows.append(
                 f"<tr><td>Timeline A</td>"
                 f"<td><strong>{html_mod.escape(self.timeline_a_id)}</strong></td>"
                 f"<td>{coord_a}</td></tr>"
+            )
+        elif self.source_coordinate is not None:
+            source_coordinate = _format_coordinate(self.source_coordinate)
+            rows.append(
+                f"<tr><td>Timeline A</td>"
+                f"<td>{html_mod.escape(self.timeline_a_id)}</td>"
+                f"<td>@{html_mod.escape(source_coordinate)}</td></tr>"
             )
         else:
             rows.append(
@@ -1328,11 +1342,11 @@ class MatchClaim(BaseModel):
         if self.is_synchronous and self.start_anchor is not None:
             if self.is_interval and self.end_anchor is not None:
                 coord_b = (
-                    f"[{_fmt(self.start_anchor.coordinate_b.value)} &ndash; "
-                    f"{_fmt(self.end_anchor.coordinate_b.value)}]"
+                    f"[{_format_coordinate(self.start_anchor.coordinate_b)} &ndash; "
+                    f"{_format_coordinate(self.end_anchor.coordinate_b)}]"
                 )
             else:
-                coord_b = f"@{_fmt(self.start_anchor.coordinate_b.value)}"
+                coord_b = f"@{_format_coordinate(self.start_anchor.coordinate_b)}"
 
             rows.append(
                 f"<tr><td>Timeline B</td>"
@@ -2224,9 +2238,9 @@ class MatchClaimField(SemanticField[MatchClaim]):
             rows.append(
                 f"<tr><td>{i}</td>"
                 f"<td>{html_mod.escape(claim.timeline_a_id)}</td>"
-                f"<td>{float(anchor.coordinate_a.value):g}</td>"
+                f"<td>{html_mod.escape(_format_coordinate(anchor.coordinate_a))}</td>"
                 f"<td>{html_mod.escape(claim.timeline_b_id)}</td>"
-                f"<td>{float(anchor.coordinate_b.value):g}</td></tr>"
+                f"<td>{html_mod.escape(_format_coordinate(anchor.coordinate_b))}</td></tr>"
             )
         if n > head:
             rows.append("<tr><td colspan='5'>&hellip;</td></tr>")

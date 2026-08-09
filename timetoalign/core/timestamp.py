@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from decimal import Decimal
 from fractions import Fraction
 from typing import (
     TYPE_CHECKING,
@@ -103,11 +104,11 @@ DISCRETE_UNITS = frozenset(
 
 
 def _format_coordinate_value(value: int | float, unit_str: str = "") -> str:
-    """Format a coordinate value, avoiding scientific notation.
+    """Format a coordinate value without rounding or scientific notation.
 
     Rules:
     - Discrete units (ticks, samples, pixels, frames): Always integer
-    - Continuous units: Fixed-point notation, no scientific notation
+    - Continuous floats: Their shortest lossless representation in fixed-point notation
     - Exact integers: Show as integer (no decimal point)
 
     Args:
@@ -120,22 +121,16 @@ def _format_coordinate_value(value: int | float, unit_str: str = "") -> str:
     suffix = f" {unit_str}" if unit_str else ""
     unit_lower = unit_str.lower().strip()
 
-    # For discrete units OR exact integers, format as plain integer
-    if unit_lower in DISCRETE_UNITS or (value == int(value) and abs(value) < 1e15):
+    # For discrete units OR modest exact integers, format as a plain integer.
+    if unit_lower in DISCRETE_UNITS or (
+        isinstance(value, int) or (value.is_integer() and abs(value) < 1e15)
+    ):
         return f"{int(value)}{suffix}"
 
-    # For continuous units, use fixed-point notation (no scientific notation)
-    if abs(value) >= 1e6:
-        # Large values: show as integer
-        return f"{int(round(value))}{suffix}"
-    elif abs(value) >= 1:
-        # Normal range: up to 6 decimal places, strip trailing zeros
-        return f"{value:.6f}".rstrip("0").rstrip(".") + suffix
-    elif value == 0:
-        return f"0{suffix}"
-    else:
-        # Small values (< 1): up to 6 decimal places
-        return f"{value:.6f}".rstrip("0").rstrip(".") + suffix
+    rendered = str(value)
+    if "e" in rendered.lower():
+        rendered = format(Decimal(rendered), "f")
+    return rendered + suffix
 
 
 def _format_stamp_value(value: Any, unit_str: str = "") -> str:
@@ -160,6 +155,18 @@ def _format_stamp_value(value: Any, unit_str: str = "") -> str:
     if isinstance(value, (int, float)):
         return _format_coordinate_value(value, unit_str)
     return str(value)
+
+
+def _format_coordinate(coordinate: Coordinate) -> str:
+    """Format a coordinate's value together with its unit.
+
+    Args:
+        coordinate: Unit-bearing coordinate to display.
+
+    Returns:
+        The coordinate's shared stamp formatting with its unit suffix.
+    """
+    return _format_stamp_value(coordinate.value, coordinate.unit.value)
 
 
 # endregion
