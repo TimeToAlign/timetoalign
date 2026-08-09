@@ -81,7 +81,7 @@ what `event_ref` resolves against.
 |---|---|---|
 | `<spine>` | `spine:dlt1` (`DiscreteLogicalTimeline`) | ticks, int |
 | `<los>` notes/rests/lyrics | `los:dlt2` (`DiscreteLogicalTimeline`) | ticks, int |
-| each `<graphic_instance_group>` | `<role>:cgt<n>` (`ContinuousGraphicalTimeline`) | pixels, float |
+| each `<graphic_instance_group>` | `<role>:dgt<n>` (`SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]`) | pixels, int |
 | each `<track>` | `<role>:cpt<n>` (`ContinuousPhysicalTimeline`) | seconds, float |
 
 Roles are asserted exactly, because they encode the sanitisation rule
@@ -99,23 +99,37 @@ recovered by grouping on `event_ref` and ordering by `notehead_index`.  Hence
 `los` event counts are notehead counts, not chord counts (gymnopédie: 469
 noteheads from 288 chords).
 
-Every `<graphic_instance>` declares `measurement_unit="pixels"`, and the
-coordinates are not integral everywhere (`animals` has `upper_left_x="992.96"`,
-and its `farm_picture` timeline `length` is asserted as `1206.4`).  The boxes
-are therefore carried unscaled on a `ContinuousGraphicalTimeline` whose unit is
-the `pixels` the document itself declares — `TimeUnit.pixels` pairs with float
-coordinates on the continuous type and with int coordinates on
-`DiscreteGraphicalTimeline`, so nothing has to be rescaled or rounded to be
-representable (see `tests/timelines/test_types.py`).  A test asserts the class,
-the unit, the `float` number type and the fractional length together, and the
-declared `measurement_unit` is asserted to survive per page in
-`timeline.meta["pages"]`.
+Every `<graphic_instance>` declares `measurement_unit="pixels"`, so an edition
+is measured in the `pixels` the document itself declares.  A pixel is
+countable, so the boxes are rounded round-half-even onto
+`DiscreteGraphicalTimeline` accolades; the verbatim box survives as
+`source_bbox` wherever rounding would lose precision (`animals` has
+`upper_left_x="992.96"`), and a test asserts both the rounded coordinate and
+that fractional source box together.  The declared `measurement_unit` is
+asserted to survive per page in `edition.meta["pages"]`.
+
+An edition nests two levels, because a page is the unit that owns a pixel
+origin: the edition line's segments are its pages (one per
+`<graphic_instance>`, uid `<edition>_page<n>`), and a page's segments are the
+accolades engraved on it (uid `<edition>_page<n>_accolade<k>`, numbered within
+their page).  Accolades are found by the half-span rule — within a page, a
+drop in `upper_left_x` greater than half that page's observed x-span starts a
+new accolade — and every page restarts the rule, so an accolade never straddles
+two images.  The nesting is asserted three ways: the page/accolade counts of
+all six specimens (gymnopédie: 4 pages of 4, 5, 5, 4 accolades per edition),
+the fact that the first accolade of a page ends at the first half-span drop,
+and each page child naming its own image file in `meta["page"]`.
+
+Both levels concatenate their children, so the edition coordinate of an event
+is `page_offset + accolade_offset + upper_left_x`; page-local x coordinates
+overlap between pages and are disambiguated by that offset, never by the raw
+box.  Claims therefore carry edition coordinates, and the edition's
+`IntervalToConstantMap` named `file_name` maps any edition coordinate back to
+the page image containing it.
 
 Graphic events are interval events from `upper_left_x` to `lower_right_x`, with
-`upper_left_y` / `lower_right_y`, the page `file_name` and `position_in_group`
-as fields.  All pages of one edition share one timeline, so page-local x
-coordinates overlap between pages — the coordinate space is per page, not per
-edition, and the tests do not pretend otherwise.
+the integer `bbox` struct, the page `file_name` and `position_in_group` as
+fields, so a single event resolves to its image without walking the hierarchy.
 
 Track events are instants at `start_time` seconds.
 

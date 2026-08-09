@@ -273,10 +273,13 @@ class TestTimelineIdentity:
         edition = loader.create_timeline("farm_picture:dgt1")
         track = loader.create_timeline("animals_eng:cpt1")
 
+        _, page = edition.get_segment_by_index(0)
+
         assert isinstance(spine, DiscreteLogicalTimeline)
         assert isinstance(los, DiscreteLogicalTimeline)
         assert isinstance(edition, SegmentLine)
-        assert edition.segment_type is DiscreteGraphicalTimeline
+        assert edition.segment_type is SegmentLine[DiscreteGraphicalTimeline]
+        assert page.segment_type is DiscreteGraphicalTimeline
         assert isinstance(track, ContinuousPhysicalTimeline)
         assert (spine.unit, spine.number_type) == (TimeUnit.ticks, NumberType.int)
         assert (los.unit, los.number_type) == (TimeUnit.ticks, NumberType.int)
@@ -530,19 +533,49 @@ class TestNotationalLayer:
             4,
         }
 
-    def test_gymnopedie_accolades_are_pinned(self, ieee1599_loader) -> None:
+    def test_gymnopedie_accolades_are_pinned_to_their_pages(
+        self, ieee1599_loader
+    ) -> None:
         """The half-span rule finds 4, 5, 5, 4 systems on every edition."""
         loader = ieee1599_loader("gymnopedie")
         counts = []
         for uid in loader.edition_uids:
             edition = loader.create_timeline(uid)
-            per_page: dict[int, int] = {}
-            for _, _, segment in edition.iter_segments():
-                page = segment.meta["page"]["position_in_group"]
-                per_page[page] = per_page.get(page, 0) + 1
-            counts.append((edition.n_segments, list(per_page.values())))
+            counts.append(
+                (
+                    edition.n_segments,
+                    [page.n_segments for _, _, page in edition.iter_segments()],
+                )
+            )
 
-        assert counts == [(18, [4, 5, 5, 4]), (18, [4, 5, 5, 4])]
+        assert counts == [(4, [4, 5, 5, 4]), (4, [4, 5, 5, 4])]
+
+    def test_page_children_name_their_own_image(self, ieee1599_loader) -> None:
+        """Each page child is one ``<graphic_instance>``: one file, one origin."""
+        edition = ieee1599_loader("gymnopedie").create_timeline(
+            "eng_montreal_les_editions_outremontaises_2006:dgt1"
+        )
+        pages = [page for _, _, page in edition.iter_segments()]
+
+        assert [page.id for page in pages] == [
+            f"eng_montreal_les_editions_outremontaises_2006:dgt1_page{index}"
+            for index in (1, 2, 3, 4)
+        ]
+        assert [page.meta["page"]["position_in_group"] for page in pages] == [
+            1,
+            2,
+            3,
+            4,
+        ]
+        assert [page.meta["page"]["file_name"] for page in pages] == [
+            f"score/Montreal/IMSLP01599-Satie_Gymnopedies-{index}.png"
+            for index in (1, 2, 3, 4)
+        ]
+        assert [page.length.value for page in pages] == [1694, 2152, 2105, 1735]
+        assert [accolade.id for _, _, accolade in pages[0].iter_segments()] == [
+            f"eng_montreal_les_editions_outremontaises_2006:dgt1_page1_accolade{index}"
+            for index in (1, 2, 3, 4)
+        ]
 
     def test_gymnopedie_first_drop_starts_the_second_accolade(
         self, ieee1599_loader
@@ -551,8 +584,9 @@ class TestNotationalLayer:
         edition = ieee1599_loader("gymnopedie").create_timeline(
             "eng_montreal_les_editions_outremontaises_2006:dgt1"
         )
-        _, first = edition.get_segment_by_index(0)
-        _, second = edition.get_segment_by_index(1)
+        _, page = edition.get_segment_by_index(0)
+        _, first = page.get_segment_by_index(0)
+        _, second = page.get_segment_by_index(1)
         first_rows = first.events.table.to_pylist()
         second_rows = second.events.table.to_pylist()
 
@@ -563,27 +597,18 @@ class TestNotationalLayer:
         assert 411 - 53 > (422 - 49) / 2
 
     def test_page_file_map_resolves_each_gymnopedie_page(self, ieee1599_loader) -> None:
-        """Every page's first accolade maps to its verbatim image file name."""
+        """Every page's first box maps to its verbatim image file name."""
         edition = ieee1599_loader("gymnopedie").create_timeline(
             "eng_montreal_les_editions_outremontaises_2006:dgt1"
         )
-        page_starts: dict[int, tuple[float, str]] = {}
-        for _, offset, segment in edition.iter_segments():
-            page = segment.meta["page"]
-            page_starts.setdefault(
-                page["position_in_group"],
-                (
-                    offset.value
-                    + segment.events.table.to_pylist()[0]["start"]["value"],
-                    page["file_name"],
-                ),
-            )
+        page_starts = [
+            offset.value + page.get_events().table.to_pylist()[0]["start"]["value"]
+            for _, offset, page in edition.iter_segments()
+        ]
         cmap = edition.get_conversion_map("file_name")
 
         assert isinstance(cmap, IntervalToConstantMap)
-        assert [
-            (coordinate, cmap(coordinate)) for coordinate, _ in page_starts.values()
-        ] == [
+        assert [(start, cmap(start)) for start in page_starts] == [
             (50.0, "score/Montreal/IMSLP01599-Satie_Gymnopedies-1.png"),
             (1749.0, "score/Montreal/IMSLP01599-Satie_Gymnopedies-2.png"),
             (3943.0, "score/Montreal/IMSLP01599-Satie_Gymnopedies-3.png"),
@@ -591,26 +616,34 @@ class TestNotationalLayer:
         ]
 
     @pytest.mark.parametrize(
-        "specimen, segment_counts",
+        "specimen, page_accolade_counts",
         [
-            ("gymnopedie", [18, 18]),
-            ("animals", [3, 1, 1]),
-            ("khomus", [4, 4]),
-            ("pazzariello", [34, 14]),
-            ("serie", [463]),
-            ("bach", [48, 48, 24]),
+            ("gymnopedie", [(4, 18), (4, 18)]),
+            ("animals", [(1, 3), (1, 1), (1, 1)]),
+            ("khomus", [(1, 4), (1, 4)]),
+            ("pazzariello", [(3, 34), (2, 14)]),
+            ("serie", [(28, 463)]),
+            ("bach", [(3, 48), (3, 48), (2, 24)]),
         ],
     )
-    def test_every_specimen_loads_its_segmented_editions(
-        self, ieee1599_loader, specimen: str, segment_counts: list[int]
+    def test_every_specimen_loads_its_paged_editions(
+        self,
+        ieee1599_loader,
+        specimen: str,
+        page_accolade_counts: list[tuple[int, int]],
     ) -> None:
-        """All six IEEE 1599 specimens load with their observed accolades."""
+        """All six specimens load with their observed pages and accolades."""
         loader = ieee1599_loader(specimen)
         bundle = loader.create_bundle()
+        editions = [loader.create_timeline(uid) for uid in loader.edition_uids]
 
         assert [
-            loader.create_timeline(uid).n_segments for uid in loader.edition_uids
-        ] == (segment_counts)
+            (
+                edition.n_segments,
+                sum(page.n_segments for _, _, page in edition.iter_segments()),
+            )
+            for edition in editions
+        ] == page_accolade_counts
         assert len(bundle.groups) == len(loader.timeline_uids)
 
 

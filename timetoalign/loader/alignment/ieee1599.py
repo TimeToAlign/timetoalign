@@ -22,9 +22,10 @@ IEEE 1599 construct           TimeToAlign! representation
                               unit ``ticks``, ``NumberType.int``
 ``<logic><los>`` notes,       ONE ``DiscreteLogicalTimeline`` ``los:dlt2``,
 rests and lyric syllables     unit ``ticks``
-``<notational>`` per          ONE ``SegmentLine`` of
-``graphic_instance_group``    ``DiscreteGraphicalTimeline`` accolades per
-                              group, unit ``pixels``
+``<notational>`` per          ONE nested ``SegmentLine`` per group: one page
+``graphic_instance_group``    child per ``<graphic_instance>``, each holding
+                              its ``DiscreteGraphicalTimeline`` accolades,
+                              unit ``pixels``
 ``<audio>`` per ``<track>``   ONE ``ContinuousPhysicalTimeline``,
                               unit ``seconds``
 ``<structural>`` per          one ``external_references`` row on the
@@ -84,8 +85,13 @@ round-half-even for the graphical SegmentLine and its child timelines; the
 verbatim source box is retained as the float ``source_bbox`` event field when
 any of its four coordinates is fractional; it is omitted when all four are
 integral. Each graphical event's integer box is a raw ``bbox`` struct with
-``ul`` / ``lr`` and ``x`` / ``y`` members. The page image file name is
-available from the SegmentLine's interval-to-constant map.
+``ul`` / ``lr`` and ``x`` / ``y`` members. Every page of an edition is its own
+image file with its own pixel origin, so an edition nests two levels deep: the
+edition line's segments are its pages, and a page's segments are the accolades
+engraved on it. A page child carries its ``<graphic_instance>`` attributes in
+``meta["page"]``, and each event keeps its own ``file_name`` and
+``position_in_group``; the edition's interval-to-constant map names the page
+image containing any edition coordinate.
 
 **Known limitations.**
 
@@ -179,17 +185,23 @@ class _EditionSpec:
     uid: str
     role: str
     description: str
-    pages: list[dict[str, Any]] = field(default_factory=list)
+    pages: list[_GraphicPageSpec] = field(default_factory=list)
     rows: list[dict[str, Any]] = field(default_factory=list)
-    segments: list[_GraphicSegmentSpec] = field(default_factory=list)
     claim_coordinates: list[int] = field(default_factory=list)
+
+
+@dataclass
+class _GraphicPageSpec:
+    """One ``<graphic_instance>``: one page image and the accolades on it."""
+
+    page: dict[str, Any]
+    segments: list[_GraphicSegmentSpec] = field(default_factory=list)
 
 
 @dataclass
 class _GraphicSegmentSpec:
     """One contiguous accolade from one graphic-instance page."""
 
-    page: dict[str, Any]
     rows: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -821,20 +833,27 @@ class Ieee1599Loader(XmlLoader):
             spec.rows = _prune_columns(spec.rows)
             if spec.rows:
                 keys = spec.rows[0].keys()
-                for segment in spec.segments:
-                    segment.rows = [
-                        {key: row[key] for key in keys} for row in segment.rows
-                    ]
+                for page_spec in spec.pages:
+                    for segment in page_spec.segments:
+                        segment.rows = [
+                            {key: row[key] for key in keys} for row in segment.rows
+                        ]
             self._editions.append(spec)
 
     @staticmethod
     def _set_graphic_claim_coordinates(spec: _EditionSpec) -> None:
-        """Set each graphic claim's parent-SegmentLine x coordinate."""
+        """Set each graphic claim's edition-wide x coordinate.
+
+        Accolades concatenate within a page and pages concatenate within the
+        edition, so one running offset over the document-ordered accolades
+        yields the coordinate a claim carries on the edition timeline.
+        """
         offset = 0
-        for segment in spec.segments:
-            for row in segment.rows:
-                spec.claim_coordinates.append(offset + row["start"])
-            offset += max((row["end"] for row in segment.rows), default=0)
+        for page_spec in spec.pages:
+            for segment in page_spec.segments:
+                for row in segment.rows:
+                    spec.claim_coordinates.append(offset + row["start"])
+                offset += max((row["end"] for row in segment.rows), default=0)
 
     def _read_graphic_instance(self, instance: ET.Element, spec: _EditionSpec) -> None:
         """Read one page and split its graphical events into accolades."""
@@ -845,7 +864,8 @@ class Ieee1599Loader(XmlLoader):
             "file_format": instance.get("file_format"),
             "measurement_unit": instance.get("measurement_unit"),
         }
-        spec.pages.append(page)
+        page_spec = _GraphicPageSpec(page=page)
+        spec.pages.append(page_spec)
         graphics = list(instance.findall("graphic_event"))
         ulx_values = [
             value
@@ -863,8 +883,8 @@ class Ieee1599Loader(XmlLoader):
             if ulx is None:
                 continue
             if previous_ulx is None or previous_ulx - ulx > half_span:
-                segment = _GraphicSegmentSpec(page=page)
-                spec.segments.append(segment)
+                segment = _GraphicSegmentSpec()
+                page_spec.segments.append(segment)
             previous_ulx = ulx
             assert segment is not None
 
@@ -1472,42 +1492,64 @@ class Ieee1599Loader(XmlLoader):
 
     def _build_graphical(
         self, spec: _EditionSpec
-    ) -> SegmentLine[DiscreteGraphicalTimeline]:
-        """Build an edition as contiguous, integer-pixel graphical accolades.
+    ) -> SegmentLine[SegmentLine[DiscreteGraphicalTimeline]]:
+        """Build an edition as pages of contiguous, integer-pixel accolades.
 
-        Each child keeps the source page's pixel coordinates. The parent
-        concatenates those child coordinate spaces, so graphical claims use
-        the corresponding SegmentLine coordinate. A page-file interval map on
-        the parent resolves every accolade coordinate to the page image that
-        contains it.
+        The edition is two levels deep: one page child per
+        ``<graphic_instance>``, each holding that page's accolades. Every
+        accolade keeps its source page's pixel coordinates, and each level
+        concatenates its children's coordinate spaces, so graphical claims use
+        the resulting edition coordinate. Because a page owns its own image
+        file and pixel origin, its child accolade coordinates resolve back to
+        that image without consulting any sibling page. A page-file interval
+        map on the edition resolves an edition coordinate to the page image
+        that contains it.
         """
-        timeline: SegmentLine[DiscreteGraphicalTimeline] = SegmentLine[
-            DiscreteGraphicalTimeline
+        timeline: SegmentLine[SegmentLine[DiscreteGraphicalTimeline]] = SegmentLine[
+            SegmentLine[DiscreteGraphicalTimeline]
         ](
             length=0,
             unit=_GRAPHIC_UNIT,
             number_type=NumberType.int,
             uid=spec.uid,
             name=spec.description,
-            meta={"description": spec.description, "pages": spec.pages},
+            meta={
+                "description": spec.description,
+                "pages": [page_spec.page for page_spec in spec.pages],
+            },
         )
         boundaries: list[int] = []
         file_names: list[str | None] = []
-        for index, segment_spec in enumerate(spec.segments, start=1):
-            if not segment_spec.rows:
+        for page_index, page_spec in enumerate(spec.pages, start=1):
+            accolade_specs = [
+                segment_spec for segment_spec in page_spec.segments if segment_spec.rows
+            ]
+            if not accolade_specs:
                 continue
-            segment = DiscreteGraphicalTimeline(
-                length=max(row["end"] for row in segment_spec.rows),
+            page_uid = f"{spec.uid}_page{page_index}"
+            page: SegmentLine[DiscreteGraphicalTimeline] = SegmentLine[
+                DiscreteGraphicalTimeline
+            ](
+                length=0,
                 unit=_GRAPHIC_UNIT,
                 number_type=NumberType.int,
-                uid=f"{spec.uid}_segment{index}",
-                name=f"accolade_{index}",
-                meta={"page": segment_spec.page},
+                uid=page_uid,
+                name=f"page_{page_index}",
+                meta={"page": page_spec.page},
             )
-            segment.add_events(segment_spec.rows)
+            for accolade_index, segment_spec in enumerate(accolade_specs, start=1):
+                accolade = DiscreteGraphicalTimeline(
+                    length=max(row["end"] for row in segment_spec.rows),
+                    unit=_GRAPHIC_UNIT,
+                    number_type=NumberType.int,
+                    uid=f"{page_uid}_accolade{accolade_index}",
+                    name=f"accolade_{accolade_index}",
+                )
+                accolade.add_events(segment_spec.rows)
+                page.append_segment(accolade)
             boundaries.append(timeline.length.value)
-            file_names.append(segment_spec.page["file_name"])
-            timeline.append_segment(segment)
+            file_names.append(page_spec.page["file_name"])
+            timeline.append_segment(page)
         if boundaries:
             timeline.add_conversion_map(
                 IntervalToConstantMap(

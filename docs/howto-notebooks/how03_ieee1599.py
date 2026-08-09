@@ -46,8 +46,8 @@
 # 1. Load the document in one call and read its title.
 # 2. The spine, in ticks — a cumulative virtual-time axis — and the LOS
 #    layer of notes and rests sitting at spine coordinates.
-# 3. The graphical editions as accolade `SegmentLine`s, in pixels, and the
-#    audio tracks, in seconds.
+# 3. The graphical editions as nested `SegmentLine`s of pages and accolades,
+#    in pixels, and the audio tracks, in seconds.
 # 4. The projections, reached through the uniform
 #    {{< glossary MatchClaimField >}} API, and the cross-section they
 #    describe over spine coordinates.
@@ -160,12 +160,13 @@ notes.head(5)
 # ### Per-edition graphical SegmentLines
 #
 # Each ``<graphic_instance_group>`` — one engraved edition of the score — is
-# its own `SegmentLine[DiscreteGraphicalTimeline]`, in unit ``pixels``. Its
-# x coordinates zig-zag along the spine: when a new system begins beyond half
-# of the preceding page's x-span, the reset starts a new accolade. Each
-# accolade is one contiguous segment on the edition's `SegmentLine`; the two
-# editions each have 18 segments, distributed 4 + 5 + 5 + 4 across their four
-# pages.
+# its own nested `SegmentLine`, in unit ``pixels``. An edition is printed on
+# pages, and a page is one image file with its own pixel origin, so the
+# edition's segments are its pages and a page's segments are the accolades
+# engraved on it. Within a page, x coordinates zig-zag along the spine: when a
+# new system begins beyond half of that page's x-span, the reset starts a new
+# accolade. Both gymnopédie editions have four pages carrying 4 + 5 + 5 + 4
+# accolades.
 
 # %%
 for uid in loader.edition_uids:
@@ -178,20 +179,24 @@ graphical_events = edition.get_events().to_dataframe()
 graphical_events.head()
 
 # %% [markdown]
-# The edition's segments are the individual accolades. `list_segments()`
-# preserves their spine order, while `get_segment_by_index()` exposes each
-# segment's global offset and its page-local graphical timeline:
+# The edition's segments are its pages; each page's segments are its
+# accolades. `iter_segments()` yields both levels in spine order, together
+# with each child's offset in its parent's coordinates. A page carries its
+# ``<graphic_instance>`` attributes — the image ``file_name`` above all — in
+# ``meta["page"]``:
 
 # %%
-print(f"{edition.class_name}: {edition.n_segments} accolade segments")
-for index, segment_id in enumerate(edition.list_segments()):
-    offset, accolade = edition.get_segment_by_index(index)
-    print(f"{index + 1:>2}: {segment_id} at x={offset.value}, length={accolade.length}")
+print(f"{edition.class_name}: {edition.n_segments} pages")
+for _, page_offset, page in edition.iter_segments():
+    print(f"{page.name} at x={page_offset.value}: {page.meta['page']['file_name']}")
+    for _, offset, accolade in page.iter_segments():
+        print(f"    {accolade.name} at x={offset.value}, length={accolade.length}")
 
 # %% [markdown]
-# An `IntervalToConstantMap` on the edition resolves any of these unfolded
-# x coordinates to the page-image ``file_name`` that contains it. The first
-# graphical event provides one such coordinate:
+# An `IntervalToConstantMap` on the edition resolves any edition-wide
+# x coordinate to the page-image ``file_name`` that contains it, without
+# descending the hierarchy. The first graphical event provides one such
+# coordinate:
 
 # %%
 page_image_map = next(
@@ -327,8 +332,8 @@ unmapped.to_pandas()
 # |---|---|
 # | The spine, a cumulative VTU axis | `spine:dlt1`, `DiscreteLogicalTimeline`, ``ticks`` |
 # | Notes, rests, lyrics at spine coordinates | `los:dlt2`, verbatim `duration_num`/`duration_den` |
-# | Engraved editions, page-image boxes | one `SegmentLine[DiscreteGraphicalTimeline]`
-# |   per edition: 18 accolade segments, an `IntervalToConstantMap` to page images, ``pixels`` |
+# | Engraved editions, page-image boxes | one nested `SegmentLine` per edition:
+# |   4 page segments carrying 18 accolades, an `IntervalToConstantMap` to page images, ``pixels`` |
 # | Audio recordings | one `ContinuousPhysicalTimeline` per track, ``seconds`` |
 # | Every projection onto the spine | one columnar {{< glossary MatchClaimField >}} via `loader.get_field(MatchClaim)` |
 # | The cross-section over spine coordinates | `bundle.get_matchstamp_table(from_graph=True)` |
