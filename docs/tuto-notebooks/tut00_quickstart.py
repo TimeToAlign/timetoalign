@@ -219,8 +219,9 @@ claim
 
 # %% [markdown]
 # The rendered claim shows the exact, unit-bearing positions `@25/2 seconds`
-# and `@415/24 quarters`. A bundle can combine this claim with wider alignment
-# evidence. Open
+# and `@415/24 quarters`, with the `ANCHOR` tag marking a claim built from bare
+# coordinates, as explained with other claim types in the alignment tutorial. A
+# bundle can combine this claim with wider alignment evidence. Open
 # [Alignment Bundles](tut06_alignment_bundles.ipynb) to assemble and query
 # larger alignments.
 

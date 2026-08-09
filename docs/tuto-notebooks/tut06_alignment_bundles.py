@@ -245,20 +245,14 @@ bundle_structure
 # ## From claims to a map
 #
 # Claims between two groups accumulate into a {{< glossary MatchLine >}}. The
-# line orders their coordinate pairs, and a {{< glossary WarpMap >}} interpolates
-# positions between them.
+# line returns raw numeric pairs, deliberately as floats because they are input
+# to a {{< glossary WarpMap >}} rather than user-facing coordinates. The map
+# interpolates positions between them.
 
 # %%
 bundle_claims = bundle.get_match_claims()
 match_line = MatchLine.from_claims(bundle_claims, score.id)
 line_pairs = match_line.get_coordinate_pairs(performance.id)
-coordinate_line_pairs = [
-    (
-        Coordinate(Fraction(source), TimeUnit.quarters),
-        Coordinate(target, TimeUnit.seconds),
-    )
-    for source, target in line_pairs
-]
 warp_map = WarpMap.from_match_line(
     match_line,
     performance.id,
@@ -269,7 +263,7 @@ between_coordinate = Coordinate(Fraction(6), TimeUnit.quarters)
 mapped_between = Coordinate(warp_map(between_coordinate.value), TimeUnit.seconds)
 map_summary = {
     "asserted positions": observed_pairs,
-    "ordered claim pairs": coordinate_line_pairs,
+    "ordered claim pairs": line_pairs,
     "map anchors": warp_map.n_anchors,
     "interpolated position": mapped_between,
 }

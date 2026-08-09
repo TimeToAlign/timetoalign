@@ -180,7 +180,7 @@ notes_in_window = tl.get_events(
 )
 window_events_frame = events_in_window.to_dataframe(coordinates=True)
 window_event_view = window_events_frame[["id", "event_type", "start", "end"]]
-window_event_view
+window_event_view.style.format({"start": repr, "end": repr})
 
 # %% [markdown]
 # The returned starts are 1, 2, and 3 quarters: the event at 4 quarters is

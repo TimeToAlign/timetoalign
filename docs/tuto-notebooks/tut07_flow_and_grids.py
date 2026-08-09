@@ -277,7 +277,7 @@ flow_report
 score_timeline = score_loader.create_timeline(uid="woo71_folded")
 section_boundaries = controller.get_section_boundary_coordinates()
 boundary_coordinates = [
-    score_timeline.origin,
+    score_timeline.start,
     *[score_timeline.make_coordinate(boundary) for boundary in section_boundaries],
     score_timeline.length,
 ]

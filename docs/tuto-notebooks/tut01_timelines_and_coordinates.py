@@ -187,6 +187,7 @@ theme_on_audio
 
 # %%
 unresolved_sample = Coordinate(110250, TimeUnit.samples)
+coordinate_error = None
 try:
     audio.get_coordinate(unresolved_sample)
 except ValueError as exc:
