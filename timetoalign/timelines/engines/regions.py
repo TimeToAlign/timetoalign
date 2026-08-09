@@ -6,10 +6,10 @@ from collections.abc import Callable, Iterator, Sequence
 from typing import Any
 
 from timetoalign.core import CoordinateSpec, CoordinateValue
+from timetoalign.core.time import coordinate_numeric_value
 from timetoalign.core.timestamp import _format_coordinate_value
 
 from ..regions import Region
-from .coordinate_ops import coordinate_numeric_value
 
 
 def _resolve_boundary_names(

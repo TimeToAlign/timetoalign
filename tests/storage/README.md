@@ -5,27 +5,45 @@ event storage layer (`EventData`, `EventStore` and its subclasses).
 
 ## Fraction Fidelity Validation
 
-Interval completion is checked with exact rational expectations whenever every
-operand carries a numerator and denominator.  Tests cover both row-oriented
-`from_dicts` construction and the vectorized `from_arrays` path, including
-addition and subtraction results such as `7/2 + 3/4 = 17/4`.  Float-only and
-mixed exact/inexact inputs must leave computed numerator and denominator fields
-null; the float convenience value must not be converted back into a fabricated
-rational.  These assertions protect the authoritative rational pair from
-default `0/1` values during interval filling.
+Interval completion is checked with exact rational expectations. Tests cover
+both row-oriented `from_dicts` construction and the vectorized `from_arrays`
+path, including addition and subtraction results such as `7/2 + 3/4 = 17/4`.
+
+Every non-null coordinate cell carries the number on **both** sides of the
+struct — a float64 and an integer ratio — so the tests assert both, plus the
+agreement between them. There is no longer any such thing as a "null pair
+signals float": which side is authoritative is declared once in the field's
+`number_type` metadata, so a computed `duration` in a float-typed column has a
+float canonical side and an exact dyadic mirror, and one in a fraction-typed
+column has the reverse. Asserting only the side a caller happens to read would
+miss a cell whose two halves disagree.
 
 The interval-normalisation regression also checks the explicit temporal type:
-an instant row may have a populated ``start`` coordinate, but its ``end`` and
-``duration`` cells remain null.  Interval rows still receive both coordinates;
-when their inputs are exact, the generated pair is checked with Fraction
-arithmetic.  This is the same vectorized path used while assembling merged
-score tables.
+an instant row may have a populated `start` coordinate, but its `end` and
+`duration` cells remain null — genuinely null rows are the only place a null
+sub-field appears. Interval rows still receive both coordinates, and their
+generated pairs are checked with Fraction arithmetic. This is the same
+vectorized path used while assembling merged score tables.
 
 `EventData.from_dicts` also normalizes integer-valued float ratio members in
 canonical coordinate-shaped dictionaries to Arrow `int64` children. This
 applies to both base coordinates and carried extra coordinate structs, so the
 library does not reproduce the legacy float-member representation it accepts
 when reading older artifacts. Fractional float ratio members remain invalid.
+
+A cell that carries only a `value` — hand-built, or written before both sides
+were mandatory — still decodes: the float side is the only place the number
+lives, and its own exact ratio is the honest answer. Tests cover that path
+explicitly, because it is what keeps older artifacts and hand-written fixtures
+readable without reintroducing the guess-from-the-row habit.
+
+That read tolerance is only safe while nothing in the library *writes* a
+partial cell — otherwise a writer bug would emit them indefinitely and the
+tolerant reader would absorb them in silence. So the invariant is asserted on
+the writing side too: `tests/core/test_number_storage.py` walks the builder's
+output across every representation and input shape and asserts no non-null row
+has a null member, and does the same for `Coordinate.to_dict()` /
+`Duration.to_dict()`. Tolerance on read, strictness on write.
 
 ## Test Files
 

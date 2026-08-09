@@ -6,9 +6,8 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from timetoalign.core import CoordinateSpec
+from timetoalign.core.time import coordinate_numeric_value, shift_coordinate
 from timetoalign.core.timestamp import _format_coordinate_value
-
-from .coordinate_ops import coordinate_numeric_value, shift_coordinate
 
 if TYPE_CHECKING:
     from ..base import Timeline

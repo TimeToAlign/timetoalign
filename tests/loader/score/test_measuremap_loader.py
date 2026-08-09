@@ -335,7 +335,9 @@ class TestMeasureDataSchema:
 
     def test_flow_control_summary(self):
         """get_flow_control_summary works correctly."""
-        from timetoalign.core.fields import coordinate_to_struct
+        from timetoalign.core.time import (
+            coordinate_to_struct,
+        )
         from timetoalign.loader.score.stores import MeasureData
 
         # Use coordinate_to_struct for temporal fields (schema expects struct type)

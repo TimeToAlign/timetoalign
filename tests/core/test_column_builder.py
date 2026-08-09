@@ -14,12 +14,14 @@ import pytest
 from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.events import SpecificPitch
 from timetoalign.core.fields import (
-    build_coordinate_struct_array,
     build_struct_array,
     derive_arrow_struct,
+)
+from timetoalign.core.time import (
+    Coordinate,
+    build_coordinate_struct_array,
     struct_to_coordinate,
 )
-from timetoalign.core.time import Coordinate
 
 
 class TestBuildStructArraySpecificPitch:
@@ -88,12 +90,12 @@ class TestBuildCoordinateStructArray:
         row = arr[0].as_py()
         assert row == {"value": 0.75, "numerator": 3, "denominator": 4}
 
-    def test_float_has_null_num_den(self) -> None:
-        """§4: float has no exact rational; num/den are null."""
+    def test_float_mirrors_as_its_exact_dyadic(self) -> None:
+        """A float is canonical; the ratio mirrors the double it actually is."""
         coords = [Coordinate(1.5, TimeUnit.seconds)]
         arr = build_coordinate_struct_array(coords)
         row = arr[0].as_py()
-        assert row == {"value": 1.5, "numerator": None, "denominator": None}
+        assert row == {"value": 1.5, "numerator": 3, "denominator": 2}
 
     def test_int_preserved_via_num_den(self) -> None:
         """§5: int stores as float64 value AND numerator=int, denominator=1."""

@@ -6,6 +6,7 @@ import pytest
 
 from timetoalign.core import Coordinate, IdCoordinate
 from timetoalign.core.enums import NumberType, TimeUnit
+from timetoalign.core.fields import field_metadata
 from timetoalign.core.timestamp import Stamp, TimeStamp
 from timetoalign.maps import TableMap
 from timetoalign.storage.events import EventData
@@ -1462,13 +1463,13 @@ class TestTimelineGroupUnitMetadata:
         # Check each timeline field has correct unit metadata
         dgt_field = table.schema.field("dgt1")
         assert dgt_field.metadata is not None
-        assert dgt_field.metadata[b"unit"] == b"pixels"
-        assert dgt_field.metadata[b"timeline_id"] == b"dgt1"
+        assert field_metadata(dgt_field)["unit"] == "pixels"
+        assert field_metadata(dgt_field)["timeline_id"] == "dgt1"
 
         audio_field = table.schema.field("audio")
         assert audio_field.metadata is not None
-        assert audio_field.metadata[b"unit"] == b"seconds"
-        assert audio_field.metadata[b"timeline_id"] == b"audio"
+        assert field_metadata(audio_field)["unit"] == "seconds"
+        assert field_metadata(audio_field)["timeline_id"] == "audio"
 
     def test_timestamp_table_preserves_metadata_after_insert(
         self,
@@ -1492,17 +1493,17 @@ class TestTimelineGroupUnitMetadata:
         # Metadata should still be present after adding timeline
         dgt_field = table.schema.field("dgt1")
         assert dgt_field.metadata is not None
-        assert dgt_field.metadata[b"unit"] == b"pixels"
+        assert field_metadata(dgt_field)["unit"] == "pixels"
 
         audio_field = table.schema.field("audio")
         assert audio_field.metadata is not None
-        assert audio_field.metadata[b"unit"] == b"seconds"
+        assert field_metadata(audio_field)["unit"] == "seconds"
 
         # New timeline also has metadata
         score_field = table.schema.field("score")
         assert score_field.metadata is not None
-        assert score_field.metadata[b"unit"] == b"seconds"
-        assert score_field.metadata[b"timeline_id"] == b"score"
+        assert field_metadata(score_field)["unit"] == "seconds"
+        assert field_metadata(score_field)["timeline_id"] == "score"
 
     def test_add_timeline_creates_metadata_for_new_column(
         self,
@@ -1524,8 +1525,8 @@ class TestTimelineGroupUnitMetadata:
         # New field should have metadata
         audio_field = table_after.schema.field("audio")
         assert audio_field.metadata is not None
-        assert audio_field.metadata[b"unit"] == b"seconds"
-        assert audio_field.metadata[b"timeline_id"] == b"audio"
+        assert field_metadata(audio_field)["unit"] == "seconds"
+        assert field_metadata(audio_field)["timeline_id"] == "audio"
 
 
 # endregion

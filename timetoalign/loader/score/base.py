@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from typing_extensions import Self
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import TimeUnit
 from timetoalign.loader.base import EventLoader
 
 from .store import ScoreStore
@@ -34,7 +34,6 @@ class ScoreLoader(EventLoader):
     _event_data_class = NoteEventData
 
     def __init__(self, *args, **kwargs):
-        kwargs.setdefault("number_type", NumberType.fraction)
         super().__init__(*args, **kwargs)
         self._store = ScoreStore.empty()
 
@@ -186,7 +185,7 @@ class ScoreLoader(EventLoader):
         loader = cls.__new__(cls)
         # Set attributes that __init__ would normally create
         loader._unit = cls._default_unit
-        loader._number_type = NumberType.fraction
+        loader._number_type = loader._unit.default_number_type
         loader._sources = []
         loader._source_metadata = []
         loader._events = cls._event_data_class.empty(loader._unit, loader._number_type)

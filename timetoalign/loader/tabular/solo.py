@@ -46,8 +46,7 @@ from timetoalign.core import (
     IdField,
     IntField,
     MeasureNumberField,
-    NumberType,
-    RationalField,
+    RedundantNumberField,
     StringField,
     TimeUnit,
 )
@@ -94,7 +93,6 @@ class SoloLoader(CsvLoader):
 
     # Quarter notes as fractions.
     _default_unit: ClassVar[TimeUnit] = TimeUnit.quarters
-    coordinate_type: ClassVar[NumberType] = NumberType.fraction
 
     column_specs: ClassVar[list[Any]] = [
         # col 0: measure_number + fractional onset within the measure.
@@ -102,7 +100,7 @@ class SoloLoader(CsvLoader):
             separator="+",
             parts=[
                 MeasureNumberField,  # SemanticField class — default name 'measure_number'
-                RationalField(name="mn_onset"),  # raw rational struct
+                RedundantNumberField(name="mn_onset"),  # raw rational struct
             ],
             name="position",
         ),

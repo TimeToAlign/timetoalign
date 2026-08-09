@@ -49,7 +49,7 @@ class AnnotationEventData(EventData, HarmonyAccessMixin):
     def empty(
         cls,
         unit: TimeUnit = TimeUnit.quarters,
-        number_type: NumberType = NumberType.fraction,
+        number_type: NumberType | None = None,
     ) -> Self:
         """Create empty AnnotationEventData."""
         return super().empty(unit, number_type)
@@ -59,7 +59,7 @@ class AnnotationEventData(EventData, HarmonyAccessMixin):
         cls,
         rows: list[dict[str, Any]],
         unit: TimeUnit = TimeUnit.quarters,
-        number_type: NumberType = NumberType.fraction,
+        number_type: NumberType | None = None,
         *,
         interval_policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> Self:

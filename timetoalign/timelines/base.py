@@ -132,13 +132,14 @@ class Timeline(
 
     # region Class Variables
 
-    # Subclasses can override these to restrict valid units/number_types
+    # Subclasses can override this to restrict which units they accept.
+    # Which NUMBER types a timeline accepts is not a property of the
+    # timeline at all -- it follows from the unit (see
+    # ``TimeUnit.allowed_number_types``), so there is nothing to declare.
     _allowed_units: ClassVar[frozenset[TimeUnit] | None] = None
-    _allowed_number_types: ClassVar[tuple[NumberType, ...] | None] = None
 
-    # Default values for unit and number_type (subclasses override)
+    # Default unit (subclasses override)
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
-    _default_number_type: ClassVar[NumberType] = NumberType.float
 
     # EventData class to use (subclasses can override for domain-specific data)
     _event_data_class: ClassVar[type[EventData]] = EventData
@@ -241,7 +242,8 @@ class Timeline(
         Args:
             length: The length (end coordinate) of the timeline. Default 0.
             unit: The time unit for coordinates. Defaults to class default.
-            number_type: The number type for coordinates. Defaults to class default.
+            number_type: The number type for coordinates. Defaults to the
+                one the unit itself uses.
             id_prefix: Prefix for auto-generated ID. Default "tl".
             uid: Explicit unique identifier. Overrides auto-generation.
             name: Human-readable name for display (distinct from uid).
@@ -262,13 +264,8 @@ class Timeline(
         type(self)._validate_unit(unit)
         self._unit = unit
 
-        # Resolve number_type
-        if number_type is None:
-            number_type = self._default_number_type
-        elif isinstance(number_type, str):
-            number_type = NumberType(number_type)
-        self._validate_number_type(number_type)
-        self._number_type = number_type
+        # Resolve number_type -- the unit decides what it can be.
+        self._number_type = unit.resolve_number_type(number_type)
 
         # Generate or use provided ID
         if uid is not None:
@@ -340,26 +337,6 @@ class Timeline(
                 f"Allowed units: {allowed}"
             )
 
-    @classmethod
-    def _validate_number_type(cls, number_type: NumberType) -> None:
-        """Validate that number_type is allowed for this Timeline class.
-
-        Args:
-            number_type: The number type to validate.
-
-        Raises:
-            ValueError: If number_type is not in _allowed_number_types.
-        """
-        if (
-            cls._allowed_number_types is not None
-            and number_type not in cls._allowed_number_types
-        ):
-            allowed = ", ".join(str(nt) for nt in cls._allowed_number_types)
-            raise ValueError(
-                f"{cls.__name__} does not allow number_type '{number_type}'. "
-                f"Allowed types: {allowed}"
-            )
-
     # endregion
 
     # region Class Methods - Construction
@@ -376,8 +353,7 @@ class Timeline(
         ``_allowed_units`` includes *unit*.  Among candidates the selection
         prefers, in order:
 
-        1. A class whose ``_default_number_type`` matches *number_type*
-           (when supplied).
+        1. A class whose default unit uses *number_type* (when supplied).
         2. The class with the **smallest** ``_allowed_units`` set (most
            specific domain).
 
@@ -425,10 +401,16 @@ class Timeline(
         # Sort by allowed-units size (smallest = most specific domain)
         candidates.sort(key=lambda c: len(getattr(c, "_allowed_units", frozenset())))
 
-        # If number_type is given, prefer a candidate whose default matches
+        # If number_type is given, prefer a candidate whose own default unit
+        # counts that way -- a fractional request lands on the timeline
+        # whose default unit is fractional.
         if number_type is not None:
             for cand in candidates:
-                if getattr(cand, "_default_number_type", None) == number_type:
+                default_unit = getattr(cand, "_default_unit", None)
+                if (
+                    default_unit is not None
+                    and default_unit.default_number_type == number_type
+                ):
                     return cand
 
         # Return the most specific candidate (smallest allowed-units set)

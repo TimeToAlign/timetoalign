@@ -84,7 +84,15 @@ def test_interval_coordinate_access_preserves_exact_values() -> None:
 
 
 def test_group_convert_returns_exact_target_coordinate_or_none() -> None:
-    """Group conversion exposes exact values only at its typed boundary."""
+    """Structural re-expression between group members stays exact.
+
+    The relation between these two timelines is proven from their own
+    declared origins and lengths, so converting across it is definitional
+    rather than estimated and the exact value survives. Empirical
+    interpolation -- reading a position off matched anchor pairs -- is a
+    different lane and yields float, even where the fitted relation happens
+    to come out a tidy ratio.
+    """
     source = ContinuousLogicalTimeline(length=Fraction(12), uid="a")
     target = ContinuousLogicalTimeline(length=Fraction(24), uid="b")
     group = TimelineGroup(id="g", timelines=[source, target])

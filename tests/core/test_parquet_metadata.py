@@ -17,23 +17,23 @@ import timetoalign
 from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.events import SpecificPitch
 from timetoalign.core.fields import (
-    RATIONAL_STRUCT_TYPE,
     TIMETOALIGN_BLOB_VERSION,
     TIMETOALIGN_METADATA_KEY,
     metadata_blob_for_model,
     metadata_blob_from_dict,
     parquet_metadata_for_model,
     parse_metadata_blob,
-    rational_to_struct,
-    struct_to_rational,
 )
 from timetoalign.core.time import (
+    RATIONAL_STRUCT_TYPE,
     Coordinate,
     CoordinateField,
     DurationField,
     IdCoordinateField,
     IdDurationField,
     _resolve_timeline_id,
+    rational_to_struct,
+    struct_to_rational,
 )
 
 

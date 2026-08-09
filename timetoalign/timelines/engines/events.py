@@ -8,14 +8,13 @@ from typing import Any, Literal
 import pyarrow.compute as pc
 
 from timetoalign.core import Coordinate, CoordinateSpec, CoordinateValue
-from timetoalign.core.timestamp import _format_coordinate_value
-from timetoalign.storage import EventData
-
-from .coordinate_ops import (
+from timetoalign.core.time import (
     coordinate_numeric_value,
     exact_coordinate_value,
     shift_coordinate,
 )
+from timetoalign.core.timestamp import _format_coordinate_value
+from timetoalign.storage import EventData
 
 SEGMENT_EVENT_TYPE = "Segment"
 

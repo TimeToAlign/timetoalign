@@ -19,6 +19,7 @@ from timetoalign.core import (
     TimeUnit,
     resolve_coordinate_spec,
 )
+from timetoalign.core.fields import blob_metadata
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
     TimeIntervalStamp,
@@ -605,10 +606,10 @@ class TabularExportMixin:
             pa.field(
                 "axis",
                 axis_pa_type,
-                metadata={
-                    b"unit": self._unit.value.encode("utf-8"),
-                    b"timeline_id": self._id.encode("utf-8"),
-                },
+                metadata=blob_metadata(
+                    unit=self._unit.value,
+                    timeline_id=self._id,
+                ),
             )
         )
 
@@ -618,10 +619,10 @@ class TabularExportMixin:
             pa.field(
                 self._id,
                 axis_pa_type,
-                metadata={
-                    b"unit": self._unit.value.encode("utf-8"),
-                    b"timeline_id": self._id.encode("utf-8"),
-                },
+                metadata=blob_metadata(
+                    unit=self._unit.value,
+                    timeline_id=self._id,
+                ),
             )
         )
 
@@ -638,10 +639,10 @@ class TabularExportMixin:
                 pa.field(
                     child.id,
                     child_pa_type,
-                    metadata={
-                        b"unit": child.unit.value.encode("utf-8"),
-                        b"timeline_id": child.id.encode("utf-8"),
-                    },
+                    metadata=blob_metadata(
+                        unit=child.unit.value,
+                        timeline_id=child.id,
+                    ),
                 )
             )
 
@@ -662,10 +663,10 @@ class TabularExportMixin:
                     pa.field(
                         col_name,
                         pa.float64(),
-                        metadata={
-                            b"unit": unit_value.encode("utf-8"),
-                            b"cmap_id": cmap.id.encode("utf-8"),
-                        },
+                        metadata=blob_metadata(
+                            unit=unit_value,
+                            cmap_id=cmap.id,
+                        ),
                     )
                 )
 
@@ -900,10 +901,13 @@ class TabularExportMixin:
             for name in df.columns:
                 if df[name].dtype not in (float, "float64", "Float64"):
                     continue
+                # A column that reached here as float has already lost
+                # whatever exactness it had; converting it back gives the
+                # ratio the double actually is, not a tidier one nearby.
+                # Columns that kept their exact values never enter this
+                # branch -- they are not float-typed.
                 df[name] = df[name].apply(
-                    lambda x: (
-                        Fraction(x).limit_denominator(10000) if pd.notna(x) else None
-                    )
+                    lambda x: Fraction(x) if pd.notna(x) else None
                 )
 
         if include_ids and include_events and coordinates is None:

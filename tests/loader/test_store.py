@@ -22,7 +22,7 @@ class TestEventDataCreation:
         store = EventData.empty(TimeUnit.ticks)
         assert len(store) == 0
         assert store.unit == TimeUnit.ticks
-        assert store.number_type == NumberType.float
+        assert store.number_type == NumberType.int
 
     def test_empty_with_number_type(self) -> None:
         """Can specify number_type for empty store."""
@@ -204,7 +204,7 @@ class TestEventDataProperties:
 
     def test_number_type_property(self, store_with_instants: EventData) -> None:
         """number_type property returns NumberType."""
-        assert store_with_instants.number_type == NumberType.float
+        assert store_with_instants.number_type == NumberType.int
 
     def test_count_property(self, store_with_instants: EventData) -> None:
         """count property returns number of events."""

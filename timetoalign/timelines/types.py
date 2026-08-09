@@ -237,11 +237,6 @@ class ContinuousLogicalTimeline(LogicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = CONTINUOUS_LOGICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.quarters
-    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (
-        NumberType.float,
-        NumberType.fraction,
-    )
-    _default_number_type: ClassVar[NumberType] = NumberType.fraction
 
 
 class ContinuousPhysicalTimeline(PhysicalTimeline):
@@ -261,11 +256,6 @@ class ContinuousPhysicalTimeline(PhysicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = CONTINUOUS_PHYSICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
-    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (
-        NumberType.float,
-        NumberType.fraction,
-    )
-    _default_number_type: ClassVar[NumberType] = NumberType.float
 
     def create_metrical_grid(
         self,
@@ -744,11 +734,6 @@ class ContinuousGraphicalTimeline(GraphicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = CONTINUOUS_GRAPHICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.centimeters
-    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (
-        NumberType.float,
-        NumberType.fraction,
-    )
-    _default_number_type: ClassVar[NumberType] = NumberType.float
 
     @classmethod
     def _validate_serialized_payload(cls, data: dict[str, Any]) -> None:
@@ -780,8 +765,6 @@ class DiscreteLogicalTimeline(LogicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = DISCRETE_LOGICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.ticks
-    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (NumberType.int,)
-    _default_number_type: ClassVar[NumberType] = NumberType.int
 
 
 class DiscretePhysicalTimeline(PhysicalTimeline):
@@ -797,8 +780,6 @@ class DiscretePhysicalTimeline(PhysicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = DISCRETE_PHYSICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.samples
-    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (NumberType.int,)
-    _default_number_type: ClassVar[NumberType] = NumberType.int
 
 
 class DiscreteGraphicalTimeline(GraphicalTimeline):
@@ -814,8 +795,6 @@ class DiscreteGraphicalTimeline(GraphicalTimeline):
 
     _allowed_units: ClassVar[frozenset[TimeUnit]] = DISCRETE_GRAPHICAL_UNITS
     _default_unit: ClassVar[TimeUnit] = TimeUnit.pixels
-    _allowed_number_types: ClassVar[tuple[NumberType, ...]] = (NumberType.int,)
-    _default_number_type: ClassVar[NumberType] = NumberType.int
 
 
 # endregion

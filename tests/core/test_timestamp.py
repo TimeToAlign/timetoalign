@@ -9,6 +9,7 @@ from __future__ import annotations
 import pytest
 
 from timetoalign.core import TimeIntervalStamp, TimeUnit
+from timetoalign.core.fields import field_metadata
 from timetoalign.maps import IntervalToConstantMap, TableMap
 from timetoalign.timelines import Timeline, TimelineGroup
 
@@ -571,13 +572,13 @@ class TestTimestampTableMetadata:
         # Check axis field metadata
         axis_field = table.schema.field("axis")
         assert axis_field.metadata is not None
-        assert axis_field.metadata[b"unit"] == b"seconds"
-        assert axis_field.metadata[b"timeline_id"] == b"test:1"
+        assert field_metadata(axis_field)["unit"] == "seconds"
+        assert field_metadata(axis_field)["timeline_id"] == "test:1"
 
         # Check timeline field metadata
         tl_field = table.schema.field("test:1")
         assert tl_field.metadata is not None
-        assert tl_field.metadata[b"unit"] == b"seconds"
+        assert field_metadata(tl_field)["unit"] == "seconds"
 
     def test_timestamp_table_child_metadata(self):
         """Child fields have unit metadata (same as parent per TTA model)."""
@@ -592,8 +593,8 @@ class TestTimestampTableMetadata:
         # Check child field has its unit metadata
         child_field = table.schema.field("child:1")
         assert child_field.metadata is not None
-        assert child_field.metadata[b"unit"] == b"seconds"  # Same as parent
-        assert child_field.metadata[b"timeline_id"] == b"child:1"
+        assert field_metadata(child_field)["unit"] == "seconds"  # Same as parent
+        assert field_metadata(child_field)["timeline_id"] == "child:1"
 
     def test_timestamp_table_cmap_metadata(self):
         """C-Map fields have target unit metadata."""
@@ -614,8 +615,8 @@ class TestTimestampTableMetadata:
         # Find the C-Map field by name (field names use cmap.name, not cmap.id)
         cmap_field = table.schema.field(tempo_map.name)
         assert cmap_field.metadata is not None
-        assert cmap_field.metadata[b"unit"] == b"seconds"  # Target unit
-        assert cmap_field.metadata[b"cmap_id"] == tempo_map.id.encode("utf-8")
+        assert field_metadata(cmap_field)["unit"] == "seconds"  # Target unit
+        assert field_metadata(cmap_field)["cmap_id"] == tempo_map.id
 
 
 class TestTimeStampReprHtml:

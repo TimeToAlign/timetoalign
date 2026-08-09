@@ -86,7 +86,7 @@ class NoteEventData(EventData):
         self,
         table: pa.Table,
         unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType | None = None,
         has_rests: bool = False,
     ) -> None:
         """Initialize NoteEventData.
@@ -148,7 +148,7 @@ class NoteEventData(EventData):
     def empty(
         cls,
         unit: TimeUnit = TimeUnit.quarters,
-        number_type: NumberType = NumberType.fraction,
+        number_type: NumberType | None = None,
         has_rests: bool = False,
     ) -> Self:
         """Create empty NoteEventData."""
@@ -161,7 +161,7 @@ class NoteEventData(EventData):
         cls,
         rows: list[dict[str, Any]],
         unit: TimeUnit = TimeUnit.quarters,
-        number_type: NumberType = NumberType.fraction,
+        number_type: NumberType | None = None,
         has_rests: bool = False,
         *,
         interval_policy: IntervalPolicy = IntervalPolicy.warn,

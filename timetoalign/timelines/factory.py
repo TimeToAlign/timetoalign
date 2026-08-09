@@ -75,11 +75,11 @@ def _infer_timeline_class_and_number_type(
     unit: TimeUnit,
     number_type: NumberType,
 ) -> tuple[type[Timeline], NumberType]:
-    """Infer the appropriate Timeline subclass and number_type.
+    """Infer the Timeline subclass and representation for a unit.
 
-    Considers both the number_type and the unit's inherent discreteness.
-    For example, ticks are inherently discrete even if stored with float,
-    so the number_type is overridden to int for the Timeline.
+    Discreteness is a property of the unit, not of how a particular table
+    happened to write its numbers, so a tick column is a discrete timeline
+    whether it arrived as ints or floats.
 
     Args:
         unit: The time unit.
@@ -90,9 +90,6 @@ def _infer_timeline_class_and_number_type(
     """
     from timetoalign.timelines.base import Timeline
     from timetoalign.timelines.types import (
-        DISCRETE_GRAPHICAL_UNITS,
-        DISCRETE_LOGICAL_UNITS,
-        DISCRETE_PHYSICAL_UNITS,
         ContinuousGraphicalTimeline,
         ContinuousLogicalTimeline,
         ContinuousPhysicalTimeline,
@@ -101,16 +98,10 @@ def _infer_timeline_class_and_number_type(
         DiscretePhysicalTimeline,
     )
 
-    domain = unit.domain
-
-    # Determine if discrete by number_type OR inherently discrete unit
-    inherently_discrete_units = (
-        DISCRETE_LOGICAL_UNITS | DISCRETE_PHYSICAL_UNITS | DISCRETE_GRAPHICAL_UNITS
+    is_discrete = unit.is_discrete
+    effective_number_type = unit.resolve_number_type(
+        None if is_discrete else number_type
     )
-    is_discrete = number_type == NumberType.int or unit in inherently_discrete_units
-
-    # If using a discrete timeline, force int number_type
-    effective_number_type = NumberType.int if is_discrete else number_type
 
     mapping: dict[tuple[Domain, bool], type[Timeline]] = {
         (Domain.logical, True): DiscreteLogicalTimeline,
@@ -121,7 +112,7 @@ def _infer_timeline_class_and_number_type(
         (Domain.graphical, False): ContinuousGraphicalTimeline,
     }
 
-    return mapping.get((domain, is_discrete), Timeline), effective_number_type
+    return mapping.get((unit.domain, is_discrete), Timeline), effective_number_type
 
 
 def _infer_timeline_class(

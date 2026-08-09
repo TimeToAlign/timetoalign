@@ -115,6 +115,44 @@ class Domain(FancyStrEnum):
     gr = graphical
 
 
+class NumberType(Enum):
+    """The numeric type used for coordinate values.
+
+    Members can be instantiated both via NumberType("name") and NumberType(value).
+
+    Example:
+        NumberType(int) is NumberType("int")
+        # True
+        NumberType(int).value(1.4)
+        # 1
+    """
+
+    int = int
+    float = float
+    fraction = Fraction
+
+    @classmethod
+    def _missing_(cls, value: object) -> "NumberType | None":
+        if isinstance(value, str):
+            for member in cls:
+                if member.name == value:
+                    return member
+        return None
+
+    @classmethod
+    def from_number(cls, number: int | float | Fraction) -> "NumberType":
+        """Create NumberType from a number instance."""
+        return cls(type(number))
+
+    @property
+    def python_type(self) -> type:
+        """Return the corresponding Python type."""
+        return self.value
+
+    def __str__(self) -> str:
+        return self.name
+
+
 # Domain mappings for TimeUnit (module-level for efficiency)
 _LOGICAL_UNITS: frozenset[str] = frozenset(
     {"beats", "floating_measures", "quarters", "ticks", "number"}
@@ -125,6 +163,18 @@ _PHYSICAL_UNITS: frozenset[str] = frozenset(
 _GRAPHICAL_UNITS: frozenset[str] = frozenset(
     {"pixels", "meters", "centimeters", "millimeters", "inches", "points"}
 )
+
+# Units whose values are inherently integral: a fractional tick or a
+# fractional pixel does not denote anything.  These are the ONLY discrete
+# units, and this set is the single source of that fact for the whole
+# library -- read it through ``TimeUnit.is_discrete``, never by
+# re-listing unit names.
+_DISCRETE_UNITS: frozenset[str] = frozenset({"ticks", "samples", "frames", "pixels"})
+
+# Continuous units whose values are most faithfully written as exact
+# ratios: notated rhythm is rational by construction (a triplet eighth is
+# 1/3 of a quarter, not 0.333...).
+_RATIONAL_DEFAULT_UNITS: frozenset[str] = frozenset({"quarters", "beats"})
 
 
 class TimeUnit(FancyStrEnum):
@@ -137,7 +187,7 @@ class TimeUnit(FancyStrEnum):
     # generic
     number = auto()
 
-    # musical domain
+    # logical domain
     beats = auto()
     """beats"""
     b = beats
@@ -220,13 +270,77 @@ class TimeUnit(FancyStrEnum):
 
     @property
     def is_discrete(self) -> bool:
-        """Whether this unit is inherently discrete (integer-valued)."""
-        return self in {
-            TimeUnit.samples,
-            TimeUnit.frames,
-            TimeUnit.ticks,
-            TimeUnit.pixels,
-        }
+        """Whether this unit is inherently discrete (integer-valued).
+
+        This property is the library's single source of discreteness. No
+        other module may re-list the discrete unit names.
+        """
+        return self.name in _DISCRETE_UNITS
+
+    @property
+    def default_number_type(self) -> NumberType:
+        """The numeric representation this unit uses unless told otherwise.
+
+        A unit knows how its values are written, so nothing downstream --
+        timeline, loader, or field -- needs to carry its own default:
+
+        * discrete units are ``int``;
+        * ``quarters`` and ``beats`` are ``fraction``, because notated
+          rhythm is rational by construction;
+        * every other continuous unit is ``float``.
+        """
+        if self.is_discrete:
+            return NumberType.int
+        if self.name in _RATIONAL_DEFAULT_UNITS:
+            return NumberType.fraction
+        return NumberType.float
+
+    @property
+    def allowed_number_types(self) -> frozenset[NumberType]:
+        """The numeric representations this unit accepts.
+
+        Discrete units admit ``int`` only: a fractional tick has no
+        referent, so offering the choice would only let callers record
+        nonsense. Continuous units admit ``float`` and ``fraction``, the
+        caller choosing whether exactness or speed matters more.
+        :attr:`TimeUnit.number` admits all three.
+        """
+        if self.is_discrete:
+            return frozenset({NumberType.int})
+        if self is TimeUnit.number:
+            # TODO: ``number`` is the generic escape hatch for values that
+            # are not time at all, so it currently constrains nothing. If a
+            # clearer role emerges for it, tighten this to match.
+            return frozenset(NumberType)
+        return frozenset({NumberType.float, NumberType.fraction})
+
+    def resolve_number_type(
+        self, requested: NumberType | str | None = None
+    ) -> NumberType:
+        """Return the numeric representation to use for this unit.
+
+        Args:
+            requested: An explicit choice, or ``None`` to take
+                :attr:`default_number_type`.
+
+        Returns:
+            The resolved :class:`NumberType`.
+
+        Raises:
+            ValueError: If *requested* is not among
+                :attr:`allowed_number_types`.
+        """
+        if requested is None:
+            return self.default_number_type
+        resolved = NumberType(requested) if isinstance(requested, str) else requested
+        allowed = self.allowed_number_types
+        if resolved not in allowed:
+            permitted = ", ".join(sorted(member.name for member in allowed))
+            raise ValueError(
+                f"Unit '{self}' does not admit number_type '{resolved}'. "
+                f"Allowed number types: {permitted}"
+            )
+        return resolved
 
 
 class AgentType(FancyStrEnum):
@@ -289,44 +403,6 @@ class ClaimType(FancyStrEnum):
 
     conceptual = auto()
     """A structural correspondence with no temporal commitment (no anchors)."""
-
-
-class NumberType(Enum):
-    """The numeric type used for coordinate values.
-
-    Members can be instantiated both via NumberType("name") and NumberType(value).
-
-    Example:
-        NumberType(int) is NumberType("int")
-        # True
-        NumberType(int).value(1.4)
-        # 1
-    """
-
-    int = int
-    float = float
-    fraction = Fraction
-
-    @classmethod
-    def _missing_(cls, value: object) -> "NumberType | None":
-        if isinstance(value, str):
-            for member in cls:
-                if member.name == value:
-                    return member
-        return None
-
-    @classmethod
-    def from_number(cls, number: int | float | Fraction) -> "NumberType":
-        """Create NumberType from a number instance."""
-        return cls(type(number))
-
-    @property
-    def python_type(self) -> type:
-        """Return the corresponding Python type."""
-        return self.value
-
-    def __str__(self) -> str:
-        return self.name
 
 
 class EventType(FancyStrEnum):

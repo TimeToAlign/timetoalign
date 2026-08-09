@@ -45,7 +45,7 @@ class ScoreMidiLoader(MidiLoader):
         assign_note_ids: bool = True,
         parser: str = "partitura",
         unit: TimeUnit | None = None,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize ScoreMidiLoader.
@@ -58,7 +58,8 @@ class ScoreMidiLoader(MidiLoader):
             assign_note_ids: Ensure unique note IDs.
             parser: MIDI parser, either ``"partitura"`` or ``"mido"``.
             unit: Time unit for coordinates.
-            number_type: Number type for coordinates.
+            number_type: Number type for coordinates. Defaults to the
+                one the unit itself uses.
             **kwargs: Additional arguments passed to parent Loader.
         """
         if parser not in {"partitura", "mido"}:

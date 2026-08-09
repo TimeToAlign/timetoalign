@@ -15,11 +15,11 @@ from timetoalign.core import (
     IdCoordinate,
     NumberType,
     TimeUnit,
+    quantize_to_unit,
     resolve_coordinate_spec,
 )
+from timetoalign.core.time import coordinate_numeric_value, exact_coordinate_value
 from timetoalign.maps import ConversionMap, InterpolationMap
-
-from .coordinate_ops import coordinate_numeric_value, exact_coordinate_value
 
 if TYPE_CHECKING:
     from timetoalign.core.timestamp import ConversionMapsSpec, TimeStamp
@@ -75,10 +75,9 @@ class ConversionMapsMixin:
                 )
             native_coord = self.get_coordinate(qualified_coord)
 
-        exact_axis = exact_coordinate_value(native_coord.value)
-        if exact_axis is None:
-            return timestamp
-        return replace(timestamp, _exact_axis=exact_axis)
+        # The coordinate is already in its timeline's own representation,
+        # so hand the stamp that value rather than a float projection of it.
+        return replace(timestamp, axis=native_coord.value)
 
     @property
     def n_conversion_maps(self) -> int:
@@ -208,7 +207,12 @@ class ConversionMapsMixin:
             if target.is_discrete:
                 return np.vectorize(round, otypes=[int])(converted_value)
             return converted_value
-        return Coordinate(converted_value, target)
+        # A converted value keeps the representation the conversion
+        # produced. Applying the unit's default here would re-type an
+        # inexact result as an exact ratio: numerically identical, but it
+        # would claim the computation pinned down something it estimated.
+        settled = quantize_to_unit(converted_value, target)
+        return Coordinate(settled, target, number_type=NumberType.from_number(settled))
 
     def derive(
         self,
@@ -656,7 +660,10 @@ class ConversionMapsMixin:
                 else float(coordinate_numeric_value(native_value)) + float(offset.value)
             )
 
-        return Coordinate(native_value, self._unit)
+        settled = quantize_to_unit(native_value, self._unit)
+        return Coordinate(
+            settled, self._unit, number_type=NumberType.from_number(settled)
+        )
 
     def _resolve_axis_value(self, coord: CoordinateSpec) -> int | float | Fraction:
         """Resolve a coordinate and return its native numeric value."""

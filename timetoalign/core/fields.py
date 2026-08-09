@@ -26,10 +26,8 @@ from __future__ import annotations
 
 import enum
 import json
-import re
 import sys
 from abc import ABC, abstractmethod
-from fractions import Fraction
 from functools import lru_cache
 from importlib.machinery import PathFinder
 from typing import (
@@ -37,7 +35,6 @@ from typing import (
     Callable,
     ClassVar,
     Generic,
-    Iterable,
     Literal,
     Sequence,
     TypeVar,
@@ -45,13 +42,10 @@ from typing import (
     get_origin,
 )
 
-import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 from pydantic import BaseModel
 from pydantic.fields import FieldInfo
-
-from .enums import NumberType, TimeUnit
 
 T = TypeVar("T", bound=BaseModel)
 """The pydantic scalar a ``SemanticField`` is paired with."""
@@ -442,7 +436,7 @@ class DataField(ABC):
         :attr:`pa_type` and wraps the result in a new instance of
         ``type(self)`` carrying the blueprint's name (or the explicit
         ``name=`` override).  Subclasses whose semantics are not a
-        simple cast (e.g. :class:`RationalField` parses ``"n/d"``
+        simple cast (e.g. :class:`RedundantNumberField` parses ``"n/d"``
         strings; :class:`DenominateNumberField` also stamps unit
         metadata) override this method.
 
@@ -1045,12 +1039,12 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
                     f"{type(self).__name__} requires either a live raw DataField, "
                     "source_fields= (deferred lookup), or name= (plain blueprint)"
                 )
-            # DenominateNumberField requires a bound unit at construction
-            # time, which a blueprint has not yet resolved.  Substitute a
-            # plain StructField for the blueprint placeholder — the unit
-            # is resolved when the blueprint is materialised against an
-            # EventData table.
-            if raw_cls is DenominateNumberField:
+            # A raw class that must be bound to something (a unit, say)
+            # cannot be built yet: a blueprint has not resolved what it
+            # would be bound to.  Stand a plain StructField in its place;
+            # the binding happens when the blueprint is materialised
+            # against an EventData table.
+            if getattr(raw_cls, "_requires_binding", False):
                 raw = StructField(None, dummy_field)
             else:
                 raw = raw_cls(None, dummy_field)
@@ -1203,7 +1197,7 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
 
         * If the schema is the canonical rational struct
           (``{value, numerator, denominator}``), parse via
-          :func:`_build_rational_struct`.
+          :func:`~timetoalign.core.time.build_number_struct_array`.
         * If the schema is a single-sub-field struct (e.g.
           ``{value: int}`` for :class:`MeasureNumberField` /
           :class:`IdField`, ``{midi_number: int}`` for
@@ -1229,10 +1223,14 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
         out_name = name if name is not None else self.name
         field_names = [schema.field(i).name for i in range(schema.num_fields)]
 
-        # Canonical rational shape — parse fractions.
+        # Canonical number shape — build through the one number builder.
         if field_names == ["value", "numerator", "denominator"]:
-            struct_arr, pa_field = _build_rational_struct(source, name=out_name)
-            return cls.from_field((struct_arr, pa_field))
+            from .time import build_number_struct_array, infer_number_type
+
+            struct_arr = build_number_struct_array(
+                source, number_type=infer_number_type(source), on_error="null"
+            )
+            return cls.from_field((struct_arr, pa.field(out_name, struct_arr.type)))
 
         # Single-sub-field struct — pack the atomic source.
         if schema.num_fields == 1:
@@ -1940,6 +1938,11 @@ def _build_field_arrays(
 
     if isinstance(inner_type, type) and issubclass(inner_type, BaseModel):
         if _is_coordinate_like(inner_type):
+            # Imported here rather than at module scope: core/time.py owns the
+            # number storage struct and builds on this module, so the
+            # dependency only runs in this direction at call time.
+            from .time import build_coordinate_struct_array
+
             return [build_coordinate_struct_array(values)]
         sub_array = build_struct_array(inner_type, values)
         return [sub_array]
@@ -2002,423 +2005,6 @@ def _is_coordinate_like(tp: type) -> bool:
     ) and tp.__module__.endswith(".core.time"):
         return True
     return False
-
-
-RATIONAL_STRUCT_TYPE: pa.StructType = pa.struct(
-    [
-        pa.field("value", pa.float64(), nullable=True),
-        pa.field("numerator", pa.int64(), nullable=True),
-        pa.field("denominator", pa.int64(), nullable=True),
-    ]
-)
-"""Canonical denormalised storage shape for a rational number.
-
-Every rational-valued column in the library uses this struct — there is
-no second ``{num, den}`` shape.  ``value`` is the float64 projection
-used for fast comparisons; ``numerator`` / ``denominator`` carry the
-exact ratio (both null when the source was an inexact float).
-"""
-
-
-_FRACTION_RE = re.compile(r"^\s*(-?\d+)\s*/\s*(-?\d+)\s*$")
-"""Recogniser for ``"<numerator>/<denominator>"`` strings."""
-
-
-def _parse_rational_pair(value: Any) -> tuple[int, int]:
-    """Parse *value* into a ``(numerator, denominator)`` pair.
-
-    Accepts strings of the form ``"<int>/<int>"``, plain integer or
-    float strings, ``int``, ``float``, ``Fraction`` instances.  Raises
-    ``ValueError`` for unparseable input.
-
-    Float-to-fraction conversion uses :meth:`Fraction.from_float` (via
-    ``Fraction(value).limit_denominator(10**12)``) to keep a high-fidelity
-    rational approximation; callers wanting an exact ratio should pass a
-    ``Fraction`` directly.
-    """
-    if value is None:
-        raise ValueError("cannot parse None as a rational")
-    if isinstance(value, Fraction):
-        return value.numerator, value.denominator
-    if isinstance(value, bool):
-        return int(value), 1
-    if isinstance(value, int):
-        return value, 1
-    if isinstance(value, float):
-        f = Fraction(value).limit_denominator(10**12)
-        return f.numerator, f.denominator
-    if isinstance(value, str):
-        m = _FRACTION_RE.match(value)
-        if m is not None:
-            num, den = int(m.group(1)), int(m.group(2))
-            if den == 0:
-                raise ValueError(f"zero denominator in {value!r}")
-            return num, den
-        # Plain numeric strings: route through float.
-        return _parse_rational_pair(float(value))
-    raise TypeError(f"cannot parse {type(value).__name__} as a rational")
-
-
-def rational_to_struct(value: Any) -> dict[str, Any]:
-    """Convert a single rational-ish value into the canonical struct dict.
-
-    This is the row-wise counterpart of :func:`build_coordinate_struct_array`
-    and the only supported way to hand-build a value for a column typed
-    :data:`RATIONAL_STRUCT_TYPE`.
-
-    Args:
-        value: A ``Fraction``, ``int``, ``float``, or a string — either
-            ``"<numerator>/<denominator>"`` or a plain numeric literal.
-
-    Returns:
-        A dict with the ``value`` / ``numerator`` / ``denominator`` keys
-        of :data:`RATIONAL_STRUCT_TYPE`.
-
-    Raises:
-        ValueError: If a string cannot be read as a rational.
-        TypeError: If *value* is of an unsupported type.
-    """
-    numerator, denominator = _parse_rational_pair(value)
-    return {
-        "value": numerator / denominator,
-        "numerator": numerator,
-        "denominator": denominator,
-    }
-
-
-def coordinate_to_struct(
-    coordinate: int | float | Fraction | dict[str, Any],
-) -> dict[str, Any]:
-    """Encode one coordinate as the canonical Arrow struct dictionary.
-
-    Integer and rational coordinates retain an exact numerator and denominator.
-    Floating-point coordinates retain only their value because no exact ratio was
-    supplied by the caller. A canonical struct dictionary retains its shape and
-    losslessly normalizes integer-valued float ratio members to integers.
-
-    Args:
-        coordinate: Coordinate value or an already encoded coordinate cell.
-
-    Returns:
-        A dictionary shaped like :data:`RATIONAL_STRUCT_TYPE`.
-
-    Raises:
-        TypeError: If the coordinate is not a supported numeric value.
-        ValueError: If a dictionary does not have the canonical shape.
-    """
-    if isinstance(coordinate, dict):
-        if not is_rational_wire(coordinate):
-            raise ValueError(f"Invalid coordinate dict structure: {coordinate}")
-        return _normalize_rational_wire_components(coordinate)
-    if isinstance(coordinate, (Fraction, int)) and not isinstance(coordinate, bool):
-        return rational_to_struct(coordinate)
-    return rational_to_wire(coordinate)
-
-
-def _coerce_rational_component(component: Any, label: str) -> int:
-    """Return one exact ratio component as an integer."""
-    if isinstance(component, int) and not isinstance(component, bool):
-        return component
-    if isinstance(component, float) and component.is_integer():
-        return int(component)
-    if isinstance(component, float):
-        raise ValueError(
-            f"rational struct {label} must be an integer or integer-valued float, "
-            f"got non-integral float {component!r}"
-        )
-    raise ValueError(
-        f"rational struct {label} must be an integer or integer-valued float, "
-        f"got {component!r}"
-    )
-
-
-def _normalize_rational_wire_components(struct: dict[str, Any]) -> dict[str, Any]:
-    """Normalize present canonical ratio members without changing float-only cells."""
-    normalized = dict(struct)
-    for label in ("numerator", "denominator"):
-        component = normalized.get(label)
-        if component is not None:
-            normalized[label] = _coerce_rational_component(component, label)
-    return normalized
-
-
-def struct_to_rational(struct: dict[str, Any]) -> Fraction:
-    """Recover the exact ``Fraction`` from a canonical rational struct dict.
-
-    The float ``value`` member is deliberately ignored: it is a lossy
-    projection, so a value-only cell (null numerator and denominator) has no
-    exact ``Fraction`` to return here. Requesting ``NumberType.fraction`` via
-    :func:`struct_to_coordinate` instead preserves the stored double's exact
-    binary expansion; it never uses ``limit_denominator()`` to invent a plausible rational.
-
-    Integer-valued float ratio members are accepted and converted losslessly to
-    integers for compatibility with artifacts written by earlier releases.
-    Fractional float ratio members are rejected rather than rounded.
-
-    Args:
-        struct: A dict shaped like :data:`RATIONAL_STRUCT_TYPE`.
-
-    Returns:
-        ``Fraction(numerator, denominator)``.
-
-    Raises:
-        ValueError: If either component is missing, fractional, or otherwise
-            non-integral, or the denominator is zero.
-    """
-    numerator = _coerce_rational_component(struct.get("numerator"), "numerator")
-    denominator = _coerce_rational_component(struct.get("denominator"), "denominator")
-    if denominator == 0:
-        raise ValueError("rational struct denominator must be non-zero")
-    return Fraction(numerator, denominator)
-
-
-def struct_to_coordinate(
-    struct: dict[str, Any], number_type: NumberType
-) -> int | float | Fraction:
-    """Decode a canonical Arrow coordinate cell to its requested number type.
-
-    For a value-only float cell (null numerator and denominator) requested as
-    a ``Fraction``, returns the stored double's exact binary expansion; e.g.,
-    ``0.1`` becomes ``Fraction(3602879701896397, 36028797018963968)``. It never uses
-    ``limit_denominator()``, because an inexact float must not be silently
-    dressed up as a plausible rational.
-
-    Integer-valued float ratio members from artifacts written by earlier
-    releases are accepted losslessly; fractional float members are rejected.
-
-    Args:
-        struct: Dictionary shaped like :data:`RATIONAL_STRUCT_TYPE`.
-        number_type: Numeric representation to return.
-
-    Returns:
-        The coordinate in the requested numeric representation.
-    """
-    value = wire_to_rational(struct)
-    if number_type == NumberType.fraction:
-        return value if isinstance(value, Fraction) else Fraction(value)
-    if number_type == NumberType.int:
-        return int(value)
-    return float(value)
-
-
-def rational_to_wire(value: Fraction | int | float) -> dict[str, Any]:
-    """Encode a coordinate value as the canonical rational wire dict.
-
-    This is the JSON-serializable counterpart of
-    :func:`rational_to_struct`: it accepts the inexact half of the
-    coordinate domain as well, and marks it as inexact rather than
-    inventing a ratio for it.  Every ``to_dict`` in the library that
-    emits a rational-valued number emits *this* shape — there is no
-    second encoding (no bare ``Fraction``, no ``"n/d"`` string).
-
-    * A ``Fraction`` keeps its exact ratio in ``numerator`` /
-      ``denominator`` alongside the float projection.
-    * Any other number encodes as ``{"value": float(x), "numerator":
-      None, "denominator": None}`` — the null ratio is what tells
-      :func:`wire_to_rational` to hand back a plain ``float``.
-
-    Args:
-        value: The coordinate value to encode.
-
-    Returns:
-        A dict with the ``value`` / ``numerator`` / ``denominator`` keys
-        of :data:`RATIONAL_STRUCT_TYPE`, containing only JSON-native
-        scalars.
-
-    Raises:
-        TypeError: If *value* is not a real number.
-    """
-    if isinstance(value, Fraction):
-        return rational_to_struct(value)
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise TypeError(f"cannot encode {type(value).__name__} as a rational")
-    return {"value": float(value), "numerator": None, "denominator": None}
-
-
-def is_rational_wire(value: Any) -> bool:
-    """Return True if *value* is shaped like a rational wire dict.
-
-    For the handful of slots whose payload is genuinely open-ended (a
-    :class:`~timetoalign.maps.constant.ConstantMap` value, say, which is
-    usually a string label but may be a number): the wire dict is
-    self-describing, so a reader can tell an encoded rational from any
-    other JSON value without a type tag alongside it.
-
-    Args:
-        value: Any decoded JSON value.
-
-    Returns:
-        ``True`` when *value* is a dict carrying exactly the three
-        :data:`RATIONAL_STRUCT_TYPE` keys.
-    """
-    return isinstance(value, dict) and set(value) == {
-        "value",
-        "numerator",
-        "denominator",
-    }
-
-
-def wire_to_rational(wire: dict[str, Any]) -> Fraction | float:
-    """Decode a canonical rational wire dict back to a Python number.
-
-    The inverse of :func:`rational_to_wire`, and the only supported
-    reader of the wire shape: an exact ratio comes back as a
-    ``Fraction``, an inexact value as a ``float``.  Decoding is
-    deliberately total over the shape and rejects everything else, so a
-    stale encoding surfaces as a ``TypeError`` at the boundary instead
-    of a silently wrong number downstream.
-
-    Integer-valued float ratio members from artifacts written by earlier
-    releases are accepted losslessly; fractional float members are rejected.
-
-    Args:
-        wire: A dict as produced by :func:`rational_to_wire`.
-
-    Returns:
-        ``Fraction(numerator, denominator)`` when both ratio members are
-        present, otherwise ``float(value)``.
-
-    Raises:
-        TypeError: If *wire* is not a dict.
-        ValueError: If the dict carries neither an exact ratio nor a
-            usable ``value``.
-    """
-    if not isinstance(wire, dict):
-        raise TypeError(
-            f"expected a rational wire dict, got {type(wire).__name__}: {wire!r}"
-        )
-    if wire.get("numerator") is not None and wire.get("denominator") is not None:
-        return struct_to_rational(wire)
-    value = wire.get("value")
-    if value is None or isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"rational wire dict has no usable 'value': {wire!r}")
-    return float(value)
-
-
-def _build_rational_struct(
-    source: pa.Array | pa.ChunkedArray, *, name: str
-) -> tuple[pa.StructArray, pa.Field]:
-    """Build the canonical ``{value, numerator, denominator}`` struct array.
-
-    Walks the source as a Python iterable exactly once (necessary
-    because ``pa.compute`` has no general fraction parser); produces a
-    single ``pa.StructArray`` plus the matching ``pa.Field`` carrying
-    the supplied *name*.  Rows that fail to parse become null entries.
-    """
-    if isinstance(source, pa.ChunkedArray):
-        source = source.combine_chunks()
-    pylist = source.to_pylist()
-    n = len(pylist)
-    values = np.empty(n, dtype=np.float64)
-    nums = np.zeros(n, dtype=np.int64)
-    dens = np.ones(n, dtype=np.int64)
-    null_mask = np.zeros(n, dtype=bool)
-    for i, raw in enumerate(pylist):
-        if raw is None:
-            null_mask[i] = True
-            continue
-        try:
-            num, den = _parse_rational_pair(raw)
-        except (ValueError, TypeError):
-            null_mask[i] = True
-            continue
-        nums[i] = num
-        dens[i] = den
-        values[i] = num / den if den != 0 else float("nan")
-
-    struct_type = RATIONAL_STRUCT_TYPE
-    if null_mask.any():
-        value_pa = pa.array(values, mask=null_mask, type=pa.float64())
-        num_pa = pa.array(nums, mask=null_mask, type=pa.int64())
-        den_pa = pa.array(dens, mask=null_mask, type=pa.int64())
-        struct_arr = pa.StructArray.from_arrays(
-            [value_pa, num_pa, den_pa],
-            fields=list(struct_type),
-            mask=pa.array(null_mask.tolist()),
-        )
-    else:
-        struct_arr = pa.StructArray.from_arrays(
-            [
-                pa.array(values, type=pa.float64()),
-                pa.array(nums, type=pa.int64()),
-                pa.array(dens, type=pa.int64()),
-            ],
-            fields=list(struct_type),
-        )
-    pa_field = pa.field(name, struct_type)
-    return struct_arr, pa_field
-
-
-def _rational_components(value: Any) -> tuple[float, int | None, int | None]:
-    """Decompose a numeric ``.value`` payload into ``(float, num, den)``.
-
-    Used by the rational-denormalisation extractors; ``None`` outputs
-    for ``numerator`` / ``denominator`` mean "no exact fraction
-    available, fall back to the float on read-back".
-    """
-    if isinstance(value, Fraction):
-        return float(value), value.numerator, value.denominator
-    if isinstance(value, int) and not isinstance(value, bool):
-        return float(value), value, 1
-    return float(value), None, None
-
-
-def build_coordinate_struct_array(
-    objects: Iterable[Any],
-) -> pa.StructArray:
-    """Build the canonical rational storage struct from a sequence of scalars.
-
-    Coordinate (and Duration, IdCoordinate, IdDuration) expose
-    ``(value, unit)`` to users, but the on-disk Arrow data denormalises
-    ``value`` into ``{value: float64, numerator: int64, denominator: int64}``
-    so that rational precision survives a Parquet round-trip.  This
-    function is the bulk-builder for that denormalised projection.
-
-    ``unit`` is NOT stored in the data — it lives in ``pa.Field``
-    metadata (the SemanticField carries it).
-
-    Implementation note: this is a thin facade over
-    :class:`StructArrayBuilder` using a fixed three-extractor mapping.
-    The function name is preserved for backwards compatibility.
-
-    Args:
-        objects: An iterable of objects exposing a ``.value`` attribute
-            (``Coordinate``, ``Duration``, ``IdCoordinate``,
-            ``IdDuration`` — and any future rational-valued scalar),
-            or ``None`` for null rows.
-
-    Returns:
-        A ``pa.StructArray`` with the canonical rational storage type.
-    """
-    objects_list = list(objects)
-    components: list[tuple[float, int | None, int | None] | None] = [
-        None if obj is None else _rational_components(obj.value) for obj in objects_list
-    ]
-
-    def _value_extractor(_: Sequence[Any | None]) -> pa.Array:
-        return pa.array(
-            [0.0 if c is None else c[0] for c in components], type=pa.float64()
-        )
-
-    def _numerator_extractor(_: Sequence[Any | None]) -> pa.Array:
-        return pa.array(
-            [None if c is None else c[1] for c in components], type=pa.int64()
-        )
-
-    def _denominator_extractor(_: Sequence[Any | None]) -> pa.Array:
-        return pa.array(
-            [None if c is None else c[2] for c in components], type=pa.int64()
-        )
-
-    builder = StructArrayBuilder.from_schema_and_extractors(
-        RATIONAL_STRUCT_TYPE,
-        {
-            "value": _value_extractor,
-            "numerator": _numerator_extractor,
-            "denominator": _denominator_extractor,
-        },
-    )
-    return builder.build(objects_list)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -2505,6 +2091,40 @@ def parquet_metadata_for_model(
     return metadata
 
 
+def field_metadata(pa_field: pa.Field) -> dict[str, Any]:
+    """Return the TimeToAlign! payload attached to *pa_field*, or ``{}``.
+
+    The one way to read a field's unit, representation or timeline id.
+    Everything the library writes goes into the versioned blob under
+    :data:`TIMETOALIGN_METADATA_KEY`, so nothing needs to know a second
+    place to look, and a field written by another tool simply has no
+    payload rather than a half-understood one.
+    """
+    raw_meta = pa_field.metadata
+    if not raw_meta or TIMETOALIGN_METADATA_KEY not in raw_meta:
+        return {}
+    try:
+        return parse_metadata_blob(raw_meta[TIMETOALIGN_METADATA_KEY])
+    except (UnicodeDecodeError, ValueError):
+        return {}
+
+
+def blob_metadata(**payload: Any) -> dict[bytes, bytes]:
+    """Build a field-metadata mapping carrying *payload* in the versioned blob.
+
+    The counterpart to :func:`field_metadata`: every producer in the library
+    writes through here, so there is exactly one on-disk convention and a
+    reader never has to try two.  Enum-valued entries are recorded by their
+    value, so callers can pass a ``TimeUnit`` straight in.
+    """
+    encoded = {
+        key: (value.value if hasattr(value, "value") else str(value))
+        for key, value in payload.items()
+        if value is not None
+    }
+    return {TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(encoded)}
+
+
 def parse_metadata_blob(blob: bytes | str | None) -> dict[str, Any]:
     """Parse a :data:`TIMETOALIGN_METADATA_KEY` payload back into a dict.
 
@@ -2550,230 +2170,3 @@ def parse_metadata_blob(blob: bytes | str | None) -> dict[str, Any]:
             f"build understands at most {TIMETOALIGN_BLOB_VERSION}"
         )
     return payload
-
-
-# ═══════════════════════════════════════════════════════════════════════════
-# 5. RAW NUMBER FIELDS — NumberField / RationalField / DenominateNumberField
-# ═══════════════════════════════════════════════════════════════════════════
-#
-# These three classes form the raw DataField branch for struct-shaped
-# numeric storage.  They do NOT inherit from SemanticField — they are
-# the storage primitives.  Semantic wrappers (e.g. TimeScalarField in
-# core/time.py) compose them via ``SemanticField._raw_cls``.
-
-
-class NumberField(StructField):
-    """Abstract: a struct-shaped DataField holding a (composite) number.
-
-    Concrete subclasses pin the inner sub-schema.  Today the only
-    descendant is :class:`RationalField`; future shapes (e.g. complex
-    numbers, intervals) would be siblings.
-
-    The class does not impose validation beyond the underlying
-    :class:`StructField` invariants ("must be a struct"); schema
-    specifics belong to the leaves.
-    """
-
-
-class RationalField(NumberField):
-    """Raw field for the canonical rational struct shape.
-
-    Sub-schema (fixed)::
-
-        {value: float64, numerator: int64, denominator: int64}
-
-    The struct stores a rational number redundantly so that exact
-    fractional precision (``numerator`` / ``denominator``) survives a
-    Parquet round-trip while a float64 best-effort value remains
-    immediately consumable by analytics.
-
-    .. todo::
-       The dual representation (float + Fraction) raises a non-trivial
-       arithmetic-consistency concern: addition, subtraction, scaling
-       and comparison should honour fractional precision when both
-       operands carry it and degrade gracefully to float otherwise.
-       A self-contained refactor will introduce a small operations
-       layer over ``RationalField`` to make those guarantees explicit.
-       Until then, callers should treat the float and rational sides
-       as independent views of the same storage.
-    """
-
-    PA_SCHEMA: ClassVar[pa.StructType] = RATIONAL_STRUCT_TYPE
-    _blueprint_pa_type: ClassVar[pa.DataType] = RATIONAL_STRUCT_TYPE
-
-    def __init__(
-        self,
-        data: pa.Array | pa.ChunkedArray | None = None,
-        field: pa.Field | None = None,
-        *,
-        name: str | None = None,
-    ) -> None:
-        # Defer to DataField for the live/blueprint dispatch, then
-        # validate the resolved field type matches our canonical schema.
-        DataField.__init__(self, data, field, name=name)
-        if not _struct_types_match(self._field.type, type(self).PA_SCHEMA):
-            raise TypeError(
-                f"{type(self).__name__} requires the rational struct schema "
-                f"{type(self).PA_SCHEMA}; got {self._field.type}"
-            )
-
-    @classmethod
-    def from_field(
-        cls, source: tuple[pa.Array | pa.ChunkedArray | None, pa.Field], **kw: Any
-    ) -> "RationalField":
-        data, field = source
-        return cls(data, field)
-
-    def from_array(
-        self,
-        source: pa.Array | pa.ChunkedArray,
-        *,
-        name: str | None = None,
-    ) -> "RationalField":
-        """Parse a source column as fractions and wrap as a RationalField.
-
-        Accepts strings of the form ``"<numerator>/<denominator>"`` as
-        well as plain numeric input; the resulting struct stores both
-        the float-best-effort ``value`` and the exact
-        ``numerator``/``denominator``.
-        """
-        if not self.is_empty:
-            raise TypeError(
-                f"{type(self).__name__}.from_array() can only be called on a blueprint "
-                f"(empty DataField); this instance has live data"
-            )
-        out_name = name if name is not None else self.name
-        struct_arr, pa_field = _build_rational_struct(source, name=out_name)
-        return RationalField(struct_arr, pa_field)
-
-
-def _coerce_time_unit(unit: Any) -> TimeUnit:
-    """Coerce a unit value to a ``TimeUnit`` enum (lazy import to avoid cycles)."""
-    from .enums import TimeUnit
-
-    return TimeUnit(unit)
-
-
-class DenominateNumberField(RationalField):
-    """A :class:`RationalField` bound to a single unit per field.
-
-    The unit is per-field, NOT per-row: every row in a
-    DenominateNumberField is interpreted in the SAME unit, recorded
-    once in the field's ``b"timetoalign"`` metadata blob.
-
-    Args:
-        data: The underlying rational struct array, or ``None`` for
-            schema-only / blueprint use.
-        field: The ``pa.Field`` descriptor.
-        unit: The unit bound to this field.  Required: a
-            DenominateNumberField is defined by its bound unit, so
-            construction without one is forbidden.  ``unit`` may also be
-            supplied implicitly via the field's metadata blob (see
-            :meth:`_resolve_unit`); if neither is present, ``ValueError``
-            is raised.
-    """
-
-    def __init__(
-        self,
-        data: pa.Array | pa.ChunkedArray | None = None,
-        field: pa.Field | None = None,
-        *,
-        name: str | None = None,
-        unit: TimeUnit | str,
-    ):
-        if field is None:
-            # Blueprint construction.  ``unit=`` is still mandatory —
-            # a DenominateNumberField is defined by its bound unit.
-            if name is None:
-                raise TypeError("DenominateNumberField requires either field= or name=")
-            pa_type = type(self)._default_blueprint_pa_type()
-            field = pa.field(name, pa_type)
-        super().__init__(data, field)
-        self._unit: TimeUnit = self._resolve_unit(self._field, unit)
-
-    # -- properties ----------------------------------------------------------
-
-    @property
-    def unit(self) -> TimeUnit:
-        """The single unit bound to this field."""
-        return self._unit
-
-    @property
-    def domain(self) -> Any:
-        """The temporal domain implied by the unit."""
-        return self._unit.domain
-
-    # -- helpers -------------------------------------------------------------
-
-    @staticmethod
-    def _resolve_unit(pa_field: pa.Field, override: Any) -> TimeUnit:
-        """Resolve the unit from a kwarg override, then from field metadata.
-
-        Raises:
-            ValueError: If neither *override* nor the field metadata
-                supplies a unit.
-        """
-        if override is not None:
-            return _coerce_time_unit(override)
-        raw_meta = pa_field.metadata
-        if raw_meta and TIMETOALIGN_METADATA_KEY in raw_meta:
-            try:
-                payload = parse_metadata_blob(raw_meta[TIMETOALIGN_METADATA_KEY])
-            except (UnicodeDecodeError, ValueError):
-                payload = {}
-            unit = payload.get("unit")
-            if unit is not None:
-                return _coerce_time_unit(unit)
-        raise ValueError(
-            f"DenominateNumberField requires a unit; field {pa_field.name!r} "
-            "carries neither a kwarg unit nor a 'unit' entry in its metadata"
-        )
-
-    @classmethod
-    def from_field(
-        cls,
-        source: tuple[pa.Array | pa.ChunkedArray | None, pa.Field],
-        *,
-        unit: TimeUnit | str | None = None,
-        **kw: Any,
-    ) -> "DenominateNumberField":
-        """Construct a DenominateNumberField from a ``(data, pa.Field)`` tuple.
-
-        Args:
-            source: A ``(data, pa.Field)`` tuple.
-            unit: Override unit.  Defaults to the unit carried in the
-                pa.Field's ``b"timetoalign"`` metadata blob; if neither
-                is present, ``_resolve_unit`` raises ``ValueError``.
-        """
-        data, field = source
-        if unit is None:
-            unit = cls._resolve_unit(field, None)
-        return cls(data, field, unit=unit)
-
-    def from_array(
-        self,
-        source: pa.Array | pa.ChunkedArray,
-        *,
-        name: str | None = None,
-    ) -> "DenominateNumberField":
-        """Parse a source column as fractions and stamp unit metadata.
-
-        Equivalent to :meth:`RationalField.from_array` followed by attaching
-        the blueprint's bound :attr:`unit` as a versioned
-        :data:`TIMETOALIGN_METADATA_KEY` blob (``{"unit": ...}``) on the
-        emitted field.
-        """
-        if not self.is_empty:
-            raise TypeError(
-                f"{type(self).__name__}.from_array() can only be called on a blueprint "
-                f"(empty DataField); this instance has live data"
-            )
-        out_name = name if name is not None else self.name
-        struct_arr, pa_field = _build_rational_struct(source, name=out_name)
-        meta = {
-            TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(
-                {"unit": self._unit.value}
-            )
-        }
-        pa_field = pa_field.with_metadata(meta)
-        return DenominateNumberField(struct_arr, pa_field, unit=self._unit)

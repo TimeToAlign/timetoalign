@@ -20,7 +20,8 @@ class TestLoaderCreation:
         """Can create loader with default settings."""
         loader = DummyLoader()
         assert loader.unit == TimeUnit.ticks  # DummyLoader._default_unit
-        assert loader.number_type == NumberType.float
+        # ticks are counted, so the unit's own representation is int.
+        assert loader.number_type == NumberType.int
         assert len(loader) == 0
 
     def test_create_with_unit(self) -> None:
@@ -30,7 +31,7 @@ class TestLoaderCreation:
 
     def test_create_with_number_type(self) -> None:
         """Can specify number_type at creation."""
-        loader = DummyLoader(number_type=NumberType.fraction)
+        loader = DummyLoader(unit=TimeUnit.quarters, number_type=NumberType.fraction)
         assert loader.number_type == NumberType.fraction
 
 

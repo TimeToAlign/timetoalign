@@ -36,7 +36,7 @@ from typing import Any, ClassVar
 
 import pandas as pd
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import TimeUnit
 from timetoalign.loader.tabular.csv import CsvLoader
 
 module_logger = logging.getLogger(__name__)
@@ -90,9 +90,8 @@ class EepNotesLoader(CsvLoader):
     event_type_column: ClassVar[str | None] = None
     default_event_type: ClassVar[str] = "Note"
 
-    # Coordinate configuration
+    # Coordinate configuration -- the representation follows the unit.
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
-    coordinate_type: ClassVar[NumberType] = NumberType.float
 
     # column_specs: pitch is already captured via name_column; pitch
     # is preserved as a string column (chord/rest tokens like

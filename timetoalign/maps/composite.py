@@ -14,8 +14,11 @@ import numpy as np
 from numpy.typing import NDArray
 
 from ..core.enums import TimeUnit
-from ..core.fields import rational_to_wire, wire_to_rational
-from ..core.time import CoordinateValue
+from ..core.time import (
+    CoordinateValue,
+    rational_to_wire,
+    wire_to_rational,
+)
 from .base import ConversionMap
 
 if TYPE_CHECKING:

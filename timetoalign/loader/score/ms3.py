@@ -12,7 +12,10 @@ from typing import Any
 from typing_extensions import Self
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.core.fields import coordinate_to_struct, rational_to_struct
+from timetoalign.core.time import (
+    coordinate_to_struct,
+    rational_to_struct,
+)
 
 from .base import ScoreLoader
 from .store import ScoreStore

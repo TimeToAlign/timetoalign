@@ -56,8 +56,10 @@ from timetoalign.core import (
 from timetoalign.core.fields import (
     SemanticField,
     StructField,
-    rational_to_wire,
     register_value_projector,
+)
+from timetoalign.core.time import (
+    rational_to_wire,
     wire_to_rational,
 )
 from timetoalign.core.timestamp import _format_coordinate

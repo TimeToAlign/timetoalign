@@ -819,8 +819,24 @@ def _parse_pitch(pitch_str: str) -> tuple[str, str, int]:
     return (name, modifier, octave)
 
 
+# Denominators a Match file writes. These are note values -- halves down to
+# sixty-fourths, plus their triplet and sextuplet subdivisions -- so this is
+# the format's own vocabulary, not a search for whatever ratio happens to sit
+# nearest a number.
+_MATCH_DENOMINATORS: tuple[int, ...] = (1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64)
+
+
 def _to_fraction_str(value: Any) -> str:
-    """Convert a numeric value to a symbolic fraction string.
+    """Render a numeric value as a Match-file fraction string.
+
+    An exact input is written exactly -- a triplet eighth arrives as
+    ``Fraction(1, 3)`` and leaves as ``"1/3"``.
+
+    A float has no exact note value to write, so it is snapped to the
+    nearest denominator the format admits. That is a deliberate,
+    format-imposed quantization with a fixed vocabulary, and it is confined
+    to this writer: nothing that stays inside the library ever gains a
+    denominator it did not earn.
 
     Args:
         value: A float, int, string, or Fraction.
@@ -828,29 +844,35 @@ def _to_fraction_str(value: Any) -> str:
     Returns:
         A string like ``"0"``, ``"1/8"``, ``"3/16"``.
     """
+    if isinstance(value, Fraction):
+        return str(value)
     if isinstance(value, str):
-        # Already a fraction string?
         if "/" in value:
             return value
         try:
-            fval = float(Fraction(value))
+            exact = Fraction(value)
         except (ValueError, ZeroDivisionError):
             return value
-        if fval == 0:
-            return "0"
-        frac = Fraction(fval).limit_denominator(64)
-        return str(frac) if frac != 0 else "0"
+        return str(exact) if exact != 0 else "0"
+    if isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
 
     try:
         fval = float(value)
     except (TypeError, ValueError):
         return str(value)
-
     if fval == 0:
         return "0"
+    return str(_snap_to_match_denominator(fval))
 
-    frac = Fraction(fval).limit_denominator(64)
-    return str(frac)
+
+def _snap_to_match_denominator(value: float) -> Fraction:
+    """Return the closest Match-writable note value to *value*."""
+    best = min(
+        (Fraction(round(value * d), d) for d in _MATCH_DENOMINATORS),
+        key=lambda candidate: abs(float(candidate) - value),
+    )
+    return best
 
 
 def _safe_float(value: Any) -> float:

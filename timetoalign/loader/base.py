@@ -21,6 +21,7 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from fractions import Fraction
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
@@ -34,7 +35,8 @@ from timetoalign.core import (
     TimelineIdGenerator,
     TimeUnit,
 )
-from timetoalign.core.fields import TIMETOALIGN_METADATA_KEY
+from timetoalign.core.fields import TIMETOALIGN_METADATA_KEY, field_metadata
+from timetoalign.core.time import struct_to_coordinate
 from timetoalign.display.html import affordance_html, code
 from timetoalign.storage import EventData
 
@@ -201,14 +203,15 @@ class EventLoader(Loader[LoadSourceResult]):
     def __init__(
         self,
         unit: TimeUnit | None = None,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType | None = None,
         interval_policy: IntervalPolicy | str = IntervalPolicy.warn,
     ) -> None:
         """Initialize the Loader.
 
         Args:
             unit: The time unit for coordinates. Defaults to class's _default_unit.
-            number_type: The number type for coordinates.
+            number_type: The number type for coordinates. Defaults to the
+                one the unit itself uses.
             interval_policy: How to handle end/duration inconsistencies in
                 interval events.  Accepts an `IntervalPolicy` enum member or
                 a string (``"warn"``, ``"prefer_end"``, ``"prefer_duration"``,
@@ -217,7 +220,7 @@ class EventLoader(Loader[LoadSourceResult]):
         """
         super().__init__()
         self._unit = unit or self._default_unit
-        self._number_type = number_type
+        self._number_type = self._unit.resolve_number_type(number_type)
         self._interval_policy = IntervalPolicy(interval_policy)
         self._events: EventData = self._event_data_class.empty(
             self._unit, self._number_type
@@ -709,20 +712,26 @@ class EventLoader(Loader[LoadSourceResult]):
                 f"Supported: TableMap, LinearMap, ScalarMap"
             )
 
-    def _extract_coordinate_values(self, field_name: str) -> list[float]:
-        """Extract float values from a coordinate field.
+    def _extract_coordinate_values(
+        self, field_name: str
+    ) -> list[int | float | Fraction]:
+        """Extract a coordinate field's values in their own representation.
+
+        A C-Map built from an exact column deserves exact anchors: a tick
+        grid read off a score should convert back to the ratios it came
+        from, not to whatever the float projection rounds to. So this reads
+        each cell in the representation the field declares rather than
+        reaching straight for the float side.
 
         Args:
             field_name: The field name to extract.
 
         Returns:
-            List of float coordinate values.
+            List of coordinate values.
 
         Raises:
             ValueError: If field doesn't exist or isn't a coordinate field.
         """
-        import pyarrow.compute as pc
-
         table = self._events._table
 
         if field_name not in table.column_names:
@@ -736,9 +745,17 @@ class EventLoader(Loader[LoadSourceResult]):
         if pa.types.is_struct(arr.type):
             inner_names = [f.name for f in arr.type]
             if "value" in inner_names:
-                # Extract the 'value' field from the struct
-                values = pc.struct_field(arr, "value")
-                return values.to_pylist()
+                number_type = self._get_field_number_type(field_name)
+                decoded: list[int | float | Fraction] = []
+                for cell in arr.to_pylist():
+                    if cell is None:
+                        decoded.append(0.0)
+                        continue
+                    try:
+                        decoded.append(struct_to_coordinate(cell, number_type))
+                    except (TypeError, ValueError, ZeroDivisionError):
+                        decoded.append(float(cell.get("value") or 0.0))
+                return decoded
             else:
                 raise ValueError(
                     f"Field '{field_name}' is a struct but doesn't have a 'value' "
@@ -768,17 +785,29 @@ class EventLoader(Loader[LoadSourceResult]):
         if field_idx < 0:
             return None
 
-        pa_field = schema.field(field_idx)
-        if pa_field.metadata:
-            unit = pa_field.metadata.get(b"unit")
-            if unit:
-                return unit.decode("utf-8")
+        unit = field_metadata(schema.field(field_idx)).get("unit")
+        if unit:
+            return unit
 
         # For core coordinate fields (start, end, duration), use loader's unit
         if field_name in ("start", "end", "duration"):
             return str(self._unit.value) if self._unit else None
 
         return None
+
+    def _get_field_number_type(self, field_name: str) -> NumberType:
+        """Return the representation a coordinate field declares.
+
+        Falls back to the loader's own, which is what an unannotated core
+        coordinate column is written in.
+        """
+        schema = self._events._table.schema
+        field_idx = schema.get_field_index(field_name)
+        if field_idx >= 0:
+            declared = field_metadata(schema.field(field_idx)).get("number_type")
+            if declared:
+                return NumberType(declared)
+        return self._number_type
 
     # endregion
 

@@ -93,7 +93,6 @@ class BeatGrid(ContinuousLogicalTimeline):
 
     # Force quarters unit and Fraction number type
     _default_unit: ClassVar[TimeUnit] = TimeUnit.quarters
-    _default_number_type: ClassVar[NumberType] = NumberType.fraction
 
     # Instance attributes (set in __init__ or from_tempo)
     _beats_per_measure: int
@@ -770,9 +769,10 @@ class BeatGrid(ContinuousLogicalTimeline):
             quarters_per_beat = Fraction(beat_unit) * 4
             beats_per_second = tempo_bpm / 60.0
             quarters_per_second = float(quarters_per_beat) * beats_per_second
-            length = Fraction(
-                effective_duration * quarters_per_second
-            ).limit_denominator(10000)
+            # tempo_bpm is a measurement, so the length it implies is one
+            # too. Quarters accept float as readily as fraction; dressing
+            # this up as a ratio would claim a precision the tempo never had.
+            length = effective_duration * quarters_per_second
 
         grid = cls(
             length=length,

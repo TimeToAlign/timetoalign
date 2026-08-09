@@ -20,8 +20,11 @@ import numpy as np
 from numpy.typing import NDArray
 
 from timetoalign.core.enums import ExtrapolationPolicy, InterpolationKind, TimeUnit
-from timetoalign.core.fields import rational_to_wire, wire_to_rational
-from timetoalign.core.time import CoordinateValue
+from timetoalign.core.time import (
+    CoordinateValue,
+    rational_to_wire,
+    wire_to_rational,
+)
 from timetoalign.maps.base import ConversionMap
 from timetoalign.maps.table import TableMap
 

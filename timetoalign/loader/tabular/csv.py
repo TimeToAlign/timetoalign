@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from typing import ClassVar
 
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import TimeUnit
 
 from .base import TabularLoader
 
@@ -58,7 +58,6 @@ class CsvLoader(TabularLoader):
 
     # Default coordinate configuration
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
-    coordinate_type: ClassVar[NumberType] = NumberType.float
 
 
 # endregion
@@ -102,7 +101,6 @@ class TsvLoader(TabularLoader):
 
     # Default coordinate configuration
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
-    coordinate_type: ClassVar[NumberType] = NumberType.float
 
 
 # endregion
@@ -139,7 +137,6 @@ class LabLoader(TabularLoader):
     default_event_type: ClassVar[str] = "Region"
 
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
-    coordinate_type: ClassVar[NumberType] = NumberType.float
 
     def _read_dataframe(self, source):
         """Read lab file without header."""

@@ -12,12 +12,15 @@ from timetoalign.core.enums import Domain, NumberType, TimeUnit
 from timetoalign.core.fields import (
     TIMETOALIGN_METADATA_KEY,
     StructField,
-    coordinate_to_struct,
     metadata_blob_from_dict,
     parse_metadata_blob,
 )
 from timetoalign.core.protocols import CoordinateLike, SemanticTypeLike
-from timetoalign.core.time import Coordinate, CoordinateField
+from timetoalign.core.time import (
+    Coordinate,
+    CoordinateField,
+    coordinate_to_struct,
+)
 from timetoalign.storage.schema import make_coordinate_type
 
 # ---------------------------------------------------------------------------

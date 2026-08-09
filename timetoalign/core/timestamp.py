@@ -22,7 +22,6 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from decimal import Decimal
 from fractions import Fraction
 from typing import (
     TYPE_CHECKING,
@@ -35,7 +34,9 @@ from typing import (
 )
 
 from ..maps.base import ConversionMap
-from .enums import TimeUnit
+from .enums import NumberType, TimeUnit
+from .fields import field_metadata
+from .time import format_number, quantize_to_unit
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -97,18 +98,30 @@ def _conversion_map_enabled_for_spec(
 
 # region Coordinate Formatting
 
-# Discrete units MUST be displayed as integers, never as floats or scientific notation.
-DISCRETE_UNITS = frozenset(
-    {"ticks", "pulses", "divs", "samples", "pixels", "px", "frames"}
-)
+
+def _names_discrete_unit(unit_str: str) -> bool:
+    """Whether *unit_str* names a unit whose values must display as integers.
+
+    Displays receive units as free text — a unit name, an alias like ``px``,
+    a C-Map's label, or nothing at all — so the name is resolved through
+    :class:`TimeUnit` rather than matched against a list. Anything that is
+    not a unit is simply not discrete.
+    """
+    try:
+        return TimeUnit(unit_str.strip()).is_discrete
+    except ValueError:
+        return False
 
 
-def _format_coordinate_value(value: int | float, unit_str: str = "") -> str:
+def _format_coordinate_value(value: int | float | Fraction, unit_str: str = "") -> str:
     """Format a coordinate value without rounding or scientific notation.
 
     Rules:
     - Discrete units (ticks, samples, pixels, frames): Always integer
-    - Continuous floats: Their shortest lossless representation in fixed-point notation
+    - Exact ratios: their own notation (``2/3``), never a decimal that
+      would misrepresent them as terminating
+    - Continuous floats: Their shortest lossless representation in fixed-point
+      notation
     - Exact integers: Show as integer (no decimal point)
 
     Args:
@@ -119,18 +132,7 @@ def _format_coordinate_value(value: int | float, unit_str: str = "") -> str:
         Formatted string, never in scientific notation.
     """
     suffix = f" {unit_str}" if unit_str else ""
-    unit_lower = unit_str.lower().strip()
-
-    # For discrete units OR modest exact integers, format as a plain integer.
-    if unit_lower in DISCRETE_UNITS or (
-        isinstance(value, int) or (value.is_integer() and abs(value) < 1e15)
-    ):
-        return f"{int(value)}{suffix}"
-
-    rendered = str(value)
-    if "e" in rendered.lower():
-        rendered = format(Decimal(rendered), "f")
-    return rendered + suffix
+    return format_number(value, discrete=_names_discrete_unit(unit_str)) + suffix
 
 
 def _format_stamp_value(value: Any, unit_str: str = "") -> str:
@@ -170,6 +172,54 @@ def _format_coordinate(coordinate: Coordinate) -> str:
 
 
 # endregion
+
+
+def _derived(value: Any, unit: TimeUnit) -> "Coordinate":
+    """Build a Coordinate that keeps the representation it arrived with.
+
+    The scalar constructor lets the unit choose how a value is written, which
+    is right for a coordinate somebody types: two quarter positions should
+    not differ in kind because one literal had a decimal point. Values
+    reaching a stamp are the other case, and the boundary is exactly that —
+    **the constructor**, not some judgement about where a number came from.
+
+    That boundary is worth stating plainly, because it puts a value the
+    caller did type on this side of it. ``get_timestamp(9.5)`` carries a
+    float axis, so the coordinate it reports back is float, while
+    ``Coordinate(9.5, quarters)`` is ``Fraction(19, 2)`` — same literal,
+    different answer. The asymmetry is deliberate: the axis seeds every
+    child coordinate, unit conversion and interval derived from the stamp,
+    so coercing it would make an entire subtree read as exact on the
+    strength of one approximate query. A float query means "approximately
+    here", and that has to survive the whole cross-section or it means
+    nothing.
+    """
+    from ..core.time import Coordinate
+
+    number_type = NumberType.from_number(value)
+    if number_type not in unit.allowed_number_types:
+        number_type = None
+    return Coordinate(value, unit, number_type=number_type)
+
+
+def _as_float_lane(value: Any) -> Any:
+    """Coerce a numeric value to the float lane, passing anything else through.
+
+    Stamps answer in two currencies. ``get_coordinate()``, ``get_unit()`` and
+    the conversion paths are the **exact lane**: they carry whatever
+    representation the coordinate actually has, so a tick position converts
+    to exactly a third of a quarter. ``get()``, subscript access and the raw
+    stamp table are the **float lane**: their job is a uniform numeric
+    currency that tables, dataframes and arithmetic downstream can rely on,
+    and handing those an exact ratio would turn a float column into an object
+    column. Non-numeric conversion outputs -- labels, mappings -- are not
+    numbers in either currency and pass through untouched.
+    """
+    if isinstance(value, bool) or value is None:
+        return value
+    if isinstance(value, Fraction):
+        return float(value)
+    return value
 
 
 # region TimeStampSource Protocol
@@ -359,7 +409,16 @@ class Stamp(ABC):
             exact = exact_getter(timeline_id, self.axis)
             if exact is not None:
                 return Coordinate(exact, unit)
-        return Coordinate(raw, unit)
+        # *raw* came off the float lane, which is where empirically
+        # interpolated positions live. Declaring float keeps it one: letting
+        # the constructor prefer the unit's exact default would dress an
+        # estimate between anchors up as a claimed rational. A discrete unit
+        # cannot express float at all, so there the estimate rounds, which is
+        # the only thing a tick position can be.
+        interpolated = (
+            NumberType.float if NumberType.float in unit.allowed_number_types else None
+        )
+        return Coordinate(raw, unit, number_type=interpolated)
 
     @property
     def axis_coordinate(self) -> "Coordinate":
@@ -369,8 +428,7 @@ class Stamp(ABC):
         unit = self._unit_for(self.source_id or "")
         if unit is None:
             unit = TimeUnit.seconds
-        exact_axis = getattr(self, "_exact_axis", None)
-        return Coordinate(exact_axis if exact_axis is not None else self.axis, unit)
+        return Coordinate(self.axis, unit)
 
     def get_conversion(self, key: str) -> Any:
         """Get the raw output of a conversion map addressed by name/selector.
@@ -425,10 +483,12 @@ class Stamp(ABC):
         if self._unit_resolution_enabled(unit):
             unit_value = self.get_unit(unit)
             if unit_value is not None:
-                return unit_value
+                # Subscript is ``get``'s other spelling, so it answers in the
+                # same float lane; ``get_unit`` is the exact one.
+                return _as_float_lane(unit_value)
         conversion = self.get_conversion(key)
         if conversion is not None:
-            return conversion
+            return _as_float_lane(conversion)
         raise KeyError(
             f"{key!r} names no timeline, unit, or conversion map on this "
             f"stamp. Present timelines: {self.present_timelines}"
@@ -513,12 +573,11 @@ class TimeStamp(Stamp):
         10.5
     """
 
-    axis: float
+    axis: int | float | Fraction
     source: TimeStampSource
     source_id: str
     row_index: int | None = field(default=None)
     conversion_maps: ConversionMapsSpec = field(default=True)
-    _exact_axis: Fraction | None = field(default=None, repr=False)
 
     def get(self, timeline_id: str, default: float | None = None) -> float | None:
         """Get coordinate on another timeline.
@@ -544,7 +603,7 @@ class TimeStamp(Stamp):
             # Round for discrete timelines (TimelineGroup members)
             if self._number_type_for(timeline_id) == "int":
                 return round(self.axis)
-            return self.axis
+            return _as_float_lane(self.axis)
 
         # Bounds check: is axis inside the related timeline's span?
         if not self.source._contains_coordinate(timeline_id, self.axis, self.source_id):
@@ -553,8 +612,7 @@ class TimeStamp(Stamp):
         # Strategy 1: exact offset arithmetic (Timeline with children)
         _get_child = getattr(self.source, "_get_child_coordinate", None)
         if _get_child is not None:
-            axis = self._exact_axis if self._exact_axis is not None else self.axis
-            result = _get_child(timeline_id, axis)
+            result = _get_child(timeline_id, self.axis)
             if result is not None:
                 return float(result)
             # If child coordinate returned None but _contains_coordinate
@@ -591,29 +649,38 @@ class TimeStamp(Stamp):
         Returns:
             A Coordinate object, or None when the timeline is unavailable.
         """
-        from ..core.time import Coordinate
-
         unit = self._unit_for(timeline_id)
         if unit is None:
             return None
 
-        if timeline_id == self.source_id and self._exact_axis is not None:
-            return Coordinate(self._exact_axis, unit)
+        # Every branch below hands back a value somebody else derived -- a
+        # stored row, offset arithmetic, a structural conversion -- so each
+        # keeps the representation it arrived with rather than taking the
+        # unit's default. That default is for values a caller *authors*;
+        # re-typing a derived one would claim an exactness the computation
+        # did not have. ``_derived`` is the one place that rule is spelled.
+        if timeline_id == self.source_id:
+            # A stamp queried with a float may still sit on a stored row whose
+            # value is exact; the row is the better answer, and the axis is
+            # only a way of finding it.
+            exact_getter = getattr(self.source, "_get_exact_coordinate_value", None)
+            if exact_getter is not None:
+                stored = exact_getter(timeline_id, self.axis)
+                if stored is not None:
+                    return _derived(stored, unit)
+            return _derived(self.axis, unit)
 
-        if self._exact_axis is not None:
-            child_getter = getattr(self.source, "_get_child_coordinate", None)
-            if child_getter is not None:
-                exact = child_getter(timeline_id, self._exact_axis)
-                if exact is not None:
-                    return Coordinate(exact, unit)
+        child_getter = getattr(self.source, "_get_child_coordinate", None)
+        if child_getter is not None:
+            offset_result = child_getter(timeline_id, self.axis)
+            if offset_result is not None:
+                return _derived(offset_result, unit)
 
-            group_getter = getattr(
-                self.source, "_get_exact_interpolated_coordinate", None
-            )
-            if group_getter is not None:
-                exact = group_getter(timeline_id, self.source_id, self._exact_axis)
-                if exact is not None:
-                    return Coordinate(exact, unit)
+        group_getter = getattr(self.source, "_get_exact_interpolated_coordinate", None)
+        if group_getter is not None:
+            structural = group_getter(timeline_id, self.source_id, self.axis)
+            if structural is not None:
+                return _derived(structural, unit)
 
         return Stamp.get_coordinate(self, timeline_id)
 
@@ -647,7 +714,7 @@ class TimeStamp(Stamp):
             value = self._coordinate_on(timeline_id)
             if value is None:
                 continue
-            return Coordinate(umap(value), unit).value
+            return Coordinate(quantize_to_unit(umap(value), unit), unit).value
         return None
 
     def _surfaceable_ids(self) -> list[str]:
@@ -668,14 +735,20 @@ class TimeStamp(Stamp):
                 ids.append(timeline_id)
         return ids
 
-    def _coordinate_on(self, timeline_id: str) -> float | None:
+    def _coordinate_on(self, timeline_id: str) -> int | float | Fraction | None:
         """Resolve this stamp's coordinate on *timeline_id* (source or subtree).
 
-        Falls back to the source's ``_descendant_coordinate`` when ``get``
-        cannot resolve a member-descendant directly (TimelineGroup case).
+        Returns the coordinate in whatever representation it actually has,
+        so a C-Map applied to it converts exactly. ``get`` stays float --
+        that is its documented currency -- which is why this reaches for
+        the typed coordinate first and falls back to ``get`` only when
+        there is no exact answer to be had.
         """
         if timeline_id == self.source_id:
             return self.axis
+        coordinate = self.get_coordinate(timeline_id)
+        if coordinate is not None:
+            return coordinate.value
         value = self.get(timeline_id)
         if value is not None:
             return value
@@ -784,7 +857,12 @@ class TimeStamp(Stamp):
         Returns:
             Dict mapping timeline_id/unit_name/cmap-label to value.
         """
-        coordinates: dict[str, Any] = {self.source_id: self.axis}
+        # to_dict is the dict-shaped sibling of the raw stamp table, so it
+        # answers in the float lane throughout -- see :func:`_as_float_lane`.
+        # The exact values remain one call away via ``get_coordinate()`` and
+        # ``get_unit()``, and the rendered forms (``__str__`` / HTML) show
+        # them exactly.
+        coordinates: dict[str, Any] = {self.source_id: self.get(self.source_id)}
 
         # Add child/member coordinates
         if include_children:
@@ -794,12 +872,12 @@ class TimeStamp(Stamp):
         conversions: dict[str, Any] = {}
         if conversion_units is None or conversion_units == "all":
             for label, value, _suffix in self._conversion_rows():
-                conversions[label] = value
+                conversions[label] = _as_float_lane(value)
         elif conversion_units:
             for unit in conversion_units:
                 value = self.get_unit(unit)
                 if value is not None:
-                    conversions[unit.value] = value
+                    conversions[unit.value] = _as_float_lane(value)
 
         if format == "graph":
             return {"coordinates": coordinates, "conversions": conversions}
@@ -1377,15 +1455,7 @@ def timestamp_table_to_dataframe(
 
     for i, data_field in enumerate(table.schema):
         field_name = data_field.name
-        metadata = data_field.metadata or {}
-
-        # Decode metadata bytes to strings for easier access
-        meta_dict = {
-            k.decode("utf-8") if isinstance(k, bytes) else k: (
-                v.decode("utf-8") if isinstance(v, bytes) else v
-            )
-            for k, v in metadata.items()
-        }
+        meta_dict = field_metadata(data_field)
 
         # Determine base name
         if isinstance(fields, list):

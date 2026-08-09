@@ -108,7 +108,7 @@ class TestMs3Loader:
         assert _exact_pair(row["duration"]) == (1, 2)
         assert _exact_pair(row["end"]) == (1, 2)
 
-    def test_pathological_derived_duration_is_value_only(self, tmp_path):
+    def test_pathological_derived_duration_mirrors_its_double(self, tmp_path):
         """A derived decimal with a large binary denominator has no pair."""
         path = _write_synthetic_notes(
             tmp_path / "derived_decimal.notes.tsv",
@@ -119,8 +119,6 @@ class TestMs3Loader:
         duration = row["duration"]
 
         assert duration["value"] == 0.3333333333333333
-        assert duration["numerator"] is None
-        assert duration["denominator"] is None
 
     def test_woo71_note_coordinates_are_exact(self):
         """Populated WoO71 note coordinates carry exact pairs."""

@@ -361,7 +361,7 @@ class TestSerializedTypeParameters:
         original = SegmentLine[segment_class](
             length=0,
             unit=segment_class._default_unit,
-            number_type=segment_class._default_number_type,
+            number_type=segment_class._default_unit.default_number_type,
             uid="segments",
         )
         for index in range(2):
@@ -615,7 +615,7 @@ class TestLogicalTimeline:
 
     def test_continuous_logical_rejects_int(self):
         """ContinuousLogicalTimeline rejects int number_type."""
-        with pytest.raises(ValueError, match="does not allow number_type"):
+        with pytest.raises(ValueError, match="does not admit number_type"):
             ContinuousLogicalTimeline(length=4, number_type=NumberType.int)
 
     def test_continuous_logical_rejects_ticks(self):
@@ -631,7 +631,7 @@ class TestLogicalTimeline:
 
     def test_discrete_logical_rejects_float(self):
         """DiscreteLogicalTimeline rejects float number_type."""
-        with pytest.raises(ValueError, match="does not allow number_type"):
+        with pytest.raises(ValueError, match="does not admit number_type"):
             DiscreteLogicalTimeline(length=1920, number_type=NumberType.float)
 
     def test_discrete_logical_rejects_quarters(self):
@@ -676,7 +676,7 @@ class TestPhysicalTimeline:
 
     def test_continuous_physical_rejects_int(self):
         """ContinuousPhysicalTimeline rejects int number_type."""
-        with pytest.raises(ValueError, match="does not allow number_type"):
+        with pytest.raises(ValueError, match="does not admit number_type"):
             ContinuousPhysicalTimeline(length=10, number_type=NumberType.int)
 
     def test_continuous_physical_rejects_samples(self):
@@ -692,7 +692,7 @@ class TestPhysicalTimeline:
 
     def test_discrete_physical_rejects_float(self):
         """DiscretePhysicalTimeline rejects float number_type."""
-        with pytest.raises(ValueError, match="does not allow number_type"):
+        with pytest.raises(ValueError, match="does not admit number_type"):
             DiscretePhysicalTimeline(length=44100, number_type=NumberType.float)
 
     def test_discrete_physical_rejects_seconds(self):
@@ -737,7 +737,7 @@ class TestGraphicalTimeline:
 
     def test_continuous_graphical_rejects_int(self):
         """ContinuousGraphicalTimeline rejects int number_type."""
-        with pytest.raises(ValueError, match="does not allow number_type"):
+        with pytest.raises(ValueError, match="does not admit number_type"):
             ContinuousGraphicalTimeline(length=100, number_type=NumberType.int)
 
     def test_continuous_graphical_rejects_pixels(self):
@@ -758,7 +758,7 @@ class TestGraphicalTimeline:
 
     def test_discrete_graphical_rejects_float(self):
         """DiscreteGraphicalTimeline rejects float number_type."""
-        with pytest.raises(ValueError, match="does not allow number_type"):
+        with pytest.raises(ValueError, match="does not admit number_type"):
             DiscreteGraphicalTimeline(length=1920, number_type=NumberType.float)
 
     def test_discrete_graphical_rejects_centimeters(self):

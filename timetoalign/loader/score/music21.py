@@ -11,7 +11,10 @@ from typing import Any
 import music21 as m21
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.core.fields import rational_to_struct, struct_to_rational
+from timetoalign.core.time import (
+    rational_to_struct,
+    struct_to_rational,
+)
 
 from .base import ScoreLoader
 from .store import ScoreStore
@@ -130,7 +133,7 @@ class Music21Loader(ScoreLoader):
                 for m_off, idx, m in reversed(measure_offsets):
                     if m_off <= offset + 1e-5:
                         mc = idx
-                        mc_onset = Fraction(offset - m_off).limit_denominator(10000)
+                        mc_onset = Fraction(offset) - Fraction(m_off)
                         break
                 return mc, mc_onset
 
@@ -152,8 +155,8 @@ class Music21Loader(ScoreLoader):
             measure_info: list[dict[str, Any]] = []
             for i, m in enumerate(measure_list):
                 mc = i + 1
-                qb = Fraction(float(m.offset)).limit_denominator(10000)
-                dur = Fraction(float(m.duration.quarterLength)).limit_denominator(10000)
+                qb = Fraction(m.offset)
+                dur = Fraction(m.duration.quarterLength)
 
                 # For MEI files, use pre-parsed XML data (music21's MEI parser
                 # drops <ending> elements and doesn't create RepeatBracket spanners).
@@ -296,8 +299,8 @@ class Music21Loader(ScoreLoader):
 
                 offset = float(obj.offset)
                 duration = float(obj.duration.quarterLength)
-                qb = Fraction(offset).limit_denominator(10000)
-                dur_qb = Fraction(duration).limit_denominator(10000)
+                qb = Fraction(offset)
+                dur_qb = Fraction(duration)
                 mc, mc_onset = get_mc_and_onset(offset)
                 mn = (
                     str(obj.measureNumber)
@@ -422,9 +425,7 @@ class Music21Loader(ScoreLoader):
             for r in note_rows
         ]
         min_qb = min(all_onsets) if all_onsets else 0.0
-        m21_offset: Fraction = (
-            Fraction(-min_qb).limit_denominator(10000) if min_qb < 0 else Fraction(0)
-        )
+        m21_offset: Fraction = Fraction(-min_qb) if min_qb < 0 else Fraction(0)
         self._anacrusis_offset = float(m21_offset)
 
         if m21_offset:

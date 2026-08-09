@@ -41,6 +41,7 @@ from timetoalign.core import (
     resolve_id,
 )
 from timetoalign.core.enums import NumberType, TimeUnit
+from timetoalign.core.fields import blob_metadata, field_metadata
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
     Stamp,
@@ -817,12 +818,11 @@ class TimelineGroup:
         # The TimeStamp will use InterpolationMaps for coordinate conversion
         # and _get_unit_map_for_timeline for C-Map access
         return TimeStamp(
-            axis=coord_value,
+            axis=exact_axis if exact_axis is not None else coord_value,
             source=self,
             source_id=timeline_id,
             row_index=row_index,
             conversion_maps=conversion_maps,
-            _exact_axis=exact_axis,
         )
 
     def get_timestamps_at(
@@ -989,11 +989,11 @@ class TimelineGroup:
                 new_field = pa.field(
                     field_name,
                     pa.float64(),
-                    metadata={
-                        b"unit": unit_value.encode("utf-8"),
-                        b"cmap_id": cmap.id.encode("utf-8"),
-                        b"source_timeline": timeline_id.encode("utf-8"),
-                    },
+                    metadata=blob_metadata(
+                        unit=unit_value,
+                        cmap_id=cmap.id,
+                        source_timeline=timeline_id,
+                    ),
                 )
                 table = table.append_column(new_field, pa.array(converted))
 
@@ -1077,10 +1077,9 @@ class TimelineGroup:
             coords[field_name] = val  # None if null
 
             # Extract unit from field metadata
-            if data_field.metadata:
-                unit_bytes = data_field.metadata.get(b"unit")
-                if unit_bytes:
-                    units[field_name] = unit_bytes.decode("utf-8")
+            unit_value = field_metadata(data_field).get("unit")
+            if unit_value:
+                units[field_name] = unit_value
 
         axis_timeline_id = next(iter(self._timelines))
         axis = coords[axis_timeline_id]
@@ -1354,6 +1353,12 @@ class TimelineGroup:
         result = target_low + ratio * (target_high - target_low)
         if self._timelines[target_id].number_type == NumberType.int:
             return round(result)
+        # This is structural re-expression, not empirical interpolation: the
+        # relation is proven from the members' own declared origins and
+        # lengths, so it is definitional and stays exact. Estimating between
+        # matched anchor pairs is the other thing, and that lane is float --
+        # a fitted relation that happens to come out a nice ratio is still a
+        # fit, and must not be typed as though someone had claimed it.
         return result
 
     def _get_unit_map(self, unit: "TimeUnit") -> InterpolationMap | None:
@@ -1842,10 +1847,10 @@ class TimelineGroup:
                     pa.field(
                         timeline.id,
                         pa.float64(),
-                        metadata={
-                            b"unit": timeline.unit.value.encode("utf-8"),
-                            b"timeline_id": timeline.id.encode("utf-8"),
-                        },
+                        metadata=blob_metadata(
+                            unit=timeline.unit.value,
+                            timeline_id=timeline.id,
+                        ),
                     )
                 ]
             )
@@ -1913,10 +1918,10 @@ class TimelineGroup:
         new_field = pa.field(
             timeline.id,
             pa.float64(),
-            metadata={
-                b"unit": timeline.unit.value.encode("utf-8"),
-                b"timeline_id": timeline.id.encode("utf-8"),
-            },
+            metadata=blob_metadata(
+                unit=timeline.unit.value,
+                timeline_id=timeline.id,
+            ),
         )
         self._timestamp_table = self._timestamp_table.append_column(
             new_field, pa.array(new_values, type=pa.float64())

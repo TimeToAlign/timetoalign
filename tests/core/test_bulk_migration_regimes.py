@@ -364,7 +364,9 @@ class TestDurationRegimes:
     def test_bulk_via_coordinate_struct_array(self) -> None:
         # regime: bulk construction — Duration shares Coordinate's storage
         # struct and routes through ``build_coordinate_struct_array``.
-        from timetoalign.core.fields import build_coordinate_struct_array
+        from timetoalign.core.time import (
+            build_coordinate_struct_array,
+        )
 
         arr = build_coordinate_struct_array(
             [Duration(0.5, TimeUnit.quarters), Duration(1.0, TimeUnit.quarters), None]

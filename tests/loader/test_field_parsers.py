@@ -3,7 +3,7 @@
 Two domains are exercised:
 
 * **DataField blueprint mechanism** — ``IntField``, ``FloatField``,
-  ``StringField``, ``RationalField``, ``DenominateNumberField``, and
+  ``StringField``, ``RedundantNumberField``, ``DenominateNumberField``, and
   paired :class:`SemanticField` subclasses all accept ``name=`` for
   blueprint construction and expose a uniform
   ``from_array(source, name=...)`` materialisation entry point.
@@ -36,7 +36,7 @@ from timetoalign.core import (
     MeasureNumber,
     MeasureNumberField,
     NumericField,
-    RationalField,
+    RedundantNumberField,
     StringField,
     StructField,
     TimeUnit,
@@ -116,29 +116,29 @@ class TestStringFieldBlueprint:
         assert result.data.to_pylist() == ["1", "2", "3"]
 
 
-class TestRationalFieldBlueprint:
+class TestRedundantNumberFieldBlueprint:
 
     def test_blueprint_has_rational_struct(self) -> None:
-        bp = RationalField(name="ratio")
+        bp = RedundantNumberField(name="ratio")
         assert bp.is_empty is True
         assert pa.types.is_struct(bp.pa_type)
 
     def test_from_array_parses_fraction_strings(self) -> None:
-        bp = RationalField(name="ratio")
+        bp = RedundantNumberField(name="ratio")
         result = bp.from_array(pa.array(["3/4", "1/2", "7/8"]))
-        assert isinstance(result, RationalField)
+        assert isinstance(result, RedundantNumberField)
         py = result.data.to_pylist()
         assert py[0] == {"value": 0.75, "numerator": 3, "denominator": 4}
         assert py[1] == {"value": 0.5, "numerator": 1, "denominator": 2}
         assert py[2] == {"value": 0.875, "numerator": 7, "denominator": 8}
 
     def test_from_array_handles_null_input(self) -> None:
-        bp = RationalField(name="ratio")
+        bp = RedundantNumberField(name="ratio")
         result = bp.from_array(pa.array(["3/4", None, "1/2"]))
         assert result.data.is_null().to_pylist() == [False, True, False]
 
     def test_from_array_zero_denominator_becomes_null(self) -> None:
-        bp = RationalField(name="ratio")
+        bp = RedundantNumberField(name="ratio")
         result = bp.from_array(pa.array(["3/4", "3/0"]))
         assert result.data.is_null().to_pylist() == [False, True]
 
@@ -213,7 +213,7 @@ class TestResolveFieldParser:
 
     def test_python_fraction_type(self) -> None:
         assert isinstance(
-            resolve_field_parser(Fraction, default_name="x"), RationalField
+            resolve_field_parser(Fraction, default_name="x"), RedundantNumberField
         )
 
     def test_pa_int64(self) -> None:
@@ -285,7 +285,7 @@ class TestCompositeFieldParser:
     def test_separator_with_iterable_parts(self) -> None:
         parser = CompositeFieldParser(
             separator="+",
-            parts=[IntField(name="measure"), RationalField(name="onset")],
+            parts=[IntField(name="measure"), RedundantNumberField(name="onset")],
             name="position",
         )
         result = parser.from_array(
@@ -310,11 +310,11 @@ class TestCompositeFieldParser:
     def test_default_part_name_from_semantic_field_class(self) -> None:
         parser = CompositeFieldParser(
             separator="+",
-            parts=[MeasureNumberField, RationalField(name="mn_onset")],
+            parts=[MeasureNumberField, RedundantNumberField(name="mn_onset")],
             name="position",
         )
         # MeasureNumberField → "measure_number" (snake_case, sans Field suffix).
-        # RationalField(name="mn_onset") supplies its own name.
+        # RedundantNumberField(name="mn_onset") supplies its own name.
         assert parser.part_keys == ["measure_number", "mn_onset"]
 
     def test_regex_named_groups(self) -> None:
@@ -331,7 +331,7 @@ class TestCompositeFieldParser:
         pattern = r"(\d+)\+(\d+/\d+)"
         parser = CompositeFieldParser(
             pattern=pattern,
-            parts=[IntField(name="measure"), RationalField(name="onset")],
+            parts=[IntField(name="measure"), RedundantNumberField(name="onset")],
             name="position",
         )
         result = parser.from_array(pa.array(["1+3/8", "2+1/4"]), name="position")
@@ -340,7 +340,7 @@ class TestCompositeFieldParser:
     def test_separator_mismatch_produces_null_row(self) -> None:
         parser = CompositeFieldParser(
             separator="+",
-            parts=[IntField(name="measure"), RationalField(name="onset")],
+            parts=[IntField(name="measure"), RedundantNumberField(name="onset")],
         )
         # Second row has no separator → its parts are null.
         result = parser.from_array(pa.array(["1+3/8", "no_separator"]), name="x")

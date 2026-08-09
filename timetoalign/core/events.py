@@ -43,11 +43,14 @@ from .fields import (
     data_shaped,
     install_paired_field_registry,
     register_value_projector,
-    wire_to_rational,
 )
 from .ids import ScopedId
 from .protocols import TwelveTETPitchMixin
-from .time import Coordinate, Duration
+from .time import (
+    Coordinate,
+    Duration,
+    wire_to_rational,
+)
 
 
 def _pc_mod(arr: pa.Array, n: int) -> pa.Array:

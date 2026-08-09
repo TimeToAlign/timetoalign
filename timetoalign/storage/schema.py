@@ -19,10 +19,13 @@ import pyarrow.compute as pc
 
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.core.fields import (
-    RATIONAL_STRUCT_TYPE,
     TIMETOALIGN_METADATA_KEY,
+    field_metadata,
     metadata_blob_from_dict,
     parse_metadata_blob,
+)
+from timetoalign.core.time import (
+    RATIONAL_STRUCT_TYPE,
 )
 
 # region Coordinate Schema
@@ -59,8 +62,11 @@ def make_rational_field(
     """Create a rational-valued field with optional metadata.
 
     The column type is the canonical
-    :data:`~timetoalign.core.fields.RATIONAL_STRUCT_TYPE`; build its row
-    values with :func:`~timetoalign.core.fields.rational_to_struct`.
+    :data:`~timetoalign.core.time.RATIONAL_STRUCT_TYPE`; build its row
+    values with :func:`~timetoalign.core.time.rational_to_struct`. The unit
+    and representation go into the versioned metadata blob every other
+    field in the library uses, so a reader resolves them the same way here
+    as anywhere else.
 
     Args:
         name: The field name.
@@ -70,10 +76,15 @@ def make_rational_field(
     Returns:
         A PyArrow field with RATIONAL_STRUCT_TYPE.
     """
-    meta = {"number_type": "fraction"}
+    payload: dict[str, str] = {"number_type": NumberType.fraction.name}
     if metadata:
-        meta.update(metadata)
-    return pa.field(name, RATIONAL_STRUCT_TYPE, nullable=nullable, metadata=meta)
+        payload.update(metadata)
+    return pa.field(
+        name,
+        RATIONAL_STRUCT_TYPE,
+        nullable=nullable,
+        metadata={TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(payload)},
+    )
 
 
 def make_coordinate_field(
@@ -94,10 +105,14 @@ def make_coordinate_field(
         A PyArrow field with struct type and unit/number_type metadata.
     """
     coord_type = make_coordinate_type(unit)
-    meta: dict[str, str] = {"unit": str(unit)}
-    if number_type is not None:
-        meta["number_type"] = number_type.name
-    return pa.field(name, coord_type, nullable=nullable, metadata=meta)
+    payload: dict[str, str] = {"unit": str(unit)}
+    payload["number_type"] = unit.resolve_number_type(number_type).name
+    return pa.field(
+        name,
+        coord_type,
+        nullable=nullable,
+        metadata={TIMETOALIGN_METADATA_KEY: metadata_blob_from_dict(payload)},
+    )
 
 
 def is_coordinate_type(dtype: pa.DataType) -> bool:
@@ -212,12 +227,10 @@ def get_unit_from_schema(schema: pa.Schema) -> TimeUnit | None:
     """
     # Check the 'start' field
     try:
-        field = schema.field("start")
-        if field.metadata and b"unit" in field.metadata:
-            return TimeUnit(field.metadata[b"unit"].decode())
+        unit = field_metadata(schema.field("start")).get("unit")
     except KeyError:
-        pass
-    return None
+        return None
+    return TimeUnit(unit) if unit else None
 
 
 # endregion

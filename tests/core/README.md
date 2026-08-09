@@ -18,20 +18,270 @@ This directory contains tests for the `timetoalign.core` module, which provides 
 
 ### `test_fraction_field_arithmetic.py` - Exact Coordinate Arithmetic
 
-**Purpose:** Validates that arithmetic over coordinate and duration fields keeps
-exact rational storage when every participating value has an authoritative
-numerator/denominator pair.
+**Purpose:** Validates that arithmetic over coordinate and duration fields runs
+in the representation the field declares, and that both sides of every result
+cell agree.
 
-The tests inspect both the materialised numeric result and the underlying Arrow
-struct. Exact rows assert the reduced numerator and denominator as well as the
-float convenience value; mixed rows assert that exact inputs retain pairs while
-rows involving floats have null pair members. Scalar Coordinate/Duration
-operations are checked with exact `Fraction` equality, and float operations are
-checked to ensure arithmetic never fabricates a rational pair from a float.
+A storage cell carries its number twice — as a float64 and as an integer ratio
+— and **both sides are populated on every non-null row**. Which side is
+authoritative is not something a reader may infer from the row; it is declared
+once per field, in `number_type` metadata. The tests therefore assert three
+things per result: the materialised scalar, the ratio members, and that the
+float member equals `float(numerator/denominator)` exactly. A cell whose two
+sides disagree is a bug even when the side a caller happens to read is right.
 
-**Validity Rationale:** The rational pair is the lossless representation used
-for persistence. Checking the pair directly catches precision loss that value
-comparisons alone could hide.
+Field-with-field arithmetic asserts that **the left operand decides** the
+result's representation: a fraction-typed `CoordinateField` plus a float-typed
+`DurationField` yields a fraction-typed `CoordinateField`, with the float side
+mirrored from the exact result. Scalar arithmetic asserts the same rule, so
+`Coordinate(Fraction(1, 3), quarters) + 0.5` is `Fraction(5, 6)` and not
+`0.8333333333333333` — the float operand is converted into the left operand's
+representation *before* the addition, which is the whole point of declaring one.
+
+Scaling is asserted separately and deliberately, under the rule **quantize
+the result, never the operand**. A multiplier is dimensionless, so converting
+it into the field's representation first is a category error; instead the
+arithmetic runs in the most exact representation the two sides afford, and
+rounding happens once, at the end, on the canonical side. Two cases pin it,
+and between them they separate every candidate implementation:
+
+* `Coordinate(101, ticks) * 0.5` is `50` — exactly `101/2`, then one
+  half-to-even rounding. Coercing the operand first would give `0`
+  (`round(0.5)`), and skipping the final rounding would give `50.5`.
+* `Coordinate(Fraction(1, 3), quarters) * 0.5` is `Fraction(1, 6)` — `0.5`
+  *is* exactly `1/2`, so the exact lane stays exact. Doing this one in float
+  would yield an ugly dyadic instead of a sixth.
+
+Additive operands follow the opposite rule and are converted first, because
+an added quantity is measured in the field's unit rather than standing
+outside it.
+
+Unit mismatch and cross-timeline-id mismatch are asserted to raise `TypeError`
+once per call, from metadata, never per row.
+
+**Validity Rationale:** Checking the ratio members directly catches precision
+loss that value comparisons alone would hide, because the float side of an
+exact cell is *supposed* to look right. Checking that the two sides mirror each
+other catches the subtler failure: a cell that is internally inconsistent
+answers different questions differently depending on which accessor a caller
+reaches for.
+
+### Display shows what the value carries
+
+One formatter (`format_number`) sits behind every pretty rendering — scalar
+`__str__`, stamp display, table cells. Having exactly one is the point rather
+than a tidiness preference: a display that shows less than the value carries
+is a lie the reader has no way to detect, and two formatters drift into
+precisely that. Before unification, `str(Coordinate(Fraction(1, 3),
+quarters))` read `0.333333` while the stamp rendering of the same position
+read `1/3`.
+
+Pinned, exactly:
+
+| Value | Renders |
+|---|---|
+| `Fraction(1, 3)` quarters | `1/3 quarters` |
+| `Fraction(19, 2)` quarters | `19/2 quarters` |
+| `Fraction(10, 1)` quarters | `10 quarters` — integral, so no denominator |
+| `2.0` seconds | `2 seconds` — integral, so no decimal point |
+| `0.1` seconds | `0.1 seconds` |
+| `1/3` (float) seconds | `0.3333333333333333 seconds` — every digit it round-trips with |
+| `1234567.5` seconds | `1234567.5 seconds` — large values are not rounded away |
+| `1e-7` seconds | `0.0000001 seconds` — never scientific, never `0` |
+| `160` ticks | `160 ticks` |
+
+The last two rows were live defects, not hypotheticals: the old scalar
+formatter rendered `1234567.5` as `1234568` and `1e-7` as `0`. A test asserts
+the scalar and stamp paths produce identical strings for the same value, so
+they cannot drift apart again. `repr()` is the other lane and was already
+exact — it is left alone.
+
+### Scalar construction: the unit chooses the representation
+
+A scalar holds exactly one value, so something has to decide how it is
+written — and that decision belongs to the unit, not to whichever Python
+type the caller's literal happened to have. `Coordinate(2, quarters)` and
+`Coordinate(1.5, quarters)` are both quarter positions and both come out
+exact (`Fraction(2, 1)`, `Fraction(3, 2)`); they no longer differ because one
+was typed with a decimal point. The tests pin each arm, because the failure
+mode here is two adjacent literals on the same unit disagreeing about their
+own type, which then propagates through arithmetic (the left operand decides)
+into results that differ depending on operand order.
+
+An explicit `number_type=` overrides the default and is validated against
+what the unit admits — that is how a caller deliberately chooses the float
+lane on a fractional unit.
+
+Coercion toward the default never loses information, and each rule is pinned:
+
+| Input | Unit default | Result | Why |
+|---|---|---|---|
+| `2` | `fraction` | `Fraction(2, 1)` | exact widening |
+| `1.5` | `fraction` | `Fraction(3, 2)` | exact dyadic |
+| `0.0001` | `fraction` | dyadic, denominator `2**66` | **no int64 ceiling here** — Python `Fraction` is arbitrary-precision, and the storage refusal belongs at the field boundary where the ceiling actually exists |
+| `10` | `float` | `10.0` | widens, and raises if it would not survive the trip |
+| `Fraction(1, 3)` | `float` | `Fraction(1, 3)` **kept** | degrading an exact input silently is the thing this scheme exists to prevent; it takes an explicit `number_type=float` |
+| `120.7` | `int` (discrete) | `121` | a measurement read off a float clock |
+| `Fraction(5, 24)` | `int` (discrete) | **raises** | an exact non-integral value is a unit mix-up, not a rounding candidate |
+
+The 0.0001 row is worth reading twice: it is the case where the scalar path
+and the storage path deliberately differ. The scalar accepts it and holds the
+exact ratio; storing it in a *fraction-canonical field* raises, because that
+is where int64 lives. Both are asserted.
+
+**The unit chooses only for values a caller AUTHORS.** A value the library
+*derived* — a conversion result, offset arithmetic, a stored row, an
+interpolated position — keeps the representation its computation produced.
+The two rules answer different questions: authoring asks "how should a
+quarter position be written?", where the literal's Python type is an accident
+worth normalising away; deriving asks "what did this computation actually
+establish?", where the type is the answer and normalising it away would claim
+precision nothing supports.
+
+The distinction changes behaviour rather than being a matter of taste, and
+`tests/test_rational_coordinate_preservation.py` is where it is enforced. A
+float tick count converted to quarters stays float; a coordinate reached by
+float offset arithmetic stays float; a map with an irrational scalar yields
+float. In every one of those the exact dyadic would be numerically identical
+to the float, so no value would be lost — what would be lost is the library's
+only way of saying "this was measured, not counted".
+
+**The boundary is the scalar constructor**, and that phrasing is exact rather
+than approximate, because it puts a value the caller did type on the derived
+side:
+
+```python
+Coordinate(9.5, quarters)                          # Fraction(19, 2) — authored
+timeline.get_timestamp(9.5).get_coordinate("clt1") # 9.5            — derived
+```
+
+Same literal, same unit, same caller, two representations. That is deliberate
+and the tests pin it: a stamp's axis seeds every child coordinate, unit
+conversion and interval taken from it, so coercing the axis would make a whole
+cross-section read as exact on the strength of one approximate query. A float
+query means "approximately here", and it has to survive the cross-section or
+it means nothing.
+
+A pleasant consequence: since a float prints as a decimal and a `Fraction`
+prints as a ratio, the rendering now *shows* which regime a value came from.
+`9.5 quarters` reads as measured; `19/2 quarters` reads as exact.
+
+### Stamp currencies: the float lane and the exact lane
+
+A stamp answers in two currencies, and which one a caller gets is a property
+of the method rather than of the data. The tests pin both, because a method
+that quietly switched lanes would be invisible until a dataframe column
+turned into an object column or a conversion lost a third of a beat.
+
+| Lane | Members | Why |
+|---|---|---|
+| **float** | `get()`, subscript (`stamp["id"]`, `stamp["quarters"]`), `to_dict()`, raw stamp-table columns | A uniform numeric currency that tables, dataframes and downstream arithmetic can rely on. An exact ratio here would turn a float column into an object column. |
+| **exact** | `get_coordinate()`, `get_unit()`, conversion evaluation, `axis` | Carries whatever representation the coordinate actually has, so 160 ticks at 480 per quarter converts to exactly `Fraction(1, 3)` quarters rather than `0.3333333333333333`. |
+
+Rendered output (`__str__`, `_repr_html_`) reads from the exact lane and
+formats it for a human: that same conversion displays as `1/3 quarters`.
+Non-numeric conversion outputs — labels, mappings — are not numbers in either
+currency and pass through both lanes untouched.
+
+**Interpolated values are float even on a fraction-canonical timeline.** An
+interpolated position is an estimate between two anchors, so typing it as an
+exact rational would claim the alignment pinned down something it did not. A
+coordinate that lands exactly on an anchor keeps the axis's own
+representation, because that one *is* claimed.
+
+### `test_number_storage.py` - One struct, one canonical side, one builder
+
+**Purpose:** Pins the storage contract every coordinate in the library rests
+on, and the rules by which a source value becomes a stored one.
+
+**The struct.** `{value: float64, numerator: int64, denominator: int64}`. Both
+sides carry the number on every non-null row; a null sub-field means the whole
+row is null. Which side is authoritative is declared per field, in
+`number_type` metadata, and never inferred from the row.
+
+**What the builder must produce.** Expected values are exact, never ranges:
+
+| Input | `number_type` | Canonical side | Mirror |
+|---|---|---|---|
+| `0.1` | `float` | `0.1` | `3602879701896397/36028797018963968` |
+| `1/3.0` | `float` | `0.3333333333333333` | `6004799503160661/18014398509481984` |
+| `2.0` | `float` | `2.0` | `2/1` |
+| `1.5` | `float` | `1.5` | `3/2` |
+| the same four | `fraction` | the same four ratios | `float(ratio)`, bit-for-bit |
+| `[1.4, 2.5, -0.6]` | `int` | `[1, 2, -1]`, all `den = 1` | the ints as floats |
+
+The float mirrors are the **exact dyadic** ratios, because every finite double
+is exactly one rational with a power-of-two denominator. Nothing here searches
+for a tidier ratio nearby: `limit_denominator` has zero occurrences in the
+library and the tests grep for it to keep it that way.
+
+The `int` row settles ties on the even integer — `round(2.5) == 2`, Python's
+own rule and PyArrow's `half_to_even`. This is asserted rather than assumed,
+because the alternative (half-away-from-zero) drifts a column of `.5` values
+consistently upwards, and a rounding rule that is only implicit is a rounding
+rule nobody checks. Negative ties are pinned separately (`-2.5 → -2`,
+`-1.5 → -2`, `-0.5 → 0`), since that is where the two conventions visibly
+differ in sign and a positive-only probe would miss it.
+
+All four modes are pinned, not just the default: for `[1.4, 2.5, -0.6]`,
+`"floor"` gives `[1, 2, -1]`, `"ceil"` gives `[2, 3, 0]` and `"truncate"`
+gives `[1, 2, 0]`. The same four names and the same `"round"` default apply
+wherever the library makes a value integral, including `TimeScalar.to_int()`
+— one vocabulary, one default, asserted in both places.
+
+**The opt-in provenance flag.** `preserve_source_floats` keeps the incoming
+floats on the float side of an `int` field instead of mirroring the stored
+integer, so a cell can record what was measured beside what was stored:
+`[1.4, 2.5]` stores numerators `[1, 2]` with `value` still `[1.4, 2.5]`.
+It is construction-only — provenance floats do **not** survive arithmetic,
+and a test asserts that adding zero rewrites them to exact mirrors
+(`[1.0, 3.0]`). Otherwise a value that was never authoritative would
+propagate as though it were.
+
+**The vectorised path must equal the scalar path.** The builder takes a numpy
+route for plain numeric columns and a per-value route for anything mixed,
+textual or rational. The tests fuzz several thousand doubles — including the
+sub-`2**-10` band where the exact dyadic denominator overflows int64 — and
+assert the two routes agree cell for cell, and that the canonical float side
+survives bit-for-bit in every case. Two implementations of one rule are two
+chances to be wrong, so the equality is asserted rather than trusted.
+
+**Where int64 runs out.** A double below roughly `2**-10` *may* need a
+denominator past `2**62` — only the full-mantissa ones do, which is why the
+fuzz test sees 362 of 10,009 rather than every sub-threshold value
+(`2**-11` itself needs only 2048). Where it happens:
+
+* the canonical float side always keeps the double untouched;
+* the **mirror** falls back to `round(value * 2**62) / 2**62`, reduced.
+  Worked example: `0.0001` is canonically `0.0001`, and its stored mirror is
+  `461168601842739 / 4611686018427387904` — not `Fraction(0.0001)`, whose
+  denominator is `2**66`;
+* an **exact** field refuses the value outright rather than storing a
+  degraded canonical side, and the error names `number_type float` as the
+  place to put it. A canonical value is exact or it is an error; best effort
+  belongs to mirrors only.
+
+**The ceiling constrains storage, not retrieval.** Python `Fraction` is
+arbitrary-precision, so `to_fraction()` and every as-fraction accessor
+recompute the exact dyadic from the canonical float instead of reading the
+stored mirror. Pinned directly: for `0.0001` the stored mirror is asserted to
+be the approximation *and* `to_fraction()` is asserted to return the exact
+`Fraction(0.0001)` anyway. Reading the mirror there would be a silent
+exactness violation on precisely the values this limit identifies.
+
+**Refusals.** An *exact* non-integral value entering an integer-valued field
+raises — `Coordinate(Fraction(5, 24), TimeUnit.ticks)` is a unit mix-up, not a
+rounding candidate, and rounding it to zero would bury the mistake somewhere
+far from its cause. Inexact floats are made integral, because reading a tick
+position off a float clock is exactly what rounding is for. `Duration` is
+asserted alongside `Coordinate`: the rule lives on their shared base, so a gap
+on one of them would be a design error rather than a missing branch.
+
+**Conversion is the exception, deliberately.** Converting quarters to ticks at
+a given resolution quantizes by definition, so `quantize_to_unit` rounds where
+the constructor refuses. Tests assert both sides of that line, since a single
+rule in both places would either forbid legitimate conversion or license the
+silent rounding the refusal exists to prevent.
 
 ### `test_coordinate_resolution.py` - Coordinate Input Resolution
 
@@ -298,7 +548,7 @@ The ID system ensures:
      suppresses every surfaced conversion; a selector list surfaces only the
      matching maps.
 
-   Contract §4 ("C-Map visibility"): timestamps surface the full
+   the C-Map visibility rule: timestamps surface the full
    `_conversion_maps` set across the subtree via `_conversion_rows()`.
    `add_conversion_map` still indexes `TimeUnit`-targeted maps in `_unit_maps`
    for `convert_to`/`get_conversion_map`.
@@ -413,7 +663,7 @@ dual-spelling or numeric form. The MIDI-event scalars share one rendered
 `__repr__` driven by a `_repr_parts()` hook (no string surgery between the
 base and the subclass).
 
-**Exact expected strings (zero-tolerance; canonical ♯/♭ per §13):**
+**Exact expected strings (zero-tolerance; the canonical ♯/♭ characters):**
 
 Pitch scalars — `repr()` then `str()`:
 
@@ -573,12 +823,13 @@ between two key spellings to recover an exact ratio.
 ### `test_wire_format.py` - The rational wire dict
 
 **Purpose:** Pins the JSON wire format shared by every `to_dict` in the
-library. `RATIONAL_STRUCT_TYPE` is how a rational is stored in Arrow; the
-**rational wire dict** is how the same number is stored in JSON, and
-`core/fields.py` owns both.
+library, and its boundary with the Arrow storage cell.
 
-**The shape.** Every rational-valued number in a `to_dict` payload is the
-three-key dict
+**Two shapes that look alike and are not the same thing.** A storage cell lives
+in a column whose metadata declares which of its two sides is authoritative, so
+the cell itself never has to say; both sides are always populated. A JSON value
+— a map's offset, a claim's coordinate, a serialized timeline length — stands
+alone with no schema beside it, so it carries its own answer instead:
 
 ```json
 {"value": 3.3333333333333335, "numerator": 10, "denominator": 3}
@@ -586,58 +837,37 @@ three-key dict
 
 `rational_to_wire` writes it and `wire_to_rational` reads it. A `Fraction`
 keeps its exact ratio; anything else encodes as `{"value": x, "numerator":
-null, "denominator": null}` and decodes back to a plain `float`. The null
-ratio is the *only* marker of inexactness — the float `value` is a lossy
-projection and is never consulted when the ratio is present.
+null, "denominator": null}` and decodes back to a plain `float`. In the wire
+dict — and **only** there — a null ratio is the marker of inexactness.
+
+The tests assert both halves of that boundary, because collapsing them is the
+tempting mistake in either direction: giving the wire dict a mandatory ratio
+would turn every serialized float into an exact dyadic on read-back and change
+what round-trips out of maps, timelines and claims; giving the storage cell an
+optional one would put readers back to sniffing rows for a fact the schema
+already knows.
+
 Integer-valued float ratio members found in artifacts written by earlier
 releases decode losslessly as integers; ratio members with a fractional part
-are rejected and never rounded.
-`is_rational_wire` recognises the shape for the few slots (a `ConstantMap`
-value) whose payload is genuinely open-ended.
+are rejected and never rounded. `is_rational_wire` recognises the shape for the
+few slots (a `ConstantMap` value) whose payload is genuinely open-ended.
 
 There is exactly one encoding. `Fraction` objects are never emitted raw, and
 the `"n/d"` strings the maps used to write are gone — `wire_to_rational`
 rejects a string rather than parsing it, so a stale payload fails at the
-boundary instead of silently becoming something else.
-
-**What we validate:**
-
-1. **Codec.** Exact ratios survive `rational_to_wire` → `json` →
-   `wire_to_rational`; integer-valued float ratio members decode exactly,
-   fractional float ratio members raise, floats and ints encode with a null
-   ratio and decode as `float`, and non-numeric input and stale string
-   encodings raise.
-2. **Fixpoint guarantee.** For a timeline, a `BeatGrid`, a map, an
-   `AlignmentAnchor`, and a `MatchClaim`,
-   `X.from_dict(json.loads(json.dumps(x.to_dict()))) .to_dict() == x.to_dict()`.
-   The dictionary is the fixed point, so a payload can be written, read, and
-   written again without drifting.
-3. **Exactness.** `Fraction(10, 3)` as a timeline length, `Fraction(5, 3)` as
-   a child offset, `Fraction(1, 3)` as an event coordinate, and
-   `Fraction(3, 4)` as a `ConstantMap` value all come back with their
-   numerator and denominator intact.
-4. **Name round-trip.** `ConversionMap.to_dict` always emits `name`, and
-   every subclass `from_dict` passes it back to the constructor, so a custom
-   name survives serialization for every registered map class.
-5. **JSON safety.** A parametrized sweep asserts `json.dumps` succeeds on the
-   `to_dict` output of `Timeline`, `BeatGrid`, every `ConversionMap`
-   subclass, `WarpMap`, `MatchLine`, `MatchGraph`, all four `MatchStamp`
-   formats, `TimeStamp`, the claim classes, `MeasureUnit`, and the section
-   dicts.
-
-**Validity Rationale:** A serialization format that raises `TypeError` on
-`json.dumps` for one number type and silently loses precision for another is
-two bugs wearing one coat. Pinning a single encoding, and asserting the
-fixpoint rather than merely "it round-trips", makes both failure modes
-regressions rather than discoveries.
+boundary instead of decoding into a plausible wrong number.
 
 ### Coordinate cell rendering
 
-`Coordinate.to_dict()` and `Duration.to_dict()` emit the same three-key cell
-that `EventData` writes to Arrow. Integer and `Fraction` values carry exact
-integer numerator and denominator fields; floats carry null ratio fields.
-Tests compare the complete dictionaries and verify that `Note.to_dict()` and
-`Measure.to_dict()` embed those cells unchanged.
+`Coordinate.to_dict()` and `Duration.to_dict()` emit the **storage cell**, so
+both sides are populated whatever the value's kind: an integer, a `Fraction`
+and a float all come back with a `value`, a `numerator` and a `denominator`.
+A float's ratio members are the exact dyadic of the double, which is a fact
+about the double rather than a guess about what it meant. Null members appear
+only in the JSON wire dict, which is a different encoding with a different
+job — see `test_wire_format.py` above. Tests compare the complete
+dictionaries and verify that `Note.to_dict()` and `Measure.to_dict()` embed
+those cells unchanged.
 
 ---
 

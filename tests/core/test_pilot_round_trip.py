@@ -23,13 +23,15 @@ from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.events import SpecificPitch
 from timetoalign.core.fields import (
     TIMETOALIGN_METADATA_KEY,
-    build_coordinate_struct_array,
     build_struct_array,
     derive_arrow_struct,
     parquet_metadata_for_model,
+)
+from timetoalign.core.time import (
+    Coordinate,
+    build_coordinate_struct_array,
     struct_to_coordinate,
 )
-from timetoalign.core.time import Coordinate
 
 
 class TestSpecificPitchRoundTrip:

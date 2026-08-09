@@ -7,7 +7,11 @@ from fractions import Fraction
 import pyarrow as pa
 
 from timetoalign.core import NumberType, TimeUnit
-from timetoalign.core.fields import coordinate_to_struct, struct_to_coordinate
+from timetoalign.core.fields import field_metadata
+from timetoalign.core.time import (
+    coordinate_to_struct,
+    struct_to_coordinate,
+)
 from timetoalign.loader import (
     TEMPORAL_TYPE_INSTANT,
     TEMPORAL_TYPE_INTERVAL,
@@ -62,8 +66,8 @@ class TestMakeCoordinateField:
         """Unit is stored in field metadata."""
         field = make_coordinate_field("instant", TimeUnit.seconds)
         assert field.metadata is not None
-        assert b"unit" in field.metadata
-        assert field.metadata[b"unit"] == b"seconds"
+        assert "unit" in field_metadata(field)
+        assert field_metadata(field)["unit"] == "seconds"
 
     def test_nullable_default_true(self) -> None:
         """Field is nullable by default."""
@@ -87,11 +91,11 @@ class TestCoordinateToStruct:
         assert result["denominator"] == 1
 
     def test_float_coordinate(self) -> None:
-        """Float coordinates have None for numerator/denominator."""
+        """A float is canonical; the ratio mirrors it exactly."""
         result = coordinate_to_struct(1.5)
         assert result["value"] == 1.5
-        assert result["numerator"] is None
-        assert result["denominator"] is None
+        assert result["numerator"] == 3
+        assert result["denominator"] == 2
 
     def test_fraction_coordinate(self) -> None:
         """Fraction coordinates store exact numerator/denominator."""

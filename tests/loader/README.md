@@ -32,8 +32,8 @@ storage constructor tests, but are intentionally not accepted by
 | `test_tilia_loader.py` | `TiliaJsonLoader` round-trip, including `create_group(uids=...)` keyword selection |
 | `test_mixins.py` | `EventData` field-access mixins — three-strategy field discovery (metadata, default-column, shape-based `matches_pa_field`), `has_field`, `get_field`, `get_fields`, `get_raw`, and the convenience accessors (`get_pitch_field`, `get_harmony_field`). |
 | `test_mixins_semantic_access.py` | `SemanticFieldAccessMixin` dispatch — `get_field(ScalarClass)` pydantic-scalar dispatch, `IdCoordinate` vs `Coordinate` discrimination via metadata (`matches_pa_field` rejection contracts), `MultipleFieldsError` on ambiguity + `name=` resolution, and `get_fields_satisfying(ProtocolClass)` Protocol-based grouping (covering `GenericPitchLike` and `TimeScalarLike`). |
-| `test_field_parsers.py` | The :class:`FieldParser` hierarchy and `resolve_field_parser` universal-resolution dispatcher. Exercises the DataField blueprint mechanism: `IntField`, `FloatField`, `StringField`, `RationalField`, `DenominateNumberField`, and paired SemanticField subclasses all accept `name=` for blueprint construction and expose a uniform `emit(source, name=...)` materialisation. `CompositeFieldParser` (separator + regex strategies, dict + iterable parts) and `CallableFieldParser` (escape hatch) are exercised end-to-end. Resolution-table assertions: every entry (Python type, `pa.DataType`, raw / paired `DataField` subclass, blueprint instance, `FieldParser` instance, callable) routes to the correct producer. |
-| `test_step2_field_specs.py` | Step 2 (`field_specs`) blueprint resolution. Builds a fixture `pa.Table` and a `TabularLoader` subclass with `field_specs = [...]`, verifies that each blueprint matches its declared `source_fields=` entry, that the resulting column receives `b"timetoalign"` metadata (`field_type` = paired class name), that atomic source columns are packed into single-field structs matching the target `pa_schema`, and that unresolvable references raise `KeyError`. Exercises the two currently-supported `source_fields=` shorthands (string for single-source promotion; explicit dict for multi-sub-field mapping) and the negative cases (list shorthand rejected by `resolve_source_fields` today; live-mode SemanticField instances rejected; multi-source dict spec raises `NotImplementedError` at loader-materialisation time). |
+| `test_field_parsers.py` | The :class:`FieldParser` hierarchy and `resolve_field_parser` universal-resolution dispatcher. Exercises the DataField blueprint mechanism: `IntField`, `FloatField`, `StringField`, `RedundantNumberField`, `DenominateNumberField`, and paired SemanticField subclasses all accept `name=` for blueprint construction and expose a uniform `emit(source, name=...)` materialisation. `CompositeFieldParser` (separator + regex strategies, dict + iterable parts) and `CallableFieldParser` (escape hatch) are exercised end-to-end. Resolution-table assertions: every entry (Python type, `pa.DataType`, raw / paired `DataField` subclass, blueprint instance, `FieldParser` instance, callable) routes to the correct producer. |
+| `test_step2_field_specs.py` | Step 2 (`field_specs`) blueprint resolution. Builds a fixture `pa.Table` and a `TabularLoader` subclass with `field_specs = [...]`, verifies that each blueprint matches its declared `source_fields=` entry, that the resulting column receives the versioned metadata blob (`field_type` = paired class name), that atomic source columns are packed into single-field structs matching the target `pa_schema`, and that unresolvable references raise `KeyError`. Exercises the two currently-supported `source_fields=` shorthands (string for single-source promotion; explicit dict for multi-sub-field mapping) and the negative cases (list shorthand rejected by `resolve_source_fields` today; live-mode SemanticField instances rejected; multi-source dict spec raises `NotImplementedError` at loader-materialisation time). |
 | `test_get_events_properties.py` | The four shapes accepted by `Loader.get_events(properties=...)` — `True`, `False`, a tuple of property names, and the single-string shorthand that normalises to a one-element tuple. |
 | `test_represent_pitch_once.py` | The **represent-pitch-once** contract across every pitch-bearing EventData and loader. Verifies (1) the keystone `from_dicts` / `add_events` struct-preservation fix (carried struct-dict columns become real `pa.struct` columns with `field_type` metadata, never JSON strings); (2) the uniform `_afforded_fields` mechanism that promotes a raw atomic column to its semantic view on request; (3) the per-source default pitch type (`get_pitch_field()` → SP for spelled, EP for number-only, EP for MSM with SPC additionally afforded); (4) represent-once (no EventData carries a redundant *default* pitch struct — score notes no longer afford a default EnharmonicPitch); (5) the scalar↔EventData contract for MIDI EventData; (6) on-request EP from a SP field via both routes (conversion + raw column); (7) the **multi-batch concat re-affordance** — the afforded pitch view survives `EventData.extend` / `Timeline.add_events` schema-promotion across batches (the cache is dropped so the affordance re-attaches over the concatenated table). See "Represent pitch once" below. |
 | `tabular/` | CSV / TSV / Parquet loader specifics |
@@ -46,8 +46,17 @@ storage constructor tests, but are intentionally not accepted by
 ## Exact rational coordinates
 
 Loader schema tests import coordinate encoders and decoders from
-`timetoalign.core.fields`, the sole owner of the rational Arrow cell and its
-converter family. Parser outputs are compared against that canonical type.
+`timetoalign.core.time`, the sole owner of the number storage struct, its
+converter family, and the one builder that fills it. Parser outputs are
+compared against that canonical type.
+
+Coordinate columns arriving from a file are built by
+`build_number_struct_array` under the representation the target unit declares.
+Unreadable cells are the one place the two error policies differ and the tests
+pin both: a loader parsing a coordinate column raises, because a malformed
+position is a malformed file; a blueprint field parser records the cell as
+missing, because a tolerant reader of a messy table should not lose the other
+million rows to one bad one.
 
 The score-side loader tests assert the numerator and denominator stored with
 logical coordinates, not only their floating-point convenience values. MS3
@@ -61,14 +70,19 @@ their native numeric representation.
 ### MS3 coordinate validation logic
 
 MS3 notes and measures use the symbolic `duration` or `act_dur` whole-note
-fraction, multiplied by four, as the authoritative exact duration. A derived
-`duration_qb` value is checked against it within `1e-6`; mismatches use the
-derived value under the same exact-or-value-only float rule. When no
-symbolic duration is available, a binary-rational `duration_qb` is exact only
-when its native float denominator is at most 4096. Other finite floats retain
-their float value with null exact fields. Starts follow the same exact-or-
-value-only rule, and interval ends are asserted from the resulting stored
-coordinates.
+fraction, multiplied by four, as the authoritative exact duration, and the
+tests assert that exact `Fraction` — no tolerance, no range. Where a derived
+`duration_qb` disagrees with the symbolic value, the derived value is the one
+stored, and it too is asserted exactly.
+
+There is no denominator threshold above which a value stops being exact, and
+no such thing as a coordinate stored "with null exact fields". Every non-null
+cell carries the number on both sides of the struct, and which side is
+authoritative comes from the field's declared `number_type`, not from
+inspecting the row. Score coordinates are fraction-canonical, so the tests
+assert the ratio members and check that the float member mirrors them.
+Starts follow the same rule, and interval ends are asserted from the
+resulting stored coordinates.
 
 ## Data conventions
 

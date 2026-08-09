@@ -100,14 +100,22 @@ class TestCoordinateConversions:
         assert c.to_int() == 120
 
     def test_to_int_from_float(self) -> None:
-        """to_int() truncates float value."""
+        """to_int() rounds to nearest by default, like everywhere else."""
         c = Coordinate(1.9, TimeUnit.seconds)
-        assert c.to_int() == 1
+        assert c.to_int() == 2
+        assert c.to_int("truncate") == 1
 
     def test_to_int_from_fraction(self) -> None:
-        """to_int() truncates Fraction value."""
+        """to_int() rounds to nearest by default, like everywhere else."""
         c = Coordinate(Fraction(7, 4), TimeUnit.quarters)
-        assert c.to_int() == 1
+        assert c.to_int() == 2
+        assert c.to_int("truncate") == 1
+
+    def test_to_int_ties_settle_on_the_even_integer(self) -> None:
+        """The default is half-to-even, the same rule the builder applies."""
+        assert Coordinate(Fraction(5, 2), TimeUnit.quarters).to_int() == 2
+        assert Coordinate(Fraction(7, 2), TimeUnit.quarters).to_int() == 4
+        assert Coordinate(-2.5, TimeUnit.seconds).to_int() == -2
 
     def test_to_fraction_from_int(self) -> None:
         """to_fraction() works with int value."""
@@ -134,12 +142,14 @@ class TestCoordinateConversions:
             "denominator": 3,
         }
 
-    def test_float_to_dict_has_no_fabricated_ratio(self) -> None:
+    def test_float_to_dict_mirrors_without_fabricating(self) -> None:
+        # 2.5 IS 5/2 exactly, so the mirror states a fact rather than
+        # guessing a tidy ratio near an untidy number.
         coordinate = Coordinate(2.5, TimeUnit.seconds)
         assert coordinate.to_dict() == {
             "value": 2.5,
-            "numerator": None,
-            "denominator": None,
+            "numerator": 5,
+            "denominator": 2,
         }
 
 

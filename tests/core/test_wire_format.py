@@ -30,7 +30,7 @@ from timetoalign.alignment.graph import MatchGraph
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.alignment.warpmap import WarpMap
 from timetoalign.core import AgentType, Coordinate, TimeUnit
-from timetoalign.core.fields import (
+from timetoalign.core.time import (
     is_rational_wire,
     rational_to_wire,
     wire_to_rational,

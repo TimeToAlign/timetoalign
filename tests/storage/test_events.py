@@ -234,7 +234,7 @@ class TestIntervalFractionFidelity:
         assert data.column_values("end") == [Fraction(17, 4)]
         assert self._pairs(data, "end") == [(17, 4)]
 
-    def test_float_only_computed_fields_have_null_pairs(self) -> None:
+    def test_float_only_computed_fields_still_carry_both_sides(self) -> None:
         """Keep computed coordinates float-only when inputs have no pair."""
         data = EventData.from_dicts(
             [{"event_type": "Note", "start": 3.5, "duration": 0.75}],
@@ -242,7 +242,7 @@ class TestIntervalFractionFidelity:
         )
 
         assert data.column_values("end") == [Fraction(4.25)]
-        assert self._pairs(data, "end") == [(None, None)]
+        assert self._pairs(data, "end") == [(17, 4)]
 
     def test_mixed_rows_preserve_exactness_per_row(self) -> None:
         """Preserve exact output only for rows with complete exact operands."""
@@ -263,7 +263,7 @@ class TestIntervalFractionFidelity:
         )
 
         assert data.column_values("end") == [Fraction(17, 4), Fraction(4.25)]
-        assert self._pairs(data, "end") == [(17, 4), (None, None)]
+        assert self._pairs(data, "end") == [(17, 4), (17, 4)]
 
 
 class TestHead:

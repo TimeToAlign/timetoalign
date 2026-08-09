@@ -18,7 +18,7 @@ The hierarchy:
 
 Atomic / typed column emission is handled by the :class:`DataField`
 hierarchy directly — :class:`IntField`, :class:`FloatField`,
-:class:`StringField`, :class:`RationalField`, and every paired
+:class:`StringField`, :class:`RedundantNumberField`, and every paired
 :class:`SemanticField` subclass support blueprint construction
 (``IntField(name="x")``) and :meth:`DataField.from_array`-time
 materialisation.  The Step-1 dispatcher
@@ -32,10 +32,12 @@ the appropriate producer.
 
 Bulk-emission contract: every parser / blueprint ``from_array()`` is
 vectorized over the source array — never a per-row Python loop in
-client code.  ``RationalField.from_array`` walks the source as a Python
-iterable once because PyArrow has no general fraction parser; this is
-the single accepted exception, and it is contained inside the
-``_build_rational_struct`` helper.
+client code.  ``RedundantNumberField.from_array`` hands the column to
+:func:`~timetoalign.core.time.build_number_struct_array`, which takes a
+numpy route for plain numeric input and reads values one at a time only
+for mixed, textual or rational columns, because no array kernel parses
+``"3/8"``.  That is the single accepted exception, and it is contained
+inside the one number builder.
 """
 
 from __future__ import annotations
@@ -49,7 +51,7 @@ import pyarrow as pa
 from timetoalign.core import (
     FloatField,
     IntField,
-    RationalField,
+    RedundantNumberField,
     SemanticField,
     StringField,
     StructField,
@@ -411,7 +413,7 @@ def resolve_field_parser(
         if value is str:
             return StringField(name=default_name)
         if value is Fraction:
-            return RationalField(name=default_name)
+            return RedundantNumberField(name=default_name)
 
     if isinstance(value, pa.DataType):
         if pa.types.is_integer(value):

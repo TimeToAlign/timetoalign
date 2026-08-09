@@ -70,7 +70,7 @@ class PerformanceMidiLoader(MidiLoader):
         include_controls: bool = True,
         include_program_changes: bool = True,
         unit: TimeUnit | None = None,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType | None = None,
         **kwargs: Any,
     ) -> None:
         """Initialize PerformanceMidiLoader.
@@ -81,7 +81,8 @@ class PerformanceMidiLoader(MidiLoader):
             include_controls: Include Control Change events.
             include_program_changes: Include Program Change events.
             unit: Time unit for coordinates.
-            number_type: Number type for coordinates.
+            number_type: Number type for coordinates. Defaults to the
+                one the unit itself uses.
             **kwargs: Additional arguments passed to parent Loader.
         """
         super().__init__(unit=unit, number_type=number_type, **kwargs)

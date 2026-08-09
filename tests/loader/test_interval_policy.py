@@ -17,7 +17,9 @@ import pytest
 
 from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.core.enums import IntervalPolicy
-from timetoalign.core.fields import coordinate_to_struct
+from timetoalign.core.time import (
+    coordinate_to_struct,
+)
 from timetoalign.storage import EventData
 from timetoalign.testdata import ensure_data
 
@@ -190,8 +192,8 @@ class TestNormalizeIntervalsRow:
         assert dur["numerator"] == 8
         assert dur["denominator"] == 3
 
-    def test_both_present_mixed_exactness_falls_back_to_float(self):
-        """warn: a float endpoint keeps the recomputation inexact."""
+    def test_both_present_mixed_exactness_still_completes_the_cell(self):
+        """warn: recomputation stays exact and completes both sides."""
         processed = {
             "start": coordinate_to_struct(Fraction(1, 3)),
             "end": coordinate_to_struct(3.0),  # no exact ratio
@@ -199,9 +201,8 @@ class TestNormalizeIntervalsRow:
         }
         EventData._normalize_intervals_row(processed, policy=IntervalPolicy.warn)
         dur = processed["duration"]
-        assert dur["numerator"] is None
-        assert dur["denominator"] is None
-        assert dur["value"] == 3.0 - 1 / 3
+        assert (dur["numerator"], dur["denominator"]) == (8, 3)
+        assert dur["value"] == float(Fraction(8, 3))
 
 
 # ---------------------------------------------------------------------------

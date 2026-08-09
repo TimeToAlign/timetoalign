@@ -7,15 +7,15 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Literal
 
 from timetoalign.core import Coordinate, CoordinateSpec, CoordinateValue, NumberType
-from timetoalign.core.timestamp import ConversionMapsSpec, _format_coordinate_value
-from timetoalign.maps import ConversionMap
-
-from ..regions import Region
-from .coordinate_ops import (
+from timetoalign.core.time import (
     coordinate_numeric_value,
     shift_coordinate,
     subtract_coordinates,
 )
+from timetoalign.core.timestamp import ConversionMapsSpec, _format_coordinate_value
+from timetoalign.maps import ConversionMap
+
+from ..regions import Region
 from .regions import _resolve_boundary_names
 
 if TYPE_CHECKING:

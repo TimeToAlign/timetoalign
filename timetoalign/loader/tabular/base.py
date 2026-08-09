@@ -18,7 +18,8 @@ Design
   :class:`DataField` via :func:`field_parsers.resolve_field_parser`.
   Each emitted field carries its own name and ``pa.Field`` metadata.
 * Coordinate parsing (``start`` / ``end`` / ``duration``) continues
-  to flow through :class:`CoordinateParser`, driven by
+  to flow through :func:`~timetoalign.core.time.build_number_struct_array`,
+  driven by
   ``start_column`` / ``end_column`` / ``duration_column`` on the
   loader.  This produces the canonical struct-shaped coordinate
   columns the rest of the codebase expects.
@@ -51,8 +52,8 @@ from timetoalign.core.fields import (
     metadata_blob_from_dict,
     parse_metadata_blob,
 )
+from timetoalign.core.time import build_number_struct_array
 from timetoalign.loader.base import EventLoader
-from timetoalign.storage.parsing import CoordinateParser
 from timetoalign.storage.schema import (
     ComputedField,
     Field,
@@ -135,7 +136,6 @@ class TabularLoader(EventLoader):
             :class:`SemanticField` instances that promote raw fields to
             paired semantic fields.
         coordinate_unit: TimeUnit for coordinate values.
-        coordinate_type: NumberType for coordinate parsing.
 
     Examples:
         >>> from timetoalign.core import IntField
@@ -203,7 +203,6 @@ class TabularLoader(EventLoader):
 
     # Coordinate configuration
     _default_unit: ClassVar[TimeUnit] = TimeUnit.seconds
-    coordinate_type: ClassVar[NumberType] = NumberType.float
 
     # endregion
 
@@ -220,9 +219,6 @@ class TabularLoader(EventLoader):
             number_type: Override the default number type.
             **kwargs: Additional arguments passed to parent Loader.
         """
-        # Use class-level coordinate_type as default if not overridden
-        if number_type is None:
-            number_type = self.coordinate_type
 
         super().__init__(unit=unit, number_type=number_type, **kwargs)
         self._logger = module_logger.getChild(self.__class__.__name__)
@@ -746,16 +742,21 @@ class TabularLoader(EventLoader):
         self._emitted_fields = self._apply_column_specs(df, columns)
         # Expose composite-part keys directly as columns so
         # start_column="<part_name>" works.  Only opaque struct fields
-        # (CompositeFieldParser emissions, NOT RationalField / numeric
+        # (CompositeFieldParser emissions, NOT RedundantNumberField / numeric
         # struct emissions which are atomic semantic units) get their
         # sub-fields surfaced as top-level columns.
-        from timetoalign.core.fields import RationalField, StructField
+        from timetoalign.core.fields import (
+            StructField,
+        )
+        from timetoalign.core.time import (
+            RedundantNumberField,
+        )
 
         for emit_name, df_field in self._emitted_fields.items():
-            if isinstance(df_field, RationalField):
+            if isinstance(df_field, RedundantNumberField):
                 continue
             if not isinstance(df_field, StructField) or isinstance(
-                df_field, RationalField
+                df_field, RedundantNumberField
             ):
                 continue
             # Skip if the struct is a SemanticField's inner storage —
@@ -796,8 +797,8 @@ class TabularLoader(EventLoader):
         start_values = self._resolve_start_or_duration(
             self.start_column, df, columns, "start"
         )
-        columns["start"] = CoordinateParser.parse(
-            start_values, self.coordinate_type, self._unit
+        columns["start"] = build_number_struct_array(
+            start_values, number_type=self._number_type
         )
 
         # Extract end coordinate.
@@ -890,7 +891,7 @@ class TabularLoader(EventLoader):
         recognises string references to columns produced by
         ``column_specs``.  When the column is a synthesised rational
         struct, the resolver extracts a numpy float-equivalent
-        (computed from numerator / denominator) so :class:`CoordinateParser`
+        (computed from numerator / denominator) so the number builder
         retains the exact rational representation.
         """
         if (
@@ -909,7 +910,7 @@ class TabularLoader(EventLoader):
                 from fractions import Fraction
 
                 # Build a Python-object array of Fraction instances so
-                # CoordinateParser preserves the exact rational form.
+                # The builder preserves the exact rational form.
                 out = np.empty(len(arr), dtype=object)
                 for i in range(len(arr)):
                     if num[i] is None or den[i] is None:
@@ -1031,7 +1032,7 @@ class TabularLoader(EventLoader):
             end_values = self._resolve_column_reference(
                 end_col_ref, df, temp_table, "end"
             )
-            return CoordinateParser.parse(end_values, self.coordinate_type, self._unit)
+            return build_number_struct_array(end_values, number_type=self._number_type)
 
         # Case 3: Direct column name
         if isinstance(end_col_ref, str) and end_col_ref in df.columns:
@@ -1041,8 +1042,8 @@ class TabularLoader(EventLoader):
                 end_values = end_series.to_numpy()
                 valid_mask = ~pd.isna(end_values)
                 if valid_mask.all():
-                    return CoordinateParser.parse(
-                        end_values, self.coordinate_type, self._unit
+                    return build_number_struct_array(
+                        end_values, number_type=self._number_type
                     )
                 else:
                     return self._parse_nullable_coordinates(end_values, valid_mask)
@@ -1120,10 +1121,10 @@ class TabularLoader(EventLoader):
         valid_dur_mask = ~pd.isna(dur_values)
         valid_end_mask = ~start_is_null & valid_dur_mask
 
-        # Parse duration using CoordinateParser (vectorized)
+        # Parse duration through the one number builder
         valid_dur_values = dur_values[valid_dur_mask]
-        parsed_dur = CoordinateParser.parse(
-            valid_dur_values, self.coordinate_type, self._unit
+        parsed_dur = build_number_struct_array(
+            valid_dur_values, number_type=self._number_type
         )
 
         # Build full duration arrays using scatter (vectorized)
@@ -1250,7 +1251,7 @@ class TabularLoader(EventLoader):
 
         # Parse valid values (vectorized)
         valid_values = values[valid_mask]
-        parsed = CoordinateParser.parse(valid_values, self.coordinate_type, self._unit)
+        parsed = build_number_struct_array(valid_values, number_type=self._number_type)
 
         # Extract parsed arrays (vectorized)
         parsed_value = parsed.field("value").to_numpy(zero_copy_only=False)

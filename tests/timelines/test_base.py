@@ -55,7 +55,7 @@ class TestTimelineConstruction:
 
     def test_timeline_with_number_type_string(self):
         """Timeline accepts number_type as string."""
-        tl = Timeline(length=100, number_type="int")
+        tl = Timeline(length=100, unit="number", number_type="int")
         assert tl.number_type == NumberType.int
 
     def test_timeline_with_custom_id(self):

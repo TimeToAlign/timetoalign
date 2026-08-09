@@ -14,8 +14,11 @@ from typing import TYPE_CHECKING, Any
 from numpy.typing import NDArray
 
 from ..core.enums import TimeUnit
-from ..core.fields import rational_to_wire, wire_to_rational
-from ..core.time import CoordinateValue
+from ..core.time import (
+    CoordinateValue,
+    rational_to_wire,
+    wire_to_rational,
+)
 from .base import ConversionMap
 
 if TYPE_CHECKING:
@@ -64,7 +67,7 @@ class LinearMap(ConversionMap[CoordinateValue]):
         self,
         *,
         scalar: CoordinateValue = 1.0,
-        offset: CoordinateValue = 0.0,
+        offset: CoordinateValue = 0,
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
@@ -163,7 +166,7 @@ class LinearMap(ConversionMap[CoordinateValue]):
         """Deserialize from dictionary."""
         return cls(
             scalar=wire_to_rational(data["scalar"]) if "scalar" in data else 1.0,
-            offset=wire_to_rational(data["offset"]) if "offset" in data else 0.0,
+            offset=wire_to_rational(data["offset"]) if "offset" in data else 0,
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),
@@ -309,7 +312,7 @@ class ShiftMap(ConversionMap[CoordinateValue]):
     def __init__(
         self,
         *,
-        offset: CoordinateValue = 0.0,
+        offset: CoordinateValue = 0,
         source_unit: TimeUnit | str | None = None,
         target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
@@ -369,7 +372,7 @@ class ShiftMap(ConversionMap[CoordinateValue]):
     def from_dict(cls, data: dict[str, Any]) -> ShiftMap:
         """Deserialize from dictionary."""
         return cls(
-            offset=wire_to_rational(data["offset"]) if "offset" in data else 0.0,
+            offset=wire_to_rational(data["offset"]) if "offset" in data else 0,
             source_unit=data.get("source_unit"),
             target_unit=data.get("target_unit"),
             uid=data.get("id"),

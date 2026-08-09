@@ -38,7 +38,9 @@ from timetoalign.core import (
     TimeUnit,
     resolve_coordinate_spec,
 )
-from timetoalign.core.fields import (
+from timetoalign.core.fields import field_metadata
+from timetoalign.core.time import (
+    build_number_struct_array,
     coordinate_to_struct,
     is_rational_wire,
     struct_to_coordinate,
@@ -46,7 +48,6 @@ from timetoalign.core.fields import (
 )
 
 from .mixins import SemanticFieldAccessMixin
-from .parsing import ArrayValidator, CoordinateParser
 from .schema import (
     extend_schema,
     get_base_field_names,
@@ -330,7 +331,7 @@ class EventData(SemanticFieldAccessMixin):
         self,
         table: pa.Table,
         unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType | None = None,
     ) -> None:
         """Initialize EventData with an existing table.
 
@@ -340,10 +341,11 @@ class EventData(SemanticFieldAccessMixin):
             table: The PyArrow table containing events.
             unit: The time unit for coordinates.
             number_type: The number type for coordinate interpretation.
+                Defaults to the one the unit itself uses.
         """
         self._table = table
         self._unit = unit
-        self._number_type = number_type
+        self._number_type = unit.resolve_number_type(number_type)
 
     # region Schema
 
@@ -911,16 +913,18 @@ class EventData(SemanticFieldAccessMixin):
     # region Class Methods - Creation
 
     @classmethod
-    def empty(cls, unit: TimeUnit, number_type: NumberType = NumberType.float) -> Self:
+    def empty(cls, unit: TimeUnit, number_type: NumberType | None = None) -> Self:
         """Create an empty EventData.
 
         Args:
             unit: The time unit for coordinates.
-            number_type: The number type for coordinates.
+            number_type: The number type for coordinates. Defaults to the
+                one the unit itself uses.
 
         Returns:
             An empty EventData with the appropriate schema.
         """
+        number_type = unit.resolve_number_type(number_type)
         schema = cls.get_schema(unit, number_type=number_type)
         metadata = make_table_metadata(unit, number_type, loader_class=cls.__name__)
         schema = schema.with_metadata(metadata)
@@ -932,7 +936,7 @@ class EventData(SemanticFieldAccessMixin):
         cls,
         rows: list[dict[str, Any]],
         unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType | None = None,
         *,
         interval_policy: IntervalPolicy = IntervalPolicy.warn,
     ) -> Self:
@@ -973,6 +977,7 @@ class EventData(SemanticFieldAccessMixin):
             ...     {"event_type": "Note", "start": 0, "end": 0.5},
             ... ], unit=TimeUnit.seconds)
         """
+        number_type = unit.resolve_number_type(number_type)
         if not rows:
             return cls.empty(unit, number_type)
 
@@ -1032,7 +1037,7 @@ class EventData(SemanticFieldAccessMixin):
         cls,
         fields: dict[str, np.ndarray | pa.Array | list[Any]],
         unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType | None = None,
         *,
         validate: bool = True,
         extra_fields: list[pa.Field] | None = None,
@@ -1056,7 +1061,7 @@ class EventData(SemanticFieldAccessMixin):
 
                 For coordinate fields (start, end, duration):
                 - If pa.StructArray: used directly
-                - If numeric/string array: parsed via CoordinateParser
+                - If numeric/string array: parsed via build_number_struct_array
 
             unit: The time unit for coordinates.
             number_type: The number type for coordinates.
@@ -1079,12 +1084,13 @@ class EventData(SemanticFieldAccessMixin):
             ...     "id": np.array(["e1", "e2"]),
             ...     "temporal_type": np.array(["instant", "instant"]),
             ...     "event_type": np.array(["Beat", "Beat"]),
-            ...     "start": CoordinateParser.parse([0, 480], NumberType.int, unit),
+            ...     "start": build_number_struct_array([0, 480], number_type=NumberType.int),
             ... }, unit=TimeUnit.ticks)
 
             >>> # Direct from loader output (StructArrays already parsed)
             >>> data = EventData.from_arrays(loader_fields, unit=TimeUnit.quarters)
         """
+        number_type = unit.resolve_number_type(number_type)
         if not fields:
             return cls.empty(unit, number_type)
 
@@ -1135,8 +1141,9 @@ class EventData(SemanticFieldAccessMixin):
                         filled = pc.if_else(
                             null_mask, pa.scalar(fill_value, type=arr.type), arr
                         )
-                        parsed = CoordinateParser.parse(
-                            filled.to_numpy(zero_copy_only=False), number_type, unit
+                        parsed = build_number_struct_array(
+                            filled.to_numpy(zero_copy_only=False),
+                            number_type=number_type,
                         )
                         processed[field_name] = pa.StructArray.from_arrays(
                             [parsed.field(i) for i in range(parsed.type.num_fields)],
@@ -1144,8 +1151,8 @@ class EventData(SemanticFieldAccessMixin):
                             mask=null_mask,
                         )
                 else:
-                    # Need to parse via CoordinateParser (vectorized)
-                    arr = CoordinateParser._to_numpy(arr_data)
+                    # Need to build the storage cells from a raw column
+                    arr = _as_numpy(arr_data)
                     # Handle None/NaN values (create mask)
                     if arr.dtype == object:
                         # Check for None values
@@ -1155,8 +1162,8 @@ class EventData(SemanticFieldAccessMixin):
                             valid_indices = ~mask
                             if valid_indices.any():
                                 valid_arr = arr[valid_indices]
-                                parsed = CoordinateParser.parse(
-                                    valid_arr, number_type, unit
+                                parsed = build_number_struct_array(
+                                    valid_arr, number_type=number_type
                                 )
                                 # Build full array with nulls (VECTORIZED)
                                 # Extract parsed struct fields
@@ -1205,12 +1212,12 @@ class EventData(SemanticFieldAccessMixin):
                                     n_rows, type=pa_field.type
                                 )
                         else:
-                            processed[field_name] = CoordinateParser.parse(
-                                arr, number_type, unit
+                            processed[field_name] = build_number_struct_array(
+                                arr, number_type=number_type
                             )
                     else:
-                        processed[field_name] = CoordinateParser.parse(
-                            arr, number_type, unit
+                        processed[field_name] = build_number_struct_array(
+                            arr, number_type=number_type
                         )
             elif field_name == "id":
                 if arr_data is not None:
@@ -1337,7 +1344,7 @@ class EventData(SemanticFieldAccessMixin):
         cls,
         df: pd.DataFrame,
         unit: TimeUnit,
-        number_type: NumberType = NumberType.float,
+        number_type: NumberType | None = None,
     ) -> Self:
         """Create EventData from a pandas DataFrame.
 
@@ -1878,13 +1885,12 @@ class EventData(SemanticFieldAccessMixin):
                 if is_coordinate_type(pa_field.type):
                     # Get unit from field metadata, fall back to EventData unit
                     unit = self._unit
-                    if pa_field.metadata:
-                        unit_str = pa_field.metadata.get(b"unit")
-                        if unit_str:
-                            try:
-                                unit = TimeUnit(unit_str.decode("utf-8"))
-                            except ValueError:
-                                pass  # Use default unit
+                    unit_str = field_metadata(pa_field).get("unit")
+                    if unit_str:
+                        try:
+                            unit = TimeUnit(unit_str)
+                        except ValueError:
+                            pass  # Use default unit
 
                     if coordinates:
                         field_unit = unit
@@ -1939,3 +1945,161 @@ class EventData(SemanticFieldAccessMixin):
         return preview.to_dataframe()
 
     # endregion
+
+
+def _as_numpy(values: Any) -> np.ndarray:
+    """Convert an array-like to a numpy array.
+
+    Raises:
+        TypeError: If conversion is not possible.
+    """
+    if isinstance(values, np.ndarray):
+        return values
+    if isinstance(values, pd.Series):
+        return values.to_numpy()
+    if isinstance(values, (pa.Array, pa.ChunkedArray)):
+        return values.to_numpy(zero_copy_only=False)
+    if isinstance(values, list):
+        return np.array(values)
+    raise TypeError(f"Cannot convert {type(values)} to numpy array")
+
+
+class ArrayValidator:
+    """Vectorized array validation before table construction.
+
+    Validates:
+    - Array lengths match
+    - Required fields present
+    - Temporal type consistency (instant vs interval)
+    - ID uniqueness
+
+    All checks use vectorized operations - NO row iteration.
+
+    Examples:
+        >>> fields = {
+        ...     "id": np.array(["e1", "e2"]),
+        ...     "temporal_type": np.array(["instant", "interval"]),
+        ...     "event_type": np.array(["Beat", "Note"]),
+        ...     "start": pa.array([...]),  # StructArray
+        ...     "end": pa.array([None, ...]),  # StructArray with nulls
+        ... }
+        >>> ArrayValidator.validate_field_dict(fields, schema)
+    """
+
+    @staticmethod
+    def validate_field_dict(
+        fields: dict[str, np.ndarray | pd.Series | list | pa.Array],
+        schema: pa.Schema,
+    ) -> None:
+        """Validate field dictionary before table creation (vectorized).
+
+        Args:
+            fields: Dict of {field_name: array_values}.
+            schema: Expected PyArrow schema.
+
+        Raises:
+            ValueError: If validation fails.
+        """
+        # Check 1: All arrays have same length (vectorized check)
+        lengths = {name: len(arr) for name, arr in fields.items()}
+        unique_lengths = set(lengths.values())
+
+        if len(unique_lengths) > 1:
+            raise ValueError(f"Field length mismatch: {lengths}")
+
+        # Check 2: Required fields present
+        required = {"id", "temporal_type", "event_type", "start"}
+        missing = required - set(fields.keys())
+
+        if missing:
+            raise ValueError(f"Missing required fields: {missing}")
+
+        # Check 3: ID uniqueness (vectorized)
+        id_arr = _as_numpy(fields["id"])
+        unique_ids = np.unique(id_arr)
+
+        if len(unique_ids) != len(id_arr):
+            duplicates = len(id_arr) - len(unique_ids)
+            raise ValueError(
+                f"Duplicate IDs found: {len(id_arr)} IDs, " f"{duplicates} duplicates"
+            )
+
+        # Check 4: Temporal type consistency (vectorized)
+        ArrayValidator._validate_temporal_consistency(fields)
+
+    @staticmethod
+    def _validate_temporal_consistency(
+        fields: dict[str, np.ndarray | pd.Series | list | pa.Array],
+    ) -> None:
+        """Validate instant vs interval consistency (vectorized).
+
+        Strategy:
+        - instant events: end must be None/null
+        - interval events: end must be present
+        - Use pandas boolean indexing for vectorized checks
+
+        Args:
+            fields: Field dictionary.
+
+        Raises:
+            ValueError: If temporal consistency is violated.
+        """
+        temporal_type = pd.Series(_as_numpy(fields["temporal_type"]))
+
+        # Get masks for instant/interval events (vectorized)
+        is_instant = temporal_type == "instant"
+        is_interval = temporal_type == "interval"
+
+        # Validate all values are either instant or interval
+        valid_count = is_instant.sum() + is_interval.sum()
+        if valid_count != len(temporal_type):
+            invalid = temporal_type[~(is_instant | is_interval)]
+            raise ValueError(
+                f"Invalid temporal_type values: {invalid.unique().tolist()}"
+            )
+
+        # Validate instant events have no end coordinate (vectorized check)
+        if "end" in fields:
+            # Handle both PyArrow StructArray and numpy array
+            end_arr = fields["end"]
+            if isinstance(end_arr, pa.StructArray):
+                end_is_null = end_arr.is_null().to_numpy(zero_copy_only=False)
+            elif isinstance(end_arr, pa.ChunkedArray):
+                end_is_null = end_arr.is_null().to_numpy(zero_copy_only=False)
+            else:
+                end_series = pd.Series(_as_numpy(end_arr))
+                end_is_null = end_series.isna().to_numpy()
+
+            instant_with_end = is_instant.to_numpy() & ~end_is_null
+
+            if instant_with_end.any():
+                raise ValueError(
+                    f"Instant events cannot have 'end' coordinate: "
+                    f"{instant_with_end.sum()} violations"
+                )
+
+        # Validate interval events have end coordinate (vectorized check)
+        if "end" not in fields:
+            if is_interval.any():
+                raise ValueError(
+                    f"Interval events require 'end' coordinate: "
+                    f"{is_interval.sum()} events missing 'end'"
+                )
+        else:
+            # Check that interval events have non-null end
+            end_arr = fields["end"]
+            if isinstance(end_arr, pa.StructArray):
+                end_is_null = end_arr.is_null().to_numpy(zero_copy_only=False)
+            elif isinstance(end_arr, pa.ChunkedArray):
+                end_is_null = end_arr.is_null().to_numpy(zero_copy_only=False)
+            else:
+                end_series = pd.Series(_as_numpy(end_arr))
+                end_is_null = end_series.isna().to_numpy()
+
+            interval_no_end = is_interval.to_numpy() & end_is_null
+
+            if interval_no_end.any():
+                raise ValueError(
+                    f"Interval events missing 'end' coordinate: "
+                    f"{interval_no_end.sum()} events"
+                )

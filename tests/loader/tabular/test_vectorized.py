@@ -16,6 +16,7 @@ import pandas as pd
 import pyarrow as pa
 
 from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core.time import build_number_struct_array
 from timetoalign.loader.tabular import CsvLoader, TabularLoader, TsvLoader
 
 # region Vectorized Pipeline Tests
@@ -160,7 +161,7 @@ class TestCoordinateTypeParsing:
         assert coord_range[0] == 0.0
         assert coord_range[1] == 4.75
 
-    def test_duration_float_does_not_claim_exact_end(self, tmp_path: Path) -> None:
+    def test_duration_float_end_mirrors_exactly(self, tmp_path: Path) -> None:
         """Keep an endpoint inexact when only duration is floating-point."""
 
         class FractionDurationLoader(TabularLoader):
@@ -177,8 +178,8 @@ class TestCoordinateTypeParsing:
 
         assert loader.events.column_values("end") == [Fraction(4.25)]
         end = loader.events._table.column("end").combine_chunks()
-        assert end.field("numerator").to_pylist() == [None]
-        assert end.field("denominator").to_pylist() == [None]
+        assert end.field("numerator").to_pylist() == [17]
+        assert end.field("denominator").to_pylist() == [4]
 
 
 class TestEventDataFromArrays:
@@ -187,11 +188,10 @@ class TestEventDataFromArrays:
     def test_from_arrays_with_struct_arrays(self) -> None:
         """Construct EventData with pre-parsed coordinate arrays."""
         from timetoalign.storage.events import EventData
-        from timetoalign.storage.parsing import CoordinateParser
 
         # Pre-parse coordinates
-        start_coords = CoordinateParser.parse(
-            np.array([0.0, 1.0, 2.0]), NumberType.float, TimeUnit.seconds
+        start_coords = build_number_struct_array(
+            np.array([0.0, 1.0, 2.0]), number_type=NumberType.float
         )
 
         columns = {
@@ -209,7 +209,6 @@ class TestEventDataFromArrays:
     def test_from_arrays_infers_temporal_type(self) -> None:
         """from_arrays infers temporal_type from end coordinate."""
         from timetoalign.storage.events import EventData
-        from timetoalign.storage.parsing import CoordinateParser
 
         coord_type = pa.struct(
             [
@@ -232,8 +231,8 @@ class TestEventDataFromArrays:
 
         columns = {
             "id": np.array(["e1", "e2"]),
-            "start": CoordinateParser.parse(
-                np.array([0.0, 0.5]), NumberType.float, TimeUnit.seconds
+            "start": build_number_struct_array(
+                np.array([0.0, 0.5]), number_type=NumberType.float
             ),
             "end": end_arrays,
         }
