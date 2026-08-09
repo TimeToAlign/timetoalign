@@ -28,6 +28,7 @@ from timetoalign.core import (
     rational_to_wire,
     wire_to_rational,
 )
+from timetoalign.core.timestamp import _format_coordinate_value
 from timetoalign.maps import ConversionMap
 from timetoalign.storage import EventData
 
@@ -641,8 +642,9 @@ class Timeline(
         max_content = self._get_max_content_coordinate()
         if new_length.value < max_content:
             raise ValueError(
-                f"Cannot reduce length to {new_length.value}: "
-                f"content extends to {max_content}"
+                f"Cannot reduce length to "
+                f"{_format_coordinate_value(float(new_length.value))}: "
+                f"content extends to {_format_coordinate_value(float(max_content))}"
             )
 
         self._length = new_length
@@ -799,14 +801,16 @@ class Timeline(
         for child_id, child in ordered:
             actual = self._child_offsets[child_id].value
             if actual != expected:
+                expected_display = _format_coordinate_value(float(expected))
+                actual_display = _format_coordinate_value(float(actual))
                 if previous_id is None:
                     return (
                         f"Timeline start and child '{child_id}' are not contiguous: "
-                        f"expected offset {expected}, got {actual}"
+                        f"expected offset {expected_display}, got {actual_display}"
                     )
                 return (
                     f"Children '{previous_id}' and '{child_id}' are not contiguous: "
-                    f"expected offset {expected}, got {actual}"
+                    f"expected offset {expected_display}, got {actual_display}"
                 )
             expected = actual + child.length.value
             previous_id = child_id
@@ -814,7 +818,8 @@ class Timeline(
         if expected != self._length.value:
             return (
                 f"Child '{previous_id}' and timeline end are not contiguous: "
-                f"expected offset {expected}, got {self._length.value}"
+                f"expected offset {_format_coordinate_value(float(expected))}, "
+                f"got {_format_coordinate_value(float(self._length.value))}"
             )
         return None
 

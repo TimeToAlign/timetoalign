@@ -803,7 +803,8 @@ class TimelineGroup:
 
         if low_idx is None or high_idx is None:
             raise ValueError(
-                f"Coordinate {coord_value} outside range for '{timeline_id}'"
+                f"Coordinate {_format_coordinate_value(coord_value)} "
+                f"outside range for '{timeline_id}'"
             )
 
         # Determine row_index: -1 for interpolated, actual index for exact match
@@ -1762,7 +1763,8 @@ class TimelineGroup:
 
         if low_idx is None or high_idx is None:
             raise ValueError(
-                f"Coordinate {coord} is outside range for timeline '{timeline_id}'"
+                f"Coordinate {_format_coordinate_value(coord)} is outside range "
+                f"for timeline '{timeline_id}'"
             )
 
         # Interpolate to get coordinates for all existing timelines
@@ -2155,11 +2157,21 @@ class TimelineGroup:
                 coord_start = start_ts[tl_id]
                 coord_end = end_ts[tl_id]
                 if coord_start is None or coord_end is None:
+                    start_display = (
+                        "None"
+                        if coord_start is None
+                        else _format_coordinate_value(coord_start)
+                    )
+                    end_display = (
+                        "None"
+                        if coord_end is None
+                        else _format_coordinate_value(coord_end)
+                    )
                     raise ValueError(
                         f"Section {i}: cannot resolve boundaries for "
                         f"timeline '{tl_id}' from reference "
                         f"'{reference_timeline_id}' "
-                        f"(start={coord_start}, end={coord_end})"
+                        f"(start={start_display}, end={end_display})"
                     )
                 member_spans[tl_id].append((coord_start, coord_end, labels[i]))
 

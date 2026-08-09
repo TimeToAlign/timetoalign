@@ -12,6 +12,7 @@ from timetoalign.storage.events import EventData
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
+    DiscreteLogicalTimeline,
     GroupTimestamp,
     TimelineGroup,
 )
@@ -697,6 +698,48 @@ class TestGetTimestampAt:
 
         with pytest.raises(ValueError, match="outside range"):
             group.get_timestamp_at(200.0, "audio")
+
+    def test_discrete_out_of_range_coordinate_uses_integer_display(self) -> None:
+        """A discrete coordinate is rendered as the integer it represents."""
+        score = DiscreteLogicalTimeline(length=12000, uid="score")
+        annotation = DiscreteLogicalTimeline(length=480, uid="annotation")
+        group = TimelineGroup(id="test_group", timelines=[score])
+
+        with pytest.raises(ValueError) as error:
+            group.add_timeline(
+                annotation,
+                start=IdCoordinate(12673.0, TimeUnit.ticks, "score"),
+            )
+
+        assert str(error.value) == (
+            "Coordinate 12673 is outside range for timeline 'score'"
+        )
+
+    def test_continuous_out_of_range_coordinate_keeps_fractional_part(
+        self,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """A continuous coordinate retains a meaningful fractional part."""
+        group = TimelineGroup(id="test_group", timelines=[audio_timeline])
+
+        with pytest.raises(ValueError) as error:
+            group.get_timestamp_at(150.25, "audio")
+
+        assert str(error.value) == "Coordinate 150.25 outside range for 'audio'"
+
+    def test_out_of_range_coordinate_avoids_scientific_notation(
+        self,
+        audio_timeline: ContinuousPhysicalTimeline,
+    ) -> None:
+        """A large coordinate is expanded to fixed-point display."""
+        group = TimelineGroup(id="test_group", timelines=[audio_timeline])
+
+        with pytest.raises(ValueError) as error:
+            group.get_timestamp_at(1e20, "audio")
+
+        assert str(error.value) == (
+            "Coordinate 100000000000000000000 outside range for 'audio'"
+        )
 
     def test_interpolation_nonexistent_timeline_raises(
         self,

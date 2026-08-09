@@ -7,7 +7,7 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Literal
 
 from timetoalign.core import Coordinate, CoordinateSpec, CoordinateValue, NumberType
-from timetoalign.core.timestamp import ConversionMapsSpec
+from timetoalign.core.timestamp import ConversionMapsSpec, _format_coordinate_value
 from timetoalign.maps import ConversionMap
 
 from ..regions import Region
@@ -91,7 +91,10 @@ class ChildrenMixin:
         # Validate offset
         offset_coord = self.get_coordinate(offset)
         if offset_coord.value < 0:
-            raise ValueError(f"Offset cannot be negative: {offset_coord.value}")
+            raise ValueError(
+                f"Offset cannot be negative: "
+                f"{_format_coordinate_value(float(offset_coord.value))}"
+            )
 
     def _convert_child_to_parent_unit(
         self,
@@ -266,7 +269,10 @@ class ChildrenMixin:
         }
         self._add_events_unchecked([segment_event])
 
-        self._logger.debug(f"Added child '{child.id}' at offset {offset_coord.value}")
+        self._logger.debug(
+            f"Added child '{child.id}' at offset "
+            f"{_format_coordinate_value(float(offset_coord.value))}"
+        )
 
     def create_child(
         self,
@@ -768,14 +774,19 @@ class ChildrenMixin:
 
         # Validate
         if s >= e:
-            raise ValueError(f"start ({s}) must be less than end ({e})")
+            raise ValueError(
+                f"start ({_format_coordinate_value(float(s))}) must be less than "
+                f"end ({_format_coordinate_value(float(e))})"
+            )
         if s < 0:
             raise ValueError(
-                f"start ({s}) is outside timeline bounds [0, {self._length.value})"
+                f"start ({_format_coordinate_value(float(s))}) is outside timeline "
+                f"bounds [0, {_format_coordinate_value(float(self._length.value))})"
             )
         if e > self._length.value:
             raise ValueError(
-                f"end ({e}) is outside timeline bounds [0, {self._length.value}]"
+                f"end ({_format_coordinate_value(float(e))}) is outside timeline bounds "
+                f"[0, {_format_coordinate_value(float(self._length.value))}]"
             )
 
         slice_length = e - s

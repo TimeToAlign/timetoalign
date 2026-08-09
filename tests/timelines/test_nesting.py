@@ -408,7 +408,7 @@ class TestCreateChildrenFromBoundaries:
             (
                 [0.0, 60.0, 30.0, 100.0],
                 "Boundaries must be monotonically increasing: "
-                "boundaries[1]=60.0 >= boundaries[2]=30.0",
+                "boundaries[1]=60 >= boundaries[2]=30",
             ),
         ],
     )

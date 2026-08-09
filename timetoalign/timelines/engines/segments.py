@@ -6,6 +6,7 @@ from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
 from timetoalign.core import CoordinateSpec
+from timetoalign.core.timestamp import _format_coordinate_value
 
 from .coordinate_ops import coordinate_numeric_value, shift_coordinate
 
@@ -62,8 +63,9 @@ class SegmentsMixin:
             if coords[i] <= coords[i - 1]:
                 raise ValueError(
                     f"Boundaries must be monotonically increasing: "
-                    f"boundaries[{i - 1}]={coords[i - 1]} >= "
-                    f"boundaries[{i}]={coords[i]}"
+                    f"boundaries[{i - 1}]="
+                    f"{_format_coordinate_value(float(coords[i - 1]))} >= "
+                    f"boundaries[{i}]={_format_coordinate_value(float(coords[i]))}"
                 )
 
         line_class = (
@@ -154,8 +156,9 @@ class SegmentsMixin:
             if abs(prev_end - curr_start) > 1e-10:
                 raise ValueError(
                     f"Regions are not contiguous: '{regions[i - 1].name}' "
-                    f"ends at {prev_end} but '{regions[i].name}' starts "
-                    f"at {curr_start}"
+                    f"ends at {_format_coordinate_value(float(prev_end))} but "
+                    f"'{regions[i].name}' starts at "
+                    f"{_format_coordinate_value(float(curr_start))}"
                 )
 
         # Build boundaries from regions
@@ -257,8 +260,10 @@ class SegmentsMixin:
             if abs(prev_end - curr_start) > 1e-10:
                 raise ValueError(
                     f"Groups are not contiguous: group "
-                    f"'{runs[i - 1][0]}' ends at {prev_end} but group "
-                    f"'{runs[i][0]}' starts at {curr_start}"
+                    f"'{runs[i - 1][0]}' ends at "
+                    f"{_format_coordinate_value(float(prev_end))} but group "
+                    f"'{runs[i][0]}' starts at "
+                    f"{_format_coordinate_value(float(curr_start))}"
                 )
 
         # Build boundaries

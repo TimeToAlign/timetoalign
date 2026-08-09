@@ -325,7 +325,7 @@ timestamp_view
 # lists the source and active direct child, while `get_coordinate` can traverse
 # farther to the active grandchild. Raw `get` returns the float `5.5`; the typed
 # accessor returns a `Coordinate` with an exact `Fraction` value and its unit.
-# This is the first of three stamp types introduced across the series.
+# This is the first of three point-stamp types introduced across the series.
 
 # %% [markdown]
 # ## Reversing a conversion map
@@ -375,7 +375,8 @@ tick_view
 # ## A span instead of a point
 #
 # `get_interval_stamp(start, end)` extends the same cross-section idea over a
-# span and returns a {{< glossary TimeIntervalStamp >}}.
+# span and returns a {{< glossary TimeIntervalStamp >}}, the span variant of
+# the first point-stamp rung rather than another rung in the three-part ladder.
 
 # %%
 interval_start = piece.make_coordinate(Fraction(8))
@@ -423,7 +424,7 @@ interval_view
 # ## Next
 #
 # [Events on a Timeline](tut03_events.ipynb) adds {{< glossary Event >}} data
-# to this hierarchy and builds an event-driven timestamp table from it.
+# to a timeline like this one and builds an event-driven timestamp table.
 #
 # ## Go deeper
 #

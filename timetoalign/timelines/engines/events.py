@@ -8,6 +8,7 @@ from typing import Any, Literal
 import pyarrow.compute as pc
 
 from timetoalign.core import Coordinate, CoordinateSpec, CoordinateValue
+from timetoalign.core.timestamp import _format_coordinate_value
 from timetoalign.storage import EventData
 
 from .coordinate_ops import (
@@ -67,8 +68,10 @@ class EventsMixin:
 
         if self._locked and not allow_expansion:
             raise ValueError(
-                f"Adding content ending at {required} exceeds timeline length "
-                f"{self._length.value}. Timeline is locked. "
+                f"Adding content ending at {_format_coordinate_value(float(required))} "
+                f"exceeds timeline length "
+                f"{_format_coordinate_value(float(self._length.value))}. "
+                f"Timeline is locked. "
                 "Use allow_expansion=True to override."
             )
 

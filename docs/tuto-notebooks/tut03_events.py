@@ -43,6 +43,8 @@ from timetoalign import (
 #
 # Everything so far described **where** something happens. An
 # {{< glossary Event >}} records **what** happens at a position or over a span.
+# `from_events` builds a timeline directly from event rows and infers the
+# timeline's extent from them.
 
 # %%
 tl = ContinuousLogicalTimeline.from_events(

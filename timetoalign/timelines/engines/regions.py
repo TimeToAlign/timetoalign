@@ -6,6 +6,7 @@ from collections.abc import Callable, Iterator, Sequence
 from typing import Any
 
 from timetoalign.core import CoordinateSpec, CoordinateValue
+from timetoalign.core.timestamp import _format_coordinate_value
 
 from ..regions import Region
 from .coordinate_ops import coordinate_numeric_value
@@ -27,8 +28,9 @@ def _resolve_boundary_names(
         if coords[i] <= coords[i - 1]:
             raise ValueError(
                 f"Boundaries must be monotonically increasing: "
-                f"boundaries[{i - 1}]={coords[i - 1]} >= "
-                f"boundaries[{i}]={coords[i]}"
+                f"boundaries[{i - 1}]="
+                f"{_format_coordinate_value(float(coords[i - 1]))} >= "
+                f"boundaries[{i}]={_format_coordinate_value(float(coords[i]))}"
             )
 
     n_regions = len(coords) - 1
@@ -121,7 +123,8 @@ class RegionsMixin:
         self._regions[region.name] = region
         self._logger.debug(
             f"Added region '{region.name}' "
-            f"[{region.start.value}, {region.end.value})"
+            f"[{_format_coordinate_value(float(region.start.value))}, "
+            f"{_format_coordinate_value(float(region.end.value))})"
         )
         return region
 
@@ -169,7 +172,9 @@ class RegionsMixin:
 
         self._regions[name] = region
         self._logger.debug(
-            f"Created region '{name}' [{start_coord.value}, {end_coord.value})"
+            f"Created region '{name}' "
+            f"[{_format_coordinate_value(float(start_coord.value))}, "
+            f"{_format_coordinate_value(float(end_coord.value))})"
         )
         return region
 

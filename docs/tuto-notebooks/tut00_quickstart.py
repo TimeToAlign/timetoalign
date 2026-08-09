@@ -203,9 +203,8 @@ coordinate_pair
 # ## Alignment Bundles
 #
 # An {{< glossary AlignmentBundle >}} collects broader alignment evidence; its
-# basic link is a {{< glossary MatchClaim >}}. A synchronous claim holds an
-# {{< glossary AlignmentAnchor >}}: the two unit-bearing coordinates asserted
-# to correspond.
+# basic link is a {{< glossary MatchClaim >}}. A synchronous claim asserts that
+# two unit-bearing positions correspond.
 
 # %%
 claim = MatchClaim.from_events(
@@ -216,17 +215,12 @@ claim = MatchClaim.from_events(
     unit_a=audio.unit,
     unit_b=score.unit,
 )
-alignment_anchor = claim.start_anchor
-anchor_coordinates = {
-    alignment_anchor.timeline_a_id: alignment_anchor.coordinate_a,
-    alignment_anchor.timeline_b_id: alignment_anchor.coordinate_b,
-}
-anchor_coordinates
+claim
 
 # %% [markdown]
-# The anchor displays the claimed instant without rounding or dropping units:
-# 25/2 seconds corresponds to 415/24 quarters. A bundle can combine this claim
-# with wider alignment evidence. Open
+# The claim records the corresponding positions without rounding or dropping
+# units: 25/2 seconds corresponds to 415/24 quarters. A bundle can combine this
+# claim with wider alignment evidence. Open
 # [Alignment Bundles](tut06_alignment_bundles.ipynb) to assemble and query
 # larger alignments.
 
@@ -310,7 +304,7 @@ pitch_pair
 # - You can add events to a timeline and retrieve a non-empty selection.
 # - You can load a score file into the same timeline model.
 # - You can group timelines and transfer a coordinate between them.
-# - You can express one match claim and inspect its exact anchor coordinates.
+# - You can express one match claim between exact, unit-bearing positions.
 # - You can unfold one written position into repeated played positions.
 # - You can retrieve a typed coordinate from an event-data field.
 # - You can distinguish an enharmonic pitch from a specifically spelled pitch.

@@ -1033,7 +1033,7 @@ class TestSegmentLineCasting:
 
         assert str(error.value) == (
             "Children 'left' and 'right' are not contiguous: "
-            "expected offset 1.0, got 2.0"
+            "expected offset 1, got 2"
         )
 
     def test_as_segment_line_rejects_heterogeneous_child_classes(self):

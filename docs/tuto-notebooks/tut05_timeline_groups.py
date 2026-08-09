@@ -37,7 +37,6 @@ from timetoalign import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
     Coordinate,
-    DiscreteLogicalTimeline,
     GroupTimestamp,
     IdCoordinate,
     InterpolationMap,
@@ -254,34 +253,12 @@ range_view
 # ## Locking a group
 #
 # Marking a group {{< glossary Locked >}} records that its represented extent
-# should not be extended accidentally. Here an attempted end beyond the loaded
-# score range is deliberate, so the refusal can be inspected without a noisy
-# traceback; the group is unlocked again after the attempt.
-
-# %%
-assert score_range is not None
-extension_limit = score.length.value + 100
-extension_probe = DiscreteLogicalTimeline.from_events(
-    [{"id": "probe-end", "event_type": "Boundary", "instant": extension_limit}],
-    uid="extension-probe",
-)
-extension_error = None
-group.lock()
-try:
-    group.add_timeline(
-        extension_probe,
-        end=IdCoordinate(extension_limit, TimeUnit.ticks, score.id),
-    )
-except ValueError as exc:
-    extension_error = exc
-group.unlock()
-extension_error
-
-# %% [markdown]
-# The `ValueError` shows that the out-of-range boundary was refused before the
-# group changed. In the current API, boundary validation happens before a
-# lock-specific error can be produced, so this output does not pretend that the
-# exception itself proves the lock caused the refusal.
+# should not be extended accidentally. A lock does not prevent changes within
+# the represented range; it protects the group's endpoint when adding a member
+# would extend that range. Such an intentional extension requires
+# `allow_extension=True`. In the current API, an end outside a member's
+# represented range fails boundary validation before the lock is considered,
+# so there is no executable lock-specific example here.
 
 # %% [markdown]
 # ## Partial alignment
@@ -345,7 +322,7 @@ partial_checks
 # - You can retrieve a stored pair as a unit-bearing row view.
 # - You can inspect the full boundary table and recognize its plain-number representation.
 # - You can query a member's represented range.
-# - You can lock, test a deliberate out-of-range change, and unlock a group.
+# - You can lock a group to protect its represented extent from accidental extension.
 # - You can align a recording to only a named part of a score.
 #
 # ## Next
