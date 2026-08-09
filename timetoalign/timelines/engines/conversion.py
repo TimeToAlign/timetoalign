@@ -15,7 +15,7 @@ from timetoalign.core import (
     IdCoordinate,
     NumberType,
     TimeUnit,
-    quantize_to_unit,
+    express_as,
     resolve_coordinate_spec,
 )
 from timetoalign.core.time import coordinate_numeric_value, exact_coordinate_value
@@ -39,11 +39,12 @@ class ConversionMapsMixin:
         *,
         conversion_maps: ConversionMapsSpec = True,
     ) -> TimeStamp:
-        """Get a timestamp while retaining an exact native scalar when available.
+        """Get a timestamp whose axis is written in this timeline's own type.
 
-        The tabular timestamp axis remains float-valued. This wrapper records
-        exactness separately for typed coordinate access, but only when the
-        caller's coordinate resolves to an integer or :class:`Fraction`.
+        The caller may pass a coordinate in any numeric form; the axis is
+        expressed in the timeline's declared ``number_type``, so a query of
+        ``9.5`` on a fraction-canonical timeline gives an axis of
+        ``Fraction(19, 2)``.
 
         Args:
             coord: Coordinate to resolve on this timeline.
@@ -75,8 +76,9 @@ class ConversionMapsMixin:
                 )
             native_coord = self.get_coordinate(qualified_coord)
 
-        # The coordinate is already in its timeline's own representation,
-        # so hand the stamp that value rather than a float projection of it.
+        # The coordinate is already written in this timeline's declared type,
+        # so the axis carries it as-is; everything derived from the stamp is
+        # expressed on its own axis in turn.
         return replace(timestamp, axis=native_coord.value)
 
     @property
@@ -207,12 +209,12 @@ class ConversionMapsMixin:
             if target.is_discrete:
                 return np.vectorize(round, otypes=[int])(converted_value)
             return converted_value
-        # A converted value keeps the representation the conversion
-        # produced. Applying the unit's default here would re-type an
-        # inexact result as an exact ratio: numerically identical, but it
-        # would claim the computation pinned down something it estimated.
-        settled = quantize_to_unit(converted_value, target)
-        return Coordinate(settled, target, number_type=NumberType.from_number(settled))
+        # The value now lives on the target unit's axis, so it is written the
+        # way that axis writes numbers.
+        declared = target.default_number_type
+        return Coordinate(
+            express_as(converted_value, declared), target, number_type=declared
+        )
 
     def derive(
         self,
@@ -660,9 +662,12 @@ class ConversionMapsMixin:
                 else float(coordinate_numeric_value(native_value)) + float(offset.value)
             )
 
-        settled = quantize_to_unit(native_value, self._unit)
+        # Expressed on THIS timeline's axis, in the type it declares -- which
+        # may differ from its unit's default when the caller chose otherwise.
         return Coordinate(
-            settled, self._unit, number_type=NumberType.from_number(settled)
+            express_as(native_value, self._number_type),
+            self._unit,
+            number_type=self._number_type,
         )
 
     def _resolve_axis_value(self, coord: CoordinateSpec) -> int | float | Fraction:

@@ -65,8 +65,13 @@ def test_quarters_to_ticks_produces_integer_coordinates() -> None:
     assert isinstance(upper_tie.value, int)
 
 
-def test_continuous_targets_preserve_map_numeric_types() -> None:
-    """Continuous conversion targets retain float and Fraction results."""
+def test_continuous_targets_express_in_the_target_units_type() -> None:
+    """Each continuous target writes the result the way that unit writes.
+
+    seconds are float-canonical and quarters fraction-canonical, so the same
+    exact ratio arriving at each is expressed differently — by the axis it
+    lands on, not by how the conversion computed it.
+    """
     audio = DiscretePhysicalTimeline(length=44100, uid="audio-samples")
     audio.add_conversion_map(SamplesToSeconds(sample_rate=44100))
     score = DiscreteLogicalTimeline(length=960, uid="score-ticks")
@@ -83,8 +88,8 @@ def test_continuous_targets_preserve_map_numeric_types() -> None:
     exact_stamp = TimeStamp(axis=Fraction(160), source=score, source_id=score.id)
     stamped_quarters = exact_stamp.get_unit(TimeUnit.quarters)
 
-    assert seconds.value == Fraction(1, 2)
-    assert isinstance(seconds.value, Fraction)
+    assert seconds.value == 0.5
+    assert isinstance(seconds.value, float)
     assert quarters.value == Fraction(1, 3)
     assert isinstance(quarters.value, Fraction)
     assert stamped_quarters == Fraction(1, 3)

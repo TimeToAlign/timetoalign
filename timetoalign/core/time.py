@@ -312,24 +312,16 @@ def quantize_to_unit(
     *,
     rounding: str = "round",
 ) -> int | float | Fraction:
-    """Express a converted value in the representation its unit uses.
+    """Re-express a value in the representation a bare unit declares.
 
-    The counterpart to :func:`_settle_under_unit`, for the other side of the
-    boundary. Writing ``Coordinate(Fraction(1, 2), TimeUnit.ticks)`` by hand
-    is refused, because nobody means half a tick. But *converting* a quarter
-    position into ticks at a given resolution quantizes by definition — that
-    is what a pulses-per-quarter figure is for — so a conversion result is
-    settled here, deliberately and in one visible place, rather than being
-    handed to a constructor that would have to guess.
+    :func:`express_as` for callers holding a unit rather than a timeline —
+    a unit's declared representation is its default. Writing
+    ``Coordinate(Fraction(1, 2), TimeUnit.ticks)`` by hand is still refused,
+    because nobody means half a tick; but *converting* a quarter position
+    into ticks at a given resolution quantizes by definition, and this is
+    where that happens, visibly and in one place.
     """
-    number = parse_number(value)
-    if NumberType.from_number(number) in unit.allowed_number_types:
-        return number
-    target = unit.default_number_type
-    if target is NumberType.int and isinstance(number, Fraction):
-        # Licensed here and nowhere else: the conversion is the quantization.
-        return _round_to_int(number, rounding)
-    return to_canonical(number, target, rounding=rounding)
+    return express_as(parse_number(value), unit.default_number_type, rounding=rounding)
 
 
 def number_cell(
@@ -891,20 +883,41 @@ def combine_numbers(
     factor = parse_number(right)
     if number_type is NumberType.float:
         return float(apply(float(left_value), float(factor)))
-    return _quantize(
-        apply(Fraction(left_value), Fraction(factor)), number_type, rounding
+    return express_as(
+        apply(Fraction(left_value), Fraction(factor)), number_type, rounding=rounding
     )
 
 
-def _quantize(
-    value: int | float | Fraction, number_type: NumberType, rounding: str
+def express_as(
+    value: int | float | Fraction,
+    number_type: NumberType,
+    *,
+    rounding: str = "round",
 ) -> int | float | Fraction:
-    """Settle a computed result into a representation, rounding if it must.
+    """Re-express a value in a declared representation. THE boundary rule.
 
-    Distinct from :func:`to_canonical`, which refuses to make an exact
-    non-integral value integral. There the value is one a caller wrote down,
-    and refusing is the point; here it is one the library just computed, and
-    a computation that lands between two ticks has to land on one of them.
+    Every value that crosses onto a timeline, field or stamp axis is written
+    in that axis's declared ``number_type`` — whatever it was before, however
+    it was obtained. A fraction-canonical axis yields fractions, always; a
+    float-canonical axis yields floats, always.
+
+    That uniformity is the point. A number's *type* says how it is written,
+    not where it came from; letting provenance leak into the type would make
+    two coordinates on one axis disagree about what they are, and would
+    quietly overload a type system to carry a story it cannot be queried for.
+    Estimation is recorded where it can be asked about — ``is_interpolated``
+    and its siblings — never in the choice of ``int`` versus ``Fraction``.
+
+    Re-expressing a float as its exact dyadic is not fabrication: the value
+    is numerically identical, digit for digit. Fabrication is inventing a
+    *tidier* ratio than the number really is, and that remains banned.
+
+    Args:
+        value: The number to re-express.
+        number_type: The representation the axis declares.
+        rounding: How to make a value integral for an ``int`` axis. Rounding
+            is licensed here — this is a re-expression the library performs,
+            not a value a caller wrote down.
     """
     if (
         number_type is NumberType.int

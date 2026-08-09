@@ -174,34 +174,6 @@ def _format_coordinate(coordinate: Coordinate) -> str:
 # endregion
 
 
-def _derived(value: Any, unit: TimeUnit) -> "Coordinate":
-    """Build a Coordinate that keeps the representation it arrived with.
-
-    The scalar constructor lets the unit choose how a value is written, which
-    is right for a coordinate somebody types: two quarter positions should
-    not differ in kind because one literal had a decimal point. Values
-    reaching a stamp are the other case, and the boundary is exactly that —
-    **the constructor**, not some judgement about where a number came from.
-
-    That boundary is worth stating plainly, because it puts a value the
-    caller did type on this side of it. ``get_timestamp(9.5)`` carries a
-    float axis, so the coordinate it reports back is float, while
-    ``Coordinate(9.5, quarters)`` is ``Fraction(19, 2)`` — same literal,
-    different answer. The asymmetry is deliberate: the axis seeds every
-    child coordinate, unit conversion and interval derived from the stamp,
-    so coercing it would make an entire subtree read as exact on the
-    strength of one approximate query. A float query means "approximately
-    here", and that has to survive the whole cross-section or it means
-    nothing.
-    """
-    from ..core.time import Coordinate
-
-    number_type = NumberType.from_number(value)
-    if number_type not in unit.allowed_number_types:
-        number_type = None
-    return Coordinate(value, unit, number_type=number_type)
-
-
 def _as_float_lane(value: Any) -> Any:
     """Coerce a numeric value to the float lane, passing anything else through.
 
@@ -383,6 +355,38 @@ class Stamp(ABC):
         """Materialize the stamp as a coordinate dictionary."""
         ...
 
+    def _on_axis(self, value: Any, timeline_id: str) -> "Coordinate":
+        """Express *value* in the declared representation of *timeline_id*.
+
+        Every coordinate this stamp hands out crosses an axis boundary, and
+        the axis decides how its numbers are written — the same rule whether
+        the value was queried, offset-computed, converted or interpolated.
+        Preserving the declared type is what lets a caller reason about a
+        fraction-canonical timeline without inspecting each value's kind;
+        whether a position was estimated is a separate question, answered by
+        ``is_interpolated`` rather than by a number's type.
+        """
+        from ..core.time import Coordinate, express_as
+
+        unit = self._unit_for(timeline_id)
+        declared = self._number_type_enum_for(timeline_id)
+        if declared is None:
+            declared = unit.default_number_type
+        return Coordinate(express_as(value, declared), unit, number_type=declared)
+
+    def _number_type_enum_for(self, timeline_id: str) -> "NumberType | None":
+        """The declared :class:`NumberType` of *timeline_id*, if it has one."""
+        name = self._number_type_for(timeline_id)
+        return None if name is None else NumberType(name)
+
+    def _number_type_for(self, timeline_id: str) -> str | None:
+        """Name of the declared numeric type of *timeline_id*, if it has one.
+
+        Subclasses that know their source's timelines override this; the
+        base has nothing to look in, so it declines.
+        """
+        return None
+
     @abstractmethod
     def _unit_for(self, timeline_id: str) -> TimeUnit | None:
         """Get the unit associated with a timeline ID."""
@@ -397,8 +401,6 @@ class Stamp(ABC):
         Returns:
             A Coordinate object, or None when the timeline or unit is unavailable.
         """
-        from ..core.time import Coordinate
-
         raw = self.get(timeline_id)
         unit = self._unit_for(timeline_id)
         if raw is None or unit is None:
@@ -408,17 +410,9 @@ class Stamp(ABC):
         if exact_getter is not None:
             exact = exact_getter(timeline_id, self.axis)
             if exact is not None:
-                return Coordinate(exact, unit)
-        # *raw* came off the float lane, which is where empirically
-        # interpolated positions live. Declaring float keeps it one: letting
-        # the constructor prefer the unit's exact default would dress an
-        # estimate between anchors up as a claimed rational. A discrete unit
-        # cannot express float at all, so there the estimate rounds, which is
-        # the only thing a tick position can be.
-        interpolated = (
-            NumberType.float if NumberType.float in unit.allowed_number_types else None
-        )
-        return Coordinate(raw, unit, number_type=interpolated)
+                return self._on_axis(exact, timeline_id)
+        # *raw* came off the float lane; the axis decides how it is written.
+        return self._on_axis(raw, timeline_id)
 
     @property
     def axis_coordinate(self) -> "Coordinate":
@@ -653,12 +647,11 @@ class TimeStamp(Stamp):
         if unit is None:
             return None
 
-        # Every branch below hands back a value somebody else derived -- a
-        # stored row, offset arithmetic, a structural conversion -- so each
-        # keeps the representation it arrived with rather than taking the
-        # unit's default. That default is for values a caller *authors*;
-        # re-typing a derived one would claim an exactness the computation
-        # did not have. ``_derived`` is the one place that rule is spelled.
+        # Each branch resolves a coordinate a different way -- a stored row,
+        # offset arithmetic, group interpolation -- and every one of them
+        # then crosses the target axis, which is where its representation is
+        # decided. Computation stays as exact as its inputs allow; expressing
+        # the answer is a separate and final step.
         if timeline_id == self.source_id:
             # A stamp queried with a float may still sit on a stored row whose
             # value is exact; the row is the better answer, and the axis is
@@ -667,20 +660,20 @@ class TimeStamp(Stamp):
             if exact_getter is not None:
                 stored = exact_getter(timeline_id, self.axis)
                 if stored is not None:
-                    return _derived(stored, unit)
-            return _derived(self.axis, unit)
+                    return self._on_axis(stored, timeline_id)
+            return self._on_axis(self.axis, timeline_id)
 
         child_getter = getattr(self.source, "_get_child_coordinate", None)
         if child_getter is not None:
             offset_result = child_getter(timeline_id, self.axis)
             if offset_result is not None:
-                return _derived(offset_result, unit)
+                return self._on_axis(offset_result, timeline_id)
 
         group_getter = getattr(self.source, "_get_exact_interpolated_coordinate", None)
         if group_getter is not None:
             structural = group_getter(timeline_id, self.source_id, self.axis)
             if structural is not None:
-                return _derived(structural, unit)
+                return self._on_axis(structural, timeline_id)
 
         return Stamp.get_coordinate(self, timeline_id)
 

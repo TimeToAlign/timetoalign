@@ -42,6 +42,7 @@ from timetoalign.core import (
 )
 from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.fields import blob_metadata, field_metadata
+from timetoalign.core.time import express_as
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
     Stamp,
@@ -1351,15 +1352,11 @@ class TimelineGroup:
 
         ratio = (source_coordinate - source_low) / (source_high - source_low)
         result = target_low + ratio * (target_high - target_low)
-        if self._timelines[target_id].number_type == NumberType.int:
-            return round(result)
-        # This is structural re-expression, not empirical interpolation: the
-        # relation is proven from the members' own declared origins and
-        # lengths, so it is definitional and stays exact. Estimating between
-        # matched anchor pairs is the other thing, and that lane is float --
-        # a fitted relation that happens to come out a nice ratio is still a
-        # fit, and must not be typed as though someone had claimed it.
-        return result
+        # Computed as exactly as the members' declared origins and lengths
+        # allow, then written the way the target axis writes numbers. Whether
+        # the position was interpolated is recorded on the stamp, not in the
+        # type of the number.
+        return express_as(result, self._timelines[target_id].number_type)
 
     def _get_unit_map(self, unit: "TimeUnit") -> InterpolationMap | None:
         """Get InterpolationMap for unit-based conversion.

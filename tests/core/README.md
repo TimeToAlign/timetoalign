@@ -129,42 +129,111 @@ and the storage path deliberately differ. The scalar accepts it and holds the
 exact ratio; storing it in a *fraction-canonical field* raises, because that
 is where int64 lives. Both are asserted.
 
-**The unit chooses only for values a caller AUTHORS.** A value the library
-*derived* — a conversion result, offset arithmetic, a stored row, an
-interpolated position — keeps the representation its computation produced.
-The two rules answer different questions: authoring asks "how should a
-quarter position be written?", where the literal's Python type is an accident
-worth normalising away; deriving asks "what did this computation actually
-establish?", where the type is the answer and normalising it away would claim
-precision nothing supports.
+#### Number type is preserved everywhere
 
-The distinction changes behaviour rather than being a matter of taste, and
-`tests/test_rational_coordinate_preservation.py` is where it is enforced. A
-float tick count converted to quarters stays float; a coordinate reached by
-float offset arithmetic stays float; a map with an irrational scalar yields
-float. In every one of those the exact dyadic would be numerically identical
-to the float, so no value would be lost — what would be lost is the library's
-only way of saying "this was measured, not counted".
-
-**The boundary is the scalar constructor**, and that phrasing is exact rather
-than approximate, because it puts a value the caller did type on the derived
-side:
+**The declared type is preserved under all circumstances.** Whatever a value
+was before and however it was obtained — typed by a caller, converted through
+a C-Map, computed by offset arithmetic, interpolated between anchors, or read
+back off a query — it is re-expressed in the declared `number_type` of the
+axis it lands on. A fraction-canonical axis yields fractions, always; a
+float-canonical axis yields floats, always. `express_as` is the one place
+that happens.
 
 ```python
-Coordinate(9.5, quarters)                          # Fraction(19, 2) — authored
-timeline.get_timestamp(9.5).get_coordinate("clt1") # 9.5            — derived
+Coordinate(9.5, quarters)                          # Fraction(19, 2)
+timeline.get_timestamp(9.5).get_coordinate("clt1") # Fraction(19, 2)
 ```
 
-Same literal, same unit, same caller, two representations. That is deliberate
-and the tests pin it: a stamp's axis seeds every child coordinate, unit
-conversion and interval taken from it, so coercing the axis would make a whole
-cross-section read as exact on the strength of one approximate query. A float
-query means "approximately here", and it has to survive the cross-section or
-it means nothing.
+The two agree, and that is the property worth having: a caller reasoning
+about a fraction-canonical timeline never has to inspect each value's kind to
+find out what it got.
 
-A pleasant consequence: since a float prints as a decimal and a `Fraction`
-prints as a ratio, the rendering now *shows* which regime a value came from.
-`9.5 quarters` reads as measured; `19/2 quarters` reads as exact.
+**Estimation is not a type.** It is tempting to let an interpolated position
+stay float on an exact axis so that its type "says" it was estimated — and
+`tests/test_number_type_preservation.py` exists to reject exactly that. A
+number's type says how it is written, not where it came from. Overloading it
+with provenance makes two coordinates on one axis disagree about what they
+are, and encodes a story nothing can query. Whether a position was estimated
+is recorded where it can be asked about: `is_interpolated` and its siblings.
+
+Re-expressing a float as its exact dyadic is not fabrication — the value is
+numerically identical, digit for digit. Fabrication means inventing a
+*tidier* ratio than the number really is, and that remains banned and
+grep-enforced.
+
+Internal machinery may still compute in float where that is what the
+arithmetic affords — a WarpMap's vectorised lane, private numeric pair feeds.
+The rule binds at the output boundary, not in the middle of a calculation.
+
+### Display shows what the value carries
+
+One formatter (`format_number`) sits behind every pretty rendering — scalar
+`__str__`, stamp display, table cells. Having exactly one is the point rather
+than a tidiness preference: a display that shows less than the value carries
+is a lie the reader has no way to detect, and two formatters drift into
+precisely that. Before unification, `str(Coordinate(Fraction(1, 3),
+quarters))` read `0.333333` while the stamp rendering of the same position
+read `1/3`.
+
+Pinned, exactly:
+
+| Value | Renders |
+|---|---|
+| `Fraction(1, 3)` quarters | `1/3 quarters` |
+| `Fraction(19, 2)` quarters | `19/2 quarters` |
+| `Fraction(10, 1)` quarters | `10 quarters` — integral, so no denominator |
+| `2.0` seconds | `2 seconds` — integral, so no decimal point |
+| `0.1` seconds | `0.1 seconds` |
+| `1/3` (float) seconds | `0.3333333333333333 seconds` — every digit it round-trips with |
+| `1234567.5` seconds | `1234567.5 seconds` — large values are not rounded away |
+| `1e-7` seconds | `0.0000001 seconds` — never scientific, never `0` |
+| `160` ticks | `160 ticks` |
+
+The last two rows were live defects, not hypotheticals: the old scalar
+formatter rendered `1234567.5` as `1234568` and `1e-7` as `0`. A test asserts
+the scalar and stamp paths produce identical strings for the same value, so
+they cannot drift apart again. `repr()` is the other lane and was already
+exact — it is left alone.
+
+### Scalar construction: the unit chooses the representation
+
+A scalar holds exactly one value, so something has to decide how it is
+written — and that decision belongs to the unit, not to whichever Python
+type the caller's literal happened to have. `Coordinate(2, quarters)` and
+`Coordinate(1.5, quarters)` are both quarter positions and both come out
+exact (`Fraction(2, 1)`, `Fraction(3, 2)`); they no longer differ because one
+was typed with a decimal point. The tests pin each arm, because the failure
+mode here is two adjacent literals on the same unit disagreeing about their
+own type, which then propagates through arithmetic (the left operand decides)
+into results that differ depending on operand order.
+
+An explicit `number_type=` overrides the default and is validated against
+what the unit admits — that is how a caller deliberately chooses the float
+lane on a fractional unit.
+
+Coercion toward the default never loses information, and each rule is pinned:
+
+| Input | Unit default | Result | Why |
+|---|---|---|---|
+| `2` | `fraction` | `Fraction(2, 1)` | exact widening |
+| `1.5` | `fraction` | `Fraction(3, 2)` | exact dyadic |
+| `0.0001` | `fraction` | dyadic, denominator `2**66` | **no int64 ceiling here** — Python `Fraction` is arbitrary-precision, and the storage refusal belongs at the field boundary where the ceiling actually exists |
+| `10` | `float` | `10.0` | widens, and raises if it would not survive the trip |
+| `Fraction(1, 3)` | `float` | `Fraction(1, 3)` **kept** | degrading an exact input silently is the thing this scheme exists to prevent; it takes an explicit `number_type=float` |
+| `120.7` | `int` (discrete) | `121` | a measurement read off a float clock |
+| `Fraction(5, 24)` | `int` (discrete) | **raises** | an exact non-integral value is a unit mix-up, not a rounding candidate |
+
+The 0.0001 row is worth reading twice: it is the case where the scalar path
+and the storage path deliberately differ. The scalar accepts it and holds the
+exact ratio; storing it in a *fraction-canonical field* raises, because that
+is where int64 lives. Both are asserted.
+
+**Everything the library hands back is expressed the same way.** The table
+above governs the constructor, and the identical rule governs every other
+route a value can take onto this axis — see "Number type is preserved
+everywhere" above. `Coordinate(9.5, quarters)` and
+`timeline.get_timestamp(9.5).get_coordinate("clt1")` both give
+`Fraction(19, 2)`; there is one answer per axis, not one per entry point.
 
 ### Stamp currencies: the float lane and the exact lane
 

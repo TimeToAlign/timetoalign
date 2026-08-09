@@ -1,4 +1,12 @@
-"""Regression tests for exact scalar coordinate boundaries."""
+"""The declared number_type is preserved at every coordinate boundary.
+
+Validation logic is documented in ``tests/core/README.md`` under "Number
+type is preserved everywhere". Every value that lands on a timeline axis is
+written in that axis's declared representation, however it was obtained —
+typed by a caller, converted, offset-computed, interpolated, or read back
+off a query. Estimation is recorded by ``is_interpolated``, never by a
+number's type.
+"""
 
 from __future__ import annotations
 
@@ -26,15 +34,22 @@ def test_ticks_to_quarters_preserves_exact_scalar_value() -> None:
     assert isinstance(converted.value, Fraction)
 
 
-def test_ticks_to_quarters_keeps_float_input_inexact() -> None:
-    """A float input does not acquire fabricated rational exactness."""
+def test_float_input_is_expressed_in_the_target_axis_type() -> None:
+    """A float query lands on an exact axis as an exact value.
+
+    quarters are fraction-canonical, so the converted coordinate is a
+    ``Fraction`` whatever the caller passed. Re-expressing the double as its
+    exact dyadic is not fabrication -- the number is identical, digit for
+    digit; fabrication would be inventing a tidier ratio than it really is.
+    """
     ticks = DiscreteLogicalTimeline(length=1920, uid="ticks")
     ticks.add_conversion_map(TicksToQuarters(ppq=480))
 
     converted = ticks.convert_to(160.0, "quarters")
 
-    assert converted.value == 160.0 / 480
-    assert isinstance(converted.value, float)
+    assert isinstance(converted.value, Fraction)
+    assert converted.value == Fraction(160.0 / 480)
+    assert float(converted.value) == 160.0 / 480
 
 
 def test_timestamp_coordinate_preserves_exact_child_offset() -> None:
@@ -52,17 +67,29 @@ def test_timestamp_coordinate_preserves_exact_child_offset() -> None:
     assert isinstance(stamp.get("movement"), float)
 
 
-def test_timestamp_coordinate_does_not_rationalize_float_query() -> None:
-    """Typed timestamp access does not infer exactness from a float input."""
+def test_float_query_is_expressed_in_the_axis_type() -> None:
+    """A float query and the constructor give the same thing on one axis.
+
+    This is the property the rule buys: a caller reasoning about a
+    fraction-canonical timeline never has to inspect a value's kind to find
+    out what they got, because there is one answer per axis rather than one
+    per entry point.
+    """
     piece = ContinuousLogicalTimeline(length=Fraction(12), uid="piece")
     movement = ContinuousLogicalTimeline(length=Fraction(4), uid="movement")
     piece.add_child(movement, offset=Fraction(11, 2))
 
     stamp = piece.get_timestamp(6.5)
-    coordinate = stamp.get_coordinate("movement")
 
-    assert coordinate == Coordinate(1.0, TimeUnit.quarters)
-    assert isinstance(coordinate.value, float)
+    assert stamp.axis == Fraction(13, 2)
+    assert isinstance(stamp.axis, Fraction)
+
+    coordinate = stamp.get_coordinate("movement")
+    assert coordinate == Coordinate(Fraction(1), TimeUnit.quarters)
+    assert isinstance(coordinate.value, Fraction)
+
+    # Same literal through the constructor: one answer per axis.
+    assert piece.get_timestamp(9.5).axis == Coordinate(9.5, TimeUnit.quarters).value
 
 
 def test_interval_coordinate_access_preserves_exact_values() -> None:
@@ -111,8 +138,13 @@ def test_group_convert_returns_exact_target_coordinate_or_none() -> None:
     assert group.convert(Fraction(1), "a", "partial") is None
 
 
-def test_irrational_map_output_remains_float() -> None:
-    """An irrational conversion parameter does not fabricate a Fraction."""
+def test_irrational_map_output_is_expressed_in_the_axis_type() -> None:
+    """Even an irrational-scaled result is written the way its axis writes.
+
+    The computation is as inexact as its parameter; the *type* still follows
+    the axis, because a type says how a number is written and not where it
+    came from.
+    """
     timeline = ContinuousLogicalTimeline(length=Fraction(12), uid="source")
     timeline.add_conversion_map(
         ScalarMap(
@@ -124,8 +156,13 @@ def test_irrational_map_output_remains_float() -> None:
 
     converted = timeline.convert_to(Fraction(1, 3), TimeUnit.beats)
 
-    assert converted.value == math.sqrt(2) * Fraction(1, 3)
-    assert isinstance(converted.value, float)
+    # beats are fraction-canonical, so the result is a Fraction -- the exact
+    # dyadic of the double the computation produced, numerically identical
+    # to it. That the scaling was irrational is a fact about the map, not
+    # something the coordinate's type is asked to carry.
+    assert isinstance(converted.value, Fraction)
+    assert converted.value == Fraction(math.sqrt(2) * Fraction(1, 3))
+    assert float(converted.value) == math.sqrt(2) * Fraction(1, 3)
 
 
 def test_matchstamp_typed_access_preserves_stored_fraction() -> None:
