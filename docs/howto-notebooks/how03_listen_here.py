@@ -146,13 +146,14 @@ field[0]
 #
 # ## 3. Build the bundle
 #
-# `create_bundle()` assembles the {{< glossary AlignmentBundle >}}: one seconds
+# `create_bundle()` assembles the {{< glossary AlignmentBundle >}}: one samples
 # {{< glossary Timeline >}} per recording, each in its own group, and the
-# complete pairwise claim set tying every recording to every other. The
-# recordings carry **no symbolic events** — each timeline holds only a length
-# (the recording's stored duration) and a unit; all the alignment lives in the
-# cross-group claim field, which the bundle keeps columnar rather than exploding
-# into a million claim objects.
+# complete pairwise claim set tying every recording to every other. Audio is
+# carried on a {{< glossary Discrete >}} samples axis because a sample index is
+# what a recording actually counts; each recording's verbatim JSON seconds are
+# preserved beside it as a field on the grid-column events. All the alignment
+# lives in the cross-group claim field, which the bundle keeps columnar rather
+# than exploding into a million claim objects.
 
 # %%
 bundle = loader.create_bundle()
@@ -185,7 +186,7 @@ print(bundle.diagram())
 # from roughly the middle of the work, read off the reference recording's clock.
 
 # %%
-reference_uid = f"{os.path.splitext(loader.reference)[0]}:cpt1"
+reference_uid = f"{os.path.splitext(loader.reference)[0]}:dpt1"
 
 reference_claims = field.connecting(reference_uid)
 mid_claim = reference_claims[len(reference_claims) // 2]
@@ -203,16 +204,17 @@ stamp
 
 # %% [markdown]
 # Read across that {{< glossary MatchStamp >}}: the same musical instant the
-# reference reaches at this second falls at a slightly different second in each
-# of the other five recordings — a quicker reading reaches it earlier, a
-# steadier one later. One coordinate, placed once, located in all six recordings
-# in a single query:
+# reference reaches at this sample falls at a different sample in each of the
+# other five recordings — a quicker reading reaches it earlier, a steadier one
+# later. Every reading is an integer, because a samples axis is
+# {{< glossary Discrete >}} and no sample index is ever half-counted. One
+# coordinate, placed once, located in all six recordings in a single query:
 
 # %%
 {
     "timelines in the stamp": stamp.n_timelines,
-    "seconds per recording": {
-        tl_id: round(stamp.get_coordinate(tl_id).value, 2)
+    "samples per recording": {
+        tl_id: stamp.get_coordinate_for(tl_id, format="int")
         for tl_id in sorted(stamp.coordinates)
     },
 }
@@ -234,8 +236,9 @@ stamp
 #
 # This is exactly why the claims live in a {{< glossary MatchClaimField >}}
 # rather than as a million individual `MatchClaim` objects. The field stores the
-# whole set as Arrow columns (the two timeline ids dictionary-encoded, the two
-# coordinates as `float64`) and the loader builds it **vectorised** — never
+# whole set as Arrow columns (the two timeline ids dictionary-encoded, each
+# coordinate as a struct of value, numerator, denominator and unit) and the
+# loader builds it **vectorised** — never
 # constructing a Python claim per row. A `MatchClaim` is materialised only when
 # a single row is indexed. `get_matchstamp_at` likewise filters the column
 # vectorised and materialises only the handful of claims at the queried
@@ -247,11 +250,11 @@ stamp
 #
 # | What the bundle expresses | How |
 # |---|---|
-# | One recording per group | `<stem>:cpt1` seconds timeline, no events, length = the recording's duration |
+# | One recording per group | `<stem>:dpt1` samples timeline, one point event per grid column, recording-length |
 # | The whole pairwise alignment | a columnar {{< glossary MatchClaimField >}} via `get_field(MatchClaim)` |
 # | One claim, materialised | `field[i]` → a synchronous instant {{< glossary MatchClaim >}} |
 # | The reference recording | `loader.reference` — the grid origin, but just another recording |
-# | A point placed everywhere | `bundle.get_matchstamp_at(coord, "<stem>:cpt1")` → every recording at once |
+# | A point placed everywhere | `bundle.get_matchstamp_at(coord, "<stem>:dpt1")` → every recording at once |
 #
 # A single file encodes an entire audio-to-audio {{< glossary MatchGraph >}} —
 # every recording of one work warped onto a shared reference grid, every pair

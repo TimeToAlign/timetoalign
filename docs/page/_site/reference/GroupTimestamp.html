@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -859,20 +877,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.timelines.GroupTimestamp.get" id="toc-timetoalign.timelines.GroupTimestamp.get" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.get">get</a>
+  <li><a href="#timetoalign.timelines.GroupTimestamp.get_conversion_for" id="toc-timetoalign.timelines.GroupTimestamp.get_conversion_for" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.get_conversion_for">get_conversion_for</a>
   <ul class="collapse">
   <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
   <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
   </ul></li>
   <li><a href="#timetoalign.timelines.GroupTimestamp.get_unit" id="toc-timetoalign.timelines.GroupTimestamp.get_unit" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.get_unit">get_unit</a>
   <ul class="collapse">
   <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
   <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
-  </ul></li>
-  <li><a href="#timetoalign.timelines.GroupTimestamp.to_dict" id="toc-timetoalign.timelines.GroupTimestamp.to_dict" class="nav-link" data-scroll-target="#timetoalign.timelines.GroupTimestamp.to_dict">to_dict</a>
-  <ul class="collapse">
-  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
-  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
@@ -889,13 +904,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>GroupTimestamp</h1>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp(</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    coordinates,</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    units<span class="op">=</span><span class="bu">dict</span>(),</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    source_id,</span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    row_index<span class="op">=-</span><span class="dv">1</span>,</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    source<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    source_id<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    axis<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    is_interpolated<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A synchronized instant across all timelines in a group.</p>
 <p>This is a view object created from a row in the group’s timestamp table. Not stored directly - the table is the source of truth.</p>
 <section id="attributes" class="level2 doc-section doc-section-attributes">
@@ -903,8 +917,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <table class="caption-top table">
 <colgroup>
 <col style="width: 6%">
-<col style="width: 30%">
-<col style="width: 62%">
+<col style="width: 38%">
+<col style="width: 54%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -916,15 +930,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td>coordinates</td>
-<td><code>dict</code>[<code>str</code>, <code>float</code> | None]</td>
-<td>Dictionary mapping timeline/cmap IDs to coordinates. None values indicate the timeline is not present at this instant.</td>
+<td><code>dict</code>[<code>str</code>, <code>Coordinate</code>]</td>
+<td>Dictionary mapping timeline IDs to canonical coordinates. Null table cells are omitted.</td>
 </tr>
 <tr class="even">
-<td>units</td>
-<td><code>dict</code>[<code>str</code>, <code>str</code>]</td>
-<td>Dictionary mapping timeline/cmap IDs to their unit strings. Used for display purposes.</td>
-</tr>
-<tr class="odd">
 <td>row_index</td>
 <td><code>int</code></td>
 <td>Index of this timestamp in the source table. -1 indicates an interpolated timestamp (not from a table row).</td>
@@ -935,7 +944,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts <span class="op">=</span> group.get_timestamp_at_index(<span class="dv">0</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts[<span class="st">"dgt1:1"</span>]  <span class="co"># Get coordinate for dgt1</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts.get_coordinate_for(<span class="st">"dgt1:1"</span>, <span class="bu">format</span><span class="op">=</span><span class="st">"float"</span>)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fl">0.0</span></span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ts.present_timelines  <span class="co"># Which timelines have values here</span></span>
 <span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>[<span class="st">'dgt1:1'</span>, <span class="st">'audio:1'</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -955,31 +964,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.timelines.GroupTimestamp.get">get</a></td>
-<td>Get coordinate for a timeline.</td>
+<td><a href="#timetoalign.timelines.GroupTimestamp.get_conversion_for">get_conversion_for</a></td>
+<td>Return a conversion-map value by selector.</td>
 </tr>
 <tr class="even">
 <td><a href="#timetoalign.timelines.GroupTimestamp.get_unit">get_unit</a></td>
 <td>Get the row coordinate converted to a specific unit.</td>
 </tr>
-<tr class="odd">
-<td><a href="#timetoalign.timelines.GroupTimestamp.to_dict">to_dict</a></td>
-<td>Materialize the stored row coordinates as a dictionary.</td>
-</tr>
 </tbody>
 </table>
-<section id="timetoalign.timelines.GroupTimestamp.get" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.timelines.GroupTimestamp.get">get</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.get(timeline_id, default<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Get coordinate for a timeline.</p>
+<section id="timetoalign.timelines.GroupTimestamp.get_conversion_for" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.timelines.GroupTimestamp.get_conversion_for">get_conversion_for</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.get_conversion_for(key)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return a conversion-map value by selector.</p>
 <section id="parameters" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
+<col style="width: 8%">
+<col style="width: 15%">
+<col style="width: 62%">
 <col style="width: 13%">
-<col style="width: 26%">
-<col style="width: 49%">
-<col style="width: 12%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -991,16 +996,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
-<td>timeline_id</td>
+<td>key</td>
 <td><code>str</code></td>
-<td>The timeline to look up.</td>
+<td>Conversion-map name, ID, selector, or target-unit name.</td>
 <td><em>required</em></td>
-</tr>
-<tr class="even">
-<td>default</td>
-<td><code>float</code> | None</td>
-<td>Value to return if timeline not in coordinates.</td>
-<td><code>None</code></td>
 </tr>
 </tbody>
 </table>
@@ -1009,9 +1008,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 9%">
-<col style="width: 31%">
-<col style="width: 58%">
+<col style="width: 11%">
+<col style="width: 27%">
+<col style="width: 61%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1023,8 +1022,27 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td></td>
-<td><code>float</code> | None</td>
-<td>The coordinate value, or default if not found.</td>
+<td><code>object</code></td>
+<td>The map result without numeric projection.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>KeyError</code></td>
+<td>If no eligible conversion matches.</td>
 </tr>
 </tbody>
 </table>
@@ -1032,7 +1050,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.timelines.GroupTimestamp.get_unit" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.GroupTimestamp.get_unit">get_unit</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.get_unit(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.get_unit(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    unit,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the row coordinate converted to a specific unit.</p>
 <section id="parameters-1" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
@@ -1052,6 +1076,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>The target unit for conversion.</td>
 <td><em>required</em></td>
 </tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Optional stored member to select explicitly.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="even">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -1059,9 +1101,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 7%">
-<col style="width: 25%">
-<col style="width: 66%">
+<col style="width: 5%">
+<col style="width: 72%">
+<col style="width: 22%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1073,51 +1115,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td></td>
-<td><code>float</code> | None</td>
-<td>Converted coordinate, or None if no permitted C-Map is available.</td>
+<td><code>CoordinateResult</code> | <code>pd</code>.<code>Series</code></td>
+<td>Converted coordinate projection.</td>
 </tr>
 </tbody>
 </table>
 </section>
-</section>
-<section id="timetoalign.timelines.GroupTimestamp.to_dict" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.timelines.GroupTimestamp.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>timelines.GroupTimestamp.to_dict(include_children<span class="op">=</span><span class="va">True</span>, conversion_units<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Materialize the stored row coordinates as a dictionary.</p>
-<section id="parameters-2" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
-<table class="caption-top table">
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>include_children</td>
-<td><code>bool</code></td>
-<td>Retained for the shared Stamp interface.</td>
-<td><code>True</code></td>
-</tr>
-<tr class="even">
-<td>conversion_units</td>
-<td><code>list</code>[<a href="../reference/TimeUnit.html#timetoalign.TimeUnit">TimeUnit</a>] | <code>Literal</code>['all'] | None</td>
-<td>Retained for the shared Stamp interface.</td>
-<td><code>None</code></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="returns-2" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<section id="raises-1" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 6%">
-<col style="width: 45%">
-<col style="width: 48%">
+<col style="width: 9%">
+<col style="width: 28%">
+<col style="width: 61%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1129,8 +1139,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td></td>
-<td><code>dict</code>[<code>str</code>, <code>float</code> | None]</td>
-<td>Dictionary mapping timeline IDs to stored coordinate values.</td>
+<td><code>KeyError</code></td>
+<td>If no selected coordinate or eligible map exists.</td>
 </tr>
 </tbody>
 </table>

@@ -3,12 +3,10 @@
 ```python
 alignment.MatchStamp(
     coordinates=dict(),
+    source_id='',
     anchor_edges=list(),
     inferred_edges=list(),
-    units=dict(),
-    axis=None,
     source=None,
-    source_id=None,
     is_interpolated=False,
     conversion_maps=False,
 )
@@ -25,27 +23,29 @@ are linked via explicit anchors or inferred group membership.
 
 ## Attributes {.doc-section .doc-section-attributes}
 
-| Name            | Type                                                                  | Description                                                                          |
-|-----------------|-----------------------------------------------------------------------|--------------------------------------------------------------------------------------|
-| coordinates     | [dict](`dict`)\[[str](`str`), [float](`float`)\]                      | Dict of timeline_id -> coordinate.                                                   |
-| anchor_edges    | [list](`list`)\[[tuple](`tuple`)\[[str](`str`), [str](`str`)\]\]      | List of (tl_a, tl_b) pairs that are explicitly anchored.                             |
-| inferred_edges  | [list](`list`)\[[tuple](`tuple`)\[[str](`str`), [str](`str`)\]\]      | List of (tl_a, tl_b) pairs inferred via groups.                                      |
-| units           | [dict](`dict`)\[[str](`str`), [str](`str`)\]                          | Coordinate unit name for each timeline.                                              |
-| axis            | [float](`float`) \| None                                              | Coordinate used to query the stamp.                                                  |
-| source          | \'AlignmentBundle \| None\'                                           | Bundle that produced the stamp.                                                      |
-| source_id       | [str](`str`) \| None                                                  | Timeline ID used for the query.                                                      |
-| is_interpolated | [bool](`bool`)                                                        | Whether the stamp used interpolated transfer.                                        |
-| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | Conversion maps available to unit lookup and display. Opt-in: defaults to ``False``. |
+| Name            | Type                                                                             | Description                                                                          |
+|-----------------|----------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
+| coordinates     | [dict](`dict`)\[[str](`str`), [Coordinate](`timetoalign.core.time.Coordinate`)\] | Dictionary of timeline ID to canonical coordinate.                                   |
+| anchor_edges    | [list](`list`)\[[tuple](`tuple`)\[[str](`str`), [str](`str`)\]\]                 | List of (tl_a, tl_b) pairs that are explicitly anchored.                             |
+| inferred_edges  | [list](`list`)\[[tuple](`tuple`)\[[str](`str`), [str](`str`)\]\]                 | List of (tl_a, tl_b) pairs inferred via groups.                                      |
+| axis            | [IdCoordinate](`timetoalign.core.time.IdCoordinate`)                             | Identified source coordinate derived from storage.                                   |
+| source          | \'AlignmentBundle \| None\'                                                      | Bundle that produced the stamp.                                                      |
+| source_id       | [str](`str`)                                                                     | Timeline ID used for the query.                                                      |
+| is_interpolated | [bool](`bool`)                                                                   | Whether the stamp used interpolated transfer.                                        |
+| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`)            | Conversion maps available to unit lookup and display. Opt-in: defaults to ``False``. |
 
 ## Examples {.doc-section .doc-section-examples}
 
 ```python
 >>> stamp = MatchStamp(
-...     coordinates={"score": 100.0, "audio": 45.5, "video": 1365.0},
+...     coordinates={
+...         "score": Coordinate(100.0, TimeUnit.quarters),
+...         "audio": Coordinate(45.5, TimeUnit.seconds),
+...     },
+...     source_id="score",
 ...     anchor_edges=[("score", "audio")],
-...     inferred_edges=[("audio", "video")],
 ... )
->>> stamp.get("audio")
+>>> stamp.get_coordinate_for("audio", format="float")
 45.5
 ```
 
@@ -54,9 +54,8 @@ are linked via explicit anchors or inferred group membership.
 | Name | Description |
 | --- | --- |
 | [filter_by_timelines](#timetoalign.alignment.MatchStamp.filter_by_timelines) | Create filtered stamp with subset of timelines. |
-| [from_dict](#timetoalign.alignment.MatchStamp.from_dict) | Deserialize from dictionary. |
-| [get](#timetoalign.alignment.MatchStamp.get) | Get coordinate for a specific timeline. |
-| [get_group_coordinates](#timetoalign.alignment.MatchStamp.get_group_coordinates) | Get all coordinates for timelines in a specific group. |
+| [from_dict](#timetoalign.alignment.MatchStamp.from_dict) | Deserialize a graph-shaped typed wire dictionary. |
+| [get_conversion_for](#timetoalign.alignment.MatchStamp.get_conversion_for) | Return an enabled conversion-map value by selector. |
 | [get_unit](#timetoalign.alignment.MatchStamp.get_unit) | Get the query coordinate converted to a unit. |
 | [has_timeline](#timetoalign.alignment.MatchStamp.has_timeline) | Check if timeline is in this stamp. |
 | [to_dict](#timetoalign.alignment.MatchStamp.to_dict) | Materialize the stamp in a flat, grouped, or graph representation. |
@@ -88,53 +87,56 @@ Create filtered stamp with subset of timelines.
 alignment.MatchStamp.from_dict(data)
 ```
 
-Deserialize from dictionary.
-
-### get { #timetoalign.alignment.MatchStamp.get }
-
-```python
-alignment.MatchStamp.get(timeline_id, default=None)
-```
-
-Get coordinate for a specific timeline.
+Deserialize a graph-shaped typed wire dictionary.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type                     | Description                                 | Default    |
-|-------------|--------------------------|---------------------------------------------|------------|
-| timeline_id | [str](`str`)             | The timeline to get coordinate for.         | _required_ |
-| default     | [float](`float`) \| None | Value returned when the timeline is absent. | `None`     |
+| Name   | Type                                                | Description                 | Default    |
+|--------|-----------------------------------------------------|-----------------------------|------------|
+| data   | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Graph-shaped stamp payload. | _required_ |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                     | Description                                               |
-|--------|--------------------------|-----------------------------------------------------------|
-|        | [float](`float`) \| None | The coordinate, or the default if the timeline is absent. |
+| Name   | Type           | Description                    |
+|--------|----------------|--------------------------------|
+|        | \'MatchStamp\' | A canonical typed match stamp. |
 
-### get_group_coordinates { #timetoalign.alignment.MatchStamp.get_group_coordinates }
+### get_conversion_for { #timetoalign.alignment.MatchStamp.get_conversion_for }
 
 ```python
-alignment.MatchStamp.get_group_coordinates(group)
+alignment.MatchStamp.get_conversion_for(key)
 ```
 
-Get all coordinates for timelines in a specific group.
+Return an enabled conversion-map value by selector.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name   | Type              | Description                     | Default    |
-|--------|-------------------|---------------------------------|------------|
-| group  | \'TimelineGroup\' | The TimelineGroup to filter by. | _required_ |
+| Name   | Type         | Description                                  | Default    |
+|--------|--------------|----------------------------------------------|------------|
+| key    | [str](`str`) | Map name, ID, selector, or target-unit name. | _required_ |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                             | Description                                                   |
-|--------|--------------------------------------------------|---------------------------------------------------------------|
-|        | [dict](`dict`)\[[str](`str`), [float](`float`)\] | Dict of timeline_id -> coordinate for timelines in the group. |
+| Name   | Type               | Description                                |
+|--------|--------------------|--------------------------------------------|
+|        | [object](`object`) | The map result without numeric projection. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                        |
+|--------|------------------------|------------------------------------|
+|        | [KeyError](`KeyError`) | If no eligible conversion matches. |
 
 ### get_unit { #timetoalign.alignment.MatchStamp.get_unit }
 
 ```python
-alignment.MatchStamp.get_unit(unit)
+alignment.MatchStamp.get_unit(
+    unit,
+    *,
+    timeline_id=None,
+    format='id_coordinate',
+    rounding='round',
+)
 ```
 
 Get the query coordinate converted to a unit.
@@ -144,15 +146,18 @@ the same conversion-map selection rules as ``TimeStamp`` apply.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name   | Type                                          | Description      | Default    |
-|--------|-----------------------------------------------|------------------|------------|
-| unit   | [TimeUnit](`timetoalign.core.enums.TimeUnit`) | The target unit. | _required_ |
+| Name        | Type                                                              | Description                                | Default           |
+|-------------|-------------------------------------------------------------------|--------------------------------------------|-------------------|
+| unit        | [TimeUnit](`timetoalign.core.enums.TimeUnit`)                     | The target unit.                           | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Optional stored axis to select explicitly. | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.        | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                  | `'round'`         |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                     | Description                                                   |
-|--------|--------------------------|---------------------------------------------------------------|
-|        | [float](`float`) \| None | The converted coordinate, or None when it cannot be resolved. |
+| Name   | Type                                                                                                          | Description                          |
+|--------|---------------------------------------------------------------------------------------------------------------|--------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | The converted coordinate projection. |
 
 ### has_timeline { #timetoalign.alignment.MatchStamp.has_timeline }
 

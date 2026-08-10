@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -887,41 +905,46 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
   <li><a href="#returns-5" id="toc-returns-5" class="nav-link" data-scroll-target="#returns-5">Returns</a></li>
   </ul></li>
-  <li><a href="#timetoalign.timelines.ScoreFlowController.from_atomic_sections" id="toc-timetoalign.timelines.ScoreFlowController.from_atomic_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.from_atomic_sections">from_atomic_sections</a>
+  <li><a href="#timetoalign.timelines.ScoreFlowController.flow_diagnostics" id="toc-timetoalign.timelines.ScoreFlowController.flow_diagnostics" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.flow_diagnostics">flow_diagnostics</a>
   <ul class="collapse">
   <li><a href="#parameters-4" id="toc-parameters-4" class="nav-link" data-scroll-target="#parameters-4">Parameters</a></li>
   <li><a href="#returns-6" id="toc-returns-6" class="nav-link" data-scroll-target="#returns-6">Returns</a></li>
   </ul></li>
-  <li><a href="#timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates" id="toc-timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates">get_atomic_section_coordinates</a>
+  <li><a href="#timetoalign.timelines.ScoreFlowController.from_atomic_sections" id="toc-timetoalign.timelines.ScoreFlowController.from_atomic_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.from_atomic_sections">from_atomic_sections</a>
   <ul class="collapse">
   <li><a href="#parameters-5" id="toc-parameters-5" class="nav-link" data-scroll-target="#parameters-5">Parameters</a></li>
   <li><a href="#returns-7" id="toc-returns-7" class="nav-link" data-scroll-target="#returns-7">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates" id="toc-timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates">get_atomic_section_coordinates</a>
+  <ul class="collapse">
+  <li><a href="#parameters-6" id="toc-parameters-6" class="nav-link" data-scroll-target="#parameters-6">Parameters</a></li>
+  <li><a href="#returns-8" id="toc-returns-8" class="nav-link" data-scroll-target="#returns-8">Returns</a></li>
   <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
   <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.timelines.ScoreFlowController.get_breaks" id="toc-timetoalign.timelines.ScoreFlowController.get_breaks" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.get_breaks">get_breaks</a>
   <ul class="collapse">
-  <li><a href="#returns-8" id="toc-returns-8" class="nav-link" data-scroll-target="#returns-8">Returns</a></li>
+  <li><a href="#returns-9" id="toc-returns-9" class="nav-link" data-scroll-target="#returns-9">Returns</a></li>
   </ul></li>
   <li><a href="#timetoalign.timelines.ScoreFlowController.get_flow_control_registry" id="toc-timetoalign.timelines.ScoreFlowController.get_flow_control_registry" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.get_flow_control_registry">get_flow_control_registry</a></li>
   <li><a href="#timetoalign.timelines.ScoreFlowController.get_jumps" id="toc-timetoalign.timelines.ScoreFlowController.get_jumps" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.get_jumps">get_jumps</a>
   <ul class="collapse">
-  <li><a href="#returns-9" id="toc-returns-9" class="nav-link" data-scroll-target="#returns-9">Returns</a></li>
+  <li><a href="#returns-10" id="toc-returns-10" class="nav-link" data-scroll-target="#returns-10">Returns</a></li>
   </ul></li>
   <li><a href="#timetoalign.timelines.ScoreFlowController.get_markers" id="toc-timetoalign.timelines.ScoreFlowController.get_markers" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.get_markers">get_markers</a>
   <ul class="collapse">
-  <li><a href="#returns-10" id="toc-returns-10" class="nav-link" data-scroll-target="#returns-10">Returns</a></li>
+  <li><a href="#returns-11" id="toc-returns-11" class="nav-link" data-scroll-target="#returns-11">Returns</a></li>
   </ul></li>
   <li><a href="#timetoalign.timelines.ScoreFlowController.get_section_boundary_coordinates" id="toc-timetoalign.timelines.ScoreFlowController.get_section_boundary_coordinates" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.get_section_boundary_coordinates">get_section_boundary_coordinates</a>
   <ul class="collapse">
-  <li><a href="#returns-11" id="toc-returns-11" class="nav-link" data-scroll-target="#returns-11">Returns</a></li>
+  <li><a href="#returns-12" id="toc-returns-12" class="nav-link" data-scroll-target="#returns-12">Returns</a></li>
   <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
   <li><a href="#examples-2" id="toc-examples-2" class="nav-link" data-scroll-target="#examples-2">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.timelines.ScoreFlowController.get_sections" id="toc-timetoalign.timelines.ScoreFlowController.get_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.get_sections">get_sections</a>
   <ul class="collapse">
-  <li><a href="#parameters-6" id="toc-parameters-6" class="nav-link" data-scroll-target="#parameters-6">Parameters</a></li>
-  <li><a href="#returns-12" id="toc-returns-12" class="nav-link" data-scroll-target="#returns-12">Returns</a></li>
+  <li><a href="#parameters-7" id="toc-parameters-7" class="nav-link" data-scroll-target="#parameters-7">Parameters</a></li>
+  <li><a href="#returns-13" id="toc-returns-13" class="nav-link" data-scroll-target="#returns-13">Returns</a></li>
   <li><a href="#examples-3" id="toc-examples-3" class="nav-link" data-scroll-target="#examples-3">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.timelines.ScoreFlowController.iter_atomic_sections" id="toc-timetoalign.timelines.ScoreFlowController.iter_atomic_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.iter_atomic_sections">iter_atomic_sections</a>
@@ -930,7 +953,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </ul></li>
   <li><a href="#timetoalign.timelines.ScoreFlowController.iter_sections" id="toc-timetoalign.timelines.ScoreFlowController.iter_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.ScoreFlowController.iter_sections">iter_sections</a>
   <ul class="collapse">
-  <li><a href="#parameters-7" id="toc-parameters-7" class="nav-link" data-scroll-target="#parameters-7">Parameters</a></li>
+  <li><a href="#parameters-8" id="toc-parameters-8" class="nav-link" data-scroll-target="#parameters-8">Parameters</a></li>
   <li><a href="#yields-1" id="toc-yields-1" class="nav-link" data-scroll-target="#yields-1">Yields</a></li>
   <li><a href="#examples-4" id="toc-examples-4" class="nav-link" data-scroll-target="#examples-4">Examples</a></li>
   </ul></li>
@@ -954,7 +977,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>ScoreFlowController</h1>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController(measures, <span class="op">*</span>, name_generator<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Score flow controller specialized for score data (MeasureData).</p>
-<p>ScoreFlowController computes Flow paths from MeasureData, which contains measure-level flow control information (mc, mn, next[], volta, etc.).</p>
+<p>ScoreFlowController computes Flow paths from MeasureData, which contains measure-level flow control information (mc, mn, next[], volta, etc.). A controller instance is intended for single-threaded use.</p>
 <p>The algorithm operates at the section level: 1. Derives atomic sections from next[] arrays OR accepts from partitura 2. Uses flow control markers + volta attributes to execute flow logic 3. Groups atomic sections into playthrough sections per FlowMode</p>
 <p>The algorithm follows the ‘next’ field in measure data, using visit counts to choose which branch to take at repeat points. This matches the ms3 unfolding algorithm.</p>
 <section id="attributes" class="level2 doc-section doc-section-attributes">
@@ -1035,46 +1058,50 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Show folded score map with atomic sections and flow control markers.</td>
 </tr>
 <tr class="odd">
+<td><a href="#timetoalign.timelines.ScoreFlowController.flow_diagnostics">flow_diagnostics</a></td>
+<td>Report flow-control problems found while resolving and traversing.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.timelines.ScoreFlowController.from_atomic_sections">from_atomic_sections</a></td>
 <td>Initialize directly from atomic sections (e.g., from partitura).</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates">get_atomic_section_coordinates</a></td>
 <td>Return a mapping of atomic section IDs to their start coordinates.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.timelines.ScoreFlowController.get_breaks">get_breaks</a></td>
 <td>Return all <code>Break</code> events derived from the score’s flow control.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.timelines.ScoreFlowController.get_flow_control_registry">get_flow_control_registry</a></td>
 <td>Return a <code>FlowControlRegistry</code> populated from this controller.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.timelines.ScoreFlowController.get_jumps">get_jumps</a></td>
 <td>Return all <code>Jump</code> events derived from the score’s flow control.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.timelines.ScoreFlowController.get_markers">get_markers</a></td>
 <td>Return all named target markers (segno / coda / fine instances).</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.timelines.ScoreFlowController.get_section_boundary_coordinates">get_section_boundary_coordinates</a></td>
 <td>Return quarterbeat coordinates where section breaks occur.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.timelines.ScoreFlowController.get_sections">get_sections</a></td>
 <td>Get list of sections.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.timelines.ScoreFlowController.iter_atomic_sections">iter_atomic_sections</a></td>
 <td>Iterate over atomic (indivisible) sections.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.timelines.ScoreFlowController.iter_sections">iter_sections</a></td>
 <td>Iterate over sections.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.timelines.ScoreFlowController.iter_units">iter_units</a></td>
 <td>Iterate over MeasureUnits (the folded score skeleton).</td>
 </tr>
@@ -1375,17 +1402,74 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 </section>
 </section>
-<section id="timetoalign.timelines.ScoreFlowController.from_atomic_sections" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.from_atomic_sections">from_atomic_sections</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.from_atomic_sections(</span>
-<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    sections,</span>
-<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    measures<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
-<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    name_generator<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Initialize directly from atomic sections (e.g., from partitura).</p>
+<section id="timetoalign.timelines.ScoreFlowController.flow_diagnostics" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.flow_diagnostics">flow_diagnostics</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.flow_diagnostics(mode<span class="op">=</span>FlowMode.default)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Report flow-control problems found while resolving and traversing.</p>
+<p>Complements :meth:<code>check_invariants</code> (which checks the folded atomic graph) with the problems surfaced by executing the flow: repeat-ends that are dangling or ambiguous, and traversal cycles that would never terminate. Like every diagnostic surface on this controller, it detects and reports — it never raises on malformed input.</p>
 <section id="parameters-4" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-4">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 28%">
+<col style="width: 54%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>mode</td>
+<td><code>FlowMode</code></td>
+<td>The flow mode to traverse for cycle detection. Defaults to the default (unfolding) flow.</td>
+<td><code>FlowMode.default</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-6" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-6">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<a href="../reference/FlowDiagnostic.html#timetoalign.timelines.FlowDiagnostic">FlowDiagnostic</a>]</td>
+<td>The repeat-end resolution diagnostics followed by the traversal</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>list</code>[<a href="../reference/FlowDiagnostic.html#timetoalign.timelines.FlowDiagnostic">FlowDiagnostic</a>]</td>
+<td>diagnostics; an empty list when the flow is well-formed.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.timelines.ScoreFlowController.from_atomic_sections" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.from_atomic_sections">from_atomic_sections</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.from_atomic_sections(</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    sections,</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    measures<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    name_generator<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Initialize directly from atomic sections (e.g., from partitura).</p>
+<section id="parameters-5" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-5">Parameters</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1417,8 +1501,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-6" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-6">Returns</h4>
+<section id="returns-7" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-7">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 9%">
@@ -1444,12 +1528,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates">get_atomic_section_coordinates</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_atomic_section_coordinates(flow<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_atomic_section_coordinates(flow<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return a mapping of atomic section IDs to their start coordinates.</p>
 <p>Each key is the section’s label (e.g.&nbsp;<code>"A"</code>, <code>"B"</code>, …) and the value is the quarterbeat coordinate of the section’s first measure.</p>
 <p>When <em>flow</em> is provided the coordinates are <strong>unfolded</strong> (i.e.&nbsp;the running quarterbeat position in the playthrough order), which is required for cross-group coordinate transfer via an <code>AlignmentBundle</code> whose WarpMaps are built from unfolded note matches. Without <em>flow</em>, the folded quarterbeats from the measure lookup are returned (the coordinate resets at every repeat start).</p>
-<section id="parameters-5" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-5">Parameters</h4>
+<section id="parameters-6" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-6">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 4%">
@@ -1475,8 +1559,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-7" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-7">Returns</h4>
+<section id="returns-8" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-8">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 5%">
@@ -1525,21 +1609,21 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-1" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-1">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller <span class="op">=</span> ScoreFlowController(measures)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller.get_atomic_section_coordinates()</span>
-<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>{<span class="st">'A'</span>: Fraction(<span class="dv">0</span>, <span class="dv">1</span>), <span class="st">'B'</span>: Fraction(<span class="dv">32</span>, <span class="dv">1</span>), ...}</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> flow <span class="op">=</span> controller.compute_flow(FlowMode.default)</span>
-<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller.get_atomic_section_coordinates(flow<span class="op">=</span>flow)</span>
-<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>{<span class="st">'A'</span>: Fraction(<span class="dv">0</span>, <span class="dv">1</span>), <span class="st">'B'</span>: Fraction(<span class="dv">64</span>, <span class="dv">1</span>), ...}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller <span class="op">=</span> ScoreFlowController(measures)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller.get_atomic_section_coordinates()</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>{<span class="st">'A'</span>: Fraction(<span class="dv">0</span>, <span class="dv">1</span>), <span class="st">'B'</span>: Fraction(<span class="dv">32</span>, <span class="dv">1</span>), ...}</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> flow <span class="op">=</span> controller.compute_flow(FlowMode.default)</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller.get_atomic_section_coordinates(flow<span class="op">=</span>flow)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>{<span class="st">'A'</span>: Fraction(<span class="dv">0</span>, <span class="dv">1</span>), <span class="st">'B'</span>: Fraction(<span class="dv">64</span>, <span class="dv">1</span>), ...}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.get_breaks" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.get_breaks">get_breaks</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_breaks()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_breaks()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return all <code>Break</code> events derived from the score’s flow control.</p>
 <p>Currently emits one <code>Break</code> per measure flagged as a section break. Each <code>Break</code> is positioned at the START coordinate of its MC and carries a label indicating the source MC.</p>
-<section id="returns-8" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-8">Returns</h4>
+<section id="returns-9" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-9">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 7%">
@@ -1570,17 +1654,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.get_flow_control_registry" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.get_flow_control_registry">get_flow_control_registry</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_flow_control_registry()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_flow_control_registry()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return a <code>FlowControlRegistry</code> populated from this controller.</p>
 <p>Bundles the breaks, jumps, and named markers into a single object, which is the canonical registry shape used elsewhere in the library.</p>
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.get_jumps" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.get_jumps">get_jumps</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_jumps()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_jumps()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return all <code>Jump</code> events derived from the score’s flow control.</p>
 <p>Emits one <code>Jump</code> per repeat-end, plus one per D.S./D.C./to-coda instruction (including the <code>_al_coda</code> and <code>_al_fine</code> variants). Each jump’s <code>from_coordinate</code> is the END of the originating MC and its <code>to_coordinate</code> is the START of the destination MC.</p>
-<section id="returns-9" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-9">Returns</h4>
+<section id="returns-10" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-10">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 7%">
@@ -1611,10 +1695,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.get_markers" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.get_markers">get_markers</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_markers()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_markers()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return all named target markers (segno / coda / fine instances).</p>
-<section id="returns-10" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-10">Returns</h4>
+<section id="returns-11" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-11">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 5%">
@@ -1650,12 +1734,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.get_section_boundary_coordinates" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.get_section_boundary_coordinates">get_section_boundary_coordinates</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_section_boundary_coordinates()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_section_boundary_coordinates()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Return quarterbeat coordinates where section breaks occur.</p>
 <p>A <em>section break</em> (as opposed to repeat/volta/jump boundaries) is a structural marker that separates large-scale sections such as movements. Each returned coordinate is the <code>start</code> (quarterbeat) of the first MC <strong>after</strong> the break, i.e.&nbsp;the point where the new section begins.</p>
 <p>The list does <strong>not</strong> include 0 (start of the piece) nor the end.</p>
-<section id="returns-11" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-11">Returns</h4>
+<section id="returns-12" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-12">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 7%">
@@ -1704,18 +1788,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-2" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-2">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller <span class="op">=</span> ScoreFlowController(measures)</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller.get_section_boundary_coordinates()</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>[Fraction(<span class="dv">305</span>, <span class="dv">1</span>), Fraction(<span class="dv">1291</span>, <span class="dv">1</span>), Fraction(<span class="dv">3125</span>, <span class="dv">2</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller <span class="op">=</span> ScoreFlowController(measures)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> controller.get_section_boundary_coordinates()</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>[Fraction(<span class="dv">305</span>, <span class="dv">1</span>), Fraction(<span class="dv">1291</span>, <span class="dv">1</span>), Fraction(<span class="dv">3125</span>, <span class="dv">2</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.get_sections" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.get_sections">get_sections</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_sections(mode<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.get_sections(mode<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get list of sections.</p>
 <p>This is the unified API for retrieving sections. Replaces the old get_atomic_sections() method with added support for playthrough sections.</p>
-<section id="parameters-6" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-6">Parameters</h4>
+<section id="parameters-7" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-7">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 4%">
@@ -1741,8 +1825,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-12" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-12">Returns</h4>
+<section id="returns-13" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-13">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1762,17 +1846,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-3" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-3">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Get atomic sections (folded structure)</span></span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> sec <span class="kw">in</span> controller.get_sections():</span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>sec<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">: MC [</span><span class="sc">{</span>sec<span class="sc">.</span>mc_start<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>sec<span class="sc">.</span>mc_end<span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Get playthrough sections for DEFAULT mode (unfolded)</span></span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> sec <span class="kw">in</span> controller.get_sections(FlowMode.default):</span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"MC [</span><span class="sc">{</span>sec<span class="sc">.</span>mc_start<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>sec<span class="sc">.</span>mc_end<span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Get atomic sections (folded structure)</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> sec <span class="kw">in</span> controller.get_sections():</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>sec<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">: MC [</span><span class="sc">{</span>sec<span class="sc">.</span>mc_start<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>sec<span class="sc">.</span>mc_end<span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Get playthrough sections for DEFAULT mode (unfolded)</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> sec <span class="kw">in</span> controller.get_sections(FlowMode.default):</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"MC [</span><span class="sc">{</span>sec<span class="sc">.</span>mc_start<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>sec<span class="sc">.</span>mc_end<span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.iter_atomic_sections" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.iter_atomic_sections">iter_atomic_sections</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.iter_atomic_sections()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.iter_atomic_sections()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Iterate over atomic (indivisible) sections.</p>
 <p>Each section is a tuple (start, end) representing a contiguous portion that cannot be split by flow control. For ScoreFlowController, these are MC-based coordinates from AtomicSections.</p>
 <section id="yields" class="level4 doc-section doc-section-yields">
@@ -1802,10 +1886,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.iter_sections" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.iter_sections">iter_sections</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.iter_sections(mode<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.iter_sections(mode<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Iterate over sections.</p>
-<section id="parameters-7" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-7">Parameters</h4>
+<section id="parameters-8" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-8">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 4%">
@@ -1852,17 +1936,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-4" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-4">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Iterate over atomic sections (folded structure)</span></span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> sec <span class="kw">in</span> controller.iter_sections():</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>sec<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">: MC [</span><span class="sc">{</span>sec<span class="sc">.</span>mc_start<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>sec<span class="sc">.</span>mc_end<span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Iterate over playthrough sections (unfolded traversal)</span></span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> sec <span class="kw">in</span> controller.iter_sections(FlowMode.default):</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"MC [</span><span class="sc">{</span>sec<span class="sc">.</span>mc_start<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>sec<span class="sc">.</span>mc_end<span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Iterate over atomic sections (folded structure)</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> sec <span class="kw">in</span> controller.iter_sections():</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"</span><span class="sc">{</span>sec<span class="sc">.</span><span class="bu">id</span><span class="sc">}</span><span class="ss">: MC [</span><span class="sc">{</span>sec<span class="sc">.</span>mc_start<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>sec<span class="sc">.</span>mc_end<span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Iterate over playthrough sections (unfolded traversal)</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> sec <span class="kw">in</span> controller.iter_sections(FlowMode.default):</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"MC [</span><span class="sc">{</span>sec<span class="sc">.</span>mc_start<span class="sc">}</span><span class="ss">,</span><span class="sc">{</span>sec<span class="sc">.</span>mc_end<span class="sc">}</span><span class="ss">)"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.timelines.ScoreFlowController.iter_units" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.ScoreFlowController.iter_units">iter_units</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.iter_units()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>timelines.ScoreFlowController.iter_units()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Iterate over MeasureUnits (the folded score skeleton).</p>
 <section id="yields-2" class="level4 doc-section doc-section-yields">
 <h4 class="doc-section doc-section-yields anchored" data-anchor-id="yields-2">Yields</h4>
@@ -1890,8 +1974,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-5" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-5">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> unit <span class="kw">in</span> controller.iter_units():</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"MC </span><span class="sc">{</span>unit<span class="sc">.</span>mc<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>unit<span class="sc">.</span>mn<span class="sc">}</span><span class="ss">, next=</span><span class="sc">{</span>unit<span class="sc">.</span><span class="bu">next</span><span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="cf">for</span> unit <span class="kw">in</span> controller.iter_units():</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>...     <span class="bu">print</span>(<span class="ss">f"MC </span><span class="sc">{</span>unit<span class="sc">.</span>mc<span class="sc">}</span><span class="ss">: </span><span class="sc">{</span>unit<span class="sc">.</span>mn<span class="sc">}</span><span class="ss">, next=</span><span class="sc">{</span>unit<span class="sc">.</span><span class="bu">next</span><span class="sc">}</span><span class="ss">"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

@@ -116,7 +116,11 @@ subclass, use :meth:`to_typed`.
 | [get_child_offset](#timetoalign.timelines.Timeline.get_child_offset) | Get the offset of a child timeline. |
 | [get_children_at](#timetoalign.timelines.Timeline.get_children_at) | Return all children whose extent contains the given coordinate. |
 | [get_conversion_map](#timetoalign.timelines.Timeline.get_conversion_map) | Get a conversion map by target unit **or** by name/id. |
-| [get_coordinate](#timetoalign.timelines.Timeline.get_coordinate) | Resolve a coordinate into this timeline's coordinate system. |
+| [get_coordinate](#timetoalign.timelines.Timeline.get_coordinate) | Dispatch a positional or event-key coordinate query. |
+| [get_coordinate_at](#timetoalign.timelines.Timeline.get_coordinate_at) | Resolve one position onto this timeline's canonical axis. |
+| [get_coordinate_for](#timetoalign.timelines.Timeline.get_coordinate_for) | Return an event's start coordinate on this timeline. |
+| [get_coordinates_at](#timetoalign.timelines.Timeline.get_coordinates_at) | Resolve a collection of positions onto this timeline. |
+| [get_coordinates_for](#timetoalign.timelines.Timeline.get_coordinates_for) | Return event-start coordinates for a collection of event IDs. |
 | [get_event](#timetoalign.timelines.Timeline.get_event) | Look up a single event by its ``id`` field. |
 | [get_events](#timetoalign.timelines.Timeline.get_events) | Filter and retrieve events. |
 | [get_events_at](#timetoalign.timelines.Timeline.get_events_at) | Get all events active at a specific coordinate. |
@@ -125,7 +129,7 @@ subclass, use :meth:`to_typed`.
 | [get_region](#timetoalign.timelines.Timeline.get_region) | Get a Region by name. |
 | [get_regions_at](#timetoalign.timelines.Timeline.get_regions_at) | Return all regions containing the given coordinate. |
 | [get_slice](#timetoalign.timelines.Timeline.get_slice) | Extract a portion of this timeline as a new, independent timeline. |
-| [get_timestamp](#timetoalign.timelines.Timeline.get_timestamp) | Get a TimeStamp at a specific coordinate. |
+| [get_timestamp](#timetoalign.timelines.Timeline.get_timestamp) | Get a timestamp whose axis is written in this timeline's own type. |
 | [get_timestamp_at](#timetoalign.timelines.Timeline.get_timestamp_at) | Alias for `get_timestamp()` for API consistency with TimelineGroup. |
 | [get_timestamp_of](#timetoalign.timelines.Timeline.get_timestamp_of) | Get the timestamp for a specific event by its ID. |
 | [get_timestamp_table](#timetoalign.timelines.Timeline.get_timestamp_table) | Generate a timestamp table as a PyArrow Table. |
@@ -140,7 +144,7 @@ subclass, use :meth:`to_typed`.
 | [list_flow_maps](#timetoalign.timelines.Timeline.list_flow_maps) | List all attached FlowMap ids. |
 | [list_regions](#timetoalign.timelines.Timeline.list_regions) | List all region names. |
 | [make_coordinate](#timetoalign.timelines.Timeline.make_coordinate) | Create a Coordinate in this timeline's unit. |
-| [resolve_subclass](#timetoalign.timelines.Timeline.resolve_subclass) | Return the canonical Timeline subclass for a unit/number_type pair. |
+| [resolve_subclass](#timetoalign.timelines.Timeline.resolve_subclass) | Return the most specific Timeline subclass for a unit/number_type pair. |
 | [summary](#timetoalign.timelines.Timeline.summary) | Get a summary of the timeline. |
 | [to_dataframe](#timetoalign.timelines.Timeline.to_dataframe) | Generate timestamps as a pandas DataFrame with formatted field names. |
 | [to_dict](#timetoalign.timelines.Timeline.to_dict) | Convert timeline to a dictionary for serialization. |
@@ -452,16 +456,23 @@ timelines.Timeline.apply_flow(
     include_children=True,
     uid=None,
     name=None,
+    fill_gaps=False,
 )
 ```
 
 Yield the unfolded timeline for an attached FlowMap.
 
 Slices this timeline at each of the attached FlowMap's sections and
-appends the slices, in target (unfolded) order, as children of a new
+places the slices, in target (unfolded) order, as children of a new
 timeline of this timeline's **same concrete type**. Each section also
 becomes a matching named Region on the result, in unfolded
 coordinates.
+
+Each slice sits at its section's target coordinate. Ordinary
+concatenating FlowMaps stack the slices end to end; a FlowMap that
+places its spans apart — a restored cut, or any FlowMap's
+:meth:`~timetoalign.timelines.flow.FlowMap.inverse` — leaves the
+result empty between them.
 
 Each appended child (and its Region) takes the source section's name —
 the region name a played span was built from. A span visited more than
@@ -476,19 +487,21 @@ FlowMap (id ``f"forward_{flow_map.id}"``).
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name             | Type                 | Description                                                                                                                              | Default     |
-|------------------|----------------------|------------------------------------------------------------------------------------------------------------------------------------------|-------------|
-| id               | [str](`str`)         | Which attached FlowMap to unfold along. Passed positionally, so ``timeline.apply_flow("A8")`` selects the FlowMap stored under ``"A8"``. | `'default'` |
-| include_children | [bool](`bool`)       | If True (default), child timelines are recursively sliced and included in each section.                                                  | `True`      |
-| uid              | [str](`str`) \| None | Optional identifier for the returned timeline.                                                                                           | `None`      |
-| name             | [str](`str`) \| None | Optional name for the returned timeline. Defaults to ``f"{self.name}_unfolded"``.                                                        | `None`      |
+| Name             | Type                 | Description                                                                                                                                                                                                                          | Default     |
+|------------------|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
+| id               | [str](`str`)         | Which attached FlowMap to unfold along. Passed positionally, so ``timeline.apply_flow("A8")`` selects the FlowMap stored under ``"A8"``.                                                                                             | `'default'` |
+| include_children | [bool](`bool`)       | If True (default), child timelines are recursively sliced and included in each section.                                                                                                                                              | `True`      |
+| uid              | [str](`str`) \| None | Optional identifier for the returned timeline.                                                                                                                                                                                       | `None`      |
+| name             | [str](`str`) \| None | Optional name for the returned timeline. Defaults to ``f"{self.name}_unfolded"``.                                                                                                                                                    | `None`      |
+| fill_gaps        | [bool](`bool`)       | If True, each hole between the placed spans becomes an empty child (plus a matching Region), so the result tiles its axis contiguously. Required when this timeline is a ``SegmentLine``, which admits no gaps between its segments. | `False`     |
 
 #### Returns {.doc-section .doc-section-returns}
 
 | Name   | Type         | Description                                                      |
 |--------|--------------|------------------------------------------------------------------|
 |        | \'Timeline\' | The unfolded timeline (same concrete type as ``self``), with one |
-|        | \'Timeline\' | appended child and matching Region per section.                  |
+|        | \'Timeline\' | child and matching Region per played section, each placed at its |
+|        | \'Timeline\' | target coordinate.                                               |
 
 #### Raises {.doc-section .doc-section-raises}
 
@@ -506,6 +519,11 @@ FlowMap(A8: 2 sections)
 2
 >>> unfolded.list_children()
 ['A8_1', 'A8_2']
+>>> # Applying the inverse puts the spans back where they came
+>>> # from, restoring the hole the cut left:
+>>> restored = unfolded.apply_flow("source")
+>>> float(restored.get_child_offset("A8_2").value)
+129.0
 ```
 
 ### as_segment_line { #timetoalign.timelines.Timeline.as_segment_line }
@@ -742,7 +760,13 @@ are independent.
 ### create_flow_map { #timetoalign.timelines.Timeline.create_flow_map }
 
 ```python
-timelines.Timeline.create_flow_map(intervals, *, id='default')
+timelines.Timeline.create_flow_map(
+    intervals,
+    *,
+    id='default',
+    at=None,
+    target_length=None,
+)
 ```
 
 Construct a FlowMap from interval-like descriptors, attach it, return it.
@@ -752,16 +776,25 @@ Mirrors the ``create_*`` verb×noun convention (as in
 it constructs the FlowMap, attaches it to this timeline under *id*,
 and returns it.
 
-The played spans described by *intervals* concatenate contiguously in
-the unfolded (target) axis; coordinates falling in a gap between spans
-map to nothing (an empty ``unfold_coordinate`` result).
+By default the played spans described by *intervals* concatenate
+contiguously in the unfolded (target) axis; coordinates falling in a
+gap between spans map to nothing (an empty ``unfold_coordinate``
+result).
+
+To lay the spans out with holes between them instead — which is what
+restoring a cut needs — state the placement in any of three ways: mix
+:class:`~timetoalign.timelines.flow.Gap` entries into *intervals*,
+give each span its target coordinate in *at*, or pass *intervals* as a
+``{target coordinate -> span}`` mapping.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name      | Type                | Description                                                                                                                                                                                                                                                     | Default     |
-|-----------|---------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
-| intervals | [Any](`typing.Any`) | One interval-like descriptor or a collection of them. Accepted forms — singleton or collection — are region names (``str``, resolved via :meth:`get_region`), ``Region`` objects, ``(start, end)`` coordinate pairs, ``Timeline`` objects, and interval events. | _required_  |
-| id        | [str](`str`)        | Identifier for the FlowMap. Defaults to ``"default"``.                                                                                                                                                                                                          | `'default'` |
+| Name          | Type                                                        | Description                                                                                                                                                                                                                                                                                                                                                         | Default     |
+|---------------|-------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
+| intervals     | [Any](`typing.Any`)                                         | One interval-like descriptor, a collection of them, or a ``{target coordinate -> span}`` mapping. Accepted descriptor forms are region names (``str``, resolved via :meth:`get_region`), ``Region`` objects, ``(start, end)`` coordinate pairs, ``Timeline`` objects, and interval events. ``Gap`` entries may be mixed into a collection to space the spans apart. | _required_  |
+| id            | [str](`str`)                                                | Identifier for the FlowMap. Defaults to ``"default"``.                                                                                                                                                                                                                                                                                                              | `'default'` |
+| at            | \'Sequence\[Any\] \| None\'                                 | Target coordinate for each played span, in the order given. One entry per span, or ``None`` for a span that should follow its predecessor. Cannot be combined with ``Gap`` entries.                                                                                                                                                                                 | `None`      |
+| target_length | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Total extent of the unfolded axis. Needed only when the flow ends in a gap, which no section would imply.                                                                                                                                                                                                                                                           | `None`      |
 
 #### Returns {.doc-section .doc-section-returns}
 
@@ -776,6 +809,15 @@ map to nothing (an empty ``unfold_coordinate`` result).
 FlowMap(A8: 2 sections)
 >>> child.create_flow_map([(0, 123), (129, child.length)], id="A8")
 FlowMap(A8: 2 sections)
+>>> # Restore the two skipped measures as a 6-quarter hole:
+>>> child.create_flow_map(["A8_1", Gap(6), "A8_2"], id="restored")
+FlowMap(restored: 2 sections, 1 gap)
+>>> # The same placement, stated as coordinates:
+>>> child.create_flow_map(["A8_1", "A8_2"], at=[0, 129], id="restored")
+FlowMap(restored: 2 sections, 1 gap)
+>>> # ... or as a mapping pairing each coordinate with its span:
+>>> child.create_flow_map({0: "A8_1", 129: "A8_2"}, id="restored")
+FlowMap(restored: 2 sections, 1 gap)
 ```
 
 ### create_region { #timetoalign.timelines.Timeline.create_region }
@@ -1602,29 +1644,155 @@ ShiftMap(offset=-0.5, ...)
 ### get_coordinate { #timetoalign.timelines.Timeline.get_coordinate }
 
 ```python
-timelines.Timeline.get_coordinate(value, timeline_id=None)
+timelines.Timeline.get_coordinate(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
 ```
 
-Resolve a coordinate into this timeline's coordinate system.
+Dispatch a positional or event-key coordinate query.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type                                                | Description                                                                                                                                                        | Default    |
-|-------------|-----------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| value       | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | Numeric, unit-qualified, or timeline-qualified coordinate. A bare number with ``timeline_id`` is expressed in that descendant timeline's native coordinate system. | _required_ |
-| timeline_id | [str](`str`) \| None                                | Timeline that owns ``value``. An embedded ID on an ``IdCoordinate`` must match this value when both are provided.                                                  | `None`     |
+| Name        | Type                                                                                                                                                                                                                        | Description                                        | Default           |
+|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) \| [str](`str`) \| [KeyCollection](`timetoalign.core.retrieval.KeyCollection`) | Scalar or plural coordinate position or event key. | _required_        |
+| timeline_id | [str](`str`) \| None                                                                                                                                                                                                        | Optional result-axis validator.                    | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)                                                                                                                                                           | Requested coordinate output format.                | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                                                                                                                                                                           | Integral projection mode.                          | `'round'`         |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                        | Description                                            |
-|--------|---------------------------------------------|--------------------------------------------------------|
-|        | [Coordinate](`timetoalign.core.Coordinate`) | A coordinate expressed in this timeline's native unit. |
+| Name   | Type                                                                                                                                                                                                 | Description                         |
+|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | The selected precise-getter result. |
+
+### get_coordinate_at { #timetoalign.timelines.Timeline.get_coordinate_at }
+
+```python
+timelines.Timeline.get_coordinate_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve one position onto this timeline's canonical axis.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                         | Default           |
+|-------------|-------------------------------------------------------------------|-------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`)   | Coordinate position to resolve.     | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Optional result-axis validator.     | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format. | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.           | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                          | Description                                       |
+|--------|---------------------------------------------------------------------------------------------------------------|---------------------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | One coordinate projection or a length-one Series. |
 
 #### Raises {.doc-section .doc-section-raises}
 
-| Name   | Type                       | Description                                                    |
-|--------|----------------------------|----------------------------------------------------------------|
-|        | [ValueError](`ValueError`) | If a timeline ID is unknown or no unit conversion path exists. |
+| Name   | Type                       | Description                                           |
+|--------|----------------------------|-------------------------------------------------------|
+|        | [KeyError](`KeyError`)     | If the result or embedded source timeline is unknown. |
+|        | [ValueError](`ValueError`) | If a unit has no unique invertible conversion path.   |
+|        | [TypeError](`TypeError`)   | If ``at`` is not a scalar coordinate input.           |
+
+### get_coordinate_for { #timetoalign.timelines.Timeline.get_coordinate_for }
+
+```python
+timelines.Timeline.get_coordinate_for(
+    key,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Return an event's start coordinate on this timeline.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                         | Default           |
+|-------------|-------------------------------------------------------------------|-------------------------------------|-------------------|
+| key         | [str](`str`)                                                      | Event ID to find recursively.       | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Optional result-axis validator.     | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format. | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.           | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                          | Description                            |
+|--------|---------------------------------------------------------------------------------------------------------------|----------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | The event-start coordinate projection. |
+
+### get_coordinates_at { #timetoalign.timelines.Timeline.get_coordinates_at }
+
+```python
+timelines.Timeline.get_coordinates_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve a collection of positions onto this timeline.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                      | Description                         | Default           |
+|-------------|---------------------------------------------------------------------------|-------------------------------------|-------------------|
+| at          | [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) | Coordinate positions to resolve.    | _required_        |
+| timeline_id | [str](`str`) \| None                                                      | Optional result-axis validator.     | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)         | Requested coordinate output format. | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                         | Integral projection mode.           | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | A list of projections or canonical-value Series. |
+
+### get_coordinates_for { #timetoalign.timelines.Timeline.get_coordinates_for }
+
+```python
+timelines.Timeline.get_coordinates_for(
+    keys,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Return event-start coordinates for a collection of event IDs.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                         | Default           |
+|-------------|-------------------------------------------------------------------|-------------------------------------|-------------------|
+| keys        | [KeyCollection](`timetoalign.core.retrieval.KeyCollection`)       | Event IDs to retrieve.              | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Optional result-axis validator.     | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format. | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.           | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | A list of projections or canonical-value Series. |
 
 ### get_event { #timetoalign.timelines.Timeline.get_event }
 
@@ -1812,11 +1980,15 @@ Get a TimeIntervalStamp for a coordinate range.
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
->>> interval = timeline.get_interval_stamp(0.0, 10.0)
+>>> from timetoalign.timelines import Timeline
+>>> parent = Timeline(length=20, unit=TimeUnit.seconds, uid="timeline:1")
+>>> child = Timeline(length=15, unit=TimeUnit.seconds, uid="child:1")
+>>> parent.add_child(child, offset=0)
+>>> interval = parent.get_interval_stamp(0.0, 10.0)
 >>> interval.duration
-10.0
->>> interval["child:1"]  # Get (start, end) tuple for child
-(0.0, 7.5)
+Duration(10.0, seconds)
+>>> interval.get_interval("child:1")
+Interval(start=Coordinate(0.0, seconds), end=Coordinate(10.0, seconds))
 ```
 
 ### get_region { #timetoalign.timelines.Timeline.get_region }
@@ -1940,47 +2112,26 @@ Fraction(20, 1)
 timelines.Timeline.get_timestamp(coord, unit=None, *, conversion_maps=True)
 ```
 
-Get a TimeStamp at a specific coordinate.
+Get a timestamp whose axis is written in this timeline's own type.
 
-This is the primary coordinate resolution API. The TimeStamp provides
-access to all equivalent coordinates across children and C-Map units.
-
-Uses InterpolationMaps for O(log n) coordinate conversion.
+The caller may pass a coordinate in any numeric form; the axis is
+expressed in the timeline's declared ``number_type``, so a query of
+``9.5`` on a fraction-canonical timeline gives an axis of
+``Fraction(19, 2)``.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name            | Type                                                                  | Description                                                                                                                               | Default    |
-|-----------------|-----------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| coord           | [CoordinateSpec](`timetoalign.core.CoordinateSpec`)                   | Coordinate value. Can be: - int/float/Fraction: Value in timeline's native unit - Coordinate: Must match unit or specify via `unit` param | _required_ |
-| unit            | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`) \| None       | If provided, interpret coord as being in this unit. The coordinate is first converted via inverse C-Map.                                  | `None`     |
-| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | C-Maps available through the returned stamp.                                                                                              | `True`     |
+| Name            | Type                                                                  | Description                                    | Default    |
+|-----------------|-----------------------------------------------------------------------|------------------------------------------------|------------|
+| coord           | [CoordinateSpec](`timetoalign.core.CoordinateSpec`)                   | Coordinate to resolve on this timeline.        | _required_ |
+| unit            | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`) \| None       | Optional unit in which ``coord`` is expressed. | `None`     |
+| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | C-Maps available through the returned stamp.   | `True`     |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                | Description                                   |
-|--------|-----------------------------------------------------|-----------------------------------------------|
-|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | TimeStamp object for the resolved coordinate. |
-
-#### Raises {.doc-section .doc-section-raises}
-
-| Name   | Type                       | Description                                       |
-|--------|----------------------------|---------------------------------------------------|
-|        | [ValueError](`ValueError`) | If unit specified but no inverse C-Map available. |
-
-#### Examples {.doc-section .doc-section-examples}
-
-```python
->>> ts = timeline.get_timestamp(5.0)
->>> ts["child_a"]  # Get coordinate on child_a
-2.5
-```
-
-```python
->>> # Query with unit conversion
->>> ts = timeline.get_timestamp(10.5, unit=TimeUnit.seconds)
->>> ts.axis  # Converted from seconds to timeline's unit
-5.0
-```
+| Name   | Type                                                | Description                                               |
+|--------|-----------------------------------------------------|-----------------------------------------------------------|
+|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | A timestamp with exact scalar provenance when one exists. |
 
 ### get_timestamp_at { #timetoalign.timelines.Timeline.get_timestamp_at }
 
@@ -2047,17 +2198,25 @@ is not found on this timeline directly.
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
->>> ts = timeline.get_timestamp_of("note:000001")
+>>> from timetoalign.timelines import Timeline
+>>> parent = Timeline(length=20, unit=TimeUnit.seconds, uid="timeline:1")
+>>> child = Timeline(length=10, unit=TimeUnit.seconds, uid="clt1")
+>>> parent.add_child(child, offset=5)
+>>> parent.add_events([{"event_type": "Note", "instant": 5.0}])
+>>> child.add_events(
+...     [{"id": "clt1:note:000001", "event_type": "Note", "start": 0.0, "end": 2.5}]
+... )
+>>> ts = parent.get_timestamp_of("note:000001")
 >>> ts.axis  # For instant events
-5.0
+IdCoordinate(5.0, seconds, 'timeline:1')
 ```
 
 ```python
->>> ts = timeline.get_timestamp_of("clt1:note:000001")
+>>> ts = parent.get_timestamp_of("clt1:note:000001")
 >>> ts.start.axis  # For interval events
-0.0
+IdCoordinate(5.0, seconds, 'timeline:1')
 >>> ts.end.axis
-2.5
+IdCoordinate(7.5, seconds, 'timeline:1')
 ```
 
 #### See Also {.doc-section .doc-section-see-also}
@@ -2355,20 +2514,19 @@ Public API for creating coordinates compatible with this timeline.
 timelines.Timeline.resolve_subclass(unit, number_type=None)
 ```
 
-Return the canonical Timeline subclass for a unit/number_type pair.
+Return the most specific Timeline subclass for a unit/number_type pair.
 
 Inspects all subclasses and selects the one whose
 ``_allowed_units`` includes *unit*.  Among candidates the selection
 prefers, in order:
 
-1. A class whose ``_default_number_type`` matches *number_type*
-   (when supplied).
+1. A class whose default unit uses *number_type* (when supplied).
 2. The class with the **smallest** ``_allowed_units`` set (most
    specific domain).
 
-This ensures the six concrete types from ``timetoalign.timelines.types``
-are returned rather than further-derived specialisations like
-``BeatGrid``.
+Further-derived subclasses participate in the lookup and can be
+selected when they are the most specific matching candidate, such as
+a specialized ``BeatGrid`` subclass.
 
 Falls back to the base ``Timeline`` if no subclass claims the unit.
 
@@ -2377,21 +2535,21 @@ Falls back to the base ``Timeline`` if no subclass claims the unit.
 | Name        | Type                                                                | Description                                                                                                                                    | Default    |
 |-------------|---------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|------------|
 | unit        | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`)             | The time unit to look up.                                                                                                                      | _required_ |
-| number_type | [NumberType](`timetoalign.core.NumberType`) \| [str](`str`) \| None | Optional number type for disambiguation (e.g. ``NumberType.fraction`` selects ``ContinuousLogicalTimeline`` over ``DiscreteLogicalTimeline``). | `None`     |
+| number_type | [NumberType](`timetoalign.core.NumberType`) \| [str](`str`) \| None | Optional number type for disambiguation (e.g. ``NumberType.fraction`` selects a fractional logical timeline over ``DiscreteLogicalTimeline``). | `None`     |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                                | Description                                          |
-|--------|---------------------------------------------------------------------|------------------------------------------------------|
-|        | [type](`type`)\[[Timeline](`timetoalign.timelines.base.Timeline`)\] | The canonical Timeline subclass that accepts *unit*. |
+| Name   | Type                                                                | Description                                              |
+|--------|---------------------------------------------------------------------|----------------------------------------------------------|
+|        | [type](`type`)\[[Timeline](`timetoalign.timelines.base.Timeline`)\] | The most specific Timeline subclass that accepts *unit*. |
 
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
 >>> Timeline.resolve_subclass(TimeUnit.quarters, NumberType.fraction)
-<class '...ContinuousLogicalTimeline'>
+<class 'timetoalign.timelines.types.ContinuousLogicalTimeline'>
 >>> Timeline.resolve_subclass(TimeUnit.pixels)
-<class '...DiscreteGraphicalTimeline'>
+<class 'timetoalign.timelines.types.DiscreteGraphicalTimeline'>
 ```
 
 ### summary { #timetoalign.timelines.Timeline.summary }

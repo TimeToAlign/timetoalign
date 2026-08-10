@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -724,6 +736,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container">
   <a href="../reference/SecondsToSamples.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SecondsToSamples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -1201,15 +1219,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h3 class="anchored" data-anchor-id="timetoalign.EventStore.summary">summary</h3>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>EventStore.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a summary of the store contents.</p>
-<p>Returns a dictionary mapping table/data names to summary information: - unit: The time unit of the data - range: Tuple of (min_coord, max_coord) for events - count: Number of events in the table</p>
-<p>Subclasses may override to provide additional domain-specific information (e.g., event type breakdown, has_rests for ScoreStore).</p>
+<p>The summary contract separates per-table data from store-level facts::</p>
+<pre><code>{
+    "tables": {
+        table_name: {
+            "unit": str,
+            "count": int,
+            "range": (float, float),
+        }
+    },
+    "facts": {fact_name: fact_value},
+}</code></pre>
+<p>Subclasses may extend <code>facts</code> with domain-specific information, but must preserve this two-key structure and the exact table entry shape.</p>
 <section id="returns-3" class="level4 doc-section doc-section-returns">
 <h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 7%">
-<col style="width: 50%">
-<col style="width: 41%">
+<col style="width: 6%">
+<col style="width: 43%">
+<col style="width: 49%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1222,21 +1250,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td></td>
 <td><code>dict</code>[<code>str</code>, <code>Any</code>]</td>
-<td>Dict mapping table names to summary dicts.</td>
+<td>A dictionary containing <code>tables</code> and <code>facts</code> mappings.</td>
 </tr>
 </tbody>
 </table>
 </section>
 <section id="examples-3" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-3">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> store <span class="op">=</span> SomeStore(...)</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> store.summary()</span>
-<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>{<span class="st">"notes"</span>: {<span class="st">"unit"</span>: <span class="st">"quarters"</span>, <span class="st">"range"</span>: (<span class="fl">0.0</span>, <span class="fl">120.5</span>), <span class="st">"count"</span>: <span class="dv">498</span>}}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> store <span class="op">=</span> SomeStore(...)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> store.summary()</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"tables"</span>: {</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>        <span class="st">"notes"</span>: {</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>            <span class="st">"unit"</span>: <span class="st">"quarters"</span>,</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">"count"</span>: <span class="dv">498</span>,</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>            <span class="st">"range"</span>: (<span class="fl">0.0</span>, <span class="fl">120.5</span>),</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    },</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"facts"</span>: {},</span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.EventStore.values" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventStore.values">values</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>EventStore.values()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>EventStore.values()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Iterate over data.</p>
 <section id="yields-1" class="level4 doc-section doc-section-yields">
 <h4 class="doc-section doc-section-yields anchored" data-anchor-id="yields-1">Yields</h4>

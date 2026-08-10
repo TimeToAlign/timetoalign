@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -724,6 +736,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container">
   <a href="../reference/SecondsToSamples.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SecondsToSamples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -985,7 +1003,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.EventData" class="level1">
 <h1>EventData</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>EventData(table, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>EventData(table, unit, number_type<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>PyArrow-based storage for timeline events.</p>
 <p>EventData wraps a PyArrow table containing events. Events are rows in the table, not Python wrapper objects. The primary API is bulk operations:</p>
 <ul>
@@ -1422,16 +1440,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.EventData.empty" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.empty">empty</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>EventData.empty(unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>EventData.empty(unit, number_type<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create an empty EventData.</p>
 <section id="parameters-4" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-4">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 11%">
-<col style="width: 40%">
-<col style="width: 30%">
-<col style="width: 17%">
+<col style="width: 8%">
+<col style="width: 34%">
+<col style="width: 49%">
+<col style="width: 7%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1450,9 +1468,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="even">
 <td>number_type</td>
-<td><code>NumberType</code></td>
-<td>The number type for coordinates.</td>
-<td><code>NumberType.float</code></td>
+<td><code>NumberType</code> | None</td>
+<td>The number type for coordinates. Defaults to the one the unit itself uses.</td>
+<td><code>None</code></td>
 </tr>
 </tbody>
 </table>
@@ -1674,7 +1692,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>EventData.from_arrays(</span>
 <span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    fields,</span>
 <span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    unit,</span>
-<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    number_type<span class="op">=</span>NumberType.<span class="bu">float</span>,</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    number_type<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
 <span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    validate<span class="op">=</span><span class="va">True</span>,</span>
 <span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    extra_fields<span class="op">=</span><span class="va">None</span>,</span>
@@ -1704,7 +1722,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td>fields</td>
 <td><code>dict</code>[<code>str</code>, <code>np</code>.<code>ndarray</code> | <code>pa</code>.<code>Array</code> | <code>list</code>[<code>Any</code>]]</td>
-<td>Dict mapping field names to arrays. Supports: - np.ndarray: NumPy arrays - pa.Array: PyArrow arrays (including StructArray for coords) - list: Python lists (converted to numpy) For coordinate fields (start, end, duration): - If pa.StructArray: used directly - If numeric/string array: parsed via CoordinateParser</td>
+<td>Dict mapping field names to arrays. Supports: - np.ndarray: NumPy arrays - pa.Array: PyArrow arrays (including StructArray for coords) - list: Python lists (converted to numpy) For coordinate fields (start, end, duration): - If pa.StructArray: used directly - If numeric/string array: parsed via build_number_struct_array</td>
 <td><em>required</em></td>
 </tr>
 <tr class="even">
@@ -1715,9 +1733,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td>number_type</td>
-<td><code>NumberType</code></td>
+<td><code>NumberType</code> | None</td>
 <td>The number type for coordinates.</td>
-<td><code>NumberType.float</code></td>
+<td><code>None</code></td>
 </tr>
 <tr class="even">
 <td>validate</td>
@@ -1795,7 +1813,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>...     <span class="st">"id"</span>: np.array([<span class="st">"e1"</span>, <span class="st">"e2"</span>]),</span>
 <span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>...     <span class="st">"temporal_type"</span>: np.array([<span class="st">"instant"</span>, <span class="st">"instant"</span>]),</span>
 <span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>...     <span class="st">"event_type"</span>: np.array([<span class="st">"Beat"</span>, <span class="st">"Beat"</span>]),</span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>...     <span class="st">"start"</span>: CoordinateParser.parse([<span class="dv">0</span>, <span class="dv">480</span>], NumberType.<span class="bu">int</span>, unit),</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>...     <span class="st">"start"</span>: build_number_struct_array([<span class="dv">0</span>, <span class="dv">480</span>], number_type<span class="op">=</span>NumberType.<span class="bu">int</span>),</span>
 <span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>... }, unit<span class="op">=</span>TimeUnit.ticks)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Direct from loader output (StructArrays already parsed)</span></span>
 <span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> data <span class="op">=</span> EventData.from_arrays(loader_fields, unit<span class="op">=</span>TimeUnit.quarters)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1803,16 +1821,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.EventData.from_dataframe" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.EventData.from_dataframe">from_dataframe</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>EventData.from_dataframe(df, unit, number_type<span class="op">=</span>NumberType.<span class="bu">float</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>EventData.from_dataframe(df, unit, number_type<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create EventData from a pandas DataFrame.</p>
 <section id="parameters-8" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-8">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
+<col style="width: 9%">
+<col style="width: 37%">
+<col style="width: 45%">
 <col style="width: 8%">
-<col style="width: 32%">
-<col style="width: 44%">
-<col style="width: 13%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1837,9 +1855,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td>number_type</td>
-<td><code>NumberType</code></td>
+<td><code>NumberType</code> | None</td>
 <td>The number type for coordinates.</td>
-<td><code>NumberType.float</code></td>
+<td><code>None</code></td>
 </tr>
 </tbody>
 </table>
@@ -1874,7 +1892,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>EventData.from_dicts(</span>
 <span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    rows,</span>
 <span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    unit,</span>
-<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    number_type<span class="op">=</span>NumberType.<span class="bu">float</span>,</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    number_type<span class="op">=</span><span class="va">None</span>,</span>
 <span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
 <span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    interval_policy<span class="op">=</span>IntervalPolicy.warn,</span>
 <span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -1917,9 +1935,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 <tr class="odd">
 <td>number_type</td>
-<td><code>NumberType</code></td>
+<td><code>NumberType</code> | None</td>
 <td>The number type for coordinates.</td>
-<td><code>NumberType.float</code></td>
+<td><code>None</code></td>
 </tr>
 <tr class="even">
 <td>interval_policy</td>

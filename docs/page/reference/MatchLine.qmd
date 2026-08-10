@@ -8,8 +8,7 @@ Ordered sequence of MatchStamps for a source timeline.
 
 A MatchLine collects all synchronised timestamps that mention a
 given *source* timeline, orders them by coordinate on that timeline,
-and exposes ``get_coordinate_pairs()`` to extract the
-``(source_coord, target_coord)`` table consumed by WarpMap.
+and exposes ``get_alignment_anchors()`` for typed source-to-target pairs.
 
 ## Attributes {.doc-section .doc-section-attributes}
 
@@ -25,9 +24,7 @@ and exposes ``get_coordinate_pairs()`` to extract the
 ...     claims=claims,
 ...     source_timeline_id="score",
 ... )
->>> pairs = line.get_coordinate_pairs("audio")
->>> pairs
-[(0.0, 0.0), (100.0, 45.5), (200.0, 91.0)]
+>>> anchors = line.get_alignment_anchors("audio")
 ```
 
 ## See Also {.doc-section .doc-section-see-also}
@@ -42,7 +39,11 @@ and exposes ``get_coordinate_pairs()`` to extract the
 | [from_claims](#timetoalign.alignment.MatchLine.from_claims) | Build a MatchLine from claims via a MatchGraph. |
 | [from_dict](#timetoalign.alignment.MatchLine.from_dict) | Deserialize from dictionary. |
 | [from_graphs](#timetoalign.alignment.MatchLine.from_graphs) | Build a MatchLine from multiple MatchGraphs. |
-| [get_coordinate_pairs](#timetoalign.alignment.MatchLine.get_coordinate_pairs) | Extract (source_coord, target_coord) pairs for a target timeline. |
+| [get_alignment_anchors](#timetoalign.alignment.MatchLine.get_alignment_anchors) | Return typed source-to-target anchors in source order. |
+| [get_coordinate](#timetoalign.alignment.MatchLine.get_coordinate) | Dispatch a scalar or plural exact source-position query. |
+| [get_coordinate_at](#timetoalign.alignment.MatchLine.get_coordinate_at) | Resolve one exact source anchor to a target coordinate. |
+| [get_coordinates_at](#timetoalign.alignment.MatchLine.get_coordinates_at) | Resolve exact source anchors for a coordinate collection. |
+| [get_coordinates_for](#timetoalign.alignment.MatchLine.get_coordinates_for) | Return one stored timeline coordinate column. |
 | [save_as](#timetoalign.alignment.MatchLine.save_as) | Export this MatchLine to a file. |
 | [target_timeline_ids](#timetoalign.alignment.MatchLine.target_timeline_ids) | All target timelines appearing in at least 2 stamps. |
 | [to_dict](#timetoalign.alignment.MatchLine.to_dict) | Serialize to dictionary for storage. |
@@ -135,13 +136,13 @@ with the most timelines.
 |        | [MatchLine](`timetoalign.alignment.matchline.MatchLine`) | A MatchLine with merged, deduplicated stamps sorted by |
 |        | [MatchLine](`timetoalign.alignment.matchline.MatchLine`) | source coordinate.                                     |
 
-### get_coordinate_pairs { #timetoalign.alignment.MatchLine.get_coordinate_pairs }
+### get_alignment_anchors { #timetoalign.alignment.MatchLine.get_alignment_anchors }
 
 ```python
-alignment.MatchLine.get_coordinate_pairs(target_timeline_id)
+alignment.MatchLine.get_alignment_anchors(target_timeline_id)
 ```
 
-Extract (source_coord, target_coord) pairs for a target timeline.
+Return typed source-to-target anchors in source order.
 
 Only stamps that contain both the source and target timelines
 contribute to the result. Pairs are ordered by source coordinate.
@@ -154,16 +155,135 @@ contribute to the result. Pairs are ordered by source coordinate.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                                     | Description                                                |
-|--------|--------------------------------------------------------------------------|------------------------------------------------------------|
-|        | [list](`list`)\[[tuple](`tuple`)\[[float](`float`), [float](`float`)\]\] | List of ``(source_coord, target_coord)`` tuples, sorted by |
-|        | [list](`list`)\[[tuple](`tuple`)\[[float](`float`), [float](`float`)\]\] | source coordinate.                                         |
+| Name   | Type                                                                                | Description                                          |
+|--------|-------------------------------------------------------------------------------------|------------------------------------------------------|
+|        | [list](`list`)\[[AlignmentAnchor](`timetoalign.alignment.claims.AlignmentAnchor`)\] | Typed alignment anchors sorted by source coordinate. |
 
 #### Raises {.doc-section .doc-section-raises}
 
 | Name   | Type                       | Description                                              |
 |--------|----------------------------|----------------------------------------------------------|
 |        | [ValueError](`ValueError`) | If ``target_timeline_id`` equals ``source_timeline_id``. |
+
+### get_coordinate { #timetoalign.alignment.MatchLine.get_coordinate }
+
+```python
+alignment.MatchLine.get_coordinate(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Dispatch a scalar or plural exact source-position query.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                                                                                         | Description                                           | Default           |
+|-------------|----------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) | One exact source position or a coordinate collection. | _required_        |
+| timeline_id | [str](`str`) \| None                                                                                                                         | Requested target timeline when required.              | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)                                                                            | Requested coordinate output format.                   | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                                                                                            | Integral projection mode.                             | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                                                                                                 | Description                         |
+|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | The selected precise-getter result. |
+
+### get_coordinate_at { #timetoalign.alignment.MatchLine.get_coordinate_at }
+
+```python
+alignment.MatchLine.get_coordinate_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve one exact source anchor to a target coordinate.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                         | Default           |
+|-------------|-------------------------------------------------------------------|-------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`)   | Exact source position.              | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Requested target timeline.          | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format. | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.           | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                          | Description                             |
+|--------|---------------------------------------------------------------------------------------------------------------|-----------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | The exact target coordinate projection. |
+
+### get_coordinates_at { #timetoalign.alignment.MatchLine.get_coordinates_at }
+
+```python
+alignment.MatchLine.get_coordinates_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve exact source anchors for a coordinate collection.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                      | Description                                   | Default           |
+|-------------|---------------------------------------------------------------------------|-----------------------------------------------|-------------------|
+| at          | [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) | Exact source positions to resolve atomically. | _required_        |
+| timeline_id | [str](`str`) \| None                                                      | Requested target timeline.                    | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)         | Requested coordinate output format.           | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                         | Integral projection mode.                     | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | A list of projections or canonical-value Series. |
+
+### get_coordinates_for { #timetoalign.alignment.MatchLine.get_coordinates_for }
+
+```python
+alignment.MatchLine.get_coordinates_for(
+    timeline_id,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Return one stored timeline coordinate column.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                         | Default           |
+|-------------|-------------------------------------------------------------------|-------------------------------------|-------------------|
+| timeline_id | [str](`str`)                                                      | Timeline column to retrieve.        | _required_        |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format. | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.           | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | A list of projections or canonical-value Series. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                                 |
+|--------|------------------------|---------------------------------------------|
+|        | [KeyError](`KeyError`) | If the timeline does not occur in the line. |
 
 ### save_as { #timetoalign.alignment.MatchLine.save_as }
 

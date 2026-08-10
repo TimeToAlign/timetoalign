@@ -162,6 +162,8 @@ quartodoc:
         - CoordinateSpec
         - CoordinateValue
         - IdCoordinate
+        - Interval
+        - IntervalField
         - OptionalCoordinate
         - ResolvedCoordinate
         - resolve_coordinate_spec

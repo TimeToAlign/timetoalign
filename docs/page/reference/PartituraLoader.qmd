@@ -1,11 +1,7 @@
 # PartituraLoader { #timetoalign.loader.score.PartituraLoader }
 
 ```python
-loader.score.PartituraLoader(
-    force_note_ids=True,
-    silence_warnings=False,
-    **kwargs,
-)
+loader.score.PartituraLoader(force_note_ids=True, **kwargs)
 ```
 
 Load symbolic scores using partitura.

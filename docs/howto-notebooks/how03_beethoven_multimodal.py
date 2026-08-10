@@ -445,9 +445,17 @@ for _seg_id in dgt1.list_segments():
 _section_rows = []
 for _sid, _qb in abc_controller.get_atomic_section_coordinates(flow=abc_flow).items():
     _ts = score_group.get_timestamp_at(float(_qb), "clt1")
-    _px = _ts.to_dict().get("dgt1")
+    _px = (
+        _ts.get_coordinate_for("dgt1", format="int")
+        if "dgt1" in _ts.present_timelines
+        else None
+    )
     _page = next(
-        (i + 1 for i, (s, e) in enumerate(_page_bounds) if s <= _px < e),
+        (
+            i + 1
+            for i, (s, e) in enumerate(_page_bounds)
+            if _px is not None and s <= _px < e
+        ),
         "-",
     )
     _section_rows.append(
@@ -866,11 +874,11 @@ emerson_warpmap
 # The first section boundary from ema_df
 first_fm = float(ema_df["measure_unfold_start"].iloc[0])
 first_sec = float(ema_df["seconds_start"].iloc[0])
-transferred = emerson_warpmap(first_fm)
+transferred = emerson_warpmap.get_coordinate_at(first_fm)
 {
     "CLT2_unfolded (floating measures)": first_fm,
     "DPT16 expected (seconds)": first_sec,
-    "DPT16 via WarpMap (seconds)": float(transferred),
+    "DPT16 via WarpMap": transferred,
 }
 
 # %% [markdown]
@@ -910,12 +918,24 @@ stamp
 # `MatchStamp` belongs to the same unified stamp family as `TimeStamp` and
 # `GroupTimestamp`: `get_coordinate()` returns a unit-bearing coordinate,
 # while `is_interpolated` reports whether resolution used interpolation.
+# Those two are independent. This position was reached by interpolation and is
+# still an exact `Fraction`, because the number type follows the quarters axis
+# and never records how a value was obtained. If you want to know whether a
+# reading was estimated, `is_interpolated` is the only thing that tells you.
 
 # %%
 {
     "CLT1 coordinate": stamp.get_coordinate("clt1"),
     "interpolated": stamp.is_interpolated,
 }
+
+# %% [markdown]
+# `to_dict()` is serialization rather than a shortcut to numbers: every leaf is
+# the wire entry `{value, numerator, denominator, unit, number_type}`. The
+# float `value` is a mirror for consumers that only speak JSON numbers, the
+# ratio members carry the exact value where the axis is fraction-canonical, and
+# `number_type` names which side is authoritative. When you want a plain number
+# instead, ask for one with `get_coordinate_for(id, format="float")`.
 
 # %%
 bundle.get_matchstamp_at(79.0, "clt1").to_dict(format="nested")
@@ -960,11 +980,16 @@ section_coords = abc_controller.get_atomic_section_coordinates(flow=abc_flow)
 section_coords
 
 # %%
+boundary_rows = []
+for _qb in section_coords.values():
+    _stamp = bundle.get_matchstamp_at(float(_qb), "clt1")
+    _row = {}
+    for _tl_id in _stamp.present_timelines:
+        _coord = _stamp.get_coordinate_for(_tl_id)
+        _row[f"{_tl_id} ({_coord.unit})"] = _coord.value
+    boundary_rows.append(_row)
 boundary_df = pd.DataFrame(
-    [
-        bundle.get_matchstamp_at(float(qb), "clt1").to_dict(format="flat")
-        for qb in section_coords.values()
-    ],
+    boundary_rows,
     index=list(section_coords.keys()),
 )
 boundary_df.index.name = "section"
@@ -973,8 +998,12 @@ boundary_df
 # %% [markdown]
 # Each row gives the exact coordinate of a section boundary in every
 # timeline and domain — including the Emerson recording's `dpt16`
-# column. The sample counts are integers; the seconds and quarterbeats
-# are floats — matching each timeline's native type.
+# column. Every column matches its own timeline's native type, and that is
+# the point worth pausing on: pixel and sample counts are integers because
+# those axes are discrete, seconds are floats, and quarterbeats are exact
+# fractions. One cross-section can therefore hold three different number
+# types at once without any of them being a compromise. Nothing here was
+# converted for display — each value is the canonical one its axis declares.
 
 # %% [markdown]
 # ## 15. Summary & Key Takeaways

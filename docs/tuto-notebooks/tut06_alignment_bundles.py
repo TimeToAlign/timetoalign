@@ -245,14 +245,19 @@ bundle_structure
 # ## From claims to a map
 #
 # Claims between two groups accumulate into a {{< glossary MatchLine >}}. The
-# line returns raw numeric pairs, deliberately as floats because they are input
-# to a {{< glossary WarpMap >}} rather than user-facing coordinates. The map
-# interpolates positions between them.
+# line returns {{< glossary AlignmentAnchor >}}s: each one names both timelines
+# and carries both coordinates, so an anchor says which position on which axis
+# corresponds to which. A {{< glossary WarpMap >}} is built from that same line
+# and interpolates positions between the anchors. The two views in the output
+# below show the same four pairs: the asserted positions print as `Coordinate`
+# objects, while the anchors use the library's display formatter, which states
+# the unit once and drops a trailing zero — `@1 seconds` and
+# `Coordinate(1.0, seconds)` are the same value written two ways.
 
 # %%
 bundle_claims = bundle.get_match_claims()
 match_line = MatchLine.from_claims(bundle_claims, score.id)
-line_pairs = match_line.get_coordinate_pairs(performance.id)
+line_anchors = match_line.get_alignment_anchors(performance.id)
 warp_map = WarpMap.from_match_line(
     match_line,
     performance.id,
@@ -260,10 +265,10 @@ warp_map = WarpMap.from_match_line(
     target_unit=TimeUnit.seconds,
 )
 between_coordinate = Coordinate(Fraction(6), TimeUnit.quarters)
-mapped_between = Coordinate(warp_map(between_coordinate.value), TimeUnit.seconds)
+mapped_between = warp_map.get_coordinate_at(between_coordinate)
 map_summary = {
     "asserted positions": observed_pairs,
-    "ordered claim pairs": line_pairs,
+    "ordered claim anchors": line_anchors,
     "map anchors": warp_map.n_anchors,
     "interpolated position": mapped_between,
 }
@@ -364,19 +369,23 @@ converted_stamp = bundle.get_matchstamp_at(
     performance.id,
     conversion_maps=True,
 )
-default_samples = default_conversion_stamp.get_unit(TimeUnit.samples)
-converted_samples = converted_stamp.get_unit(TimeUnit.samples)
+try:
+    default_samples = default_conversion_stamp.get_unit(TimeUnit.samples)
+except KeyError as missing_map:
+    default_samples = f"KeyError: {missing_map}"
 conversion_comparison = {
     "default": default_samples,
-    "conversion_maps=True": Coordinate(converted_samples, TimeUnit.samples),
+    "conversion_maps=True": converted_stamp.get_unit(TimeUnit.samples),
 }
 conversion_comparison
 
 # %% [markdown]
-# The default result is `None` because derived units were not requested. With
-# the opt-in, the sample coordinate is an integer, as a discrete unit requires.
-# Timeline stamps defaulted to showing conversions in the earlier tutorial;
-# doing that across a large bundle would bury the alignment answer.
+# By default the conversion is not merely empty — it raises, because derived
+# units were never requested and a missing map is reported rather than returned
+# as a blank. With the opt-in, the sample coordinate arrives as an integer, as
+# a discrete unit requires. Timeline stamps defaulted to showing conversions in
+# the earlier tutorial; doing that across a large bundle would bury the
+# alignment answer.
 
 # %% [markdown]
 # ## Outside the evidence
@@ -400,17 +409,23 @@ extrapolated_stamp = bundle.get_matchstamp_at(
 )
 support_comparison = {
     "bundle default": bundle.support_policy,
-    "omit": omitted_stamp.get_coordinate(performance.id),
-    "clamp": clamped_stamp.get_coordinate(performance.id),
-    "extrapolate": extrapolated_stamp.get_coordinate(performance.id),
+    "omit": (
+        omitted_stamp.get_coordinate_for(performance.id)
+        if performance.id in omitted_stamp.present_timelines
+        else "absent from the stamp"
+    ),
+    "clamp": clamped_stamp.get_coordinate_for(performance.id),
+    "extrapolate": extrapolated_stamp.get_coordinate_for(performance.id),
 }
 support_comparison
 
 # %% [markdown]
-# `omit` leaves the unsupported performance coordinate absent (`None`); it is
-# the conservative choice for analysis. `clamp` is useful when an interface
-# must remain at the nearest known boundary. Extrapolate only a short
-# distance when the local tempo trend is itself a defensible assumption.
+# `omit` leaves the unsupported performance out of the stamp altogether, so it
+# is not among `present_timelines` and asking for it raises; that is the
+# conservative choice for analysis, and checking membership is how you ask
+# without assuming. `clamp` is useful when an interface must remain at the
+# nearest known boundary. Extrapolate only a short distance when the local
+# tempo trend is itself a defensible assumption.
 
 # %% [markdown]
 # ## Loading an alignment instead of building one
@@ -452,7 +467,7 @@ vienna_score_group = vienna_bundle.get_group(vienna_score_group_id)
 vienna_score_id = vienna_score_group.timeline_ids[0]
 vienna_claims = vienna_bundle.get_match_claims()
 vienna_score_coordinates = [
-    claim.get_coordinates_for(vienna_score_id)[0]
+    claim.get_coordinate_for(vienna_score_id)
     for claim in vienna_claims
     if claim.is_synchronous and claim.connects(vienna_score_id)
 ]
@@ -477,10 +492,12 @@ vienna_result
 
 # %% [markdown]
 # The score identifier comes from the bundle rather than a hardcoded string.
-# The selected claim coordinate retains its exact `Fraction(65, 2)`, while the
-# bundle query currently returns the equivalent source coordinate as the float
-# `32.5`; the performance coordinates remain integer ticks. The output shows
-# those library values directly, without reconstructing a rational for display.
+# The bundle query preserves the claim's exact value: the selected coordinate
+# and the score entry of the returned cross-section are the same
+# `Fraction(65, 2)` quarters, because a quarters axis is exact whichever route
+# a value reaches it by. The performance coordinates are integer ticks for the
+# same reason — each timeline's entry follows that timeline's own declared
+# type, so one cross-section legitimately mixes fractions and integers.
 
 # %% [markdown]
 # ## Merging
@@ -514,8 +531,12 @@ merge_summary = {
     "registered timelines": len(merged_bundle.timeline_ids),
     "claims carried from sources": len(merged_claims_before_bridge),
     "bridge claims added": len(bridge_claims),
-    "facsimile before bridge": unbridged_stamp.get_coordinate(facsimile.id),
-    "facsimile after bridge": bridged_stamp.get_coordinate(facsimile.id),
+    "facsimile before bridge": (
+        unbridged_stamp.get_coordinate_for(facsimile.id)
+        if facsimile.id in unbridged_stamp.present_timelines
+        else "unreachable from the score"
+    ),
+    "facsimile after bridge": bridged_stamp.get_coordinate_for(facsimile.id),
 }
 merge_summary
 

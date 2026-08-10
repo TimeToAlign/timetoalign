@@ -112,11 +112,16 @@ ts = parent.get_timestamp(15.0)
 ts.to_dict()
 
 # %%
-# Access child coordinates via subscript
+# Access child coordinates by timeline ID. Only the children that actually
+# cover the queried position are present; an absent ID raises KeyError.
 {
     "parent": ts.axis,
-    "child1": ts["child1"],
-    "child2": ts["child2"],
+    "present": ts.present_timelines,
+    **{
+        child_id: ts.get_coordinate_for(child_id)
+        for child_id in ("child1", "child2")
+        if child_id in ts.present_timelines
+    },
 }
 
 # %% [markdown]
@@ -125,12 +130,13 @@ ts.to_dict()
 # %%
 interval = parent.get_interval_stamp(20.0, 60.0)
 {
+    "axis_interval": interval.get_interval("parent"),
     "axis_duration": interval.duration,
-    "child1_interval": interval["child1"],
+    "present": interval.present_timelines,
 }
 
 # %%
-interval.zip_intervals()
+interval.get_intervals()
 
 # %% [markdown]
 # ## Coordinates with Units
@@ -140,14 +146,15 @@ interval.zip_intervals()
 
 # %%
 ts = parent.get_timestamp(25.0)
-axis_coord = ts.axis_coordinate
+axis_coord = ts.axis
 {
     "value": axis_coord.value,
     "unit": axis_coord.unit,
+    "timeline_id": axis_coord.timeline_id,
 }
 
 # %%
-child1_coord = ts.get_coordinate("child1")
+child1_coord = ts.get_coordinate_for("child1")
 {
     "child1 value": child1_coord.value,
     "child1 unit": child1_coord.unit,

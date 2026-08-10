@@ -144,11 +144,12 @@ store_inventory_view
 # %% [markdown]
 # Each row is a parser table with its count, unit, and exact range. The stored
 # endpoints are `Fraction` values; placing them in `Coordinate` objects keeps
-# both the rational value and `quarters` unit visible. The current `summary()`
-# dictionary serializes ranges and the anacrusis offset as floats, so it is used
-# here only for counts rather than rendered directly. The object also satisfies
-# the public `EventStore` contract: `isinstance(score_store, EventStore)` is
-# `True`.
+# both the rational value and `quarters` unit visible. `summary()` is a
+# lightweight digest rather than a coordinate accessor: it reports counts,
+# units and plain-float extents for a quick look at what a store holds, so it
+# is used here for counts while the coordinates come from the typed accessors.
+# The object also satisfies the public `EventStore` contract:
+# `isinstance(score_store, EventStore)` is `True`.
 
 # %% [markdown]
 # ## One parsed record
@@ -403,7 +404,7 @@ future_doors
 # - You can replace hand construction with real files without changing the kind of timeline produced.
 # - You can separate `load()` from `create_timeline()` and use `from_file()` as their common shorthand.
 # - You can inspect exact table counts, units, and ranges in `loader.store`,
-#   and read `summary()` without relying on its float projections.
+#   and read `summary()` as the counts-and-extent digest it is.
 # - You can distinguish a parser record in an `EventStore` from the corresponding event placed under a timeline child.
 # - You can assign a type-based timeline id, optionally prefixed by a role, while keeping a readable name separate.
 # - You can inspect loader-created children and exact coordinate conversions,

@@ -52,6 +52,8 @@
 # ## Setup
 
 # %%
+import json
+
 import pandas as pd
 
 from timetoalign import Ms3Loader
@@ -147,8 +149,12 @@ notes_store = tsv_loader.store.notes
 schema_info = []
 for field in notes_store.table.schema:
     meta = field.metadata or {}
-    meta_str = (
-        ", ".join(f"{k.decode()}={v.decode()}" for k, v in meta.items()) if meta else ""
+    # Column metadata is one `timetoalign` JSON blob; unpack it so the table
+    # shows the declared unit and number type rather than a serialized string.
+    blob = json.loads(meta[b"timetoalign"]) if b"timetoalign" in meta else {}
+    extra = {k.decode(): v.decode() for k, v in meta.items() if k != b"timetoalign"}
+    meta_str = ", ".join(
+        f"{k}={v}" for k, v in {**blob, **extra}.items() if k != "version"
     )
     schema_info.append(
         {"name": field.name, "type": str(field.type)[:30], "metadata": meta_str}
@@ -272,16 +278,21 @@ pd.DataFrame(
 # %% [markdown]
 # ## Unit Metadata
 #
-# TimeToAlign! stores unit information in the PyArrow schema metadata.
-# This ensures coordinates are always interpreted correctly:
+# TimeToAlign! stores unit information in the PyArrow schema metadata, under a
+# single `timetoalign` JSON blob per column. Reading it back through the
+# semantic field is the ergonomic route — the field exposes the unit, the
+# declared number type, and the domain as typed attributes:
 
 # %%
-# Extract unit metadata for temporal fields
+# Read unit and number type back off the semantic fields
 temporal_cols = ["start", "end", "duration"]
+note_events = tsv_loader.get_events()
 {
-    field.name: field.metadata.get(b"unit", b"(unknown)").decode()
-    for field in notes_store.table.schema
-    if field.name in temporal_cols and field.metadata
+    name: {
+        "unit": note_events.get_field(name).unit.value,
+        "number_type": note_events.get_field(name).number_type.name,
+    }
+    for name in temporal_cols
 }
 
 # %% [markdown]

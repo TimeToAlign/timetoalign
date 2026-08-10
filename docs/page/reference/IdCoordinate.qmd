@@ -1,7 +1,16 @@
 # IdCoordinate { #timetoalign.IdCoordinate }
 
 ```python
-IdCoordinate(value=None, unit=None, timeline_id=None, /, **data)
+IdCoordinate(
+    value=None,
+    unit=None,
+    timeline_id=None,
+    /,
+    *,
+    number_type=None,
+    rounding='round',
+    **data,
+)
 ```
 
 A ``Coordinate`` that carries the ID of the timeline it belongs to.

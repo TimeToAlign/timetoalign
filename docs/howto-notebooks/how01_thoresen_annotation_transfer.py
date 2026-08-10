@@ -250,8 +250,8 @@ def dgt2_global_px_to_sec(global_px: float) -> float:
     return AUDIO_DURATION
 
 
-h_start_sec = dgt2_global_px_to_sec(h_start_global)
-h_end_sec = dgt2_global_px_to_sec(h_end_global)
+h_start_sec = dgt2_global_px_to_sec(h_start_global.value)
+h_end_sec = dgt2_global_px_to_sec(h_end_global.value)
 print(f"Event H seconds (pixel-derived): [{h_start_sec:.2f}, {h_end_sec:.2f})")
 print("  TSV ground truth: [43.5, 48.0)")
 
@@ -350,8 +350,8 @@ for event_id in event_ids:
     dgt2_end = stamp.end.axis
 
     # Convert global pixels to seconds via the segment-aware helper
-    sec_start = dgt2_global_px_to_sec(dgt2_start)
-    sec_end = dgt2_global_px_to_sec(dgt2_end)
+    sec_start = dgt2_global_px_to_sec(dgt2_start.value)
+    sec_end = dgt2_global_px_to_sec(dgt2_end.value)
 
     # Project seconds onto DGT1 pixels via the inverse of DGT1's ScalarMap
     dgt1_start = float(dgt1_sec_to_px(sec_start))

@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -867,11 +885,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.loader.score.PartituraLoader" class="level1">
 <h1>PartituraLoader</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>loader.score.PartituraLoader(</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    force_note_ids<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    silence_warnings<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">**</span>kwargs,</span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>loader.score.PartituraLoader(force_note_ids<span class="op">=</span><span class="va">True</span>, <span class="op">**</span>kwargs)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Load symbolic scores using partitura.</p>
 <p>Supports MusicXML (fully typed) and MIDI (quantized). Returns ScoreStore with category-specific data.</p>
 <p>All TTA timelines start at coordinate 0. When partitura reports negative quarter-beat onsets (anacrusis notes that precede the first full measure), this loader shifts every event coordinate so that the earliest onset maps to 0.0. The magnitude of that shift is available as :attr:<code>anacrusis_offset</code> and is also stored in <code>ScoreStore.metadata["anacrusis_offset"]</code> so that downstream consumers (e.g.&nbsp;<code>MatchfileLoader</code>) can apply the same correction when comparing raw partitura coordinates against this loader’s stored values.</p>

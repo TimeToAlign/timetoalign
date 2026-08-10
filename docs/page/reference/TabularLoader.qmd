@@ -31,7 +31,6 @@ field_specs: Optional sequence/mapping of blueprint-mode
     :class:`SemanticField` instances that promote raw fields to
     paired semantic fields.
 coordinate_unit: TimeUnit for coordinate values.
-coordinate_type: NumberType for coordinate parsing.
 
 ## Examples {.doc-section .doc-section-examples}
 

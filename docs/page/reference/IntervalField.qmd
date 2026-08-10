@@ -1,0 +1,108 @@
+# IntervalField { #timetoalign.IntervalField }
+
+```python
+IntervalField(raw=None, unit=None, number_type=None, *, source_fields=None)
+```
+
+Semantic field storing intervals with shared axis metadata.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name          | Type                                                                        | Description                                                       | Default   |
+|---------------|-----------------------------------------------------------------------------|-------------------------------------------------------------------|-----------|
+| raw           | [StructField](`timetoalign.core.fields.StructField`) \| None                | Struct field containing ``start`` and ``end`` coordinate structs. | `None`    |
+| unit          | [TimeUnit](`timetoalign.core.enums.TimeUnit`) \| [str](`str`) \| None       | Common endpoint unit.                                             | `None`    |
+| number_type   | [NumberType](`timetoalign.core.enums.NumberType`) \| [str](`str`) \| None   | Common endpoint number type.                                      | `None`    |
+| source_fields | [str](`str`) \| [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] \| None | Optional blueprint source-field declaration.                      | `None`    |
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [domain](#timetoalign.IntervalField.domain) | Return the temporal domain implied by the unit. |
+| [duration](#timetoalign.IntervalField.duration) | Return the vectorized duration field. |
+| [end](#timetoalign.IntervalField.end) | Return the vectorized end-coordinate field. |
+| [number_type](#timetoalign.IntervalField.number_type) | Return the common endpoint number type. |
+| [semantic_type](#timetoalign.IntervalField.semantic_type) | Return the paired scalar semantic type. |
+| [start](#timetoalign.IntervalField.start) | Return the vectorized start-coordinate field. |
+| [unit](#timetoalign.IntervalField.unit) | Return the common endpoint unit. |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [from_field](#timetoalign.IntervalField.from_field) | Build an interval field from an Arrow or raw field source. |
+| [from_intervals](#timetoalign.IntervalField.from_intervals) | Build an interval field from scalar intervals. |
+| [metadata_dict](#timetoalign.IntervalField.metadata_dict) | Return semantic type and shared axis metadata. |
+
+### from_field { #timetoalign.IntervalField.from_field }
+
+```python
+IntervalField.from_field(
+    source,
+    *,
+    unit=None,
+    number_type=None,
+    name='interval',
+)
+```
+
+Build an interval field from an Arrow or raw field source.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                                                                                                                                                                                                                                                                     | Description                           | Default      |
+|-------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------|--------------|
+| source      | [pa](`pyarrow`).[Array](`pyarrow.Array`) \| [pa](`pyarrow`).[ChunkedArray](`pyarrow.ChunkedArray`) \| [StructField](`timetoalign.core.fields.StructField`) \| [pa](`pyarrow`).[Field](`pyarrow.Field`) \| [tuple](`tuple`)\[[pa](`pyarrow`).[Array](`pyarrow.Array`) \| None, [pa](`pyarrow`).[Field](`pyarrow.Field`)\] | Supported Arrow field representation. | _required_   |
+| unit        | [TimeUnit](`timetoalign.core.enums.TimeUnit`) \| [str](`str`) \| None                                                                                                                                                                                                                                                    | Common endpoint unit override.        | `None`       |
+| number_type | [NumberType](`timetoalign.core.enums.NumberType`) \| [str](`str`) \| None                                                                                                                                                                                                                                                | Common endpoint number type override. | `None`       |
+| name        | [str](`str`)                                                                                                                                                                                                                                                                                                             | Field name for a bare array.          | `'interval'` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                   | Description                         |
+|--------|--------------------------------------------------------|-------------------------------------|
+|        | [IntervalField](`timetoalign.core.time.IntervalField`) | A live or blueprint interval field. |
+
+### from_intervals { #timetoalign.IntervalField.from_intervals }
+
+```python
+IntervalField.from_intervals(
+    intervals,
+    *,
+    unit=None,
+    number_type=None,
+    name='interval',
+)
+```
+
+Build an interval field from scalar intervals.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                                           | Description                                                        | Default      |
+|-------------|------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|--------------|
+| intervals   | [Sequence](`collections.abc.Sequence`)\[[Interval](`timetoalign.core.time.Interval`) \| None\] | Interval values, optionally containing null rows.                  | _required_   |
+| unit        | [TimeUnit](`timetoalign.core.enums.TimeUnit`) \| [str](`str`) \| None                          | Shared unit override, required for an empty/all-null input.        | `None`       |
+| number_type | [NumberType](`timetoalign.core.enums.NumberType`) \| [str](`str`) \| None                      | Shared number type override, required for an empty/all-null input. | `None`       |
+| name        | [str](`str`)                                                                                   | Arrow field name.                                                  | `'interval'` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                   | Description            |
+|--------|--------------------------------------------------------|------------------------|
+|        | [IntervalField](`timetoalign.core.time.IntervalField`) | A live interval field. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                             |
+|--------|----------------------------|---------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If non-null intervals do not share one metadata triple. |
+
+### metadata_dict { #timetoalign.IntervalField.metadata_dict }
+
+```python
+IntervalField.metadata_dict()
+```
+
+Return semantic type and shared axis metadata.

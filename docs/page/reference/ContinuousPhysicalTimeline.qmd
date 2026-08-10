@@ -120,8 +120,12 @@ The returned MetricalResult provides convenient access to:
 ```
 
 ```python
->>> # Access the group for general coordinate conversion
->>> result.group.convert(100.0, result.grid.id, audio.id)  # quarters -> seconds
+>>> # Access the group for typed coordinate retrieval
+>>> result.group.get_coordinate_at(
+...     IdCoordinate(100.0, result.grid.unit, result.grid.id),
+...     timeline_id=audio.id,
+...     format="float",
+... )
 50.5
 ```
 
@@ -190,6 +194,7 @@ structure for that region.
 ```python
 >>> audio = ContinuousPhysicalTimeline(length=300.0)
 >>> audio.add_region("verse", start=10.0, end=50.0)
+Region('verse', 10.0-50.0 seconds)
 >>> result = audio.create_metrical_region(
 ...     region_name="verse",
 ...     tempo_bpm=100.0,

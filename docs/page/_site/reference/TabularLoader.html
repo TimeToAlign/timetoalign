@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -874,7 +892,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>TabularLoader provides a ZERO ROW ITERATION framework for loading CSV, TSV, and other delimited formats into EventData. All operations use vectorized numpy / pandas / pyarrow operations.</p>
 <section id="configuration-attributes" class="level2 doc-section doc-section-configuration-attributes">
 <h2 class="doc-section doc-section-configuration-attributes anchored" data-anchor-id="configuration-attributes">Configuration Attributes</h2>
-<p>delimiter: Field delimiter character (default: <code>,</code>). header_row: Row index containing column headers (default: 0). id_column: Source column name for event IDs (auto-generated if <code>None</code>). name_column: Source column name for event names (optional). start_column: Source column name for start coordinate (required). end_column: Source column name for end coordinate (None for instant events). duration_column: Source column name for duration (alternative to <code>end_column</code>). event_type_column: Source column name for event type (optional). default_event_type: Default event type if no column provides one. column_specs: Mapping or sequence describing the per-column translation from source to :class:<code>DataField</code>. See :mod:<code>timetoalign.loader.tabular.field_parsers</code>. field_specs: Optional sequence/mapping of blueprint-mode :class:<code>SemanticField</code> instances that promote raw fields to paired semantic fields. coordinate_unit: TimeUnit for coordinate values. coordinate_type: NumberType for coordinate parsing.</p>
+<p>delimiter: Field delimiter character (default: <code>,</code>). header_row: Row index containing column headers (default: 0). id_column: Source column name for event IDs (auto-generated if <code>None</code>). name_column: Source column name for event names (optional). start_column: Source column name for start coordinate (required). end_column: Source column name for end coordinate (None for instant events). duration_column: Source column name for duration (alternative to <code>end_column</code>). event_type_column: Source column name for event type (optional). default_event_type: Default event type if no column provides one. column_specs: Mapping or sequence describing the per-column translation from source to :class:<code>DataField</code>. See :mod:<code>timetoalign.loader.tabular.field_parsers</code>. field_specs: Optional sequence/mapping of blueprint-mode :class:<code>SemanticField</code> instances that promote raw fields to paired semantic fields. coordinate_unit: TimeUnit for coordinate values.</p>
 </section>
 <section id="examples" class="level2 doc-section doc-section-examples">
 <h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>

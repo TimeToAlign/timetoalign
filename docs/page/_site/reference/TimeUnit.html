@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -855,6 +873,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#timetoalign.TimeUnit" id="toc-timetoalign.TimeUnit" class="nav-link active" data-scroll-target="#timetoalign.TimeUnit">TimeUnit</a>
   <ul>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
+  <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
+  <ul class="collapse">
+  <li><a href="#timetoalign.TimeUnit.resolve_number_type" id="toc-timetoalign.TimeUnit.resolve_number_type" class="nav-link" data-scroll-target="#timetoalign.TimeUnit.resolve_number_type">resolve_number_type</a>
+  <ul class="collapse">
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
+  </ul></li>
+  </ul></li>
   </ul></li>
   </ul>
 </nav>
@@ -881,20 +908,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
+<td><a href="#timetoalign.TimeUnit.allowed_number_types">allowed_number_types</a></td>
+<td>The numeric representations this unit accepts.</td>
+</tr>
+<tr class="even">
 <td><a href="#timetoalign.TimeUnit.b">b</a></td>
 <td>beats</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.TimeUnit.beats">beats</a></td>
 <td>beats</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.TimeUnit.centimeters">centimeters</a></td>
 <td>centimeters</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.TimeUnit.cm">cm</a></td>
 <td>centimeters</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.TimeUnit.default_number_type">default_number_type</a></td>
+<td>The numeric representation this unit uses unless told otherwise.</td>
 </tr>
 <tr class="odd">
 <td><a href="#timetoalign.TimeUnit.divs">divs</a></td>
@@ -994,8 +1029,94 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tr>
 </tbody>
 </table>
+</section>
+<section id="methods" class="level2">
+<h2 class="anchored" data-anchor-id="methods">Methods</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="#timetoalign.TimeUnit.resolve_number_type">resolve_number_type</a></td>
+<td>Return the numeric representation to use for this unit.</td>
+</tr>
+</tbody>
+</table>
+<section id="timetoalign.TimeUnit.resolve_number_type" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.TimeUnit.resolve_number_type">resolve_number_type</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>TimeUnit.resolve_number_type(requested<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return the numeric representation to use for this unit.</p>
+<section id="parameters" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>requested</td>
+<td><a href="../reference/NumberType.html#timetoalign.NumberType">NumberType</a> | <code>str</code> | None</td>
+<td>An explicit choice, or <code>None</code> to take :attr:<code>default_number_type</code>.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><a href="../reference/NumberType.html#timetoalign.NumberType">NumberType</a></td>
+<td>The resolved :class:<code>NumberType</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 29%">
+<col style="width: 62%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If <em>requested</em> is not among :attr:<code>allowed_number_types</code>.</td>
+</tr>
+</tbody>
+</table>
 
 
+</section>
+</section>
 </section>
 </section>
 

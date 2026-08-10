@@ -231,6 +231,10 @@ span = p - q
 
 # %% [markdown]
 # ### Type Conversions
+#
+# `to_int()` takes a rounding mode, and `"round"` is the default — a bare call
+# rounds to nearest, it does not truncate. Name the mode explicitly whenever
+# the direction matters.
 
 # %%
 c = Coordinate(Fraction(7, 4), TimeUnit.quarters)
@@ -238,8 +242,11 @@ c = Coordinate(Fraction(7, 4), TimeUnit.quarters)
 {
     "original": c,
     "to_float()": c.to_float(),
-    "to_int()": c.to_int(),
+    "to_int() — default is 'round'": c.to_int(),
     "to_int('round')": c.to_int("round"),
+    "to_int('floor')": c.to_int("floor"),
+    "to_int('ceil')": c.to_int("ceil"),
+    "to_int('truncate')": c.to_int("truncate"),
     "to_fraction()": c.to_fraction(),
 }
 

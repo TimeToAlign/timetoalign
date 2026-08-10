@@ -1,7 +1,14 @@
 # TimeStamp { #timetoalign.TimeStamp }
 
 ```python
-TimeStamp(axis, source, source_id, row_index=-1, conversion_maps=True)
+TimeStamp(
+    coordinates,
+    source_id,
+    source=None,
+    row_index=None,
+    is_interpolated=False,
+    conversion_maps=True,
+)
 ```
 
 A synchronized instant across a timeline hierarchy.
@@ -10,33 +17,31 @@ Lightweight object that computes coordinates on access via InterpolationMaps.
 Works identically for Timeline (with children) and TimelineGroup (with members).
 
 The TimeStamp represents a cross-section through the timeline structure at
-a specific axis coordinate. All related timelines' coordinates can be
-retrieved via get() or subscript access.
+a specific axis coordinate. Related coordinates are retrieved through the
+typed precise getters and dispatcher.
 
 ## Attributes {.doc-section .doc-section-attributes}
 
-| Name      | Type                                                            | Description                                              |
-|-----------|-----------------------------------------------------------------|----------------------------------------------------------|
-| axis      | [float](`float`)                                                | The root/reference coordinate value.                     |
-| source    | [TimeStampSource](`timetoalign.core.timestamp.TimeStampSource`) | The Timeline or TimelineGroup this timestamp belongs to. |
-| source_id | [str](`str`)                                                    | ID of the source (for serialization).                    |
-| row_index | [int](`int`)                                                    | If from a table row, the index. -1 if interpolated.      |
+| Name      | Type                                                                    | Description                                                                                                |
+|-----------|-------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| axis      | [IdCoordinate](`timetoalign.core.time.IdCoordinate`)                    | The root/reference coordinate value.                                                                       |
+| source    | [TimeStampSource](`timetoalign.core.timestamp.TimeStampSource`) \| None | The Timeline or TimelineGroup this timestamp belongs to.                                                   |
+| source_id | [str](`str`)                                                            | ID of the source (for serialization).                                                                      |
+| row_index | [int](`int`) \| None                                                    | If from a table row, the index. ``-1`` if interpolated and ``None`` for a direct query on the source axis. |
 
 ## Examples {.doc-section .doc-section-examples}
 
 ```python
 >>> ts = timeline.get_timestamp(5.0)
->>> ts.axis  # The root coordinate
-5.0
->>> ts["child:1"]  # Get coordinate on child timeline
+>>> ts.axis  # The root coordinate with identity
+IdCoordinate(5.0, seconds, 'audio')
+>>> ts.get_coordinate_for("child:1", format="float")
 2.5
->>> ts.get("child:2", default=0.0)  # With default
-0.0
 ```
 
 ```python
 >>> # Convert to different unit
->>> ts.get_unit(TimeUnit.seconds)
+>>> ts.get_unit(TimeUnit.seconds, format="float")
 10.5
 ```
 
@@ -44,46 +49,13 @@ retrieved via get() or subscript access.
 
 | Name | Description |
 | --- | --- |
-| [get](#timetoalign.TimeStamp.get) | Get coordinate on another timeline. |
-| [get_conversion](#timetoalign.TimeStamp.get_conversion) | Get the raw output of a conversion map addressed by name/selector. |
-| [get_unit](#timetoalign.TimeStamp.get_unit) | Get coordinate converted to a specific unit. |
-| [to_dict](#timetoalign.TimeStamp.to_dict) | Materialize all coordinates as a dictionary. |
+| [get_conversion_for](#timetoalign.TimeStamp.get_conversion_for) | Get the raw output of a conversion map addressed by name/selector. |
+| [get_unit](#timetoalign.TimeStamp.get_unit) | Convert one stored coordinate through an eligible unit map. |
 
-### get { #timetoalign.TimeStamp.get }
+### get_conversion_for { #timetoalign.TimeStamp.get_conversion_for }
 
 ```python
-TimeStamp.get(timeline_id, default=None)
-```
-
-Get coordinate on another timeline.
-
-Returns ``default`` (None) when the queried coordinate falls
-outside the related timeline's span -- for instance, asking a
-child whose parent-side interval is ``[10, 30)`` for the
-coordinate at axis 5.
-
-For `Timeline` sources, child coordinates are resolved via exact
-offset arithmetic (no interpolation). For `TimelineGroup` sources,
-coordinates are resolved via `InterpolationMap`.
-
-#### Parameters {.doc-section .doc-section-parameters}
-
-| Name        | Type                     | Description                                               | Default    |
-|-------------|--------------------------|-----------------------------------------------------------|------------|
-| timeline_id | [str](`str`)             | The timeline to get coordinate for.                       | _required_ |
-| default     | [float](`float`) \| None | Value to return if timeline not reachable or out of span. | `None`     |
-
-#### Returns {.doc-section .doc-section-returns}
-
-| Name   | Type                     | Description                                            |
-|--------|--------------------------|--------------------------------------------------------|
-|        | [float](`float`) \| None | Coordinate on the target timeline, or *default* if not |
-|        | [float](`float`) \| None | reachable or the axis is outside the target's span.    |
-
-### get_conversion { #timetoalign.TimeStamp.get_conversion }
-
-```python
-TimeStamp.get_conversion(key)
+TimeStamp.get_conversion_for(key)
 ```
 
 Get the raw output of a conversion map addressed by name/selector.
@@ -100,56 +72,47 @@ evaluates it at that timeline's coordinate.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                | Description                                                 |
-|--------|---------------------|-------------------------------------------------------------|
-|        | [Any](`typing.Any`) | The C-Map's output at this instant, or None if unreachable. |
+| Name   | Type               | Description                                            |
+|--------|--------------------|--------------------------------------------------------|
+|        | [object](`object`) | The C-Map's output at this instant without projection. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                        |
+|--------|------------------------|------------------------------------|
+|        | [KeyError](`KeyError`) | If no enabled map matches ``key``. |
 
 ### get_unit { #timetoalign.TimeStamp.get_unit }
 
 ```python
-TimeStamp.get_unit(unit)
+TimeStamp.get_unit(
+    unit,
+    *,
+    timeline_id=None,
+    format='id_coordinate',
+    rounding='round',
+)
 ```
 
-Get coordinate converted to a specific unit.
-
-Works with any map registered by ``add_conversion_map``, called
-directly regardless of concrete type (``TableMap``, ``ScalarMap``,
-``LinearMap``, ``InterpolationMap``, ...).
-
-Searches the source and every descendant/member timeline for a C-Map
-with this target unit, evaluating it at the timeline's own coordinate.
-A timestamp therefore surfaces unit conversions registered at any
-depth of the hierarchy, not just on the queried timeline.
+Convert one stored coordinate through an eligible unit map.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name   | Type         | Description                     | Default    |
-|--------|--------------|---------------------------------|------------|
-| unit   | \'TimeUnit\' | The target unit for conversion. | _required_ |
+| Name        | Type                                                              | Description                                | Default           |
+|-------------|-------------------------------------------------------------------|--------------------------------------------|-------------------|
+| unit        | [TimeUnit](`timetoalign.core.enums.TimeUnit`)                     | Requested target unit.                     | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Optional stored axis to select explicitly. | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.        | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                  | `'round'`         |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                     | Description                                          |
-|--------|--------------------------|------------------------------------------------------|
-|        | [float](`float`) \| None | Converted coordinate, or None if no C-Map available. |
+| Name   | Type                                                                                                          | Description                          |
+|--------|---------------------------------------------------------------------------------------------------------------|--------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | The converted coordinate projection. |
 
-### to_dict { #timetoalign.TimeStamp.to_dict }
+#### Raises {.doc-section .doc-section-raises}
 
-```python
-TimeStamp.to_dict(include_children=True, conversion_units=None)
-```
-
-Materialize all coordinates as a dictionary.
-
-#### Parameters {.doc-section .doc-section-parameters}
-
-| Name             | Type                                                                             | Description                                                                                                                                                                                   | Default   |
-|------------------|----------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
-| include_children | [bool](`bool`)                                                                   | Include child/member timeline coordinates.                                                                                                                                                    | `True`    |
-| conversion_units | [list](`list`)\[\'TimeUnit\'\] \| [Literal](`typing.Literal`)\[\'all\'\] \| None | C-Map conversions to include. - None: No C-Map conversions - "all": Every C-Map across the subtree, of every kind   (unit conversions, labels, structured values) - list: Specific units only | `None`    |
-
-#### Returns {.doc-section .doc-section-returns}
-
-| Name   | Type                                                | Description                                             |
-|--------|-----------------------------------------------------|---------------------------------------------------------|
-|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict mapping timeline_id/unit_name/cmap-label to value. |
+| Name   | Type                   | Description                                                   |
+|--------|------------------------|---------------------------------------------------------------|
+|        | [KeyError](`KeyError`) | If the selected timeline is absent or no eligible map exists. |

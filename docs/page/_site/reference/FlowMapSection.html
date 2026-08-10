@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -867,17 +885,28 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.timelines.FlowMapSection" class="level1">
 <h1>FlowMapSection</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMapSection(source_start, source_end, target_start, label<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMapSection(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    source_start,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    source_end,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    target_start,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    label<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    target_end<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>A section mapping in a FlowMap.</p>
 <p>Represents one contiguous section that maps from a source coordinate range to a target coordinate range. Used internally by FlowMap for coordinate transformation.</p>
 <p>In the context of flow control: - Source coordinates: The “folded” timeline (with repeats/jumps compressed) - Target coordinates: The “unfolded” timeline (linear playthrough order)</p>
+<p>Both ranges are carried explicitly, which is what lets a FlowMap place its sections rather than only concatenate them. A section is one of two kinds:</p>
+<ul>
+<li><strong>Played</strong> — both ranges have the same non-zero extent. Source material is carried to the target axis, at <code>target_start</code> rather than necessarily at the end of the preceding section.</li>
+<li><strong>Gap</strong> — one range is empty. An <em>insertion</em> (empty source range) is a stretch of target time no material fills; an <em>elision</em> (empty target range) is source material the flow drops. Inverting a FlowMap swaps the two ranges, so an insertion inverts to an elision and back.</li>
+</ul>
 <section id="attributes" class="level2 doc-section doc-section-attributes">
 <h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 4%">
-<col style="width: 11%">
-<col style="width: 83%">
+<col style="width: 13%">
+<col style="width: 81%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -906,6 +935,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>label</td>
 <td><code>str</code> | None</td>
 <td>Identity of the section — the source region/section name it was built from, or <code>None</code> when the section names nothing (e.g.&nbsp;built from a bare coordinate pair). Unfolding uses this to name the child timeline and Region it produces for the section.</td>
+</tr>
+<tr class="odd">
+<td>target_end</td>
+<td><code>Fraction</code> | None</td>
+<td>End coordinate in target timeline. Defaults to <code>None</code>, which derives it from <code>target_start</code> plus the source extent — the concatenating behaviour of an ordinary played section.</td>
 </tr>
 </tbody>
 </table>

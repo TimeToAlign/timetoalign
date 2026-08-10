@@ -113,9 +113,11 @@ group_facts
 # ## Between the stored pairs
 #
 # Adding the second member makes an `InterpolationMap` between each direction
-# of the pair. Use the group's public `convert` method to apply that map to one
-# score position. This interpolation is the second of three coordinate-transfer
-# mechanisms in the series, after the exact parent/child offsets introduced in
+# of the pair. `get_coordinate_at` applies that map: name the source axis by
+# wrapping the value in an `IdCoordinate`, and name the axis you want the
+# answer on with `timeline_id`. This interpolation is the second of three
+# coordinate-transfer mechanisms in the series, after the exact parent/child
+# offsets introduced in
 # [Nesting and Timestamps](tut02_nesting_and_timestamps.ipynb).
 
 # %%
@@ -123,7 +125,10 @@ assert group_facts["are_commensurable"]
 assert score.n_events == source_facts["score events"]
 
 score_position = Coordinate(6000, TimeUnit.ticks)
-performance_position = group.convert(score_position, score.id, performance.id)
+performance_position = group.get_coordinate_at(
+    IdCoordinate(score_position.value, score_position.unit, score.id),
+    timeline_id=performance.id,
+)
 map_example = {
     "map class": InterpolationMap,
     "score coordinate": score_position,
@@ -132,13 +137,13 @@ map_example = {
 map_example
 
 # %% [markdown]
-# `convert` returns a `Coordinate`, not a bare number, so the target unit and
-# the integer required by the {{< glossary Discrete >}} performance timeline
-# remain visible.
+# The answer comes back as an `IdCoordinate`, not a bare number, so the target
+# unit, the integer required by the {{< glossary Discrete >}} performance
+# timeline, and the timeline the value belongs to all remain visible.
 # `TimelineGroup` does not expose its pairwise map through a public accessor;
-# `convert` is the public way to use it. With only endpoint pairs, the map uses
-# one constant ratio and cannot represent rubato, fermatas, or other local
-# timing differences.
+# the coordinate getters are the public way to use it. With only endpoint
+# pairs, the map uses one constant ratio and cannot represent rubato,
+# fermatas, or other local timing differences.
 
 # %% [markdown]
 # ## Transferring one coordinate
@@ -224,30 +229,35 @@ group_frame
 
 # %% [markdown]
 # The two rows are the stored start and end pairs; the three-row batch above
-# contained requested positions, not three stored boundaries. Unlike the typed
-# scalar accessors, this table currently stores the tick columns as plain
-# floating-point numbers. The notebook leaves those library results unchanged
-# rather than manufacturing integer or rational values for display.
+# contained requested positions, not three stored boundaries. The tick columns
+# hold integers, because ticks are a {{< glossary Discrete >}} unit and a
+# column is re-expressed in its axis's declared type just as a scalar accessor
+# is. The columnar view and the scalar accessors agree; neither is a
+# lower-fidelity shortcut to the other.
 
 # %% [markdown]
 # ## The represented range
 #
-# `get_range` reports the part of one member represented in the group. Query
-# the loaded score to compare that range with its full extent.
+# `get_interval_for` reports the part of one member represented in the group.
+# Query the loaded score to compare that range with its full extent.
 
 # %%
-score_range = group.get_range(score.id)
+score_range = group.get_interval_for(score.id)
 range_view = {
     "reported range": score_range,
+    "range duration": score_range.duration,
     "timeline extent": retrieved_score.length,
 }
 range_view
 
 # %% [markdown]
-# The numeric range runs from zero to the same endpoint carried by the score's
-# unit-bearing `length`. `get_range` currently returns plain floats, including
-# for discrete ticks; the adjacent `Coordinate` shows the typed alternative
-# without repairing the range behind the reader's back.
+# The range runs from zero to the same endpoint carried by the score's
+# unit-bearing `length`. `get_interval_for` returns one {{< glossary Interval >}}
+# rather than a pair of numbers, so both endpoints keep the tick unit and the
+# integer representation a {{< glossary Discrete >}} axis requires, and the
+# span's own `duration` is available without subtracting anything by hand.
+# Asking for a member the group does not hold raises `KeyError`; absence is
+# reported, never returned as an empty value.
 
 # %% [markdown]
 # ## Locking a group
@@ -292,13 +302,17 @@ boundary_stamp = partial_group.get_timestamp_at(second_half_boundary, partial_sc
 between_stamp = partial_group.get_timestamp_at(between_pairs, partial_score.id)
 partial_checks = {
     "boundary score": boundary_stamp.get_coordinate(partial_score.id),
-    "boundary performance": partial_group.convert(
-        second_half_boundary, partial_score.id, second_half_recording.id
+    "boundary performance": partial_group.get_coordinate_at(
+        IdCoordinate(
+            second_half_boundary.value, second_half_boundary.unit, partial_score.id
+        ),
+        timeline_id=second_half_recording.id,
     ),
     "boundary is_interpolated": boundary_stamp.is_interpolated,
     "between-pairs score": between_stamp.get_coordinate(partial_score.id),
-    "between-pairs performance": partial_group.convert(
-        between_pairs, partial_score.id, second_half_recording.id
+    "between-pairs performance": partial_group.get_coordinate_at(
+        IdCoordinate(between_pairs.value, between_pairs.unit, partial_score.id),
+        timeline_id=second_half_recording.id,
     ),
     "between-pairs is_interpolated": between_stamp.is_interpolated,
 }

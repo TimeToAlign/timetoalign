@@ -83,9 +83,17 @@ measuring unit.
 :::
 
 A coordinate is the model's most basic quantity: a scalar value paired with a
-unit (e.g., 3.5 seconds, 480 ticks, 127 pixels). In the implementation,
-coordinates additionally carry a number type (integer, float, or fraction)
-to prevent silent rounding errors.
+unit (e.g., 3.5 seconds, 480 ticks, 127 pixels). In the implementation, the
+unit *determines* the number type rather than being declared beside it:
+`quarters` and `beats` are exact fractions, discrete units (`ticks`,
+`samples`, `frames`, `pixels`) are integers, and the remaining continuous
+units are floats. That is what prevents silent rounding errors. Nothing is
+quietly rounded to fit an axis: a value that cannot be expressed exactly on a
+discrete axis raises rather than being nudged to the nearest integer, and
+rounding happens only where a caller asks for it by name (`"round"`,
+`"floor"`, `"ceil"`, `"truncate"`). The declared number type then survives
+every boundary the value crosses, so a position read back from a fraction
+axis is a fraction however it was computed.
 
 ::: {.definition}
 ::: {.definition-header}

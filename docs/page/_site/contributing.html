@@ -478,6 +478,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="./reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="./reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="./reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -726,6 +738,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <div class="sidebar-item-container">
   <a href="./reference/SecondsToSamples.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SecondsToSamples</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="./reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
   </div>
 </li>
           <li class="sidebar-item">
@@ -1109,8 +1127,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>Pydantic-derived schemas + value projectors.</strong> Every scalar (<code>Coordinate</code>, <code>Duration</code>, <code>SpecificPitch</code>, <code>Note</code>, <code>Measure</code>, the pitch / harmony hierarchies, …) is a pydantic <code>BaseModel</code> subclass with <code>model_config = ConfigDict(frozen=True)</code>. The corresponding PyArrow <code>pa.StructType</code> is derived <strong>once at class-definition time</strong> via <code>derive_arrow_struct(model_cls)</code> (see <code>timetoalign/core/fields.py</code>). Computed pydantic fields are deliberately excluded from the derived struct. Individual fields may be denormalised or dropped via <code>register_value_projector(model_cls, field_name, projector)</code>: for example, <code>Coordinate.value</code> projects to <code>{value, numerator, denominator}</code> so rationals survive Parquet, and <code>Note.pitch</code> is dropped entirely so pitch lives in its own field (<code>midi_pitch</code> / <code>specific_pitch</code>) rather than as a sub-field of <code>Note</code>.</p>
 <p><strong>Union-of-<code>BaseModel</code> rejected.</strong> Distinct scalar types live in distinct PyArrow fields. The translator deliberately raises on <code>BaseModel | BaseModel</code> unions: storing them as PyArrow <code>dense_union</code> is forbidden because consumers (DuckDB, polars, pandas) cannot project the union arms cleanly. The required pattern is <strong>columnar separation</strong> — drop the polymorphic field with <code>register_value_projector(..., lambda *_: [])</code> and expose each scalar type in its own field.</p>
 <p><strong>Bulk construction path.</strong> The canonical bulk constructor is <code>StructArrayBuilder.from_model(model_cls).build(objects)</code>, with <code>build_struct_array(model_cls, objects)</code> as the public facade and <code>build_coordinate_struct_array</code> as the specialised facade for the rational denormalisation of <code>Coordinate</code> / <code>Duration</code>. The builder traverses each scalar once and accumulates per-field arrays. <strong>Never <code>model_dump</code> row-wise in production paths.</strong> The microbenchmark gate requires the store-builder to be ≥ 2× faster than row-wise <code>model_dump</code>; on <code>Coordinate</code> the observed ratio is ~5×, and the underlying load-bearing claim — vectorised <code>pa.compute</code> operations on a 1M-element field being ~150–210× faster than the equivalent per-object Python loop — is <em>the</em> justification for the columnar architecture as a whole.</p>
-<p><strong>Paired scalar + field convention.</strong> Every scalar <code>X</code> is followed in the same source file by its paired <code>XField(SemanticField[X])</code>. <code>core/time.py</code> cohabits the time scalars (<code>Coordinate</code>, <code>Duration</code>, <code>IdCoordinate</code>, <code>IdDuration</code>) and their paired fields under a single <code>TimeScalarField</code> parent that consolidates <code>from_field</code> / <code>from_table</code> / metadata plumbing; <code>core/events.py</code> cohabits pitch, harmony, <code>Note</code>, and <code>Measure</code> with their paired fields. Object + ObjectField is the unit of code organisation and must never be split across files.</p>
-<p><strong>Raw vs semantic DataField branch.</strong> <code>DataField</code> is the abstract base for field wrappers. Raw subclasses (<code>NumericField</code>, <code>StringField</code>, <code>StructField</code>, <code>MapField</code>, plus the struct-shaped numeric branch <code>NumberField</code> → <code>RationalField</code> → <code>DenominateNumberField</code>) wrap PyArrow data with type checks and accessors. <code>SemanticField[T]</code> is the strictly-typed bridge between a pydantic scalar <code>T</code> and a struct-shaped raw field; it pins the inner raw type via the <code>_raw_cls</code> ClassVar (default <code>StructField</code>, refined to <code>DenominateNumberField</code> by <code>TimeScalarField</code>).</p>
+<p><strong>Paired scalar + field convention.</strong> Every scalar <code>X</code> is followed in the same source file by its paired <code>XField(SemanticField[X])</code>. <code>core/time.py</code> cohabits the time scalars (<code>DenominateNumber</code>, <code>Coordinate</code>, <code>Duration</code>, <code>IdCoordinate</code>, <code>IdDuration</code>, <code>Interval</code>) and their paired fields under a single <code>TimeScalarField</code> parent that consolidates <code>from_field</code> / <code>from_table</code> / metadata plumbing; <code>core/events.py</code> cohabits pitch, harmony, <code>Note</code>, and <code>Measure</code> with their paired fields. Object + ObjectField is the unit of code organisation and must never be split across files. <code>DenominateNumber</code> is the unit-bearing number every time scalar is built on, and <code>Interval</code> is the half-open span two <code>Coordinate</code>s make; both follow the same rule, so <code>DenominateNumberField</code> and <code>IntervalField</code> sit immediately after them.</p>
+<p><strong>Raw vs semantic DataField branch.</strong> <code>DataField</code> is the abstract base for field wrappers. Raw subclasses (<code>NumericField</code>, <code>StringField</code>, <code>StructField</code>, <code>MapField</code>, plus the struct-shaped numeric branch <code>NumberField</code> → <code>RedundantNumberField</code> → <code>DenominateNumberField</code>) wrap PyArrow data with type checks and accessors. <code>SemanticField[T]</code> is the strictly-typed bridge between a pydantic scalar <code>T</code> and a struct-shaped raw field; it pins the inner raw type via the <code>_raw_cls</code> ClassVar (default <code>StructField</code>, refined to <code>DenominateNumberField</code> by <code>TimeScalarField</code>).</p>
 <p><strong>Two-step typing/grouping algorithm.</strong> <code>FlowController</code> converts raw <code>MeasureUnit</code>s into typed measures and groups via two passes:</p>
 <ol type="1">
 <li><strong>Typing step.</strong> Each <code>MeasureUnit</code> is classified as <code>IncompleteMeasure</code> / <code>CompleteMeasure</code> / <code>OverlengthMeasure</code> by comparing its actual duration to the expected time-signature duration, with local context (first/last measure) refining the incomplete position.</li>

@@ -50,6 +50,8 @@
 # ## Setup
 
 # %%
+import warnings
+
 from timetoalign import MatchfileLoader
 from timetoalign.alignment import MatchGraph
 from timetoalign.testdata import ensure_data
@@ -76,7 +78,17 @@ len(match_files)
 
 # %%
 loader = MatchfileLoader()
-loader.load(*match_files)
+# partitura warns on the corpus's composite quarter durations, which it cannot
+# express symbolically. That is a note from the score parser about its own
+# symbolic-duration vocabulary, not a rejected file, so it is silenced here.
+with warnings.catch_warnings():
+    warnings.filterwarnings(
+        "ignore",
+        message=r"Quarter duration .*",
+        category=UserWarning,
+        module=r"partitura\.utils\.music",
+    )
+    loader.load(*match_files)
 loader
 
 # %% [markdown]

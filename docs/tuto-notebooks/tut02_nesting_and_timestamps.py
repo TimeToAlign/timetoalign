@@ -33,7 +33,7 @@
 # %%
 from fractions import Fraction
 
-from timetoalign import TimeIntervalStamp, TimeStamp, TimeUnit
+from timetoalign import IdCoordinate, TimeIntervalStamp, TimeStamp, TimeUnit
 from timetoalign.maps import TicksToQuarters
 from timetoalign.timelines import ContinuousLogicalTimeline
 
@@ -136,12 +136,11 @@ appended_child_view
 
 # %%
 movement_position = movement.make_coordinate(Fraction(5, 2))
-piece_position = piece.get_coordinate(
-    movement_position.value,
-    timeline_id="movement",
+piece_position = piece.get_coordinate_at(
+    IdCoordinate(movement_position.value, movement.unit, movement.id)
 )
 returned_value = piece_position.value - movement_offset.value
-returned_position = movement.get_coordinate(returned_value)
+returned_position = movement.get_coordinate_at(returned_value, format="coordinate")
 coordinate_round_trip = {
     "movement to piece": piece_position,
     "piece back to movement": returned_position,
@@ -152,7 +151,11 @@ coordinate_round_trip
 # %% [markdown]
 # The local position gains three quarters on the way to the piece and loses
 # exactly three on the way back. The final `True` proves that this transfer is
-# exact offset arithmetic.
+# exact offset arithmetic. Note the two return types: naming the source with an
+# `IdCoordinate` gets you an `IdCoordinate` back, tagged with the axis the
+# answer is on, while `format="coordinate"` asks for the same value with the
+# timeline identity dropped — which is what makes it comparable to the plain
+# coordinate we started from.
 
 # %% [markdown]
 # ## Many children at once
@@ -211,14 +214,13 @@ print(shallow_shape)
 
 # %%
 phrase_position = development.make_coordinate(Fraction(3, 2))
-root_position = piece.get_coordinate(
-    phrase_position.value,
-    timeline_id="development",
+root_position = piece.get_coordinate_at(
+    IdCoordinate(phrase_position.value, development.unit, development.id)
 )
 movement_again_value = root_position.value - movement_offset.value
-movement_again = movement.get_coordinate(movement_again_value)
+movement_again = movement.get_coordinate_at(movement_again_value)
 phrase_again_value = movement_again.value - development_offset.value
-phrase_again = development.get_coordinate(phrase_again_value)
+phrase_again = development.get_coordinate_at(phrase_again_value, format="coordinate")
 grandchild_round_trip = {
     "development to piece": root_position,
     "piece back to development": phrase_again,
@@ -306,26 +308,30 @@ region_view
 timestamp = piece.get_timestamp(root_position)
 is_timestamp = isinstance(timestamp, TimeStamp)
 present_timeline_ids = timestamp.present_timelines
-movement_value = timestamp.get("movement")
-movement_coordinate_from_stamp = timestamp.get_coordinate("movement")
-phrase_coordinate_from_stamp = timestamp.get_coordinate("development")
+movement_number = timestamp.get_coordinate_for("movement", format="float")
+movement_coordinate_from_stamp = timestamp.get_coordinate_for("movement")
+phrase_coordinate_from_stamp = timestamp.get_coordinate_for("development")
 timestamp_view = {
     "is TimeStamp": is_timestamp,
     "present timelines": present_timeline_ids,
-    "get('movement')": movement_value,
-    "get(...) result type": type(movement_value).__name__,
-    "get_coordinate('movement')": movement_coordinate_from_stamp,
-    "get_coordinate('development')": phrase_coordinate_from_stamp,
+    "format='float'": movement_number,
+    "float result type": type(movement_number).__name__,
+    "default for 'movement'": movement_coordinate_from_stamp,
+    "default for 'development'": phrase_coordinate_from_stamp,
     "coordinate value type": type(phrase_coordinate_from_stamp.value).__name__,
 }
 timestamp_view
 
 # %% [markdown]
-# These accessors have different scopes and return types. `present_timelines`
-# lists the source and active direct child, while `get_coordinate` can traverse
-# farther to the active grandchild. Raw `get` returns the float `5.5`; the typed
-# accessor returns a `Coordinate` with an exact `Fraction` value and its unit.
-# This is the first of three point-stamp types introduced across the series.
+# `present_timelines` lists every timeline the stamp holds a coordinate for —
+# the piece, the active movement, and the active grandchild phrase. One
+# retrieval method serves them all, and `format=` decides what comes back:
+# `format="float"` gives the bare number `5.5`, while the default returns an
+# `IdCoordinate` carrying the exact `Fraction`, the unit, and the timeline the
+# value belongs to. Neither is more true than the other; asking for a bare
+# number is a request you make explicitly rather than a second lane the stamp
+# keeps open. This is the first of three point-stamp types introduced across
+# the series.
 
 # %% [markdown]
 # ## Reversing a conversion map
@@ -356,20 +362,24 @@ conversion_direction
 # its source hierarchy and resolves available maps when an accessor is called.
 
 # %%
-ticks_from_method = timestamp.get_unit(TimeUnit.ticks)
-ticks_from_subscript = timestamp["ticks"]
+ticks_typed = timestamp.get_unit(TimeUnit.ticks)
+ticks_number = timestamp.get_unit(TimeUnit.ticks, format="int")
 tick_view = {
-    "get_unit(TimeUnit.ticks)": ticks_from_method,
-    "timestamp['ticks']": ticks_from_subscript,
-    "result type": type(ticks_from_method).__name__,
+    "get_unit(TimeUnit.ticks)": ticks_typed,
+    "get_unit(TimeUnit.ticks, format='int')": ticks_number,
+    "typed result type": type(ticks_typed).__name__,
+    "int result type": type(ticks_number).__name__,
 }
 tick_view
 
 # %% [markdown]
-# Both access paths find the newly attached map even though `timestamp` already
-# existed. These stamp accessors deliberately return the integer scalar `4080`
-# for the discrete tick unit; the requested unit remains explicit in the
-# accessor and the output labels.
+# The stamp finds the newly attached map even though `timestamp` already
+# existed. `get_unit` reads the same converted position twice over: by default
+# as an `IdCoordinate` that keeps the unit and the timeline it converted from,
+# and under `format="int"` as the bare `4080`. Ticks are a discrete unit, so
+# both spellings are integral — the conversion is expressed as an `int`
+# because the tick axis is locked to one, not because a float was rounded on
+# the way out.
 
 # %% [markdown]
 # ## A span instead of a point
@@ -383,24 +393,30 @@ interval_start = piece.make_coordinate(Fraction(8))
 interval_end = piece.make_coordinate(Fraction(9))
 interval_stamp = piece.get_interval_stamp(interval_start, interval_end)
 is_interval_stamp = isinstance(interval_stamp, TimeIntervalStamp)
-development_interval_values = interval_stamp["development"]
-development_interval_types = tuple(
-    type(value).__name__ for value in development_interval_values
+development_interval = interval_stamp.get_interval("development")
+development_endpoint_types = (
+    type(development_interval.start.value).__name__,
+    type(development_interval.end.value).__name__,
 )
 interval_view = {
     "is TimeIntervalStamp": is_interval_stamp,
     "start on piece": interval_start,
     "end on piece": interval_end,
-    "interval_stamp['development']": development_interval_values,
-    "endpoint value types": development_interval_types,
+    "get_interval('development')": development_interval,
+    "printed form": str(development_interval),
+    "phrase-local duration": development_interval.duration,
+    "endpoint value types": development_endpoint_types,
 }
 interval_view
 
 # %% [markdown]
-# The result holds a start stamp and an end stamp from the same hierarchy. Its
-# subscript view reports the two phrase-local positions as the raw float pair
-# `(1.0, 2.0)`; it does not claim exact rational coordinates. The exact
-# `Coordinate` objects shown here are the original endpoints on the piece.
+# The result holds a start stamp and an end stamp from the same hierarchy, and
+# `get_interval` hands back the phrase-local span as one `Interval` scalar
+# rather than a pair of loose numbers. Its endpoints are exact `Fraction`s
+# because the phrase measures quarters. Printed, the same interval reads
+# `[1, 2) quarters`, which states the convention the model uses throughout:
+# the start is inclusive, the end exclusive. `duration` is that span's own
+# length, `end - start`, and it arrives as a unit-bearing `Duration`.
 
 # %% [markdown]
 # ## What you learned
@@ -415,10 +431,11 @@ interval_view
 # - You can resolve a grandchild coordinate to the root and invert the path.
 # - You can recognize a segment line, find its child at a position, and slice it.
 # - You can choose regions for names on the current axis and children for local axes.
-# - You can distinguish a timestamp's raw and typed coordinate accessors.
+# - You can choose between a timestamp's typed coordinate and a bare number
+#   with `format=`.
 # - You can reverse a conversion map to obtain the direction a timeline needs.
 # - You can read a newly attached unit conversion from an existing timestamp.
-# - You can inspect a span across nested levels without disguising raw float values.
+# - You can read a span across nested levels as one unit-bearing `Interval`.
 
 # %% [markdown]
 # ## Next

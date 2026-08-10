@@ -182,10 +182,9 @@ loaded_score_preview
 
 # %%
 group = TimelineGroup(id="quickstart", timelines=[audio, score])
-score_coordinate = group.convert(
+score_coordinate = group.get_coordinate_at(
     timestamp_coordinates["audio parent"],
-    source=audio.id,
-    target=score.id,
+    timeline_id=score.id,
 )
 coordinate_pair = {
     "audio": timestamp_coordinates["audio parent"],

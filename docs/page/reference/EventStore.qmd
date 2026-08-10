@@ -180,26 +180,43 @@ EventStore.summary()
 
 Get a summary of the store contents.
 
-Returns a dictionary mapping table/data names to summary information:
-- unit: The time unit of the data
-- range: Tuple of (min_coord, max_coord) for events
-- count: Number of events in the table
+The summary contract separates per-table data from store-level facts::
 
-Subclasses may override to provide additional domain-specific
-information (e.g., event type breakdown, has_rests for ScoreStore).
+    {
+        "tables": {
+            table_name: {
+                "unit": str,
+                "count": int,
+                "range": (float, float),
+            }
+        },
+        "facts": {fact_name: fact_value},
+    }
+
+Subclasses may extend ``facts`` with domain-specific information, but
+must preserve this two-key structure and the exact table entry shape.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                | Description                                |
-|--------|-----------------------------------------------------|--------------------------------------------|
-|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict mapping table names to summary dicts. |
+| Name   | Type                                                | Description                                                |
+|--------|-----------------------------------------------------|------------------------------------------------------------|
+|        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | A dictionary containing ``tables`` and ``facts`` mappings. |
 
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
 >>> store = SomeStore(...)
 >>> store.summary()
-{"notes": {"unit": "quarters", "range": (0.0, 120.5), "count": 498}}
+{
+    "tables": {
+        "notes": {
+            "unit": "quarters",
+            "count": 498,
+            "range": (0.0, 120.5),
+        }
+    },
+    "facts": {},
+}
 ```
 
 ### values { #timetoalign.EventStore.values }

@@ -13,10 +13,12 @@ Aliases are provided for common abbreviations.
 
 | Name | Description |
 | --- | --- |
+| [allowed_number_types](#timetoalign.TimeUnit.allowed_number_types) | The numeric representations this unit accepts. |
 | [b](#timetoalign.TimeUnit.b) | beats |
 | [beats](#timetoalign.TimeUnit.beats) | beats |
 | [centimeters](#timetoalign.TimeUnit.centimeters) | centimeters |
 | [cm](#timetoalign.TimeUnit.cm) | centimeters |
+| [default_number_type](#timetoalign.TimeUnit.default_number_type) | The numeric representation this unit uses unless told otherwise. |
 | [divs](#timetoalign.TimeUnit.divs) | ticks (MIDI's time unit) |
 | [domain](#timetoalign.TimeUnit.domain) | Return the domain this unit belongs to. |
 | [floating_measures](#timetoalign.TimeUnit.floating_measures) | measures |
@@ -41,3 +43,35 @@ Aliases are provided for common abbreviations.
 | [samples](#timetoalign.TimeUnit.samples) | samples |
 | [seconds](#timetoalign.TimeUnit.seconds) | seconds |
 | [ticks](#timetoalign.TimeUnit.ticks) | ticks (MIDI's time unit) |
+
+## Methods
+
+| Name | Description |
+| --- | --- |
+| [resolve_number_type](#timetoalign.TimeUnit.resolve_number_type) | Return the numeric representation to use for this unit. |
+
+### resolve_number_type { #timetoalign.TimeUnit.resolve_number_type }
+
+```python
+TimeUnit.resolve_number_type(requested=None)
+```
+
+Return the numeric representation to use for this unit.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name      | Type                                                                      | Description                                                          | Default   |
+|-----------|---------------------------------------------------------------------------|----------------------------------------------------------------------|-----------|
+| requested | [NumberType](`timetoalign.core.enums.NumberType`) \| [str](`str`) \| None | An explicit choice, or ``None`` to take :attr:`default_number_type`. | `None`    |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                              | Description                       |
+|--------|---------------------------------------------------|-----------------------------------|
+|        | [NumberType](`timetoalign.core.enums.NumberType`) | The resolved :class:`NumberType`. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                               |
+|--------|----------------------------|-----------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If *requested* is not among :attr:`allowed_number_types`. |

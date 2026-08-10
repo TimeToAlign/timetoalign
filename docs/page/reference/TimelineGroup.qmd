@@ -61,7 +61,7 @@ Like Timeline, a Group can be locked to prevent extension.
 ```python
 >>> # Convert coordinates via timestamp lookup
 >>> ts = group.get_timestamp_at(75.0, "audio:1")
->>> ts["dgt1:1"]  # -> 2437.5
+>>> ts.get_coordinate_for("dgt1:1", format="float")  # -> 2437.5
 ```
 
 ## Methods
@@ -70,10 +70,14 @@ Like Timeline, a Group can be locked to prevent extension.
 | --- | --- |
 | [add_timeline](#timetoalign.timelines.TimelineGroup.add_timeline) | Add a timeline (or Child) to the group. |
 | [apply_flow](#timetoalign.timelines.TimelineGroup.apply_flow) | Unfold ALL timelines in this group via a single flow. |
-| [convert](#timetoalign.timelines.TimelineGroup.convert) | Convert a coordinate from one timeline to another. |
 | [diagram](#timetoalign.timelines.TimelineGroup.diagram) | Generate ASCII diagram for this group. |
+| [get_coordinate](#timetoalign.timelines.TimelineGroup.get_coordinate) | Dispatch a positional or event-key group coordinate query. |
+| [get_coordinate_at](#timetoalign.timelines.TimelineGroup.get_coordinate_at) | Resolve one coordinate on a selected group member axis. |
+| [get_coordinate_for](#timetoalign.timelines.TimelineGroup.get_coordinate_for) | Return a uniquely owned event's start on a selected member axis. |
+| [get_coordinates_at](#timetoalign.timelines.TimelineGroup.get_coordinates_at) | Resolve a collection of coordinates on one group member axis. |
+| [get_coordinates_for](#timetoalign.timelines.TimelineGroup.get_coordinates_for) | Return event-start coordinates for a key collection. |
 | [get_events](#timetoalign.timelines.TimelineGroup.get_events) | Get events from all timelines in the group, concatenated. |
-| [get_range](#timetoalign.timelines.TimelineGroup.get_range) | Get the coordinate range for a timeline in the group. |
+| [get_interval_for](#timetoalign.timelines.TimelineGroup.get_interval_for) | Return a member's stored coordinate extent as a typed interval. |
 | [get_timeline](#timetoalign.timelines.TimelineGroup.get_timeline) | Get a timeline by ID. |
 | [get_timestamp_at](#timetoalign.timelines.TimelineGroup.get_timestamp_at) | Get a TimeStamp at a specific coordinate. |
 | [get_timestamp_at_index](#timetoalign.timelines.TimelineGroup.get_timestamp_at_index) | Get a specific timestamp by index. |
@@ -225,53 +229,6 @@ Regions carry the same per-section names as the single-timeline path
 >>> unfolded = score_group.apply_flow(flow, controller, "clt1")
 ```
 
-### convert { #timetoalign.timelines.TimelineGroup.convert }
-
-```python
-timelines.TimelineGroup.convert(
-    coordinate,
-    source,
-    target,
-    *,
-    relative_to='group',
-)
-```
-
-Convert a coordinate from one timeline to another.
-
-This is a convenience method that gets the timestamp at the source
-coordinate and returns the target timeline's coordinate from it.
-
-#### Parameters {.doc-section .doc-section-parameters}
-
-| Name        | Type                                                   | Description                                                                                                                                                                                                          | Default    |
-|-------------|--------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| coordinate  | [CoordinateSpec](`timetoalign.core.CoordinateSpec`)    | The coordinate value to convert. Accepts a raw int/float/Fraction, a Coordinate, or an IdCoordinate. A unit-qualified coordinate is resolved by the source timeline, and an IdCoordinate must agree with ``source``. | _required_ |
-| source      | [str](`str`)                                           | Source timeline ID.                                                                                                                                                                                                  | _required_ |
-| target      | [str](`str`)                                           | Target timeline ID.                                                                                                                                                                                                  | _required_ |
-| relative_to | [Literal](`typing.Literal`)\[\'group\', \'original\'\] | "group" - coordinate is relative to timeline's 0-origin IN THIS GROUP "original" - coordinate is relative to timeline's ORIGINAL origin                                                                              | `'group'`  |
-
-#### Returns {.doc-section .doc-section-returns}
-
-| Name   | Type                     | Description                                                 |
-|--------|--------------------------|-------------------------------------------------------------|
-|        | [float](`float`) \| None | The converted coordinate, or None if target timeline is not |
-|        | [float](`float`) \| None | present at this coordinate.                                 |
-
-#### Raises {.doc-section .doc-section-raises}
-
-| Name   | Type                       | Description                                           |
-|--------|----------------------------|-------------------------------------------------------|
-|        | [KeyError](`KeyError`)     | If source or target timeline is not in the group.     |
-|        | [ValueError](`ValueError`) | If coordinate is outside the source timeline's range. |
-
-#### Examples {.doc-section .doc-section-examples}
-
-```python
->>> group.convert(75.0, source="audio:1", target="dgt1:1")
-2437.5
-```
-
 ### diagram { #timetoalign.timelines.TimelineGroup.diagram }
 
 ```python
@@ -322,6 +279,151 @@ TimelineGroup[my_group] (2 timelines, 2 timestamps)
 Timestamps: 2
 ```
 
+### get_coordinate { #timetoalign.timelines.TimelineGroup.get_coordinate }
+
+```python
+timelines.TimelineGroup.get_coordinate(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Dispatch a positional or event-key group coordinate query.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                                                                                                                                                                        | Description                                        | Default           |
+|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) \| [str](`str`) \| [KeyCollection](`timetoalign.core.retrieval.KeyCollection`) | Scalar or plural coordinate position or event key. | _required_        |
+| timeline_id | [str](`str`) \| None                                                                                                                                                                                                        | Requested result member when required.             | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)                                                                                                                                                           | Requested coordinate output format.                | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                                                                                                                                                                           | Integral projection mode.                          | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                                                                                                 | Description                         |
+|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | The selected precise-getter result. |
+
+### get_coordinate_at { #timetoalign.timelines.TimelineGroup.get_coordinate_at }
+
+```python
+timelines.TimelineGroup.get_coordinate_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve one coordinate on a selected group member axis.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                                 | Default           |
+|-------------|-------------------------------------------------------------------|---------------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`)   | Raw, plain, or ID-bearing coordinate input. | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Requested result member.                    | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.         | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                   | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                          | Description                                       |
+|--------|---------------------------------------------------------------------------------------------------------------|---------------------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | One coordinate projection or a length-one Series. |
+
+### get_coordinate_for { #timetoalign.timelines.TimelineGroup.get_coordinate_for }
+
+```python
+timelines.TimelineGroup.get_coordinate_for(
+    key,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Return a uniquely owned event's start on a selected member axis.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                                       | Default           |
+|-------------|-------------------------------------------------------------------|---------------------------------------------------|-------------------|
+| key         | [str](`str`)                                                      | Event ID with exactly one owner in the group.     | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Requested result member, or the owner by default. | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.               | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                         | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                          | Description                                        |
+|--------|---------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | One event-start projection or a length-one Series. |
+
+### get_coordinates_at { #timetoalign.timelines.TimelineGroup.get_coordinates_at }
+
+```python
+timelines.TimelineGroup.get_coordinates_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve a collection of coordinates on one group member axis.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                      | Description                                 | Default           |
+|-------------|---------------------------------------------------------------------------|---------------------------------------------|-------------------|
+| at          | [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) | Coordinate positions to resolve atomically. | _required_        |
+| timeline_id | [str](`str`) \| None                                                      | Requested result member.                    | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)         | Requested coordinate output format.         | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                         | Integral projection mode.                   | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | A list of projections or canonical-value Series. |
+
+### get_coordinates_for { #timetoalign.timelines.TimelineGroup.get_coordinates_for }
+
+```python
+timelines.TimelineGroup.get_coordinates_for(
+    keys,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Return event-start coordinates for a key collection.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                                        | Default           |
+|-------------|-------------------------------------------------------------------|----------------------------------------------------|-------------------|
+| keys        | [KeyCollection](`timetoalign.core.retrieval.KeyCollection`)       | Event IDs to resolve atomically.                   | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Requested result member, or each owner by default. | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.                | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                          | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | A list of projections or canonical-value Series. |
+
 ### get_events { #timetoalign.timelines.TimelineGroup.get_events }
 
 ```python
@@ -369,26 +471,25 @@ concatenates their Arrow tables into a single EventData. Each row includes a
 ... ).to_dataframe()
 ```
 
-### get_range { #timetoalign.timelines.TimelineGroup.get_range }
+### get_interval_for { #timetoalign.timelines.TimelineGroup.get_interval_for }
 
 ```python
-timelines.TimelineGroup.get_range(timeline_id, relative_to='group')
+timelines.TimelineGroup.get_interval_for(timeline_id)
 ```
 
-Get the coordinate range for a timeline in the group.
+Return a member's stored coordinate extent as a typed interval.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type                                                   | Description                       | Default    |
-|-------------|--------------------------------------------------------|-----------------------------------|------------|
-| timeline_id | [str](`str`)                                           | The timeline to query.            | _required_ |
-| relative_to | [Literal](`typing.Literal`)\[\'group\', \'original\'\] | Coordinate system for the result. | `'group'`  |
+| Name        | Type         | Description            | Default    |
+|-------------|--------------|------------------------|------------|
+| timeline_id | [str](`str`) | The timeline to query. | _required_ |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                           | Description                                           |
-|--------|----------------------------------------------------------------|-------------------------------------------------------|
-|        | [tuple](`tuple`)\[[float](`float`), [float](`float`)\] \| None | (start, end) tuple, or None if timeline not in group. |
+| Name   | Type                                    | Description                                                |
+|--------|-----------------------------------------|------------------------------------------------------------|
+|        | [Interval](`timetoalign.core.Interval`) | The minimum-to-maximum stored interval on the member axis. |
 
 ### get_timeline { #timetoalign.timelines.TimelineGroup.get_timeline }
 
@@ -455,15 +556,15 @@ Returns a proper TimeStamp object (same as Timeline.get_timestamp).
 | coordinate      | [CoordinateSpec](`timetoalign.core.CoordinateSpec`)                   | The query coordinate. Can be: - int/float/Fraction: Raw value, timeline_id required - Coordinate: Value with unit, timeline_id required - IdCoordinate: Value with unit AND timeline_id (timeline_id param optional)                                                                                                          | _required_ |
 | timeline_id     | [str](`str`) \| None                                                  | Which timeline the coordinate refers to. Required unless coordinate is an IdCoordinate.                                                                                                                                                                                                                                       | `None`     |
 | relative_to     | [Literal](`typing.Literal`)\[\'group\', \'original\'\]                | "group" - coordinate is relative to timeline's 0-origin IN THIS GROUP          (default; e.g., "3 seconds into this group") "original" - coordinate is relative to timeline's ORIGINAL origin             (e.g., "50 seconds in the original timeline")             NOTE: Currently not implemented, reserved for future use. | `'group'`  |
-| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | Whether to include C-Map values in timestamp. - True (default): C-Maps accessible via ts.get_unit() and ts["unit_name"] - False/None: Only timeline coordinates                                                                                                                                                               | `True`     |
+| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | Whether to include C-Map values in timestamp. - True (default): C-Maps accessible through typed getters. - False/None: Only timeline coordinates                                                                                                                                                                              | `True`     |
 
 #### Returns {.doc-section .doc-section-returns}
 
 | Name   | Type                                                | Description                                                          |
 |--------|-----------------------------------------------------|----------------------------------------------------------------------|
 |        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | TimeStamp with axis set to the input coordinate and source_id set to |
-|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | the timeline. Access other timelines via ts["other_id"] or ts.get(). |
-|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | Access C-Maps via ts.get_unit() or ts["unit_name"].                  |
+|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | the timeline. Access other timelines via `get_coordinate_for()`.     |
+|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | Access C-Maps via `get_unit()` or `get_conversion_for()`.            |
 
 #### Raises {.doc-section .doc-section-raises}
 
@@ -476,13 +577,24 @@ Returns a proper TimeStamp object (same as Timeline.get_timestamp).
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
+>>> from timetoalign.timelines import TimelineGroup
+>>> from timetoalign.timelines.types import (
+...     ContinuousPhysicalTimeline,
+...     DiscreteGraphicalTimeline,
+... )
+>>> dgt1 = DiscreteGraphicalTimeline(length=4875, unit="pixels", uid="dgt1:1")
+>>> audio = ContinuousPhysicalTimeline(length=150.0, unit="seconds", uid="audio:1")
+>>> group = TimelineGroup(id="my_group", timelines=[dgt1, audio])
+```
+
+```python
 >>> ts = group.get_timestamp_at(75.0, "audio:1")
 >>> ts.axis
-75.0
->>> ts["dgt1:1"]
-2437.5
+IdCoordinate(75.0, seconds, 'audio:1')
+>>> ts.get_coordinate_for("dgt1:1", format="float")
+2438.0
 >>> ts.get_unit(TimeUnit.seconds)  # C-Map conversion
-75.0
+IdCoordinate(75.0, seconds, 'audio:1')
 ```
 
 ```python
@@ -490,7 +602,7 @@ Returns a proper TimeStamp object (same as Timeline.get_timestamp).
 >>> coord = IdCoordinate(75.0, TimeUnit.seconds, "audio:1")
 >>> ts = group.get_timestamp_at(coord)
 >>> ts.axis
-75.0
+IdCoordinate(75.0, seconds, 'audio:1')
 ```
 
 ### get_timestamp_at_index { #timetoalign.timelines.TimelineGroup.get_timestamp_at_index }
@@ -538,10 +650,10 @@ the corresponding TimeStamp (same structure as Timeline.get_timestamp).
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                | Description                                                   |
-|--------|-----------------------------------------------------|---------------------------------------------------------------|
-|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | TimeStamp at the event's coordinate, with access to all       |
-|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | timelines via ts["timeline_id"] and C-Maps via ts.get_unit(). |
+| Name   | Type                                                | Description                                                       |
+|--------|-----------------------------------------------------|-------------------------------------------------------------------|
+|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | TimeStamp at the event's coordinate, with access to all           |
+|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | timelines via `get_coordinate_for()` and C-Maps via `get_unit()`. |
 
 #### Raises {.doc-section .doc-section-raises}
 
@@ -552,11 +664,19 @@ the corresponding TimeStamp (same structure as Timeline.get_timestamp).
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
+>>> from timetoalign.timelines import TimelineGroup
+>>> from timetoalign.timelines.types import ContinuousPhysicalTimeline
+>>> audio = ContinuousPhysicalTimeline(length=150.0, unit="seconds", uid="audio")
+>>> audio.add_events([{"event_type": "Note", "instant": 45.5}])
+>>> group = TimelineGroup(id="my_group", timelines=[audio])
+```
+
+```python
 >>> ts = group.get_timestamp_of("note:000001")
->>> ts["audio"]  # Get coordinate on audio timeline
+>>> ts.get_coordinate_for("audio", format="float")
 45.5
 >>> ts.get_unit(TimeUnit.seconds)  # C-Map conversion
-45.5
+IdCoordinate(45.5, seconds, 'audio')
 ```
 
 ### get_timestamp_table { #timetoalign.timelines.TimelineGroup.get_timestamp_table }

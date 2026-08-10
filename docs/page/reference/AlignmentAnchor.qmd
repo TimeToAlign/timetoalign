@@ -33,7 +33,7 @@ Non-synchronous claims (conceptual matches, NOMATCH) have no anchors.
 ...     coordinate_b=Coordinate(45.5, TimeUnit.seconds),
 ... )
 >>> anchor.get_coordinate_for("score:1")
-Coordinate(100.0, quarters)
+IdCoordinate(Fraction(100, 1), quarters, 'score:1')
 ```
 
 ## Methods
@@ -98,22 +98,35 @@ Deserialize from dictionary.
 ### get_coordinate_for { #timetoalign.alignment.AlignmentAnchor.get_coordinate_for }
 
 ```python
-alignment.AlignmentAnchor.get_coordinate_for(timeline_id)
+alignment.AlignmentAnchor.get_coordinate_for(
+    timeline_id,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
 ```
 
 Get the coordinate for a specific timeline.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type         | Description                         | Default    |
-|-------------|--------------|-------------------------------------|------------|
-| timeline_id | [str](`str`) | The timeline to get coordinate for. | _required_ |
+| Name        | Type                                                              | Description                         | Default           |
+|-------------|-------------------------------------------------------------------|-------------------------------------|-------------------|
+| timeline_id | [str](`str`)                                                      | The timeline to get coordinate for. | _required_        |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format. | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.           | `'round'`         |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                | Description                                             |
-|--------|-----------------------------------------------------|---------------------------------------------------------|
-|        | [Coordinate](`timetoalign.core.Coordinate`) \| None | The coordinate, or None if timeline not in this anchor. |
+| Name   | Type                                                                                                          | Description                          |
+|--------|---------------------------------------------------------------------------------------------------------------|--------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | The requested coordinate projection. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                                 |
+|--------|------------------------|---------------------------------------------|
+|        | [KeyError](`KeyError`) | If the timeline is not part of this anchor. |
 
 ### to_dict { #timetoalign.alignment.AlignmentAnchor.to_dict }
 

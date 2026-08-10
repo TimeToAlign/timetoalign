@@ -12,6 +12,8 @@ Fundamental types for coordinates, units, domains, and cross-section timestamps.
 | [CoordinateSpec](CoordinateSpec.qmd#timetoalign.CoordinateSpec) |  |
 | [CoordinateValue](CoordinateValue.qmd#timetoalign.CoordinateValue) |  |
 | [IdCoordinate](IdCoordinate.qmd#timetoalign.IdCoordinate) | A ``Coordinate`` that carries the ID of the timeline it belongs to. |
+| [Interval](Interval.qmd#timetoalign.Interval) | A non-decreasing interval between two plain coordinates. |
+| [IntervalField](IntervalField.qmd#timetoalign.IntervalField) | Semantic field storing intervals with shared axis metadata. |
 | [OptionalCoordinate](OptionalCoordinate.qmd#timetoalign.OptionalCoordinate) |  |
 | [ResolvedCoordinate](ResolvedCoordinate.qmd#timetoalign.ResolvedCoordinate) | Decomposed form of a CoordinateSpec input. |
 | [resolve_coordinate_spec](resolve_coordinate_spec.qmd#timetoalign.resolve_coordinate_spec) | Decompose a coordinate specification without converting its unit. |
@@ -24,7 +26,7 @@ Fundamental types for coordinates, units, domains, and cross-section timestamps.
 | [ScopedId](ScopedId.qmd#timetoalign.ScopedId) | An identifier with a scope prefix and local part. |
 | [IdGenerator](IdGenerator.qmd#timetoalign.IdGenerator) | Generates unique IDs within a given scope. |
 | [TimeStamp](TimeStamp.qmd#timetoalign.TimeStamp) | A synchronized instant across a timeline hierarchy. |
-| [TimeIntervalStamp](TimeIntervalStamp.qmd#timetoalign.TimeIntervalStamp) | An interval defined by start and end TimeStamps. |
+| [TimeIntervalStamp](TimeIntervalStamp.qmd#timetoalign.TimeIntervalStamp) | A synchronized collection of canonical typed timeline intervals. |
 | [GroupTimestamp](GroupTimestamp.qmd#timetoalign.timelines.GroupTimestamp) | A synchronized instant across all timelines in a group. |
 
 ## Timelines
@@ -139,7 +141,7 @@ Data ingestion from various file formats.
 | [MeasureMapLoader](MeasureMapLoader.qmd#timetoalign.loader.score.MeasureMapLoader) | Load MeasureMap JSON files into ScoreStore. |
 | [MidiLoader](MidiLoader.qmd#timetoalign.loader.midi.MidiLoader) | Abstract base class for MIDI loaders. |
 | [PerformanceMidiLoader](PerformanceMidiLoader.qmd#timetoalign.loader.midi.performance.PerformanceMidiLoader) | Load performance MIDI files using mido. |
-| [ScoreMidiLoader](ScoreMidiLoader.qmd#timetoalign.loader.midi.score.ScoreMidiLoader) | Load score MIDI files using partitura. |
+| [ScoreMidiLoader](ScoreMidiLoader.qmd#timetoalign.loader.midi.score.ScoreMidiLoader) | Load score MIDI files using partitura or a mido fast path. |
 | [GraphicalLoader](GraphicalLoader.qmd#timetoalign.loader.graphical.GraphicalLoader) | Factory for building GraphicalStore objects. |
 | [IIIFManifestLoader](IIIFManifestLoader.qmd#timetoalign.loader.graphical.IIIFManifestLoader) | Load image metadata from IIIF Presentation API manifests. |
 | [ATONLoader](ATONLoader.qmd#timetoalign.loader.graphical.aton.ATONLoader) | Load ATON format files (piano roll analysis data). |

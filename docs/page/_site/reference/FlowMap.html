@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -864,23 +882,34 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
   <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   </ul></li>
-  <li><a href="#timetoalign.timelines.FlowMap.from_qb_sections" id="toc-timetoalign.timelines.FlowMap.from_qb_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.from_qb_sections">from_qb_sections</a>
+  <li><a href="#timetoalign.timelines.FlowMap.from_dict" id="toc-timetoalign.timelines.FlowMap.from_dict" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.from_dict">from_dict</a>
   <ul class="collapse">
   <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
   <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
   <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
+  <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.FlowMap.from_qb_sections" id="toc-timetoalign.timelines.FlowMap.from_qb_sections" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.from_qb_sections">from_qb_sections</a>
+  <ul class="collapse">
+  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  <li><a href="#raises-2" id="toc-raises-2" class="nav-link" data-scroll-target="#raises-2">Raises</a></li>
   <li><a href="#see-also" id="toc-see-also" class="nav-link" data-scroll-target="#see-also">See Also</a></li>
   </ul></li>
   <li><a href="#timetoalign.timelines.FlowMap.inverse" id="toc-timetoalign.timelines.FlowMap.inverse" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.inverse">inverse</a>
   <ul class="collapse">
   <li><a href="#note" id="toc-note" class="nav-link" data-scroll-target="#note">Note</a></li>
-  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.timelines.FlowMap.iter_gaps" id="toc-timetoalign.timelines.FlowMap.iter_gaps" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.iter_gaps">iter_gaps</a>
+  <ul class="collapse">
+  <li><a href="#returns-4" id="toc-returns-4" class="nav-link" data-scroll-target="#returns-4">Returns</a></li>
   </ul></li>
   <li><a href="#timetoalign.timelines.FlowMap.unfold_coordinate" id="toc-timetoalign.timelines.FlowMap.unfold_coordinate" class="nav-link" data-scroll-target="#timetoalign.timelines.FlowMap.unfold_coordinate">unfold_coordinate</a>
   <ul class="collapse">
-  <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
-  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
-  <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
+  <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
+  <li><a href="#returns-5" id="toc-returns-5" class="nav-link" data-scroll-target="#returns-5">Returns</a></li>
+  <li><a href="#examples-2" id="toc-examples-2" class="nav-link" data-scroll-target="#examples-2">Examples</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
@@ -895,7 +924,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.timelines.FlowMap" class="level1">
 <h1>FlowMap</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap(source<span class="op">=</span><span class="va">None</span>, <span class="op">*</span>, <span class="bu">id</span><span class="op">=</span><span class="st">''</span>, resolve<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    source<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">''</span>,</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    resolve<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    at<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    source_length<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    target_length<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Coordinate transformation map for flow control.</p>
 <p>A FlowMap enables bidirectional coordinate conversion between a source timeline (with flow control) and a target (linearized) timeline:</p>
 <ul>
@@ -908,6 +945,13 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>a :class:<code>Flow</code> — sections are derived from the flow’s measure-count ranges (integer MC space); <em>id</em> defaults to the flow’s mode value.</li>
 <li>a single interval-like descriptor <strong>or</strong> an iterable of them — sections are built directly from the resulting <code>(start, end)</code> ranges with a cumulative target position, so the played spans concatenate in the target axis and any gaps between them map to nothing. <em>id</em> defaults to <code>"default"</code>. Accepted descriptors are region names (resolved through <em>resolve</em>), <code>Region</code> objects, <code>(start, end)</code> coordinate pairs, <code>Timeline</code> objects, and interval events — see :func:<code>~timetoalign.timelines.flow.sections._coerce_intervals</code>.</li>
 </ul>
+<p>Concatenation is only the default. Three interchangeable mechanisms <strong>place</strong> the played spans on the target axis instead, so the assembled timeline can hold holes — which is what an inverted cut needs:</p>
+<ul>
+<li>:class:<code>~timetoalign.timelines.flow.sections.Gap</code> entries mixed into <em>source</em>, each pushing everything after it later by its own duration.</li>
+<li>The <em>at</em> argument, giving the target coordinate of each played span outright.</li>
+<li>A <code>{target coordinate -&gt; span}</code> mapping as <em>source</em>, which pairs the two directly; see :meth:<code>from_dict</code>.</li>
+</ul>
+<p>All three agree on the result, and no two may be combined in one call. See :meth:<code>_build_from_entries</code> for the placement rules.</p>
 <p>FlowMap stores sections for efficient lookup:</p>
 <ul>
 <li><code>_sections</code>: List of FlowMapSection objects</li>
@@ -934,6 +978,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td><code>str</code></td>
 <td>Identifier for this FlowMap.</td>
 </tr>
+<tr class="odd">
+<td>source_length</td>
+<td><code>Fraction</code> | None</td>
+<td>Total extent of the source axis, when known. Recorded so that :meth:<code>inverse</code> can restore a target axis whose final stretch is a gap — material the flow drops off the end leaves no section to infer the length from.</td>
+</tr>
+<tr class="even">
+<td>target_length</td>
+<td><code>Fraction</code> | None</td>
+<td>Total extent of the target axis, when known.</td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -952,12 +1006,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Map target coordinate back to source coordinate.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.timelines.FlowMap.from_dict">from_dict</a></td>
+<td>Build a FlowMap from a <code>{target coordinate -&gt; span}</code> mapping.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.timelines.FlowMap.from_qb_sections">from_qb_sections</a></td>
 <td>Create a FlowMap with QB-space source coordinates.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.timelines.FlowMap.inverse">inverse</a></td>
 <td>Create the inverse FlowMap (target -&gt; source becomes source -&gt; target).</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.timelines.FlowMap.iter_gaps">iter_gaps</a></td>
+<td>Report every stretch of target time that no source material fills.</td>
 </tr>
 <tr class="even">
 <td><a href="#timetoalign.timelines.FlowMap.unfold_coordinate">unfold_coordinate</a></td>
@@ -1052,13 +1114,137 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>Fraction(<span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
-<section id="timetoalign.timelines.FlowMap.from_qb_sections" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.from_qb_sections">from_qb_sections</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.from_qb_sections(flow, qb_sections, <span class="op">*</span>, <span class="bu">id</span><span class="op">=</span><span class="st">''</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Create a FlowMap with QB-space source coordinates.</p>
-<p>Unlike the default constructor which derives source coordinates from MC numbers (integers), this factory accepts pre-computed quarterbeat boundaries. This is the correct approach for scores with non-uniform measure durations, where MC-number space != QB-coordinate space.</p>
+<section id="timetoalign.timelines.FlowMap.from_dict" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.from_dict">from_dict</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.from_dict(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    placements,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">id</span><span class="op">=</span><span class="st">'default'</span>,</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    resolve<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    source_length<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    target_length<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Build a FlowMap from a <code>{target coordinate -&gt; span}</code> mapping.</p>
+<p>The third way to state a placement, and the most direct: each key is the target coordinate at which its span begins. Where <code>Gap</code> entries describe the holes and <code>at</code> parallels the span list, a mapping puts coordinate and span side by side, which reads well when the placement comes from a table, a file, or an analysis::</p>
+<pre><code>FlowMap.from_dict({0: "A8_1", 129: "A8_2"}, resolve=tl.get_region)</code></pre>
+<p>Keys are sorted, so the mapping need not be written in target order. A value may also be a <em>collection</em> of spans, which are laid end to end from that coordinate on.</p>
 <section id="parameters-1" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 25%">
+<col style="width: 66%">
+<col style="width: 3%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>placements</td>
+<td>'Mapping[Fraction | float | int, object]'</td>
+<td>Mapping from target coordinate to one interval-like descriptor — or a collection of them — in the same shapes the constructor accepts (region names, <code>Region</code> objects, <code>(start, end)</code> pairs, <code>Timeline</code> objects, interval events).</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>id</td>
+<td><code>str</code></td>
+<td>Identifier for this FlowMap.</td>
+<td><code>'default'</code></td>
+</tr>
+<tr class="odd">
+<td>resolve</td>
+<td><code>Callable</code>[[<code>str</code>], <code>object</code>] | None</td>
+<td>Callable mapping a region name to an interval-like object, needed only when the values carry region-name strings.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>source_length</td>
+<td><code>Fraction</code> | <code>float</code> | <code>int</code> | None</td>
+<td>Total extent of the source axis, when known.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>target_length</td>
+<td><code>Fraction</code> | <code>float</code> | <code>int</code> | None</td>
+<td>Total extent of the target axis, when known.</td>
+<td><code>None</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-1" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 14%">
+<col style="width: 76%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td>'FlowMap'</td>
+<td>The constructed FlowMap, its spans placed at the given coordinates</td>
+</tr>
+<tr class="even">
+<td></td>
+<td>'FlowMap'</td>
+<td>and the space between them recorded as gaps.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-1" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 33%">
+<col style="width: 57%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If two spans would overlap on the target axis.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="examples-1" class="level4 doc-section doc-section-examples">
+<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-1">Examples</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> FlowMap.from_dict({<span class="dv">0</span>: (<span class="dv">0</span>, <span class="dv">123</span>), <span class="dv">129</span>: (<span class="dv">123</span>, <span class="dv">228</span>)}, <span class="bu">id</span><span class="op">=</span><span class="st">"restored"</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>FlowMap(restored: <span class="dv">2</span> sections, <span class="dv">1</span> gap)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+</section>
+<section id="timetoalign.timelines.FlowMap.from_qb_sections" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.from_qb_sections">from_qb_sections</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.from_qb_sections(flow, qb_sections, <span class="op">*</span>, <span class="bu">id</span><span class="op">=</span><span class="st">''</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Create a FlowMap with QB-space source coordinates.</p>
+<p>Unlike the default constructor which derives source coordinates from MC numbers (integers), this factory accepts pre-computed quarterbeat boundaries. This is the correct approach for scores with non-uniform measure durations, where MC-number space != QB-coordinate space.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1090,8 +1276,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-1" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1109,8 +1295,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-1" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<section id="raises-2" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-2">Raises</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 9%">
@@ -1140,15 +1326,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.timelines.FlowMap.inverse" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.inverse">inverse</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.inverse()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Create the inverse FlowMap (target -&gt; source becomes source -&gt; target).</p>
 <p>The inverse FlowMap swaps the source and target coordinate systems. This is useful for attaching to a target timeline to enable tracing back to the original source.</p>
+<p>Because each section carries both ranges outright, inverting is a plain swap of the two. That is what makes an inverse <strong>placing</strong> rather than concatenating: a flow that drops material leaves its spans at their original source coordinates, so the inverse puts them back where they came from and the dropped stretch reappears as a gap. Applying the inverse with :meth:<code>~timetoalign.timelines.Timeline.apply_flow</code> therefore rebuilds a timeline laid out like the original.</p>
 <section id="note" class="level4 doc-section doc-section-note">
 <h4 class="doc-section doc-section-note anchored" data-anchor-id="note">Note</h4>
 <p>The inverse FlowMap’s unfold_coordinate() returns coordinates in the original source space, which may yield multiple results if the source coord is visited multiple times.</p>
 </section>
-<section id="returns-2" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
+<section id="returns-3" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1167,13 +1354,57 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 </section>
 </section>
+<section id="timetoalign.timelines.FlowMap.iter_gaps" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.iter_gaps">iter_gaps</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.iter_gaps()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Report every stretch of target time that no source material fills.</p>
+<p>A hole reaches the map two ways, and both are reported here:</p>
+<ul>
+<li><strong>Recorded</strong> — an insertion section, built from a :class:<code>~timetoalign.timelines.flow.sections.Gap</code> entry or from an <code>at</code> placement, which may carry a label.</li>
+<li><strong>Implied</strong> — the space left between two placed sections, or between the last section and a longer recorded <code>target_length</code>. Inverting a FlowMap produces holes this way, since the inverse simply puts each span back at its source coordinates.</li>
+</ul>
+<section id="returns-4" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-4">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 3%">
+<col style="width: 62%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>tuple</code>[<code>Fraction</code>, <code>Fraction</code>, <code>str</code> | None]]</td>
+<td>The <code>(start, end, label)</code> of each hole, in target order.</td>
+</tr>
+<tr class="even">
+<td></td>
+<td><code>list</code>[<code>tuple</code>[<code>Fraction</code>, <code>Fraction</code>, <code>str</code> | None]]</td>
+<td>Adjacent holes are merged, and <em>label</em> is the recorded gap’s label</td>
+</tr>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>tuple</code>[<code>Fraction</code>, <code>Fraction</code>, <code>str</code> | None]]</td>
+<td>or <code>None</code>.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
 <section id="timetoalign.timelines.FlowMap.unfold_coordinate" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.timelines.FlowMap.unfold_coordinate">unfold_coordinate</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.unfold_coordinate(coord)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>timelines.FlowMap.unfold_coordinate(coord)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Map source coordinate to target coordinates.</p>
 <p>Since a source coordinate may be visited multiple times (due to repeats), this returns a list of all corresponding target coordinates.</p>
-<section id="parameters-2" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<section id="parameters-3" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 6%">
@@ -1199,8 +1430,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-3" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
+<section id="returns-5" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-5">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 6%">
@@ -1228,11 +1459,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="examples-1" class="level4 doc-section doc-section-examples">
-<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-1">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Source coord 3 appears twice due to repeat</span></span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> flow_map.unfold_coordinate(<span class="dv">3</span>)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>[Fraction(<span class="dv">2</span>), Fraction(<span class="dv">6</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="examples-2" class="level4 doc-section doc-section-examples">
+<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-2">Examples</h4>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Source coord 3 appears twice due to repeat</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> flow_map.unfold_coordinate(<span class="dv">3</span>)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>[Fraction(<span class="dv">2</span>), Fraction(<span class="dv">6</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 
 
 </section>

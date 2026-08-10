@@ -8,6 +8,7 @@ Score flow controller specialized for score data (MeasureData).
 
 ScoreFlowController computes Flow paths from MeasureData, which contains
 measure-level flow control information (mc, mn, next[], volta, etc.).
+A controller instance is intended for single-threaded use.
 
 The algorithm operates at the section level:
 1. Derives atomic sections from next[] arrays OR accepts from partitura
@@ -67,6 +68,7 @@ the ms3 unfolding algorithm.
 | [create_flow_map](#timetoalign.timelines.ScoreFlowController.create_flow_map) | Create a FlowMap in QB-space from a computed Flow. |
 | [create_flow_map_for_mode](#timetoalign.timelines.ScoreFlowController.create_flow_map_for_mode) | Convenience method to create a FlowMap for a specific mode. |
 | [diagram](#timetoalign.timelines.ScoreFlowController.diagram) | Show folded score map with atomic sections and flow control markers. |
+| [flow_diagnostics](#timetoalign.timelines.ScoreFlowController.flow_diagnostics) | Report flow-control problems found while resolving and traversing. |
 | [from_atomic_sections](#timetoalign.timelines.ScoreFlowController.from_atomic_sections) | Initialize directly from atomic sections (e.g., from partitura). |
 | [get_atomic_section_coordinates](#timetoalign.timelines.ScoreFlowController.get_atomic_section_coordinates) | Return a mapping of atomic section IDs to their start coordinates. |
 | [get_breaks](#timetoalign.timelines.ScoreFlowController.get_breaks) | Return all `Break` events derived from the score's flow control. |
@@ -219,6 +221,33 @@ Show folded score map with atomic sections and flow control markers.
 | Name   | Type        | Description                                                           |
 |--------|-------------|-----------------------------------------------------------------------|
 |        | \'Diagram\' | Diagram object (displays as ASCII in terminal, rich HTML in Jupyter). |
+
+### flow_diagnostics { #timetoalign.timelines.ScoreFlowController.flow_diagnostics }
+
+```python
+timelines.ScoreFlowController.flow_diagnostics(mode=FlowMode.default)
+```
+
+Report flow-control problems found while resolving and traversing.
+
+Complements :meth:`check_invariants` (which checks the folded atomic
+graph) with the problems surfaced by executing the flow: repeat-ends
+that are dangling or ambiguous, and traversal cycles that would never
+terminate. Like every diagnostic surface on this controller, it detects
+and reports — it never raises on malformed input.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type                                          | Description                                                                              | Default            |
+|--------|-----------------------------------------------|------------------------------------------------------------------------------------------|--------------------|
+| mode   | [FlowMode](`timetoalign.core.enums.FlowMode`) | The flow mode to traverse for cycle detection. Defaults to the default (unfolding) flow. | `FlowMode.default` |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                     | Description                                                     |
+|--------|------------------------------------------------------------------------------------------|-----------------------------------------------------------------|
+|        | [list](`list`)\[[FlowDiagnostic](`timetoalign.timelines.flow.sections.FlowDiagnostic`)\] | The repeat-end resolution diagnostics followed by the traversal |
+|        | [list](`list`)\[[FlowDiagnostic](`timetoalign.timelines.flow.sections.FlowDiagnostic`)\] | diagnostics; an empty list when the flow is well-formed.        |
 
 ### from_atomic_sections { #timetoalign.timelines.ScoreFlowController.from_atomic_sections }
 

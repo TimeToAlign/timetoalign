@@ -9,6 +9,8 @@ website:
       - reference/CoordinateSpec.qmd
       - reference/CoordinateValue.qmd
       - reference/IdCoordinate.qmd
+      - reference/Interval.qmd
+      - reference/IntervalField.qmd
       - reference/OptionalCoordinate.qmd
       - reference/ResolvedCoordinate.qmd
       - reference/resolve_coordinate_spec.qmd

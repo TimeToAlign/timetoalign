@@ -422,7 +422,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ol>
 <section id="setup" class="level2">
 <h2 class="anchored" data-anchor-id="setup">Setup</h2>
-<div id="f76cddf4" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:44.841596Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:44.841455Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.242338Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.241621Z&quot;}}" data-execution_count="1">
+<div id="f76cddf4" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:46.613318Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:46.613120Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:48.812479Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:48.811653Z&quot;}}" data-execution_count="1">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> __future__ <span class="im">import</span> annotations</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
@@ -433,18 +433,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>root <span class="op">=</span> ensure_data(<span class="st">"parangonar"</span>)</span>
 <span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>dataset_dir <span class="op">=</span> root <span class="op">/</span> <span class="st">"Beethoven_Eroica_op35-cpjku"</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stderr">
-<pre><code>/home/laser/miniconda3/envs/timetoalign/lib/python3.11/site-packages/partitura/__init__.py:9: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools&lt;81.
-  import pkg_resources</code></pre>
-</div>
 </div>
 </section>
 <section id="load-the-export-in-one-call" class="level2">
 <h2 class="anchored" data-anchor-id="load-the-export-in-one-call">1. Load the export in one call</h2>
 <p><code>ParangonadaLoader</code> discovers every performance under the export’s directory, parses the shared score once and each performance’s notes and alignment, and binds each recording’s audio for its sample rate. <code>from_file()</code> is the one-line form of the standard two-phase loader pattern.</p>
-<div id="39d00eaf" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.244934Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.244366Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.468388Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.467478Z&quot;}}" data-execution_count="2">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>bundle <span class="op">=</span> ParangonadaLoader.from_file(dataset_dir).create_bundle()</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>bundle</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="39d00eaf" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:48.814313Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:48.814003Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.058607Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.057810Z&quot;}}" data-execution_count="2">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>bundle <span class="op">=</span> ParangonadaLoader.from_file(dataset_dir).create_bundle()</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>bundle</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="2">
 <pre style="font-family: 'JetBrains Mono', Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace; line-height: 1.2; white-space: pre;">AlignmentBundle[bundle:AlignmentBundle_1]
 
@@ -512,12 +508,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>Twelve timelines arranged in six groups: one shared <code>"score"</code> group, and one <code>"perf:&lt;key&gt;"</code> group per recording. Everything below reads from this single bundle.</p>
-<div id="fff797d7" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.470820Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.470527Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.475296Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.474428Z&quot;}}" data-execution_count="3">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"timelines"</span>: bundle.n_timelines,</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"groups"</span>: bundle.n_groups,</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"groups_listed"</span>: bundle.group_ids,</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="fff797d7" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.060187Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.060017Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.063933Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.063203Z&quot;}}" data-execution_count="3">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">"timelines"</span>: bundle.n_timelines,</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">"groups"</span>: bundle.n_groups,</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"groups_listed"</span>: bundle.group_ids,</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="3">
 <pre><code>{'timelines': 12,
  'groups': 6,
@@ -538,25 +534,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>score:clt1</code> carries quarter-note onsets (an exact rational).</li>
 <li><code>score:dlt1</code> carries division-grid onsets (the integer tick grid the score was notated on).</li>
 </ul>
-<div id="d5c1708f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.477198Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.477030Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.481426Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.480760Z&quot;}}" data-execution_count="4">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>score_clt <span class="op">=</span> bundle.get_timeline(<span class="st">"score:clt1"</span>)</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>score_clt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="d5c1708f" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.065730Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.065512Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.070385Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.069604Z&quot;}}" data-execution_count="4">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>score_clt <span class="op">=</span> bundle.get_timeline(<span class="st">"score:clt1"</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>score_clt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="4">
 <pre style="font-family: 'JetBrains Mono', Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace; line-height: 1.2; white-space: pre;">ContinuousLogicalTimeline[score:clt1] (251 events)
                       0 __________________________________ 64 quarters</pre>
 </div>
 </div>
-<div id="1bf8ade6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.483048Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.482854Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.487513Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.486698Z&quot;}}" data-execution_count="5">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>score_dlt <span class="op">=</span> bundle.get_timeline(<span class="st">"score:dlt1"</span>)</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>score_dlt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="1bf8ade6" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.071888Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.071729Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.075724Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.075147Z&quot;}}" data-execution_count="5">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>score_dlt <span class="op">=</span> bundle.get_timeline(<span class="st">"score:dlt1"</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>score_dlt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="5">
 <pre style="font-family: 'JetBrains Mono', Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace; line-height: 1.2; white-space: pre;">DiscreteLogicalTimeline[score:dlt1] (251 events, 1 cmaps)
                       0 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,, 2064 ticks</pre>
 </div>
 </div>
 <p>Both hold the same 251 notes, each carrying its MIDI pitch and voice. A look at the first few notes shows the pitch and voice the export recorded (the first note sits at quarter −0.5, the score’s anacrusis):</p>
-<div id="30024a78" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.489377Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.489220Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.498209Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.497395Z&quot;}}" data-execution_count="6">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>score_clt.get_events().table.<span class="bu">slice</span>(<span class="dv">0</span>, <span class="dv">5</span>).to_pandas()[[<span class="st">"id"</span>, <span class="st">"pitch"</span>, <span class="st">"voice"</span>]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="30024a78" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.077511Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.077353Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.087625Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.086896Z&quot;}}" data-execution_count="6">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>score_clt.get_events().table.<span class="bu">slice</span>(<span class="dv">0</span>, <span class="dv">5</span>).to_pandas()[[<span class="st">"id"</span>, <span class="st">"pitch"</span>, <span class="st">"voice"</span>]]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="6">
 <div>
 
@@ -610,25 +606,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="the-division-grid-and-the-quarter-grid-are-one-conversion-apart" class="level3">
 <h3 class="anchored" data-anchor-id="the-division-grid-and-the-quarter-grid-are-one-conversion-apart">The division grid and the quarter grid are one conversion apart</h3>
 <p>The two logical timelines are not independent: a single <button class="glossary" title="A typed function attached to a timeline that maps each coordinate to exactly one value (coordinate, label, or filename); also permits inverse conversion back to the timeline’s own unit. Also called C-map.">ConversionMap</button> on <code>score:dlt1</code> carries the division grid to quarters. It is a <code>LinearMap</code> — 32 divisions to the quarter, shifted by the half-quarter anacrusis — and it reproduces the quarter onsets exactly, because divisions are the discrete grid the quarters were notated on:</p>
-<div id="9cff914e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.500056Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.499840Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.504261Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.503543Z&quot;}}" data-execution_count="7">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>divs_to_quarters <span class="op">=</span> score_dlt.get_conversion_map(TimeUnit.quarters)</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"div 16 -&gt; quarters"</span>: divs_to_quarters(<span class="dv">16</span>),</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"div 48 -&gt; quarters"</span>: divs_to_quarters(<span class="dv">48</span>),</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"div 1296 -&gt; quarters"</span>: divs_to_quarters(<span class="dv">1296</span>),</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="9cff914e" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.089150Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.089003Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.092673Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.092030Z&quot;}}" data-execution_count="7">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>divs_to_quarters <span class="op">=</span> score_dlt.get_conversion_map(TimeUnit.quarters)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"div 16 -&gt; quarters"</span>: divs_to_quarters(<span class="dv">16</span>),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"div 48 -&gt; quarters"</span>: divs_to_quarters(<span class="dv">48</span>),</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"div 1296 -&gt; quarters"</span>: divs_to_quarters(<span class="dv">1296</span>),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="7">
 <pre><code>{'div 16 -&gt; quarters': Fraction(0, 1),
  'div 48 -&gt; quarters': Fraction(1, 1),
  'div 1296 -&gt; quarters': Fraction(40, 1)}</code></pre>
 </div>
 </div>
-<p>The same conversion is what a <button class="glossary" title="A cross-section through a timeline or group at a given coordinate, capturing positions in all connected systems plus values converted by all attached C-maps. TimeStamp implements the shared Stamp interface used by GroupTimestamp and MatchStamp, including raw get(), unit-bearing get_coordinate(), present_timelines, and is_interpolated access.">TimeStamp</button> exposes. Querying <code>score:dlt1</code> at division 48 and asking for the quarter reading reports <code>1.0</code>, the continuous↔︎discrete link of the logical domain made visible at a single coordinate:</p>
-<div id="c7398bb0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.505816Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.505602Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.509148Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.508691Z&quot;}}" data-execution_count="8">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>score_dlt.get_timestamp(<span class="dv">48</span>).get_unit(TimeUnit.quarters)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>The same conversion is what a <button class="glossary" title="A cross-section through a timeline or group at a given coordinate, capturing positions in all connected systems plus values converted by all attached C-maps. It stores one Coordinate per timeline ID, so each entry carries its own unit and number type. TimeStamp implements the shared Stamp interface used by GroupTimestamp and MatchStamp: a typed axis, get_coordinate_for() and get_coordinates_for() returning IdCoordinates by default, get_unit() for unit conversion, get_conversion_for() for label and structured map values, present_timelines, and is_interpolated. A bare number is an explicit format=“float”/“int”/“fraction” request; there is no ambient float view.">TimeStamp</button> exposes. Querying <code>score:dlt1</code> at division 48 and asking for the quarter reading reports <code>1.0</code>, the continuous↔︎discrete link of the logical domain made visible at a single coordinate:</p>
+<div id="c7398bb0" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.094143Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.093996Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.097716Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.096976Z&quot;}}" data-execution_count="8">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>score_dlt.get_timestamp(<span class="dv">48</span>).get_unit(TimeUnit.quarters)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="8">
-<pre><code>1.0</code></pre>
+<pre><code>IdCoordinate(Fraction(1, 1), quarters, 'score:dlt1')</code></pre>
 </div>
 </div>
 <hr>
@@ -642,31 +638,31 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li><code>perf:&lt;key&gt;:dpt1</code> carries the same onsets as sample indices into the recording’s audio.</li>
 </ul>
 <p>Take Szegedi’s 1966 recording:</p>
-<div id="b5c92245" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.511134Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.510893Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.515465Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.514830Z&quot;}}" data-execution_count="9">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>szegedi_cpt <span class="op">=</span> bundle.get_timeline(<span class="st">"perf:1966_Szegedi:cpt1"</span>)</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>szegedi_cpt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="b5c92245" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.099327Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.099168Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.103701Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.102870Z&quot;}}" data-execution_count="9">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>szegedi_cpt <span class="op">=</span> bundle.get_timeline(<span class="st">"perf:1966_Szegedi:cpt1"</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>szegedi_cpt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="9">
 <pre style="font-family: 'JetBrains Mono', Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace; line-height: 1.2; white-space: pre;">ContinuousPhysicalTimeline[perf:1966_Szegedi:cpt1] (358 events)
                       0 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 73.1 seconds</pre>
 </div>
 </div>
-<div id="a4d808d4" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.517064Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.516875Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.521452Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.520697Z&quot;}}" data-execution_count="10">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>szegedi_dpt <span class="op">=</span> bundle.get_timeline(<span class="st">"perf:1966_Szegedi:dpt1"</span>)</span>
-<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>szegedi_dpt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="a4d808d4" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.105373Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.105174Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.109396Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.108882Z&quot;}}" data-execution_count="10">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>szegedi_dpt <span class="op">=</span> bundle.get_timeline(<span class="st">"perf:1966_Szegedi:dpt1"</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>szegedi_dpt</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="10">
 <pre style="font-family: 'JetBrains Mono', Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace; line-height: 1.2; white-space: pre;">DiscretePhysicalTimeline[perf:1966_Szegedi:dpt1] (232 events, 1 cmaps)
                         0 ⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅⋅ 3222035 samples</pre>
 </div>
 </div>
 <p>The seconds grid and the samples grid are, again, one <button class="glossary" title="A typed function attached to a timeline that maps each coordinate to exactly one value (coordinate, label, or filename); also permits inverse conversion back to the timeline’s own unit. Also called C-map.">ConversionMap</button> apart — here a <code>SamplesToSeconds</code> map carrying the recording’s 44.1 kHz sample rate. It is the physical-domain counterpart of the logical divs→quarters map: 44 100 samples is one second.</p>
-<div id="98531551" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.523129Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.522983Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.526937Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.526160Z&quot;}}" data-execution_count="11">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>samples_to_seconds <span class="op">=</span> szegedi_dpt.get_conversion_map(TimeUnit.seconds)</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sample_rate (Hz)"</span>: samples_to_seconds.sample_rate,</span>
-<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"44100 samples -&gt; seconds"</span>: samples_to_seconds(<span class="dv">44100</span>),</span>
-<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"88200 samples -&gt; seconds"</span>: samples_to_seconds(<span class="dv">88200</span>),</span>
-<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="98531551" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.110919Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.110778Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.114314Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.113835Z&quot;}}" data-execution_count="11">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>samples_to_seconds <span class="op">=</span> szegedi_dpt.get_conversion_map(TimeUnit.seconds)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"sample_rate (Hz)"</span>: samples_to_seconds.sample_rate,</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"44100 samples -&gt; seconds"</span>: samples_to_seconds(<span class="dv">44100</span>),</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"88200 samples -&gt; seconds"</span>: samples_to_seconds(<span class="dv">88200</span>),</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="11">
 <pre><code>{'sample_rate (Hz)': 44100,
  '44100 samples -&gt; seconds': 1.0,
@@ -678,16 +674,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="the-cross-group-alignment" class="level2">
 <h2 class="anchored" data-anchor-id="the-cross-group-alignment">4. The cross-group alignment</h2>
 <p>The score group and the five performance groups are tied together by cross-group <button class="glossary" title="A claim of equivalence between events on different timelines, with provenance metadata (the authoring agent and a certainty). May be synchronous (producing AlignmentAnchors) or conceptual (structural equivalence without temporal commitment). Always knows which pair of timelines it connects. Four cases: (a) event-to-event, (b) projection, (c) NOMATCH, (d) implicit (from group extension). Held individually, or columnar at scale in a MatchClaimField.">MatchClaim</button>s — one per row of each performance’s alignment file. A matched note becomes a <strong>synchronous</strong> claim relating a score quarter to a performed second; an unmatched note becomes a <button class="glossary" title="A sentinel value in a MatchClaim explicitly encoding the absence of a corresponding event on the other timeline. The MatchClaim records both timeline IDs but has no AlignmentAnchors; is_synchronous is always False.">NOMATCH</button> claim, which records the dangling note rather than discarding it.</p>
-<div id="1487cf78" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.528422Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.528276Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.532257Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.531590Z&quot;}}" data-execution_count="12">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>claims <span class="op">=</span> bundle.cross_group_claims</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"total claims"</span>: <span class="bu">len</span>(claims),</span>
-<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"synchronous (matched)"</span>: <span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> c <span class="kw">in</span> claims <span class="cf">if</span> c.is_synchronous),</span>
-<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"NOMATCH (score-only or performance-only)"</span>: <span class="bu">sum</span>(</span>
-<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>        <span class="dv">1</span> <span class="cf">for</span> c <span class="kw">in</span> claims <span class="cf">if</span> <span class="kw">not</span> c.is_synchronous</span>
-<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="1487cf78" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.116023Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.115883Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.119935Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.119374Z&quot;}}" data-execution_count="12">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>claims <span class="op">=</span> bundle.cross_group_claims</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">"total claims"</span>: <span class="bu">len</span>(claims),</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">"synchronous (matched)"</span>: <span class="bu">sum</span>(<span class="dv">1</span> <span class="cf">for</span> c <span class="kw">in</span> claims <span class="cf">if</span> c.is_synchronous),</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">"NOMATCH (score-only or performance-only)"</span>: <span class="bu">sum</span>(</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>        <span class="dv">1</span> <span class="cf">for</span> c <span class="kw">in</span> claims <span class="cf">if</span> <span class="kw">not</span> c.is_synchronous</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="12">
 <pre><code>{'total claims': 1275,
  'synchronous (matched)': 1208,
@@ -695,16 +691,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>A synchronous claim carries an anchor: a score quarter on one side, the performed second on the other. This is Szegedi’s note at score quarter 40, played 38.18 seconds into the recording:</p>
-<div id="7522c4e5" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.534319Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.534139Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.538764Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.538085Z&quot;}}" data-execution_count="13">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>szegedi_synchronous <span class="op">=</span> [</span>
-<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    c</span>
-<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> c <span class="kw">in</span> claims</span>
-<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> c.is_synchronous</span>
-<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">and</span> c.connects(<span class="st">"perf:1966_Szegedi:cpt1"</span>)</span>
-<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">and</span> c.start_anchor <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span></span>
-<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">and</span> <span class="bu">float</span>(c.start_anchor.coordinate_a) <span class="op">==</span> <span class="fl">40.0</span></span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>szegedi_synchronous[<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="7522c4e5" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.121606Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.121450Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.126329Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.125735Z&quot;}}" data-execution_count="13">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>szegedi_synchronous <span class="op">=</span> [</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    c</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> c <span class="kw">in</span> claims</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> c.is_synchronous</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">and</span> c.connects(<span class="st">"perf:1966_Szegedi:cpt1"</span>)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">and</span> c.start_anchor <span class="kw">is</span> <span class="kw">not</span> <span class="va">None</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">and</span> <span class="bu">float</span>(c.start_anchor.coordinate_a) <span class="op">==</span> <span class="fl">40.0</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>szegedi_synchronous[<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="13">
 <div style="font-family: monospace;"><strong>MatchClaim</strong> <span style="background: #fff3e0; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">ANCHOR</span>
 <table class="caption-top table table-sm table-striped small">
@@ -712,12 +708,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td>Timeline A</td>
 <td><strong>score:clt1</strong></td>
-<td>@40</td>
+<td>@40 quarters</td>
 </tr>
 <tr class="even">
 <td>Timeline B</td>
 <td><strong>perf:1966_Szegedi:cpt1</strong></td>
-<td>@38.183334</td>
+<td>@38.183334 seconds</td>
 </tr>
 <tr class="odd" style="color: #666;">
 <td>Metadata</td>
@@ -729,11 +725,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>A <button class="glossary" title="A sentinel value in a MatchClaim explicitly encoding the absence of a corresponding event on the other timeline. The MatchClaim records both timeline IDs but has no AlignmentAnchors; is_synchronous is always False.">NOMATCH</button> claim carries no anchor — there is no second coordinate to record — but it keeps the unmatched side’s coordinate so the dangling note stays legible. Its text repr prints that coordinate inline (<code>...@&lt;coord&gt;</code>) with a <code>[NOMATCH]</code> flag:</p>
-<div id="5e4d94be" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.540779Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.540605Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.544487Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.543805Z&quot;}}" data-execution_count="14">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>szegedi_nomatch <span class="op">=</span> [</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    c <span class="cf">for</span> c <span class="kw">in</span> claims <span class="cf">if</span> <span class="kw">not</span> c.is_synchronous <span class="kw">and</span> c.connects(<span class="st">"perf:1966_Szegedi:cpt1"</span>)</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>]</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>szegedi_nomatch[<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="5e4d94be" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.127772Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.127631Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:49.131288Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:49.130696Z&quot;}}" data-execution_count="14">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>szegedi_nomatch <span class="op">=</span> [</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    c <span class="cf">for</span> c <span class="kw">in</span> claims <span class="cf">if</span> <span class="kw">not</span> c.is_synchronous <span class="kw">and</span> c.connects(<span class="st">"perf:1966_Szegedi:cpt1"</span>)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>szegedi_nomatch[<span class="dv">0</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="14">
 <div style="font-family: monospace;"><strong>MatchClaim</strong> <span style="background: #ffcdd2; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">CONCEPTUAL</span>
 <table class="caption-top table table-sm table-striped small">
@@ -741,7 +737,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td>Timeline A</td>
 <td>score:clt1</td>
-<td></td>
+<td>@8 quarters</td>
 </tr>
 <tr class="even">
 <td>Timeline B</td>
@@ -760,8 +756,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="one-score-position-across-all-five-performances" class="level3">
 <h3 class="anchored" data-anchor-id="one-score-position-across-all-five-performances">One score position across all five performances</h3>
 <p>Because every performance is anchored back to the same score, a single score coordinate resolves across the whole bundle. <code>get_matchstamp_at</code> takes a coordinate on <code>score:clt1</code> and returns the corresponding coordinate on every timeline connected to it — here, score quarter 40 mapped to the second at which each of the five pianists played it:</p>
-<div id="237c9cec" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.546115Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.545969Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.823514Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.822806Z&quot;}}" data-execution_count="15">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>bundle.get_matchstamp_at(<span class="fl">40.0</span>, <span class="st">"score:clt1"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="237c9cec" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:49.132720Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:49.132579Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:50.125402Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:50.123760Z&quot;}}" data-execution_count="15">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>bundle.get_matchstamp_at(<span class="fl">40.0</span>, <span class="st">"score:clt1"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="15">
 <div style="font-family: monospace;"><strong>MatchStamp</strong> <span style="background: #e3f2fd; padding: 0 4px; border-radius: 3px; font-size: 0.8em;">12 timelines, 11 edges</span>
 <table class="caption-top table table-sm table-striped small">
@@ -774,71 +770,71 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
-<td><strong>perf:1971_Curzon:cpt1</strong></td>
-<td style="text-align: right;">41.247395</td>
+<td><strong>score:clt1</strong></td>
+<td style="text-align: right;">40 quarters</td>
 <td><em>anchor</em></td>
 </tr>
 <tr class="even">
-<td><strong>perf:2023_Hewitt:cpt1</strong></td>
-<td style="text-align: right;">47.46875</td>
-<td><em>anchor</em></td>
+<td style="color: #666">score:dlt1</td>
+<td style="text-align: right;">1290 ticks</td>
+<td><em>inferred</em></td>
 </tr>
 <tr class="odd">
 <td><strong>perf:1966_Szegedi:cpt1</strong></td>
-<td style="text-align: right;">38.183334</td>
+<td style="text-align: right;">38.183334 seconds</td>
 <td><em>anchor</em></td>
-</tr>
-<tr class="even">
-<td><strong>perf:1985_Brendel:cpt1</strong></td>
-<td style="text-align: right;">37.84375</td>
-<td><em>anchor</em></td>
-</tr>
-<tr class="odd">
-<td><strong>perf:1970_Gould:cpt1</strong></td>
-<td style="text-align: right;">63.103645</td>
-<td><em>anchor</em></td>
-</tr>
-<tr class="even">
-<td><strong>score:clt1</strong></td>
-<td style="text-align: right;">40</td>
-<td><em>anchor</em></td>
-</tr>
-<tr class="odd">
-<td style="color: #666">score:dlt1</td>
-<td style="text-align: right;">1290</td>
-<td><em>inferred</em></td>
-</tr>
-<tr class="even">
-<td style="color: #666">perf:1970_Gould:dpt1</td>
-<td style="text-align: right;">2782871</td>
-<td><em>inferred</em></td>
-</tr>
-<tr class="odd">
-<td style="color: #666">perf:1985_Brendel:dpt1</td>
-<td style="text-align: right;">1668909</td>
-<td><em>inferred</em></td>
 </tr>
 <tr class="even">
 <td style="color: #666">perf:1966_Szegedi:dpt1</td>
-<td style="text-align: right;">1683885</td>
+<td style="text-align: right;">1683885 samples</td>
 <td><em>inferred</em></td>
 </tr>
 <tr class="odd">
-<td style="color: #666">perf:2023_Hewitt:dpt1</td>
-<td style="text-align: right;">2093371</td>
+<td><strong>perf:1970_Gould:cpt1</strong></td>
+<td style="text-align: right;">63.103645 seconds</td>
+<td><em>anchor</em></td>
+</tr>
+<tr class="even">
+<td style="color: #666">perf:1970_Gould:dpt1</td>
+<td style="text-align: right;">2782871 samples</td>
 <td><em>inferred</em></td>
+</tr>
+<tr class="odd">
+<td><strong>perf:1971_Curzon:cpt1</strong></td>
+<td style="text-align: right;">41.247395 seconds</td>
+<td><em>anchor</em></td>
 </tr>
 <tr class="even">
 <td style="color: #666">perf:1971_Curzon:dpt1</td>
-<td style="text-align: right;">1819010</td>
+<td style="text-align: right;">1819010 samples</td>
+<td><em>inferred</em></td>
+</tr>
+<tr class="odd">
+<td><strong>perf:1985_Brendel:cpt1</strong></td>
+<td style="text-align: right;">37.84375 seconds</td>
+<td><em>anchor</em></td>
+</tr>
+<tr class="even">
+<td style="color: #666">perf:1985_Brendel:dpt1</td>
+<td style="text-align: right;">1668909 samples</td>
+<td><em>inferred</em></td>
+</tr>
+<tr class="odd">
+<td><strong>perf:2023_Hewitt:cpt1</strong></td>
+<td style="text-align: right;">47.46875 seconds</td>
+<td><em>anchor</em></td>
+</tr>
+<tr class="even">
+<td style="color: #666">perf:2023_Hewitt:dpt1</td>
+<td style="text-align: right;">2093371 samples</td>
 <td><em>inferred</em></td>
 </tr>
 </tbody>
 </table>
-<div style="margin-top: 4px; color: #666; font-size: 0.85em;">Try: <code>stamp.get(&lt;tl_id&gt;)</code>, <code>stamp.get_coordinate(&lt;tl_id&gt;)</code>, <code>stamp.get_unit(&lt;unit&gt;)</code></div></div>
+<div style="margin-top: 4px; color: #666; font-size: 0.85em;">Try: <code>stamp.get_coordinate_for(&lt;tl_id&gt;)</code>, <code>stamp.get_coordinates_for(&lt;tl_ids&gt;)</code>, <code>stamp.get_unit(&lt;unit&gt;)</code>, <code>stamp.get_conversion_for(&lt;key&gt;)</code></div></div>
 </div>
 </div>
-<p>Read across that <button class="glossary" title="">MatchStamp</button>: the same notated moment falls at 37.8 s for Brendel and 38.2 s for Szegedi, but at 63.1 s for Gould — the raw material of a tempo comparison, drawn straight from the loaded alignment with no aligner ever run.</p>
+<p>Read across that <button class="glossary" title="The union of TimeStamps from groups synchronously connected by a MatchGraph. Contains one coordinate per participating timeline. C-map conversion values are opt-in here: every matchstamp getter defaults to conversion_maps=False, unlike the TimeStamp getters, where conversions are shown by default — across a large bundle they would bury the alignment answer. MatchStamp implements the shared Stamp interface: get_coordinate_for(timeline_id) returns an IdCoordinate by default and a plain number under format=“float”/“int”/“fraction”, get_unit() converts through a C-map, get_conversion_for() reads label and structured map values, present_timelines lists available timelines, and is_interpolated identifies interpolation fallback.">MatchStamp</button>: the same notated moment falls at 37.8 s for Brendel and 38.2 s for Szegedi, but at 63.1 s for Gould — the raw material of a tempo comparison, drawn straight from the loaded alignment with no aligner ever run.</p>
 <hr>
 </section>
 </section>
@@ -849,24 +845,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="tempo-the-beat-events" class="level3">
 <h3 class="anchored" data-anchor-id="tempo-the-beat-events">Tempo: the <code>Beat</code> events</h3>
 <p>Each <code>Beat</code> event carries the measured beat-per-minute reading at its onset, together with the <code>measure_number</code> and <code>beat</code> it falls on. There are 63 of them — one per measured beat of the variation. Take Szegedi’s:</p>
-<div id="7a3af4eb" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.825378Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.825216Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.839049Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.838313Z&quot;}}" data-execution_count="16">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>szegedi_beats <span class="op">=</span> szegedi_cpt.get_events().<span class="bu">filter</span>(event_type<span class="op">=</span><span class="st">"Beat"</span>).to_dataframe()</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>szegedi_tempo <span class="op">=</span> szegedi_beats[[<span class="st">"start"</span>, <span class="st">"measure_number"</span>, <span class="st">"beat"</span>, <span class="st">"bpm"</span>]].copy()</span>
-<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>szegedi_tempo[<span class="st">"onset_sec"</span>] <span class="op">=</span> szegedi_tempo.pop(<span class="st">"start"</span>).astype(<span class="bu">float</span>)</span>
-<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>szegedi_tempo[<span class="st">"measure_number"</span>] <span class="op">=</span> szegedi_tempo[<span class="st">"measure_number"</span>].astype(<span class="bu">int</span>)</span>
-<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>szegedi_tempo[<span class="st">"beat"</span>] <span class="op">=</span> szegedi_tempo[<span class="st">"beat"</span>].astype(<span class="bu">int</span>)</span>
-<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>szegedi_tempo[<span class="st">"bpm"</span>] <span class="op">=</span> szegedi_tempo[<span class="st">"bpm"</span>].astype(<span class="bu">float</span>)</span>
-<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"beat events"</span>: <span class="bu">len</span>(szegedi_tempo),</span>
-<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"first onset (s)"</span>: szegedi_tempo[<span class="st">"onset_sec"</span>].iloc[<span class="dv">0</span>],</span>
-<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"measured BPM: min / median / max"</span>: (</span>
-<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">round</span>(szegedi_tempo[<span class="st">"bpm"</span>].<span class="bu">min</span>(), <span class="dv">1</span>),</span>
-<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>        <span class="bu">round</span>(szegedi_tempo[<span class="st">"bpm"</span>].median(), <span class="dv">1</span>),</span>
-<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>        <span class="bu">round</span>(szegedi_tempo[<span class="st">"bpm"</span>].<span class="bu">max</span>(), <span class="dv">1</span>),</span>
-<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>    ),</span>
-<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="7a3af4eb" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:50.127681Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:50.127490Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:50.165296Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:50.164174Z&quot;}}" data-execution_count="16">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>szegedi_beats <span class="op">=</span> szegedi_cpt.get_events().<span class="bu">filter</span>(event_type<span class="op">=</span><span class="st">"Beat"</span>).to_dataframe()</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>szegedi_tempo <span class="op">=</span> szegedi_beats[[<span class="st">"start"</span>, <span class="st">"measure_number"</span>, <span class="st">"beat"</span>, <span class="st">"bpm"</span>]].copy()</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>szegedi_tempo[<span class="st">"onset_sec"</span>] <span class="op">=</span> szegedi_tempo.pop(<span class="st">"start"</span>).astype(<span class="bu">float</span>)</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>szegedi_tempo[<span class="st">"measure_number"</span>] <span class="op">=</span> szegedi_tempo[<span class="st">"measure_number"</span>].astype(<span class="bu">int</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>szegedi_tempo[<span class="st">"beat"</span>] <span class="op">=</span> szegedi_tempo[<span class="st">"beat"</span>].astype(<span class="bu">int</span>)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>szegedi_tempo[<span class="st">"bpm"</span>] <span class="op">=</span> szegedi_tempo[<span class="st">"bpm"</span>].astype(<span class="bu">float</span>)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>{</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">"beat events"</span>: <span class="bu">len</span>(szegedi_tempo),</span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">"first onset (s)"</span>: szegedi_tempo[<span class="st">"onset_sec"</span>].iloc[<span class="dv">0</span>],</span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">"measured BPM: min / median / max"</span>: (</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">round</span>(szegedi_tempo[<span class="st">"bpm"</span>].<span class="bu">min</span>(), <span class="dv">1</span>),</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>        <span class="bu">round</span>(szegedi_tempo[<span class="st">"bpm"</span>].median(), <span class="dv">1</span>),</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>        <span class="bu">round</span>(szegedi_tempo[<span class="st">"bpm"</span>].<span class="bu">max</span>(), <span class="dv">1</span>),</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>    ),</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="16">
 <pre><code>{'beat events': 63,
  'first onset (s)': np.float64(0.796354),
@@ -876,8 +872,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </div>
 </div>
 <p>The tempo is anything but constant. Reading the first measures of the variation shows the measured BPM moving from beat to beat — the local rubato of the playing, recorded as data:</p>
-<div id="86149ec9" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.840468Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.840319Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.846343Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.845561Z&quot;}}" data-execution_count="17">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>szegedi_tempo.head(<span class="dv">8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="86149ec9" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:50.182552Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:50.181038Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:50.190992Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:50.190065Z&quot;}}" data-execution_count="17">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>szegedi_tempo.head(<span class="dv">8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="17">
 <div>
 
@@ -959,19 +955,19 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="dynamics-the-dynamics-events" class="level3">
 <h3 class="anchored" data-anchor-id="dynamics-the-dynamics-events">Dynamics: the <code>Dynamics</code> events</h3>
 <p>At the same measured onsets sit 63 <code>Dynamics</code> events, each carrying the mean and peak MIDI velocity measured over its beat. The <code>.dyn</code> source rows have no onset of their own; the loader joined each to the <code>Beat</code> row sharing its <code>(measure_number, beat)</code> key, so the dynamics land at exactly the same seconds as the tempo readings:</p>
-<div id="3674fc38" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.847869Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.847706Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.859577Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.858999Z&quot;}}" data-execution_count="18">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>szegedi_dyn <span class="op">=</span> szegedi_cpt.get_events().<span class="bu">filter</span>(event_type<span class="op">=</span><span class="st">"Dynamics"</span>).to_dataframe()</span>
-<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics <span class="op">=</span> szegedi_dyn[</span>
-<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"start"</span>, <span class="st">"measure_number"</span>, <span class="st">"beat"</span>, <span class="st">"velocity_mean"</span>, <span class="st">"velocity_max"</span>]</span>
-<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>].copy()</span>
-<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"onset_sec"</span>] <span class="op">=</span> szegedi_dynamics.pop(<span class="st">"start"</span>).astype(<span class="bu">float</span>)</span>
-<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"measure_number"</span>] <span class="op">=</span> szegedi_dynamics[<span class="st">"measure_number"</span>].astype(<span class="bu">int</span>)</span>
-<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"beat"</span>] <span class="op">=</span> szegedi_dynamics[<span class="st">"beat"</span>].astype(<span class="bu">int</span>)</span>
-<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"velocity_mean"</span>] <span class="op">=</span> szegedi_dynamics[<span class="st">"velocity_mean"</span>].astype(<span class="bu">float</span>)</span>
-<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"velocity_max"</span>] <span class="op">=</span> szegedi_dynamics[<span class="st">"velocity_max"</span>].astype(<span class="bu">float</span>)</span>
-<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics.head(<span class="dv">8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="3674fc38" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:50.193729Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:50.193496Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:50.209237Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:50.208397Z&quot;}}" data-execution_count="18">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>szegedi_dyn <span class="op">=</span> szegedi_cpt.get_events().<span class="bu">filter</span>(event_type<span class="op">=</span><span class="st">"Dynamics"</span>).to_dataframe()</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics <span class="op">=</span> szegedi_dyn[</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>    [<span class="st">"start"</span>, <span class="st">"measure_number"</span>, <span class="st">"beat"</span>, <span class="st">"velocity_mean"</span>, <span class="st">"velocity_max"</span>]</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>].copy()</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"onset_sec"</span>] <span class="op">=</span> szegedi_dynamics.pop(<span class="st">"start"</span>).astype(<span class="bu">float</span>)</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"measure_number"</span>] <span class="op">=</span> szegedi_dynamics[<span class="st">"measure_number"</span>].astype(<span class="bu">int</span>)</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"beat"</span>] <span class="op">=</span> szegedi_dynamics[<span class="st">"beat"</span>].astype(<span class="bu">int</span>)</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"velocity_mean"</span>] <span class="op">=</span> szegedi_dynamics[<span class="st">"velocity_mean"</span>].astype(<span class="bu">float</span>)</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics[<span class="st">"velocity_max"</span>] <span class="op">=</span> szegedi_dynamics[<span class="st">"velocity_max"</span>].astype(<span class="bu">float</span>)</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>szegedi_dynamics.head(<span class="dv">8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="18">
 <div>
 
@@ -1062,22 +1058,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="five-interpretations-five-tempo-profiles" class="level3">
 <h3 class="anchored" data-anchor-id="five-interpretations-five-tempo-profiles">Five interpretations, five tempo profiles</h3>
 <p>Because every performance carries its own measured <code>Beat</code> events, the “five interpretations of one work” claim becomes concrete: the same 63 beats of the variation, measured in each recording. Summarising each performer’s measured tempo shows how differently they take it — Gould stretches the variation across nearly twice the span of Brendel, at roughly half the median tempo:</p>
-<div id="eee80711" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-07-24T20:35:47.861223Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-07-24T20:35:47.861077Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-07-24T20:35:47.887066Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-07-24T20:35:47.886274Z&quot;}}" data-execution_count="19">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>tempo_by_performer <span class="op">=</span> {}</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> key <span class="kw">in</span> bundle.group_ids:</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> key.startswith(<span class="st">"perf:"</span>):</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">continue</span></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    cpt <span class="op">=</span> bundle.get_timeline(<span class="ss">f"</span><span class="sc">{</span>key<span class="sc">}</span><span class="ss">:cpt1"</span>)</span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    beats <span class="op">=</span> cpt.get_events().<span class="bu">filter</span>(event_type<span class="op">=</span><span class="st">"Beat"</span>).to_dataframe()</span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    bpm <span class="op">=</span> beats[<span class="st">"bpm"</span>].astype(<span class="bu">float</span>)</span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    onset <span class="op">=</span> beats[<span class="st">"start"</span>].astype(<span class="bu">float</span>)</span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    tempo_by_performer[key.removeprefix(<span class="st">"perf:"</span>)] <span class="op">=</span> {</span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">"beats"</span>: <span class="bu">len</span>(beats),</span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">"median BPM"</span>: <span class="bu">round</span>(bpm.median(), <span class="dv">1</span>),</span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">"span (s)"</span>: <span class="bu">round</span>(onset.<span class="bu">max</span>() <span class="op">-</span> onset.<span class="bu">min</span>(), <span class="dv">1</span>),</span>
-<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>    }</span>
-<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(tempo_by_performer).T</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div id="eee80711" class="cell" data-quarto-private-1="{&quot;key&quot;:&quot;execution&quot;,&quot;value&quot;:{&quot;iopub.execute_input&quot;:&quot;2026-08-10T12:46:50.211621Z&quot;,&quot;iopub.status.busy&quot;:&quot;2026-08-10T12:46:50.211421Z&quot;,&quot;iopub.status.idle&quot;:&quot;2026-08-10T12:46:50.321903Z&quot;,&quot;shell.execute_reply&quot;:&quot;2026-08-10T12:46:50.299777Z&quot;}}" data-execution_count="19">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>tempo_by_performer <span class="op">=</span> {}</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> key <span class="kw">in</span> bundle.group_ids:</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">not</span> key.startswith(<span class="st">"perf:"</span>):</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">continue</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    cpt <span class="op">=</span> bundle.get_timeline(<span class="ss">f"</span><span class="sc">{</span>key<span class="sc">}</span><span class="ss">:cpt1"</span>)</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>    beats <span class="op">=</span> cpt.get_events().<span class="bu">filter</span>(event_type<span class="op">=</span><span class="st">"Beat"</span>).to_dataframe()</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    bpm <span class="op">=</span> beats[<span class="st">"bpm"</span>].astype(<span class="bu">float</span>)</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    onset <span class="op">=</span> beats[<span class="st">"start"</span>].astype(<span class="bu">float</span>)</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    tempo_by_performer[key.removeprefix(<span class="st">"perf:"</span>)] <span class="op">=</span> {</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>        <span class="st">"beats"</span>: <span class="bu">len</span>(beats),</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>        <span class="st">"median BPM"</span>: <span class="bu">round</span>(bpm.median(), <span class="dv">1</span>),</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>        <span class="st">"span (s)"</span>: <span class="bu">round</span>(onset.<span class="bu">max</span>() <span class="op">-</span> onset.<span class="bu">min</span>(), <span class="dv">1</span>),</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>pd.DataFrame(tempo_by_performer).T</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-display" data-execution_count="19">
 <div>
 

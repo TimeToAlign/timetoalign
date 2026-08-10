@@ -83,7 +83,23 @@ ConversionMap: |
 
 Coordinate: |
   A position on a timeline, expressed as the distance from the origin in the
-  timeline's measuring unit. Combines a numeric value with a TimeUnit.
+  timeline's measuring unit. Combines a numeric value with a TimeUnit. The unit
+  alone decides the number policy: quarters and beats are exact Fractions,
+  discrete units (ticks, samples, frames, pixels) are locked to int, and the
+  remaining continuous units (seconds, points, centimeters, …) are float. That
+  declared number type is preserved at every boundary — authored, converted,
+  interpolated, queried or retrieved — so a fraction-canonical axis always
+  yields Fractions and a float-canonical axis always yields floats. An explicit
+  number_type= overrides the default, and exact input is never degraded.
+
+Flow: |
+  One computed path through a score's control structure — the ordered sequence
+  of measure visitations that results from following its repeats, jumps and
+  voltas. A ScoreFlowController computes one from the parsed measure records,
+  or one can be loaded from a .flow.csv ground truth and compared with
+  is_equivalent(). A Flow is section-based; measure-count ranges follow the
+  library's right-open [start, end) convention. It is the input a FlowMap is
+  built from, not itself a mapping between coordinates.
 
 FlowMap: |
   A path through a score's control structure (repeats, jumps), expressed as an
@@ -128,6 +144,16 @@ Event: |
   Anything associated with a timeline via Instants. An InstantEvent has zero
   duration; a TimeIntervalEvent has duration defined by start and end coordinates.
 
+IdCoordinate: |
+  A Coordinate that also names the timeline it belongs to. It is the default
+  return of every coordinate getter in the library — stamps, timelines, groups,
+  bundles, match lines, graphs and warp maps all hand back
+  IdCoordinate(value, unit, timeline_id) unless an explicit format= asks for
+  something else. Carrying identity is what lets a retrieved coordinate be
+  handed straight back as a query without restating which axis it came from.
+  IdCoordinate never compares equal to a plain Coordinate in either direction;
+  use format="coordinate" when timeline identity should be discarded.
+
 Instant: |
   Associates a coordinate (a "time-point") with a signification such as
   "start of event e". Instants sharing a coordinate are synchronous.
@@ -135,6 +161,25 @@ Instant: |
 InstantEvent: |
   An event defined by a single Instant, having zero duration. Contrast with
   TimeIntervalEvent which has a duration.
+
+Interval: |
+  A frozen scalar pairing two plain Coordinates as a half-open span
+  [start, end): the start is inclusive, the end exclusive. Both endpoints must
+  share one TimeUnit and one number type, which makes the interval's own unit
+  and number_type unambiguous; its duration is exactly end - start, returned as
+  a Duration. Reversed intervals raise; zero-length ones are valid. It renders
+  through the same formatter the scalars use, so
+  str(Interval(Coordinate(Fraction(1, 2), quarters),
+  Coordinate(Fraction(3, 2), quarters))) is "[1/2, 3/2) quarters". Interval is
+  the scalar leaf of interval retrieval: TimeIntervalStamp.get_interval() and
+  TimelineGroup.get_interval_for() both return one.
+
+IntervalField: |
+  The SemanticField paired with Interval. It stores a struct of start and end
+  coordinate structs under one unit, domain, and number_type metadata triple,
+  materialises Interval | None per row, and exposes vectorized start, end, and
+  duration accessors returning CoordinateField, CoordinateField, and
+  DurationField.
 
 InverseMap: "The reverse transformation of a bijective ConversionMap."
 
@@ -176,8 +221,10 @@ MatchClaim: |
 MatchClaimField: |
   A columnar, PyArrow-backed store holding a whole set of synchronous-instant
   pairwise MatchClaims as Arrow columns (the two timeline ids dictionary-encoded,
-  the two coordinates as float64) rather than as one frozen MatchClaim object per
-  claim. Individual MatchClaims are materialised on demand when a row is indexed
+  each coordinate as a struct of value, numerator, denominator and unit) rather
+  than as one frozen MatchClaim object per claim. Storing the exact ratio beside
+  the float mirror is what lets a claim's coordinate come back in its axis's
+  declared number type instead of being flattened on the way through the column. Individual MatchClaims are materialised on demand when a row is indexed
   or iterated. Built vectorized via from_columns(), it is the scalable backing
   for dense alignment matrices, where the complete pairwise topology of a whole
   work runs to roughly a million claims. Shared provenance is held once at field
@@ -195,11 +242,16 @@ MatchLine: |
 
 MatchStamp: |
   The union of TimeStamps from groups synchronously connected by a MatchGraph.
-  Contains one coordinate per participating timeline and, with
-  conversion_maps=True (the default), C-map conversion values. MatchStamp
-  implements the shared Stamp interface: get() returns a raw coordinate,
-  get_coordinate() returns a unit-bearing Coordinate, present_timelines lists
-  available timelines, and is_interpolated identifies interpolation fallback.
+  Contains one coordinate per participating timeline. C-map conversion values
+  are opt-in here: every matchstamp getter defaults to conversion_maps=False,
+  unlike the TimeStamp getters, where conversions are shown by default —
+  across a large bundle they would bury the alignment answer. MatchStamp
+  implements the shared Stamp interface: get_coordinate_for(timeline_id)
+  returns an IdCoordinate by default and a plain number under
+  format="float"/"int"/"fraction", get_unit() converts through a C-map,
+  get_conversion_for() reads label and structured map values,
+  present_timelines lists available timelines, and is_interpolated identifies
+  interpolation fallback.
 
 MetricMap: |
   A table-based ConversionMap from a quarter position to its measure count,
@@ -339,7 +391,11 @@ TimeIntervalEvent: |
 
 TimeIntervalStamp: |
   Combination of a start TimeStamp and an end TimeStamp, representing a
-  cross-section of an interval through the timeline hierarchy.
+  cross-section of an interval through the timeline hierarchy. It stores one
+  Interval per timeline ID; get_interval(timeline_id) returns that Interval,
+  get_intervals() the whole mapping, get_duration_for() an IdDuration, and
+  get_interval_in(unit) the span converted through a C-map. Interval retrieval
+  takes no format argument — its scalar leaf is always an Interval.
 
 Timeline: |
   A positive coordinate axis defined by an origin and a measuring unit;
@@ -349,10 +405,18 @@ Timeline: |
 TimeStamp: |
   A cross-section through a timeline or group at a given coordinate, capturing
   positions in all connected systems plus values converted by all attached
-  C-maps. TimeStamp implements the shared Stamp interface used by
-  GroupTimestamp and MatchStamp, including raw get(), unit-bearing
-  get_coordinate(), present_timelines, and is_interpolated access.
+  C-maps. It stores one Coordinate per timeline ID, so each entry carries its
+  own unit and number type. TimeStamp implements the shared Stamp interface
+  used by GroupTimestamp and MatchStamp: a typed axis, get_coordinate_for()
+  and get_coordinates_for() returning IdCoordinates by default, get_unit() for
+  unit conversion, get_conversion_for() for label and structured map values,
+  present_timelines, and is_interpolated. A bare number is an explicit
+  format="float"/"int"/"fraction" request; there is no ambient float view.
 
 WarpMap: |
   An interpolation-based coordinate mapping derived from a MatchLine; enables
-  non-linear coordinate transfer between TimelineGroups.
+  non-linear coordinate transfer between TimelineGroups. It declares both axes
+  — source and target unit and number type — and is queried through
+  get_coordinate_at(position) for one position or get_coordinates_at([...])
+  for a batch; the object is not callable and exposes no raw arrays.
+  inverse() returns a WarpMap with both units and both number types swapped.

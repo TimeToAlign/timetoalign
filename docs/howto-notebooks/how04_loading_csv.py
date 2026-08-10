@@ -60,7 +60,7 @@ from timetoalign.core import (
     IntField,
     MeasureNumberField,
     NumberType,
-    RationalField,
+    RedundantNumberField,
     StringField,
     TimeUnit,
 )
@@ -230,8 +230,9 @@ head_table(typed.get_events().table)
 #
 # - **DataField blueprints** are what you reach for whenever the source
 #   column maps to a single typed value — possibly with semantic
-#   metadata. `IntField`, `FloatField`, `StringField`, `RationalField`
-#   cover the raw side; every paired `SemanticField` subclass
+#   metadata. `IntField`, `FloatField`, `StringField`,
+#   `RedundantNumberField` cover the raw side; every paired
+#   `SemanticField` subclass
 #   (`DenominateNumberField`, `EnharmonicPitchField`, `IdField`, …) is
 #   blueprint-constructible in exactly the same way: `name=` plus
 #   whatever extra kwargs the scalar requires.
@@ -279,16 +280,18 @@ head_table(comp.get_events().table)
 # %% [markdown]
 # Each entry of `parts` is resolved through the same chain — so `int`
 # becomes an `IntField` blueprint and `Fraction` becomes a
-# `RationalField` blueprint. Composites also nest: a `parts` entry may
-# itself be a `CompositeFieldParser`.
+# `RedundantNumberField` blueprint. Composites also nest: a `parts`
+# entry may itself be a `CompositeFieldParser`.
 #
-# `RationalField` parses string entries like `"3/8"` into a Fraction;
+# `RedundantNumberField` parses string entries like `"3/8"` into a
+# Fraction, storing the exact numerator/denominator pair alongside a
+# float mirror;
 # `DenominateNumberField` does the same and binds the result to a
 # `TimeUnit`, so the field arrives at the next pipeline stage already
 # carrying time-unit semantics:
 
 # %%
-denom_csv = b"id,start,end,duration\n" b"e0,0.0,0.5,1/2\n" b"e1,0.5,1.0,1/4\n"
+denom_csv = b"id,start,end,duration\n" b"e0,0.0,0.5,1/2\n" b"e1,0.5,0.75,1/4\n"
 denom_path = write_csv("denom.csv", denom_csv)
 
 
@@ -369,7 +372,7 @@ class ChopinSoloLoader(CsvLoader):
             separator="+",
             parts=[
                 MeasureNumberField,  # default name 'measure_number'
-                RationalField(name="mn_onset"),
+                RedundantNumberField(name="mn_onset"),
             ],
             name="position",
         ),

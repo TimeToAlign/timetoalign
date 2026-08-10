@@ -143,7 +143,11 @@ score_clt.get_events().table.slice(0, 5).to_pandas()[
 # quarters — 720 ticks to the quarter. A {{< glossary TimeStamp >}} on
 # `score:dlt1` exposes the conversion at any coordinate, so asking for the
 # quarter reading at a tick is the continuous↔discrete link of the logical
-# domain made visible:
+# domain made visible. The reading comes back typed: an `IdCoordinate` in
+# `quarters`, still tagged with the tick timeline it converted from, because a
+# unit conversion changes the representation and not which timeline you are
+# standing on. Quarters are exact, so 360 ticks reads as `1/2` rather than
+# `0.5`:
 
 # %%
 {

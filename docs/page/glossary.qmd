@@ -122,7 +122,15 @@ to the relevant section of the conceptual model.
 **Coordinate**
 :   A position on a {{< glossary Timeline >}}, expressed as the distance
     from the origin in the timeline's measuring unit. Combines a numeric
-    value with a TimeUnit.
+    value with a TimeUnit. The unit alone decides the number policy:
+    `quarters` and `beats` are exact `Fraction`s, discrete units (`ticks`,
+    `samples`, `frames`, `pixels`) are locked to `int`, and the remaining
+    continuous units (`seconds`, `points`, `centimeters`, …) are `float`.
+    That declared number type is preserved at every boundary — authored,
+    converted, offset-computed, interpolated, queried or retrieved — so a
+    fraction-canonical axis always yields `Fraction`s and a float-canonical
+    axis always yields `float`s. An explicit `number_type=` overrides the
+    default, and exact input is never degraded.
     See [Foundations](concepts.qmd#foundations).
 
 ## D
@@ -164,6 +172,17 @@ to the relevant section of the conceptual model.
 
 ## F
 
+**Flow**
+:   One computed path through a score's control structure — the ordered
+    sequence of measure visitations that results from following its repeats,
+    {{< glossary Jump >}}s and voltas. A `ScoreFlowController` computes one
+    from the parsed measure records, or one can be loaded from a `.flow.csv`
+    ground truth and compared with `is_equivalent()`. A Flow is section-based;
+    measure-count ranges follow the library's right-open `[start, end)`
+    convention. It is the input a {{< glossary FlowMap >}} is built from, not
+    itself a mapping between coordinates.
+    See [Flow control](concepts.qmd#flow-control).
+
 **FlowMap**
 :   A path through a score's control structure (repeats, jumps), expressed as an
     ordered sequence of {{< glossary TimeInterval >}}s; not itself a
@@ -191,6 +210,18 @@ to the relevant section of the conceptual model.
 
 ## I
 
+**IdCoordinate**
+:   A {{< glossary Coordinate >}} that also names the {{< glossary Timeline >}}
+    it belongs to. It is the default return of every coordinate getter in the
+    library — stamps, timelines, groups, bundles, match lines, graphs and warp
+    maps all hand back `IdCoordinate(value, unit, timeline_id)` unless an
+    explicit `format=` asks for something else. Carrying identity is what lets
+    a retrieved coordinate be handed straight back as a query without restating
+    which axis it came from. An IdCoordinate never compares equal to a plain
+    Coordinate in either direction; use `format="coordinate"` when timeline
+    identity should be discarded.
+    See [Foundations](concepts.qmd#foundations).
+
 **Instant**
 :   Associates a {{< glossary Coordinate >}} (a "time-point") with a
     signification such as "start of event *e*". Instants sharing a
@@ -201,6 +232,27 @@ to the relevant section of the conceptual model.
 :   An {{< glossary Event >}} defined by a single {{< glossary Instant >}},
     having zero duration.
     See [Foundations](concepts.qmd#foundations).
+
+**Interval**
+:   A frozen scalar pairing two plain {{< glossary Coordinate >}}s as a
+    half-open span `[start, end)`: the start is inclusive, the end exclusive.
+    Both endpoints must share one TimeUnit and one number type, which makes the
+    interval's own `unit` and `number_type` unambiguous; its `duration` is
+    exactly `end - start`, returned as a `Duration`. Reversed intervals raise;
+    zero-length ones are valid. It renders through the same formatter the
+    scalars use, so an interval on a `quarters` axis prints
+    `[1/2, 3/2) quarters` rather than `[0.5, 1.5)`. Interval is the scalar leaf
+    of interval retrieval: `TimeIntervalStamp.get_interval()` and
+    `TimelineGroup.get_interval_for()` both return one.
+    See [Nested timelines](concepts.qmd#nested-timelines).
+
+**IntervalField**
+:   The `SemanticField` paired with {{< glossary Interval >}}. It stores a
+    struct of `start` and `end` coordinate structs under one `unit`, `domain`,
+    and `number_type` metadata triple, materialises `Interval | None` per row,
+    and exposes vectorized `start`, `end`, and `duration` accessors returning
+    `CoordinateField`, `CoordinateField`, and `DurationField`.
+    See [Nested timelines](concepts.qmd#nested-timelines).
 
 **InverseMap**
 :   The reverse transformation of a bijective
@@ -261,8 +313,12 @@ to the relevant section of the conceptual model.
 **MatchClaimField**
 :   A columnar, PyArrow-backed store holding a whole set of synchronous-instant
     pairwise {{< glossary MatchClaim >}}s as Arrow columns (the two timeline ids
-    dictionary-encoded, the two coordinates as `float64`) rather than as one
-    frozen MatchClaim object per claim. Individual MatchClaims are materialised
+    dictionary-encoded, each coordinate as a struct of `value`, `numerator`,
+    `denominator` and `unit`) rather than as one
+    frozen MatchClaim object per claim. Storing the exact ratio beside the
+    float mirror is what lets a claim's coordinate come back in its axis's
+    declared number type instead of being flattened on the way through the
+    column. Individual MatchClaims are materialised
     on demand when a row is indexed or iterated. Built vectorized via
     `from_columns()`, it is the scalable backing for dense
     {{< glossary AlignmentMatrix >}} alignments, where the complete pairwise
@@ -292,15 +348,18 @@ to the relevant section of the conceptual model.
 **MatchStamp**
 :   The union of {{< glossary TimeStamp >}}s from groups synchronously
     connected by a {{< glossary MatchGraph >}}. Contains one coordinate per
-    participating timeline and, with `conversion_maps=True`, C-map
-    conversion values. Unlike {{< glossary TimeStamp >}}, where C-Maps are
+    participating timeline. C-map conversion values are opt-in here: unlike
+    {{< glossary TimeStamp >}}, where C-Maps are
     visible by default, `conversion_maps` on a MatchStamp getter
     (`bundle.get_matchstamp_at()`, `get_matchstamps()`, `get_matchstamp_table()`,
-    `MatchClaim.get_matchstamp()`) is opt-in and defaults to `False`.
+    `MatchClaim.get_matchstamp()`) defaults to `False` — across a large bundle
+    they would bury the alignment answer.
     This is a per-context *default value* for a shared parameter, not a
     structural difference: MatchStamp implements the same `Stamp` interface
-    as every other stamp type — `get()` returns a raw coordinate,
-    `get_coordinate()` returns a unit-bearing {{< glossary Coordinate >}},
+    as every other stamp type — `get_coordinate_for(timeline_id)` returns an
+    {{< glossary IdCoordinate >}} by default and a plain number under
+    `format="float"/"int"/"fraction"`, `get_unit()` converts through a C-map,
+    `get_conversion_for()` reads label and structured map values,
     `present_timelines` lists available timelines, and `is_interpolated`
     identifies interpolation fallback. A stamp from any source keeps the
     identical structure, methods, and behaviour the `Stamp` contract
@@ -488,7 +547,12 @@ to the relevant section of the conceptual model.
 **TimeIntervalStamp**
 :   Combination of a start {{< glossary TimeStamp >}} and an end
     TimeStamp, representing a cross-section of an interval through the
-    timeline hierarchy.
+    timeline hierarchy. It stores one {{< glossary Interval >}} per timeline
+    ID; `get_interval(timeline_id)` returns that Interval, `get_intervals()`
+    the whole mapping, `get_duration_for()` an `IdDuration`, and
+    `get_interval_in(unit)` the span converted through a C-map. Interval
+    retrieval takes no `format` argument — its scalar leaf is always an
+    Interval.
     See [Nested timelines](concepts.qmd#nested-timelines).
 
 **Timeline**
@@ -506,10 +570,16 @@ to the relevant section of the conceptual model.
 **TimeStamp**
 :   A cross-section through a timeline or group at a given coordinate,
     capturing positions in all connected systems plus values converted by
-    all attached {{< glossary ConversionMap >}}s. TimeStamp implements the
+    all attached {{< glossary ConversionMap >}}s. It stores one
+    {{< glossary Coordinate >}} per timeline ID, so each entry carries its own
+    unit and number type. TimeStamp implements the
     shared `Stamp` interface used by {{< glossary GroupTimestamp >}} and
-    {{< glossary MatchStamp >}}, including raw `get()`, unit-bearing
-    `get_coordinate()`, `present_timelines`, and `is_interpolated` access.
+    {{< glossary MatchStamp >}}: a typed `axis`, `get_coordinate_for()` and
+    `get_coordinates_for()` returning {{< glossary IdCoordinate >}}s by
+    default, `get_unit()` for unit conversion, `get_conversion_for()` for
+    label and structured map values, `present_timelines`, and
+    `is_interpolated`. A bare number is an explicit
+    `format="float"/"int"/"fraction"` request; there is no ambient float view.
     See [Nested timelines](concepts.qmd#nested-timelines).
 
 ## W
@@ -517,5 +587,10 @@ to the relevant section of the conceptual model.
 **WarpMap**
 :   An interpolation-based coordinate mapping derived from a
     {{< glossary MatchLine >}}; enables non-linear coordinate transfer
-    between {{< glossary TimelineGroup >}}s.
+    between {{< glossary TimelineGroup >}}s. It declares both axes — source
+    and target unit *and* number type — and is queried through
+    `get_coordinate_at(position)` for one position or
+    `get_coordinates_at([...])` for a batch; the object is not callable and
+    exposes no raw arrays. `inverse()` returns a WarpMap with both units and
+    both number types swapped.
     See [Alignment](concepts.qmd#coordinate-transfer).

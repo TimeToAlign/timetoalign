@@ -54,11 +54,14 @@ is NOT a global graph; MatchGraphs are created on demand.
 | [extend_to_groups](#timetoalign.alignment.MatchGraph.extend_to_groups) | Extend anchors to full group timestamps via implicit claims. |
 | [filter](#timetoalign.alignment.MatchGraph.filter) | Create filtered view of the graph. |
 | [from_dict](#timetoalign.alignment.MatchGraph.from_dict) | Deserialize from dictionary. |
-| [get_connected_nodes](#timetoalign.alignment.MatchGraph.get_connected_nodes) | Get all nodes connected to a given node. |
+| [get_connected_nodes](#timetoalign.alignment.MatchGraph.get_connected_nodes) | Get all public nodes connected to a given node. |
 | [get_connected_timelines](#timetoalign.alignment.MatchGraph.get_connected_timelines) | Get all timelines connected to a given timeline. |
-| [get_coordinates_for_timeline](#timetoalign.alignment.MatchGraph.get_coordinates_for_timeline) | Get all coordinates for a specific timeline. |
+| [get_coordinate](#timetoalign.alignment.MatchGraph.get_coordinate) | Dispatch a scalar or plural exact graph-position query. |
+| [get_coordinate_at](#timetoalign.alignment.MatchGraph.get_coordinate_at) | Resolve one exact graph node to a target component coordinate. |
+| [get_coordinates_at](#timetoalign.alignment.MatchGraph.get_coordinates_at) | Resolve exact graph nodes for a coordinate collection. |
+| [get_coordinates_for](#timetoalign.alignment.MatchGraph.get_coordinates_for) | Return the sorted graph coordinate column for one timeline. |
 | [get_matchstamp](#timetoalign.alignment.MatchGraph.get_matchstamp) | Get the single MatchStamp for this graph. |
-| [get_nodes_for_timeline](#timetoalign.alignment.MatchGraph.get_nodes_for_timeline) | Get all nodes for a specific timeline. |
+| [get_nodes_for_timeline](#timetoalign.alignment.MatchGraph.get_nodes_for_timeline) | Get all public graph nodes for a specific timeline. |
 | [get_stamps](#timetoalign.alignment.MatchGraph.get_stamps) | Get all MatchStamps from the graph. |
 | [split_components](#timetoalign.alignment.MatchGraph.split_components) | Split this graph into one MatchGraph per connected component. |
 | [to_dict](#timetoalign.alignment.MatchGraph.to_dict) | Serialize to dictionary. |
@@ -151,19 +154,26 @@ Deserialize from dictionary.
 alignment.MatchGraph.get_connected_nodes(node)
 ```
 
-Get all nodes connected to a given node.
+Get all public nodes connected to a given node.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name   | Type                                                 | Description                         | Default    |
-|--------|------------------------------------------------------|-------------------------------------|------------|
-| node   | [GraphNode](`timetoalign.alignment.graph.GraphNode`) | The (timeline_id, coordinate) node. | _required_ |
+| Name   | Type                                                 | Description                            | Default    |
+|--------|------------------------------------------------------|----------------------------------------|------------|
+| node   | [IdCoordinate](`timetoalign.core.time.IdCoordinate`) | Canonical identified graph coordinate. | _required_ |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                                   | Description              |
-|--------|------------------------------------------------------------------------|--------------------------|
-|        | [list](`list`)\[[GraphNode](`timetoalign.alignment.graph.GraphNode`)\] | List of connected nodes. |
+| Name   | Type                                                                   | Description                                   |
+|--------|------------------------------------------------------------------------|-----------------------------------------------|
+|        | [list](`list`)\[[IdCoordinate](`timetoalign.core.time.IdCoordinate`)\] | Canonical identified neighboring coordinates. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                |
+|--------|----------------------------|--------------------------------------------|
+|        | [TypeError](`TypeError`)   | If ``node`` is not an ``IdCoordinate``.    |
+|        | [ValueError](`ValueError`) | If its unit is not native to its timeline. |
 
 ### get_connected_timelines { #timetoalign.alignment.MatchGraph.get_connected_timelines }
 
@@ -185,25 +195,119 @@ Get all timelines connected to a given timeline.
 |--------|------------------------------|--------------------------------|
 |        | [set](`set`)\[[str](`str`)\] | Set of connected timeline IDs. |
 
-### get_coordinates_for_timeline { #timetoalign.alignment.MatchGraph.get_coordinates_for_timeline }
+### get_coordinate { #timetoalign.alignment.MatchGraph.get_coordinate }
 
 ```python
-alignment.MatchGraph.get_coordinates_for_timeline(timeline_id)
+alignment.MatchGraph.get_coordinate(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
 ```
 
-Get all coordinates for a specific timeline.
+Dispatch a scalar or plural exact graph-position query.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type         | Description                          | Default    |
-|-------------|--------------|--------------------------------------|------------|
-| timeline_id | [str](`str`) | The timeline to get coordinates for. | _required_ |
+| Name        | Type                                                                                                                                         | Description                                    | Default           |
+|-------------|----------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) | One graph position or a coordinate collection. | _required_        |
+| timeline_id | [str](`str`) \| None                                                                                                                         | Requested result timeline when required.       | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)                                                                            | Requested coordinate output format.            | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                                                                                            | Integral projection mode.                      | `'round'`         |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                               | Description                  |
-|--------|------------------------------------|------------------------------|
-|        | [list](`list`)\[[float](`float`)\] | List of coordinates, sorted. |
+| Name   | Type                                                                                                                                                                                                 | Description                         |
+|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | The selected precise-getter result. |
+
+### get_coordinate_at { #timetoalign.alignment.MatchGraph.get_coordinate_at }
+
+```python
+alignment.MatchGraph.get_coordinate_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve one exact graph node to a target component coordinate.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                                          | Default           |
+|-------------|-------------------------------------------------------------------|------------------------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`)   | Exact graph-node position.                           | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Requested result timeline, or the unique other node. | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.                  | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                            | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                          | Description                                                       |
+|--------|---------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | One exact connected-coordinate projection or a length-one Series. |
+
+### get_coordinates_at { #timetoalign.alignment.MatchGraph.get_coordinates_at }
+
+```python
+alignment.MatchGraph.get_coordinates_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve exact graph nodes for a coordinate collection.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                      | Description                                       | Default           |
+|-------------|---------------------------------------------------------------------------|---------------------------------------------------|-------------------|
+| at          | [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) | Exact graph-node positions to resolve atomically. | _required_        |
+| timeline_id | [str](`str`) \| None                                                      | Requested result timeline.                        | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)         | Requested coordinate output format.               | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                         | Integral projection mode.                         | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | A list of projections or canonical-value Series. |
+
+### get_coordinates_for { #timetoalign.alignment.MatchGraph.get_coordinates_for }
+
+```python
+alignment.MatchGraph.get_coordinates_for(
+    timeline_id,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Return the sorted graph coordinate column for one timeline.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                          | Default           |
+|-------------|-------------------------------------------------------------------|--------------------------------------|-------------------|
+| timeline_id | [str](`str`)                                                      | The timeline to get coordinates for. | _required_        |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.  | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.            | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                   |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | Typed coordinate projections in sorted order. |
 
 ### get_matchstamp { #timetoalign.alignment.MatchGraph.get_matchstamp }
 
@@ -246,7 +350,7 @@ use the multi-component ``get_stamps()`` method.
 alignment.MatchGraph.get_nodes_for_timeline(timeline_id)
 ```
 
-Get all nodes for a specific timeline.
+Get all public graph nodes for a specific timeline.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
@@ -256,9 +360,16 @@ Get all nodes for a specific timeline.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                                   | Description                              |
-|--------|------------------------------------------------------------------------|------------------------------------------|
-|        | [list](`list`)\[[GraphNode](`timetoalign.alignment.graph.GraphNode`)\] | List of (timeline_id, coordinate) nodes. |
+| Name   | Type                                                                   | Description                                                |
+|--------|------------------------------------------------------------------------|------------------------------------------------------------|
+|        | [list](`list`)\[[IdCoordinate](`timetoalign.core.time.IdCoordinate`)\] | Canonical identified coordinates in graph insertion order. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                     | Description                         |
+|--------|--------------------------|-------------------------------------|
+|        | [TypeError](`TypeError`) | If ``timeline_id`` is not a string. |
+|        | [KeyError](`KeyError`)   | If the timeline is unknown.         |
 
 ### get_stamps { #timetoalign.alignment.MatchGraph.get_stamps }
 

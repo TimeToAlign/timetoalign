@@ -1,0 +1,29 @@
+# Interval { #timetoalign.Interval }
+
+```python
+Interval()
+```
+
+A non-decreasing interval between two plain coordinates.
+
+## Parameters {.doc-section .doc-section-parameters}
+
+| Name   | Type   | Description               | Default    |
+|--------|--------|---------------------------|------------|
+| start  |        | Inclusive interval start. | _required_ |
+| end    |        | Exclusive interval end.   | _required_ |
+
+## Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                                 |
+|--------|----------------------------|-----------------------------------------------------------------------------|
+|        | [TypeError](`TypeError`)   | If either endpoint is not a plain :class:`Coordinate`.                      |
+|        | [ValueError](`ValueError`) | If endpoint units or number types differ, or if the end precedes the start. |
+
+## Attributes
+
+| Name | Description |
+| --- | --- |
+| [duration](#timetoalign.Interval.duration) | Return the exact non-negative interval duration. |
+| [number_type](#timetoalign.Interval.number_type) | Return the common endpoint number type. |
+| [unit](#timetoalign.Interval.unit) | Return the common endpoint unit. |

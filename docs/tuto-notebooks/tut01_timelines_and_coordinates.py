@@ -353,6 +353,14 @@ named_home = theme_on_audio.with_timeline("audio")
 # Both forms produce the same timeline-qualified coordinate. The current
 # constructor order is `IdCoordinate(value, unit, timeline_id)`;
 # `with_timeline()` is convenient when you already hold a plain coordinate.
+#
+# You will rarely need either, because an `IdCoordinate` is what the library's
+# getters hand back by default — `get_coordinate()` above already returned one.
+# Carrying the identity is what lets a retrieved coordinate be passed straight
+# back as the next query without restating which axis it came from. Note that
+# an `IdCoordinate` never compares equal to a plain `Coordinate`, in either
+# direction: ask for `format="coordinate"` when you deliberately want the value
+# and unit without the timeline.
 
 # %% [markdown]
 # ## What you learned

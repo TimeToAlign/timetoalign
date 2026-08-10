@@ -224,13 +224,13 @@ score_to_perf
 # ordering and lookup direction differ.
 
 # %%
-# Extract coordinate pairs for WarpMap construction
-pairs = score_to_perf.get_coordinate_pairs("cpt1")
+# Extract typed anchors — each carries both timeline IDs and both coordinates
+anchors = score_to_perf.get_alignment_anchors("cpt1")
 
 {
-    "n_pairs": len(pairs),
-    "first_pair": pairs[0],
-    "last_pair": pairs[-1],
+    "n_anchors": len(anchors),
+    "first_anchor": anchors[0],
+    "last_anchor": anchors[-1],
 }
 
 # %% [markdown]

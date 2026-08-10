@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -874,26 +892,47 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
   <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
   </ul></li>
-  <li><a href="#timetoalign.alignment.MatchLine.get_coordinate_pairs" id="toc-timetoalign.alignment.MatchLine.get_coordinate_pairs" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.get_coordinate_pairs">get_coordinate_pairs</a>
+  <li><a href="#timetoalign.alignment.MatchLine.get_alignment_anchors" id="toc-timetoalign.alignment.MatchLine.get_alignment_anchors" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.get_alignment_anchors">get_alignment_anchors</a>
   <ul class="collapse">
   <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
   <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
   <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
   </ul></li>
-  <li><a href="#timetoalign.alignment.MatchLine.save_as" id="toc-timetoalign.alignment.MatchLine.save_as" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.save_as">save_as</a>
+  <li><a href="#timetoalign.alignment.MatchLine.get_coordinate" id="toc-timetoalign.alignment.MatchLine.get_coordinate" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.get_coordinate">get_coordinate</a>
   <ul class="collapse">
   <li><a href="#parameters-4" id="toc-parameters-4" class="nav-link" data-scroll-target="#parameters-4">Parameters</a></li>
   <li><a href="#returns-4" id="toc-returns-4" class="nav-link" data-scroll-target="#returns-4">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.MatchLine.get_coordinate_at" id="toc-timetoalign.alignment.MatchLine.get_coordinate_at" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.get_coordinate_at">get_coordinate_at</a>
+  <ul class="collapse">
+  <li><a href="#parameters-5" id="toc-parameters-5" class="nav-link" data-scroll-target="#parameters-5">Parameters</a></li>
+  <li><a href="#returns-5" id="toc-returns-5" class="nav-link" data-scroll-target="#returns-5">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.MatchLine.get_coordinates_at" id="toc-timetoalign.alignment.MatchLine.get_coordinates_at" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.get_coordinates_at">get_coordinates_at</a>
+  <ul class="collapse">
+  <li><a href="#parameters-6" id="toc-parameters-6" class="nav-link" data-scroll-target="#parameters-6">Parameters</a></li>
+  <li><a href="#returns-6" id="toc-returns-6" class="nav-link" data-scroll-target="#returns-6">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.MatchLine.get_coordinates_for" id="toc-timetoalign.alignment.MatchLine.get_coordinates_for" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.get_coordinates_for">get_coordinates_for</a>
+  <ul class="collapse">
+  <li><a href="#parameters-7" id="toc-parameters-7" class="nav-link" data-scroll-target="#parameters-7">Parameters</a></li>
+  <li><a href="#returns-7" id="toc-returns-7" class="nav-link" data-scroll-target="#returns-7">Returns</a></li>
   <li><a href="#raises-1" id="toc-raises-1" class="nav-link" data-scroll-target="#raises-1">Raises</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.MatchLine.save_as" id="toc-timetoalign.alignment.MatchLine.save_as" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.save_as">save_as</a>
+  <ul class="collapse">
+  <li><a href="#parameters-8" id="toc-parameters-8" class="nav-link" data-scroll-target="#parameters-8">Parameters</a></li>
+  <li><a href="#returns-8" id="toc-returns-8" class="nav-link" data-scroll-target="#returns-8">Returns</a></li>
+  <li><a href="#raises-2" id="toc-raises-2" class="nav-link" data-scroll-target="#raises-2">Raises</a></li>
   <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.MatchLine.target_timeline_ids" id="toc-timetoalign.alignment.MatchLine.target_timeline_ids" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.target_timeline_ids">target_timeline_ids</a>
   <ul class="collapse">
-  <li><a href="#returns-5" id="toc-returns-5" class="nav-link" data-scroll-target="#returns-5">Returns</a></li>
+  <li><a href="#returns-9" id="toc-returns-9" class="nav-link" data-scroll-target="#returns-9">Returns</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.MatchLine.to_dict" id="toc-timetoalign.alignment.MatchLine.to_dict" class="nav-link" data-scroll-target="#timetoalign.alignment.MatchLine.to_dict">to_dict</a>
   <ul class="collapse">
-  <li><a href="#returns-6" id="toc-returns-6" class="nav-link" data-scroll-target="#returns-6">Returns</a></li>
+  <li><a href="#returns-10" id="toc-returns-10" class="nav-link" data-scroll-target="#returns-10">Returns</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
@@ -910,7 +949,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h1>MatchLine</h1>
 <div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine(source_timeline_id, stamps<span class="op">=</span><span class="bu">list</span>())</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Ordered sequence of MatchStamps for a source timeline.</p>
-<p>A MatchLine collects all synchronised timestamps that mention a given <em>source</em> timeline, orders them by coordinate on that timeline, and exposes <code>get_coordinate_pairs()</code> to extract the <code>(source_coord, target_coord)</code> table consumed by WarpMap.</p>
+<p>A MatchLine collects all synchronised timestamps that mention a given <em>source</em> timeline, orders them by coordinate on that timeline, and exposes <code>get_alignment_anchors()</code> for typed source-to-target pairs.</p>
 <section id="attributes" class="level2 doc-section doc-section-attributes">
 <h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
 <table class="caption-top table">
@@ -941,9 +980,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>...     claims<span class="op">=</span>claims,</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>...     source_timeline_id<span class="op">=</span><span class="st">"score"</span>,</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>... )</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> pairs <span class="op">=</span> line.get_coordinate_pairs(<span class="st">"audio"</span>)</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> pairs</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>[(<span class="fl">0.0</span>, <span class="fl">0.0</span>), (<span class="fl">100.0</span>, <span class="fl">45.5</span>), (<span class="fl">200.0</span>, <span class="fl">91.0</span>)]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> anchors <span class="op">=</span> line.get_alignment_anchors(<span class="st">"audio"</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="see-also" class="level2 doc-section doc-section-see-also">
 <h2 class="doc-section doc-section-see-also anchored" data-anchor-id="see-also">See Also</h2>
@@ -972,8 +1009,24 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Build a MatchLine from multiple MatchGraphs.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.alignment.MatchLine.get_coordinate_pairs">get_coordinate_pairs</a></td>
-<td>Extract (source_coord, target_coord) pairs for a target timeline.</td>
+<td><a href="#timetoalign.alignment.MatchLine.get_alignment_anchors">get_alignment_anchors</a></td>
+<td>Return typed source-to-target anchors in source order.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.alignment.MatchLine.get_coordinate">get_coordinate</a></td>
+<td>Dispatch a scalar or plural exact source-position query.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.alignment.MatchLine.get_coordinate_at">get_coordinate_at</a></td>
+<td>Resolve one exact source anchor to a target coordinate.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.alignment.MatchLine.get_coordinates_at">get_coordinates_at</a></td>
+<td>Resolve exact source anchors for a coordinate collection.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.alignment.MatchLine.get_coordinates_for">get_coordinates_for</a></td>
+<td>Return one stored timeline coordinate column.</td>
 </tr>
 <tr class="odd">
 <td><a href="#timetoalign.alignment.MatchLine.save_as">save_as</a></td>
@@ -1195,10 +1248,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 </section>
 </section>
-<section id="timetoalign.alignment.MatchLine.get_coordinate_pairs" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.get_coordinate_pairs">get_coordinate_pairs</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.get_coordinate_pairs(target_timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Extract (source_coord, target_coord) pairs for a target timeline.</p>
+<section id="timetoalign.alignment.MatchLine.get_alignment_anchors" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.get_alignment_anchors">get_alignment_anchors</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.get_alignment_anchors(target_timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return typed source-to-target anchors in source order.</p>
 <p>Only stamps that contain both the source and target timelines contribute to the result. Pairs are ordered by source coordinate.</p>
 <section id="parameters-3" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
@@ -1230,11 +1283,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="returns-3" class="level4 doc-section doc-section-returns">
 <h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 5%">
-<col style="width: 52%">
-<col style="width: 42%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -1245,13 +1293,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td></td>
-<td><code>list</code>[<code>tuple</code>[<code>float</code>, <code>float</code>]]</td>
-<td>List of <code>(source_coord, target_coord)</code> tuples, sorted by</td>
-</tr>
-<tr class="even">
-<td></td>
-<td><code>list</code>[<code>tuple</code>[<code>float</code>, <code>float</code>]]</td>
-<td>source coordinate.</td>
+<td><code>list</code>[<a href="../reference/AlignmentAnchor.html#timetoalign.alignment.AlignmentAnchor">AlignmentAnchor</a>]</td>
+<td>Typed alignment anchors sorted by source coordinate.</td>
 </tr>
 </tbody>
 </table>
@@ -1281,12 +1324,349 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </table>
 </section>
 </section>
-<section id="timetoalign.alignment.MatchLine.save_as" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.save_as">save_as</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.save_as(filepath, <span class="op">*</span>, <span class="bu">format</span><span class="op">=</span><span class="st">'match'</span>, context<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Export this MatchLine to a file.</p>
+<section id="timetoalign.alignment.MatchLine.get_coordinate" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.get_coordinate">get_coordinate</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.get_coordinate(</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    at,</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Dispatch a scalar or plural exact source-position query.</p>
 <section id="parameters-4" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-4">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 62%">
+<col style="width: 24%">
+<col style="width: 8%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>at</td>
+<td><code>CoordinateInput</code> | <code>CoordinateCollection</code></td>
+<td>One exact source position or a coordinate collection.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Requested target timeline when required.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="even">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-4" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-4">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 3%">
+<col style="width: 81%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>CoordinateResult</code> | <code>list</code>[<code>CoordinateResult</code>] | <code>pd</code>.<code>Series</code></td>
+<td>The selected precise-getter result.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.alignment.MatchLine.get_coordinate_at" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.get_coordinate_at">get_coordinate_at</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.get_coordinate_at(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    at,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Resolve one exact source anchor to a target coordinate.</p>
+<section id="parameters-5" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-5">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 49%">
+<col style="width: 27%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>at</td>
+<td><code>CoordinateInput</code></td>
+<td>Exact source position.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Requested target timeline.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="even">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-5" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-5">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 5%">
+<col style="width: 69%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>CoordinateResult</code> | <code>pd</code>.<code>Series</code></td>
+<td>The exact target coordinate projection.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.alignment.MatchLine.get_coordinates_at" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.get_coordinates_at">get_coordinates_at</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.get_coordinates_at(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    at,</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Resolve exact source anchors for a coordinate collection.</p>
+<section id="parameters-6" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-6">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 48%">
+<col style="width: 30%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>at</td>
+<td><code>CoordinateCollection</code></td>
+<td>Exact source positions to resolve atomically.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Requested target timeline.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="even">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-6" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-6">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 68%">
+<col style="width: 26%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>CoordinateResult</code>] | <code>pd</code>.<code>Series</code></td>
+<td>A list of projections or canonical-value Series.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.alignment.MatchLine.get_coordinates_for" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.get_coordinates_for">get_coordinates_for</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.get_coordinates_for(</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    timeline_id,</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return one stored timeline coordinate column.</p>
+<section id="parameters-7" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-7">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 49%">
+<col style="width: 27%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>timeline_id</td>
+<td><code>str</code></td>
+<td>Timeline column to retrieve.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="odd">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-7" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-7">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 68%">
+<col style="width: 26%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>CoordinateResult</code>] | <code>pd</code>.<code>Series</code></td>
+<td>A list of projections or canonical-value Series.</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-1" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 31%">
+<col style="width: 58%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>KeyError</code></td>
+<td>If the timeline does not occur in the line.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.alignment.MatchLine.save_as" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.save_as">save_as</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.save_as(filepath, <span class="op">*</span>, <span class="bu">format</span><span class="op">=</span><span class="st">'match'</span>, context<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Export this MatchLine to a file.</p>
+<section id="parameters-8" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-8">Parameters</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1318,8 +1698,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-4" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-4">Returns</h4>
+<section id="returns-8" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-8">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -1337,8 +1717,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-1" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
+<section id="raises-2" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-2">Raises</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 11%">
@@ -1363,17 +1743,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-1" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-1">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> line.save_as(<span class="st">"output.match"</span>)  <span class="co"># minimal placeholder export</span></span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> line.save_as(<span class="st">"output.match"</span>, context<span class="op">=</span>ctx)  <span class="co"># rich export</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> line.save_as(<span class="st">"output.match"</span>)  <span class="co"># minimal placeholder export</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> line.save_as(<span class="st">"output.match"</span>, context<span class="op">=</span>ctx)  <span class="co"># rich export</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.alignment.MatchLine.target_timeline_ids" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.target_timeline_ids">target_timeline_ids</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.target_timeline_ids()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.target_timeline_ids()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>All target timelines appearing in at least 2 stamps.</p>
 <p>A target timeline must appear in at least two stamps for interpolation (i.e., WarpMap construction) to be meaningful.</p>
-<section id="returns-5" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-5">Returns</h4>
+<section id="returns-9" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-9">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 8%">
@@ -1404,10 +1784,10 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.alignment.MatchLine.to_dict" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.MatchLine.to_dict">to_dict</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb14"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>alignment.MatchLine.to_dict()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Serialize to dictionary for storage.</p>
-<section id="returns-6" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-6">Returns</h4>
+<section id="returns-10" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-10">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 7%">

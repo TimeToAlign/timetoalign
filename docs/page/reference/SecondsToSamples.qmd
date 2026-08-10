@@ -24,11 +24,12 @@ This is a simple linear map: samples = seconds * sample_rate
 110250.0
 ```
 
+The inverse takes an exact sample index back to an exact time:
+
 ```python
->>> # Get inverse map
 >>> samp2sec = s2s.inverse()
 >>> samp2sec(44100)
-1.0
+Fraction(1, 1)
 ```
 
 ## Methods

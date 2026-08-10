@@ -3,11 +3,10 @@
 ```python
 timelines.GroupTimestamp(
     coordinates,
-    units=dict(),
+    source_id,
     row_index=-1,
     source=None,
-    source_id=None,
-    axis=None,
+    is_interpolated=False,
     conversion_maps=True,
 )
 ```
@@ -19,17 +18,16 @@ Not stored directly - the table is the source of truth.
 
 ## Attributes {.doc-section .doc-section-attributes}
 
-| Name        | Type                                                     | Description                                                                                                            |
-|-------------|----------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------|
-| coordinates | [dict](`dict`)\[[str](`str`), [float](`float`) \| None\] | Dictionary mapping timeline/cmap IDs to coordinates. None values indicate the timeline is not present at this instant. |
-| units       | [dict](`dict`)\[[str](`str`), [str](`str`)\]             | Dictionary mapping timeline/cmap IDs to their unit strings. Used for display purposes.                                 |
-| row_index   | [int](`int`)                                             | Index of this timestamp in the source table. -1 indicates an interpolated timestamp (not from a table row).            |
+| Name        | Type                                                                        | Description                                                                                                 |
+|-------------|-----------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------|
+| coordinates | [dict](`dict`)\[[str](`str`), [Coordinate](`timetoalign.core.Coordinate`)\] | Dictionary mapping timeline IDs to canonical coordinates. Null table cells are omitted.                     |
+| row_index   | [int](`int`)                                                                | Index of this timestamp in the source table. -1 indicates an interpolated timestamp (not from a table row). |
 
 ## Examples {.doc-section .doc-section-examples}
 
 ```python
 >>> ts = group.get_timestamp_at_index(0)
->>> ts["dgt1:1"]  # Get coordinate for dgt1
+>>> ts.get_coordinate_for("dgt1:1", format="float")
 0.0
 >>> ts.present_timelines  # Which timelines have values here
 ['dgt1:1', 'audio:1']
@@ -43,68 +41,66 @@ TimeStamp: The unified timestamp class from ``timetoalign.core``.
 
 | Name | Description |
 | --- | --- |
-| [get](#timetoalign.timelines.GroupTimestamp.get) | Get coordinate for a timeline. |
+| [get_conversion_for](#timetoalign.timelines.GroupTimestamp.get_conversion_for) | Return a conversion-map value by selector. |
 | [get_unit](#timetoalign.timelines.GroupTimestamp.get_unit) | Get the row coordinate converted to a specific unit. |
-| [to_dict](#timetoalign.timelines.GroupTimestamp.to_dict) | Materialize the stored row coordinates as a dictionary. |
 
-### get { #timetoalign.timelines.GroupTimestamp.get }
+### get_conversion_for { #timetoalign.timelines.GroupTimestamp.get_conversion_for }
 
 ```python
-timelines.GroupTimestamp.get(timeline_id, default=None)
+timelines.GroupTimestamp.get_conversion_for(key)
 ```
 
-Get coordinate for a timeline.
+Return a conversion-map value by selector.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type                     | Description                                     | Default    |
-|-------------|--------------------------|-------------------------------------------------|------------|
-| timeline_id | [str](`str`)             | The timeline to look up.                        | _required_ |
-| default     | [float](`float`) \| None | Value to return if timeline not in coordinates. | `None`     |
+| Name   | Type         | Description                                             | Default    |
+|--------|--------------|---------------------------------------------------------|------------|
+| key    | [str](`str`) | Conversion-map name, ID, selector, or target-unit name. | _required_ |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                     | Description                                    |
-|--------|--------------------------|------------------------------------------------|
-|        | [float](`float`) \| None | The coordinate value, or default if not found. |
+| Name   | Type               | Description                                |
+|--------|--------------------|--------------------------------------------|
+|        | [object](`object`) | The map result without numeric projection. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                        |
+|--------|------------------------|------------------------------------|
+|        | [KeyError](`KeyError`) | If no eligible conversion matches. |
 
 ### get_unit { #timetoalign.timelines.GroupTimestamp.get_unit }
 
 ```python
-timelines.GroupTimestamp.get_unit(unit)
+timelines.GroupTimestamp.get_unit(
+    unit,
+    *,
+    timeline_id=None,
+    format='id_coordinate',
+    rounding='round',
+)
 ```
 
 Get the row coordinate converted to a specific unit.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name   | Type                                          | Description                     | Default    |
-|--------|-----------------------------------------------|---------------------------------|------------|
-| unit   | [TimeUnit](`timetoalign.core.enums.TimeUnit`) | The target unit for conversion. | _required_ |
+| Name        | Type                                                              | Description                                  | Default           |
+|-------------|-------------------------------------------------------------------|----------------------------------------------|-------------------|
+| unit        | [TimeUnit](`timetoalign.core.enums.TimeUnit`)                     | The target unit for conversion.              | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Optional stored member to select explicitly. | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.          | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                    | `'round'`         |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                     | Description                                                       |
-|--------|--------------------------|-------------------------------------------------------------------|
-|        | [float](`float`) \| None | Converted coordinate, or None if no permitted C-Map is available. |
+| Name   | Type                                                                                                          | Description                      |
+|--------|---------------------------------------------------------------------------------------------------------------|----------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | Converted coordinate projection. |
 
-### to_dict { #timetoalign.timelines.GroupTimestamp.to_dict }
+#### Raises {.doc-section .doc-section-raises}
 
-```python
-timelines.GroupTimestamp.to_dict(include_children=True, conversion_units=None)
-```
-
-Materialize the stored row coordinates as a dictionary.
-
-#### Parameters {.doc-section .doc-section-parameters}
-
-| Name             | Type                                                                                                              | Description                              | Default   |
-|------------------|-------------------------------------------------------------------------------------------------------------------|------------------------------------------|-----------|
-| include_children | [bool](`bool`)                                                                                                    | Retained for the shared Stamp interface. | `True`    |
-| conversion_units | [list](`list`)\[[TimeUnit](`timetoalign.core.enums.TimeUnit`)\] \| [Literal](`typing.Literal`)\[\'all\'\] \| None | Retained for the shared Stamp interface. | `None`    |
-
-#### Returns {.doc-section .doc-section-returns}
-
-| Name   | Type                                                     | Description                                                  |
-|--------|----------------------------------------------------------|--------------------------------------------------------------|
-|        | [dict](`dict`)\[[str](`str`), [float](`float`) \| None\] | Dictionary mapping timeline IDs to stored coordinate values. |
+| Name   | Type                   | Description                                       |
+|--------|------------------------|---------------------------------------------------|
+|        | [KeyError](`KeyError`) | If no selected coordinate or eligible map exists. |

@@ -77,8 +77,8 @@ beat_times = grid.beat_seconds()
 {
     "Total beats": len(beat_times),
     "Total measures": grid.n_measures,
-    "First 4 beats (seconds)": list(beat_times[:4].round(3)),
-    "First 4 measures (seconds)": list(grid.measure_seconds()[:4].round(3)),
+    "First 4 beats (seconds)": beat_times[:4].round(3).tolist(),
+    "First 4 measures (seconds)": grid.measure_seconds()[:4].round(3).tolist(),
 }
 
 # %% [markdown]
@@ -154,8 +154,8 @@ beats = grid.beat_seconds()
 
 {
     "Array shape": beats.shape,
-    "First 8 beats (seconds)": list(beats[:8].round(3)),
-    "Last 4 beats (seconds)": list(beats[-4:].round(3)),
+    "First 8 beats (seconds)": beats[:8].round(3).tolist(),
+    "Last 4 beats (seconds)": beats[-4:].round(3).tolist(),
 }
 
 # %% [markdown]
@@ -169,8 +169,8 @@ measures = grid.measure_seconds()
 
 {
     "Total measures": len(measures),
-    "First 4 measures (seconds)": list(measures[:4].round(3)),
-    "Last 4 measures (seconds)": list(measures[-4:].round(3)),
+    "First 4 measures (seconds)": measures[:4].round(3).tolist(),
+    "Last 4 measures (seconds)": measures[-4:].round(3).tolist(),
 }
 
 # %% [markdown]
@@ -376,7 +376,7 @@ compound = BeatGrid.from_tempo(
     "Quarters per measure": float(compound.quarters_per_measure),
     "Quarters per beat": float(compound.quarters_per_beat),
     "Total measures": compound.n_measures,
-    "First 6 beats (seconds)": list(compound.beat_seconds()[:6].round(3)),
+    "First 6 beats (seconds)": compound.beat_seconds()[:6].round(3).tolist(),
 }
 
 # %% [markdown]

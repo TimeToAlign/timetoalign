@@ -3,7 +3,7 @@
 ```python
 LinearMap(
     scalar=1.0,
-    offset=0.0,
+    offset=0,
     source_unit=None,
     target_unit=None,
     uid=None,

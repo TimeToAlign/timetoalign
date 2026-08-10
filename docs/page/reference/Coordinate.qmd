@@ -1,7 +1,15 @@
 # Coordinate { #timetoalign.Coordinate }
 
 ```python
-Coordinate(value=None, unit=None, /, **data)
+Coordinate(
+    value=None,
+    unit=None,
+    /,
+    *,
+    number_type=None,
+    rounding='round',
+    **data,
+)
 ```
 
 A position on a timeline, defined by a value and unit.

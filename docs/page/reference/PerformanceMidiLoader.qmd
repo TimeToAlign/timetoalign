@@ -7,7 +7,7 @@ loader.midi.performance.PerformanceMidiLoader(
     include_controls=True,
     include_program_changes=True,
     unit=None,
-    number_type=NumberType.float,
+    number_type=None,
     **kwargs,
 )
 ```

@@ -199,17 +199,21 @@ architecture as a whole.
 **Paired scalar + field convention.**
 Every scalar `X` is followed in the same source file by its paired
 `XField(SemanticField[X])`. `core/time.py` cohabits the time scalars
-(`Coordinate`, `Duration`, `IdCoordinate`, `IdDuration`) and their
+(`DenominateNumber`, `Coordinate`, `Duration`, `IdCoordinate`,
+`IdDuration`, `Interval`) and their
 paired fields under a single `TimeScalarField` parent that
 consolidates `from_field` / `from_table` / metadata plumbing;
 `core/events.py` cohabits pitch, harmony, `Note`, and `Measure` with
 their paired fields. Object + ObjectField is the unit of code
-organisation and must never be split across files.
+organisation and must never be split across files. `DenominateNumber` is
+the unit-bearing number every time scalar is built on, and `Interval` is
+the half-open span two `Coordinate`s make; both follow the same rule, so
+`DenominateNumberField` and `IntervalField` sit immediately after them.
 
 **Raw vs semantic DataField branch.**
 `DataField` is the abstract base for field wrappers. Raw subclasses
 (`NumericField`, `StringField`, `StructField`, `MapField`, plus the
-struct-shaped numeric branch `NumberField` → `RationalField` →
+struct-shaped numeric branch `NumberField` → `RedundantNumberField` →
 `DenominateNumberField`) wrap PyArrow data with type checks and
 accessors. `SemanticField[T]` is the strictly-typed bridge between a
 pydantic scalar `T` and a struct-shaped raw field; it pins the inner

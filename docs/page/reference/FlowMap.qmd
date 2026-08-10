@@ -1,7 +1,15 @@
 # FlowMap { #timetoalign.timelines.FlowMap }
 
 ```python
-timelines.FlowMap(source=None, *, id='', resolve=None)
+timelines.FlowMap(
+    source=None,
+    *,
+    id='',
+    resolve=None,
+    at=None,
+    source_length=None,
+    target_length=None,
+)
 ```
 
 Coordinate transformation map for flow control.
@@ -27,6 +35,20 @@ The single positional argument, *source*, is polymorphic:
   ``Timeline`` objects, and interval events — see
   :func:`~timetoalign.timelines.flow.sections._coerce_intervals`.
 
+Concatenation is only the default. Three interchangeable mechanisms
+**place** the played spans on the target axis instead, so the assembled
+timeline can hold holes — which is what an inverted cut needs:
+
+- :class:`~timetoalign.timelines.flow.sections.Gap` entries mixed into
+  *source*, each pushing everything after it later by its own duration.
+- The *at* argument, giving the target coordinate of each played span
+  outright.
+- A ``{target coordinate -> span}`` mapping as *source*, which pairs the
+  two directly; see :meth:`from_dict`.
+
+All three agree on the result, and no two may be combined in one call. See
+:meth:`_build_from_entries` for the placement rules.
+
 FlowMap stores sections for efficient lookup:
 
 - ``_sections``: List of FlowMapSection objects
@@ -35,18 +57,22 @@ FlowMap stores sections for efficient lookup:
 
 ## Attributes {.doc-section .doc-section-attributes}
 
-| Name   | Type                                                       | Description                                             |
-|--------|------------------------------------------------------------|---------------------------------------------------------|
-| flow   | [Flow](`timetoalign.timelines.flow.sections.Flow`) \| None | The computed Flow, or ``None`` for interval-built maps. |
-| id     | [str](`str`)                                               | Identifier for this FlowMap.                            |
+| Name          | Type                                                       | Description                                                                                                                                                                                                            |
+|---------------|------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| flow          | [Flow](`timetoalign.timelines.flow.sections.Flow`) \| None | The computed Flow, or ``None`` for interval-built maps.                                                                                                                                                                |
+| id            | [str](`str`)                                               | Identifier for this FlowMap.                                                                                                                                                                                           |
+| source_length | [Fraction](`fractions.Fraction`) \| None                   | Total extent of the source axis, when known. Recorded so that :meth:`inverse` can restore a target axis whose final stretch is a gap — material the flow drops off the end leaves no section to infer the length from. |
+| target_length | [Fraction](`fractions.Fraction`) \| None                   | Total extent of the target axis, when known.                                                                                                                                                                           |
 
 ## Methods
 
 | Name | Description |
 | --- | --- |
 | [fold](#timetoalign.timelines.FlowMap.fold) | Map target coordinate back to source coordinate. |
+| [from_dict](#timetoalign.timelines.FlowMap.from_dict) | Build a FlowMap from a ``{target coordinate -> span}`` mapping. |
 | [from_qb_sections](#timetoalign.timelines.FlowMap.from_qb_sections) | Create a FlowMap with QB-space source coordinates. |
 | [inverse](#timetoalign.timelines.FlowMap.inverse) | Create the inverse FlowMap (target -> source becomes source -> target). |
+| [iter_gaps](#timetoalign.timelines.FlowMap.iter_gaps) | Report every stretch of target time that no source material fills. |
 | [unfold_coordinate](#timetoalign.timelines.FlowMap.unfold_coordinate) | Map source coordinate to target coordinates. |
 
 ### fold { #timetoalign.timelines.FlowMap.fold }
@@ -84,6 +110,63 @@ a single value.
 >>> # Target coord 6 maps back to source coord 3
 >>> flow_map.fold(6)
 Fraction(3)
+```
+
+### from_dict { #timetoalign.timelines.FlowMap.from_dict }
+
+```python
+timelines.FlowMap.from_dict(
+    placements,
+    *,
+    id='default',
+    resolve=None,
+    source_length=None,
+    target_length=None,
+)
+```
+
+Build a FlowMap from a ``{target coordinate -> span}`` mapping.
+
+The third way to state a placement, and the most direct: each key is
+the target coordinate at which its span begins. Where ``Gap`` entries
+describe the holes and ``at`` parallels the span list, a mapping puts
+coordinate and span side by side, which reads well when the placement
+comes from a table, a file, or an analysis::
+
+    FlowMap.from_dict({0: "A8_1", 129: "A8_2"}, resolve=tl.get_region)
+
+Keys are sorted, so the mapping need not be written in target order.
+A value may also be a *collection* of spans, which are laid end to end
+from that coordinate on.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name          | Type                                                                                   | Description                                                                                                                                                                                                                              | Default     |
+|---------------|----------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
+| placements    | \'Mapping\[Fraction \| float \| int, object\]\'                                        | Mapping from target coordinate to one interval-like descriptor — or a collection of them — in the same shapes the constructor accepts (region names, ``Region`` objects, ``(start, end)`` pairs, ``Timeline`` objects, interval events). | _required_  |
+| id            | [str](`str`)                                                                           | Identifier for this FlowMap.                                                                                                                                                                                                             | `'default'` |
+| resolve       | [Callable](`collections.abc.Callable`)\[\[[str](`str`)\], [object](`object`)\] \| None | Callable mapping a region name to an interval-like object, needed only when the values carry region-name strings.                                                                                                                        | `None`      |
+| source_length | [Fraction](`fractions.Fraction`) \| [float](`float`) \| [int](`int`) \| None           | Total extent of the source axis, when known.                                                                                                                                                                                             | `None`      |
+| target_length | [Fraction](`fractions.Fraction`) \| [float](`float`) \| [int](`int`) \| None           | Total extent of the target axis, when known.                                                                                                                                                                                             | `None`      |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type        | Description                                                        |
+|--------|-------------|--------------------------------------------------------------------|
+|        | \'FlowMap\' | The constructed FlowMap, its spans placed at the given coordinates |
+|        | \'FlowMap\' | and the space between them recorded as gaps.                       |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                    |
+|--------|----------------------------|------------------------------------------------|
+|        | [ValueError](`ValueError`) | If two spans would overlap on the target axis. |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> FlowMap.from_dict({0: (0, 123), 129: (123, 228)}, id="restored")
+FlowMap(restored: 2 sections, 1 gap)
 ```
 
 ### from_qb_sections { #timetoalign.timelines.FlowMap.from_qb_sections }
@@ -136,6 +219,14 @@ The inverse FlowMap swaps the source and target coordinate systems.
 This is useful for attaching to a target timeline to enable
 tracing back to the original source.
 
+Because each section carries both ranges outright, inverting is a plain
+swap of the two. That is what makes an inverse **placing** rather than
+concatenating: a flow that drops material leaves its spans at their
+original source coordinates, so the inverse puts them back where they
+came from and the dropped stretch reappears as a gap. Applying the
+inverse with :meth:`~timetoalign.timelines.Timeline.apply_flow`
+therefore rebuilds a timeline laid out like the original.
+
 #### Note {.doc-section .doc-section-note}
 
 The inverse FlowMap's unfold_coordinate() returns coordinates in
@@ -147,6 +238,32 @@ source coord is visited multiple times.
 | Name   | Type        | Description                           |
 |--------|-------------|---------------------------------------|
 |        | \'FlowMap\' | A new FlowMap with inverted sections. |
+
+### iter_gaps { #timetoalign.timelines.FlowMap.iter_gaps }
+
+```python
+timelines.FlowMap.iter_gaps()
+```
+
+Report every stretch of target time that no source material fills.
+
+A hole reaches the map two ways, and both are reported here:
+
+- **Recorded** — an insertion section, built from a
+  :class:`~timetoalign.timelines.flow.sections.Gap` entry or from an
+  ``at`` placement, which may carry a label.
+- **Implied** — the space left between two placed sections, or between
+  the last section and a longer recorded ``target_length``. Inverting a
+  FlowMap produces holes this way, since the inverse simply puts each
+  span back at its source coordinates.
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                           | Description                                                        |
+|--------|--------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------|
+|        | [list](`list`)\[[tuple](`tuple`)\[[Fraction](`fractions.Fraction`), [Fraction](`fractions.Fraction`), [str](`str`) \| None\]\] | The ``(start, end, label)`` of each hole, in target order.         |
+|        | [list](`list`)\[[tuple](`tuple`)\[[Fraction](`fractions.Fraction`), [Fraction](`fractions.Fraction`), [str](`str`) \| None\]\] | Adjacent holes are merged, and *label* is the recorded gap's label |
+|        | [list](`list`)\[[tuple](`tuple`)\[[Fraction](`fractions.Fraction`), [Fraction](`fractions.Fraction`), [str](`str`) \| None\]\] | or ``None``.                                                       |
 
 ### unfold_coordinate { #timetoalign.timelines.FlowMap.unfold_coordinate }
 

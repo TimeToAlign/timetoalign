@@ -1,7 +1,7 @@
 # ShiftMap { #timetoalign.ShiftMap }
 
 ```python
-ShiftMap(offset=0.0, source_unit=None, target_unit=None, uid=None, name=None)
+ShiftMap(offset=0, source_unit=None, target_unit=None, uid=None, name=None)
 ```
 
 Pure offset transformation: y = x + offset.

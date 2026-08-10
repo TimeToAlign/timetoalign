@@ -180,8 +180,11 @@ handmade_raw
 # ## Layer 0 from a real table
 #
 # `get_raw("start")` exposes exactly what the Chopin loader parsed: an onset struct
-# with a best-effort value plus numerator and denominator, whose exact ratio survives
-# a Parquet round trip.
+# with a float value plus numerator and denominator, whose exact ratio survives
+# a Parquet round trip. Both sides are always populated — the pair is not a
+# signal, and a null denominator no longer means "trust the float". Which side
+# is canonical is declared once, in the column's field metadata, rather than
+# inferred from the data.
 
 # %%
 raw_start = events.get_raw("start")
@@ -197,7 +200,9 @@ raw_snapshot
 # %% [markdown]
 # The numerator `1` and denominator `2` preserve one half exactly instead of trusting
 # a floating-point reconstruction. At Layer 0, however, the struct does not know that
-# it denotes an onset measured in quarters.
+# it denotes an onset measured in quarters — and because the unit is what decides
+# whether the exact or the float side is authoritative, Layer 0 cannot decide that
+# either. That is precisely the job of the metadata Layer 1 reads.
 
 # %% [markdown]
 # ## Layer 1
@@ -405,9 +410,11 @@ pitch_discovery
 # %% [markdown]
 # ## Metadata survives Parquet
 #
-# A semantic Field writes its identity and unit into Arrow column metadata, so Parquet
-# can preserve the nested values and enough schema information for `from_table()` to
-# reconstruct typed scalars without the original loader.
+# A semantic Field writes its identity, domain, unit and number type into Arrow
+# column metadata as one `timetoalign` JSON blob, so Parquet can preserve the nested
+# values and enough schema information for `from_table()` to reconstruct typed
+# scalars without the original loader. One blob rather than several loose keys means
+# there is a single place where a column's declared number type is recorded.
 
 # %%
 semantic_array = start_field.to_pyarrow()

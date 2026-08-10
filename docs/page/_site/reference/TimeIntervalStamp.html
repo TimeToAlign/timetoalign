@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -854,35 +872,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul>
   <li><a href="#timetoalign.TimeIntervalStamp" id="toc-timetoalign.TimeIntervalStamp" class="nav-link active" data-scroll-target="#timetoalign.TimeIntervalStamp">TimeIntervalStamp</a>
   <ul>
+  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
   <li><a href="#attributes" id="toc-attributes" class="nav-link" data-scroll-target="#attributes">Attributes</a></li>
-  <li><a href="#examples" id="toc-examples" class="nav-link" data-scroll-target="#examples">Examples</a></li>
   <li><a href="#methods" id="toc-methods" class="nav-link" data-scroll-target="#methods">Methods</a>
   <ul class="collapse">
-  <li><a href="#timetoalign.TimeIntervalStamp.get_coordinate_interval" id="toc-timetoalign.TimeIntervalStamp.get_coordinate_interval" class="nav-link" data-scroll-target="#timetoalign.TimeIntervalStamp.get_coordinate_interval">get_coordinate_interval</a>
-  <ul class="collapse">
-  <li><a href="#parameters" id="toc-parameters" class="nav-link" data-scroll-target="#parameters">Parameters</a></li>
-  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
-  <li><a href="#examples-1" id="toc-examples-1" class="nav-link" data-scroll-target="#examples-1">Examples</a></li>
-  </ul></li>
-  <li><a href="#timetoalign.TimeIntervalStamp.get_duration" id="toc-timetoalign.TimeIntervalStamp.get_duration" class="nav-link" data-scroll-target="#timetoalign.TimeIntervalStamp.get_duration">get_duration</a>
+  <li><a href="#timetoalign.TimeIntervalStamp.get_duration_for" id="toc-timetoalign.TimeIntervalStamp.get_duration_for" class="nav-link" data-scroll-target="#timetoalign.TimeIntervalStamp.get_duration_for">get_duration_for</a>
   <ul class="collapse">
   <li><a href="#parameters-1" id="toc-parameters-1" class="nav-link" data-scroll-target="#parameters-1">Parameters</a></li>
-  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  <li><a href="#returns" id="toc-returns" class="nav-link" data-scroll-target="#returns">Returns</a></li>
   </ul></li>
   <li><a href="#timetoalign.TimeIntervalStamp.get_interval" id="toc-timetoalign.TimeIntervalStamp.get_interval" class="nav-link" data-scroll-target="#timetoalign.TimeIntervalStamp.get_interval">get_interval</a>
   <ul class="collapse">
   <li><a href="#parameters-2" id="toc-parameters-2" class="nav-link" data-scroll-target="#parameters-2">Parameters</a></li>
-  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
+  <li><a href="#returns-1" id="toc-returns-1" class="nav-link" data-scroll-target="#returns-1">Returns</a></li>
+  <li><a href="#raises" id="toc-raises" class="nav-link" data-scroll-target="#raises">Raises</a></li>
   </ul></li>
-  <li><a href="#timetoalign.TimeIntervalStamp.get_unit_interval" id="toc-timetoalign.TimeIntervalStamp.get_unit_interval" class="nav-link" data-scroll-target="#timetoalign.TimeIntervalStamp.get_unit_interval">get_unit_interval</a>
+  <li><a href="#timetoalign.TimeIntervalStamp.get_interval_in" id="toc-timetoalign.TimeIntervalStamp.get_interval_in" class="nav-link" data-scroll-target="#timetoalign.TimeIntervalStamp.get_interval_in">get_interval_in</a>
   <ul class="collapse">
   <li><a href="#parameters-3" id="toc-parameters-3" class="nav-link" data-scroll-target="#parameters-3">Parameters</a></li>
-  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
+  <li><a href="#returns-2" id="toc-returns-2" class="nav-link" data-scroll-target="#returns-2">Returns</a></li>
   </ul></li>
-  <li><a href="#timetoalign.TimeIntervalStamp.zip_intervals" id="toc-timetoalign.TimeIntervalStamp.zip_intervals" class="nav-link" data-scroll-target="#timetoalign.TimeIntervalStamp.zip_intervals">zip_intervals</a>
+  <li><a href="#timetoalign.TimeIntervalStamp.get_intervals" id="toc-timetoalign.TimeIntervalStamp.get_intervals" class="nav-link" data-scroll-target="#timetoalign.TimeIntervalStamp.get_intervals">get_intervals</a>
   <ul class="collapse">
   <li><a href="#parameters-4" id="toc-parameters-4" class="nav-link" data-scroll-target="#parameters-4">Parameters</a></li>
-  <li><a href="#returns-4" id="toc-returns-4" class="nav-link" data-scroll-target="#returns-4">Returns</a></li>
+  <li><a href="#returns-3" id="toc-returns-3" class="nav-link" data-scroll-target="#returns-3">Returns</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
@@ -897,45 +910,79 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 
 <section id="timetoalign.TimeIntervalStamp" class="level1">
 <h1>TimeIntervalStamp</h1>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp(start, end)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>An interval defined by start and end TimeStamps.</p>
-<p>Provides facilities for zipping corresponding (start, end) pairs across all related timelines.</p>
-<section id="attributes" class="level2 doc-section doc-section-attributes">
-<h2 class="doc-section doc-section-attributes anchored" data-anchor-id="attributes">Attributes</h2>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp(intervals, source_id, source<span class="op">=</span><span class="va">None</span>, is_interpolated<span class="op">=</span><span class="va">False</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>A synchronized collection of canonical typed timeline intervals.</p>
+<section id="parameters" class="level2 doc-section doc-section-parameters">
+<h2 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h2>
 <table class="caption-top table">
 <thead>
 <tr class="header">
 <th>Name</th>
 <th>Type</th>
 <th>Description</th>
+<th>Default</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
-<td>start</td>
-<td><a href="../reference/TimeStamp.html#timetoalign.TimeStamp">TimeStamp</a></td>
-<td>TimeStamp at interval start.</td>
+<td>intervals</td>
+<td><code>dict</code>[<code>str</code>, <a href="../reference/Interval.html#timetoalign.Interval">Interval</a>]</td>
+<td>Timeline-ID to interval mapping.</td>
+<td><em>required</em></td>
 </tr>
 <tr class="even">
-<td>end</td>
-<td><a href="../reference/TimeStamp.html#timetoalign.TimeStamp">TimeStamp</a></td>
-<td>TimeStamp at interval end.</td>
+<td>source_id</td>
+<td><code>str</code></td>
+<td>Timeline identity defining the interval axis.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="odd">
+<td>source</td>
+<td><code>TimeStampSource</code> | None</td>
+<td>Optional object providing conversion maps.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="even">
+<td>is_interpolated</td>
+<td><code>bool</code></td>
+<td>Whether any endpoint was estimated.</td>
+<td><code>False</code></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="examples" class="level2 doc-section doc-section-examples">
-<h2 class="doc-section doc-section-examples anchored" data-anchor-id="examples">Examples</h2>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> interval <span class="op">=</span> timeline.get_interval_stamp(<span class="fl">0.0</span>, <span class="fl">10.0</span>)</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> interval.duration  <span class="co"># On axis timeline</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fl">10.0</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> interval.get_interval(<span class="st">"child:1"</span>)  <span class="co"># (start, end) tuple</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>(<span class="fl">0.0</span>, <span class="fl">7.5</span>)</span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> interval.get_duration(<span class="st">"child:1"</span>)</span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fl">7.5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="co"># Get all intervals at once</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> interval.zip_intervals()</span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>{<span class="st">'tl:1'</span>: (<span class="fl">0.0</span>, <span class="fl">10.0</span>), <span class="st">'child:1'</span>: (<span class="fl">0.0</span>, <span class="fl">7.5</span>)}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<section id="attributes" class="level2">
+<h2 class="anchored" data-anchor-id="attributes">Attributes</h2>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="#timetoalign.TimeIntervalStamp.axis">axis</a></td>
+<td>Return the typed interval on the source axis.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.TimeIntervalStamp.duration">duration</a></td>
+<td>Return the typed duration on the source axis.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.TimeIntervalStamp.end">end</a></td>
+<td>Return a derived instant stamp of all interval ends.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.TimeIntervalStamp.present_timelines">present_timelines</a></td>
+<td>Return stored timeline IDs in deterministic insertion order.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.TimeIntervalStamp.start">start</a></td>
+<td>Return a derived instant stamp of all interval starts.</td>
+</tr>
+</tbody>
+</table>
 </section>
 <section id="methods" class="level2">
 <h2 class="anchored" data-anchor-id="methods">Methods</h2>
@@ -948,41 +995,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </thead>
 <tbody>
 <tr class="odd">
-<td><a href="#timetoalign.TimeIntervalStamp.get_coordinate_interval">get_coordinate_interval</a></td>
-<td>Get (start, end) as proper Coordinate objects.</td>
+<td><a href="#timetoalign.TimeIntervalStamp.get_duration_for">get_duration_for</a></td>
+<td>Return one stored interval duration with timeline identity.</td>
 </tr>
 <tr class="even">
-<td><a href="#timetoalign.TimeIntervalStamp.get_duration">get_duration</a></td>
-<td>Get duration on a specific timeline.</td>
-</tr>
-<tr class="odd">
 <td><a href="#timetoalign.TimeIntervalStamp.get_interval">get_interval</a></td>
-<td>Get (start, end) pair for a specific timeline.</td>
-</tr>
-<tr class="even">
-<td><a href="#timetoalign.TimeIntervalStamp.get_unit_interval">get_unit_interval</a></td>
-<td>Get (start, end) pair for a specific unit.</td>
+<td>Return one stored interval by timeline identity.</td>
 </tr>
 <tr class="odd">
-<td><a href="#timetoalign.TimeIntervalStamp.zip_intervals">zip_intervals</a></td>
-<td>Get all (start, end) pairs across timelines.</td>
+<td><a href="#timetoalign.TimeIntervalStamp.get_interval_in">get_interval_in</a></td>
+<td>Convert both endpoints of one stored interval to a target unit.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.TimeIntervalStamp.get_intervals">get_intervals</a></td>
+<td>Return selected stored intervals in requested order.</td>
 </tr>
 </tbody>
 </table>
-<section id="timetoalign.TimeIntervalStamp.get_coordinate_interval" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.TimeIntervalStamp.get_coordinate_interval">get_coordinate_interval</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp.get_coordinate_interval(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Get (start, end) as proper Coordinate objects.</p>
-<p>Unlike get_interval() which returns floats, this returns Coordinates with the correct TimeUnit attached.</p>
-<section id="parameters" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters">Parameters</h4>
+<section id="timetoalign.TimeIntervalStamp.get_duration_for" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.TimeIntervalStamp.get_duration_for">get_duration_for</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp.get_duration_for(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return one stored interval duration with timeline identity.</p>
+<section id="parameters-1" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 17%">
-<col style="width: 18%">
-<col style="width: 47%">
-<col style="width: 16%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -995,7 +1031,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td>timeline_id</td>
 <td><code>str</code></td>
-<td>The timeline to get interval for.</td>
+<td>Stored timeline identity.</td>
 <td><em>required</em></td>
 </tr>
 </tbody>
@@ -1005,9 +1041,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns">Returns</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 6%">
-<col style="width: 39%">
-<col style="width: 53%">
+<col style="width: 8%">
+<col style="width: 54%">
+<col style="width: 36%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1019,33 +1055,20 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td></td>
-<td>'tuple[Coordinate, Coordinate] | None'</td>
-<td>Tuple of (start, end) Coordinates, or None if not reachable.</td>
+<td><code>IdDuration</code></td>
+<td>The canonical typed ID duration.</td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="examples-1" class="level4 doc-section doc-section-examples">
-<h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-1">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> interval <span class="op">=</span> timeline.get_interval_stamp(<span class="fl">10.0</span>, <span class="fl">50.0</span>)</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> start, end <span class="op">=</span> interval.get_coordinate_interval(<span class="st">"child:1"</span>)</span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> start.unit</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="op">&lt;</span>TimeUnit.seconds: <span class="st">'seconds'</span><span class="op">&gt;</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
-</section>
-<section id="timetoalign.TimeIntervalStamp.get_duration" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.TimeIntervalStamp.get_duration">get_duration</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp.get_duration(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Get duration on a specific timeline.</p>
-<section id="parameters-1" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-1">Parameters</h4>
+<section id="timetoalign.TimeIntervalStamp.get_interval" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.TimeIntervalStamp.get_interval">get_interval</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp.get_interval(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return one stored interval by timeline identity.</p>
+<section id="parameters-2" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 17%">
-<col style="width: 18%">
-<col style="width: 47%">
-<col style="width: 16%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -1058,7 +1081,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tr class="odd">
 <td>timeline_id</td>
 <td><code>str</code></td>
-<td>The timeline to get duration for.</td>
+<td>Stored timeline identity.</td>
 <td><em>required</em></td>
 </tr>
 </tbody>
@@ -1067,11 +1090,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="returns-1" class="level4 doc-section doc-section-returns">
 <h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-1">Returns</h4>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 8%">
-<col style="width: 27%">
-<col style="width: 63%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -1082,52 +1100,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td></td>
-<td><code>float</code> | None</td>
-<td>Duration (end - start), or None if timeline not reachable.</td>
+<td><a href="../reference/Interval.html#timetoalign.Interval">Interval</a></td>
+<td>The canonical typed interval.</td>
 </tr>
 </tbody>
 </table>
 </section>
-</section>
-<section id="timetoalign.TimeIntervalStamp.get_interval" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.TimeIntervalStamp.get_interval">get_interval</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp.get_interval(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Get (start, end) pair for a specific timeline.</p>
-<section id="parameters-2" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-2">Parameters</h4>
+<section id="raises" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises">Raises</h4>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 17%">
-<col style="width: 18%">
-<col style="width: 47%">
-<col style="width: 16%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Name</th>
-<th>Type</th>
-<th>Description</th>
-<th>Default</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>timeline_id</td>
-<td><code>str</code></td>
-<td>The timeline to get interval for.</td>
-<td><em>required</em></td>
-</tr>
-</tbody>
-</table>
-</section>
-<section id="returns-2" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 5%">
-<col style="width: 44%">
-<col style="width: 49%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -1138,17 +1119,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td></td>
-<td><code>tuple</code>[<code>float</code>, <code>float</code>] | None</td>
-<td>Tuple of (start, end) coordinates, or None if timeline not reachable.</td>
+<td><code>KeyError</code></td>
+<td>If the timeline is absent.</td>
 </tr>
 </tbody>
 </table>
 </section>
 </section>
-<section id="timetoalign.TimeIntervalStamp.get_unit_interval" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.TimeIntervalStamp.get_unit_interval">get_unit_interval</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp.get_unit_interval(unit)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Get (start, end) pair for a specific unit.</p>
+<section id="timetoalign.TimeIntervalStamp.get_interval_in" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.TimeIntervalStamp.get_interval_in">get_interval_in</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp.get_interval_in(unit, <span class="op">*</span>, timeline_id<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Convert both endpoints of one stored interval to a target unit.</p>
 <section id="parameters-3" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-3">Parameters</h4>
 <table class="caption-top table">
@@ -1163,21 +1144,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td>unit</td>
-<td>'TimeUnit'</td>
-<td>The target unit.</td>
+<td><a href="../reference/TimeUnit.html#timetoalign.TimeUnit">TimeUnit</a></td>
+<td>Requested target unit.</td>
 <td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Optional stored axis to select explicitly.</td>
+<td><code>None</code></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="returns-3" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
+<section id="returns-2" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-2">Returns</h4>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 5%">
-<col style="width: 47%">
-<col style="width: 47%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -1188,25 +1170,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td></td>
-<td><code>tuple</code>[<code>float</code>, <code>float</code>] | None</td>
-<td>Tuple of (start, end) in the target unit, or None if no C-Map.</td>
+<td><a href="../reference/Interval.html#timetoalign.Interval">Interval</a></td>
+<td>A typed interval in the target unit.</td>
 </tr>
 </tbody>
 </table>
 </section>
 </section>
-<section id="timetoalign.TimeIntervalStamp.zip_intervals" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.TimeIntervalStamp.zip_intervals">zip_intervals</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp.zip_intervals(timeline_ids<span class="op">=</span><span class="va">None</span>, include_units<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Get all (start, end) pairs across timelines.</p>
+<section id="timetoalign.TimeIntervalStamp.get_intervals" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.TimeIntervalStamp.get_intervals">get_intervals</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>TimeIntervalStamp.get_intervals(timeline_ids<span class="op">=</span><span class="va">None</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return selected stored intervals in requested order.</p>
 <section id="parameters-4" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-4">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 13%">
-<col style="width: 36%">
-<col style="width: 40%">
 <col style="width: 9%">
+<col style="width: 46%">
+<col style="width: 36%">
+<col style="width: 7%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1219,27 +1201,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td>timeline_ids</td>
-<td><code>list</code>[<code>str</code>] | None</td>
-<td>Specific timelines to include (None = all).</td>
-<td><code>None</code></td>
-</tr>
-<tr class="even">
-<td>include_units</td>
-<td><code>list</code>['TimeUnit'] | None</td>
-<td>C-Map units to include as well.</td>
+<td><code>KeyCollection</code> | None</td>
+<td>Timeline IDs, or <code>None</code> for every stored interval.</td>
 <td><code>None</code></td>
 </tr>
 </tbody>
 </table>
 </section>
-<section id="returns-4" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-4">Returns</h4>
+<section id="returns-3" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-3">Returns</h4>
 <table class="caption-top table">
-<colgroup>
-<col style="width: 5%">
-<col style="width: 58%">
-<col style="width: 36%">
-</colgroup>
 <thead>
 <tr class="header">
 <th>Name</th>
@@ -1250,8 +1221,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <tbody>
 <tr class="odd">
 <td></td>
-<td><code>dict</code>[<code>str</code>, <code>tuple</code>[<code>float</code>, <code>float</code>]]</td>
-<td>Dict mapping timeline_id/unit to (start, end) tuple.</td>
+<td><code>dict</code>[<code>str</code>, <a href="../reference/Interval.html#timetoalign.Interval">Interval</a>]</td>
+<td>A new ordered interval dictionary.</td>
 </tr>
 </tbody>
 </table>

@@ -476,6 +476,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -728,6 +740,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -900,13 +918,14 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <ul class="collapse">
   <li><a href="#parameters-6" id="toc-parameters-6" class="nav-link" data-scroll-target="#parameters-6">Parameters</a></li>
   <li><a href="#returns-6" id="toc-returns-6" class="nav-link" data-scroll-target="#returns-6">Returns</a></li>
+  <li><a href="#raises-3" id="toc-raises-3" class="nav-link" data-scroll-target="#raises-3">Raises</a></li>
   <li><a href="#examples-4" id="toc-examples-4" class="nav-link" data-scroll-target="#examples-4">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.from_bundles" id="toc-timetoalign.alignment.AlignmentBundle.from_bundles" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.from_bundles">from_bundles</a>
   <ul class="collapse">
   <li><a href="#parameters-7" id="toc-parameters-7" class="nav-link" data-scroll-target="#parameters-7">Parameters</a></li>
   <li><a href="#returns-7" id="toc-returns-7" class="nav-link" data-scroll-target="#returns-7">Returns</a></li>
-  <li><a href="#raises-3" id="toc-raises-3" class="nav-link" data-scroll-target="#raises-3">Raises</a></li>
+  <li><a href="#raises-4" id="toc-raises-4" class="nav-link" data-scroll-target="#raises-4">Raises</a></li>
   <li><a href="#examples-5" id="toc-examples-5" class="nav-link" data-scroll-target="#examples-5">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.get_claim_fields" id="toc-timetoalign.alignment.AlignmentBundle.get_claim_fields" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_claim_fields">get_claim_fields</a>
@@ -915,74 +934,99 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#returns-8" id="toc-returns-8" class="nav-link" data-scroll-target="#returns-8">Returns</a></li>
   <li><a href="#examples-6" id="toc-examples-6" class="nav-link" data-scroll-target="#examples-6">Examples</a></li>
   </ul></li>
-  <li><a href="#timetoalign.alignment.AlignmentBundle.get_group" id="toc-timetoalign.alignment.AlignmentBundle.get_group" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_group">get_group</a>
+  <li><a href="#timetoalign.alignment.AlignmentBundle.get_coordinate" id="toc-timetoalign.alignment.AlignmentBundle.get_coordinate" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_coordinate">get_coordinate</a>
   <ul class="collapse">
   <li><a href="#parameters-9" id="toc-parameters-9" class="nav-link" data-scroll-target="#parameters-9">Parameters</a></li>
   <li><a href="#returns-9" id="toc-returns-9" class="nav-link" data-scroll-target="#returns-9">Returns</a></li>
-  <li><a href="#raises-4" id="toc-raises-4" class="nav-link" data-scroll-target="#raises-4">Raises</a></li>
-  <li><a href="#examples-7" id="toc-examples-7" class="nav-link" data-scroll-target="#examples-7">Examples</a></li>
   </ul></li>
-  <li><a href="#timetoalign.alignment.AlignmentBundle.get_group_for_timeline" id="toc-timetoalign.alignment.AlignmentBundle.get_group_for_timeline" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_group_for_timeline">get_group_for_timeline</a>
+  <li><a href="#timetoalign.alignment.AlignmentBundle.get_coordinate_at" id="toc-timetoalign.alignment.AlignmentBundle.get_coordinate_at" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_coordinate_at">get_coordinate_at</a>
   <ul class="collapse">
   <li><a href="#parameters-10" id="toc-parameters-10" class="nav-link" data-scroll-target="#parameters-10">Parameters</a></li>
   <li><a href="#returns-10" id="toc-returns-10" class="nav-link" data-scroll-target="#returns-10">Returns</a></li>
   </ul></li>
-  <li><a href="#timetoalign.alignment.AlignmentBundle.get_match_claims" id="toc-timetoalign.alignment.AlignmentBundle.get_match_claims" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_match_claims">get_match_claims</a>
+  <li><a href="#timetoalign.alignment.AlignmentBundle.get_coordinate_for" id="toc-timetoalign.alignment.AlignmentBundle.get_coordinate_for" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_coordinate_for">get_coordinate_for</a>
   <ul class="collapse">
   <li><a href="#parameters-11" id="toc-parameters-11" class="nav-link" data-scroll-target="#parameters-11">Parameters</a></li>
   <li><a href="#returns-11" id="toc-returns-11" class="nav-link" data-scroll-target="#returns-11">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.AlignmentBundle.get_coordinates_at" id="toc-timetoalign.alignment.AlignmentBundle.get_coordinates_at" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_coordinates_at">get_coordinates_at</a>
+  <ul class="collapse">
+  <li><a href="#parameters-12" id="toc-parameters-12" class="nav-link" data-scroll-target="#parameters-12">Parameters</a></li>
+  <li><a href="#returns-12" id="toc-returns-12" class="nav-link" data-scroll-target="#returns-12">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.AlignmentBundle.get_coordinates_for" id="toc-timetoalign.alignment.AlignmentBundle.get_coordinates_for" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_coordinates_for">get_coordinates_for</a>
+  <ul class="collapse">
+  <li><a href="#parameters-13" id="toc-parameters-13" class="nav-link" data-scroll-target="#parameters-13">Parameters</a></li>
+  <li><a href="#returns-13" id="toc-returns-13" class="nav-link" data-scroll-target="#returns-13">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.AlignmentBundle.get_group" id="toc-timetoalign.alignment.AlignmentBundle.get_group" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_group">get_group</a>
+  <ul class="collapse">
+  <li><a href="#parameters-14" id="toc-parameters-14" class="nav-link" data-scroll-target="#parameters-14">Parameters</a></li>
+  <li><a href="#returns-14" id="toc-returns-14" class="nav-link" data-scroll-target="#returns-14">Returns</a></li>
+  <li><a href="#raises-5" id="toc-raises-5" class="nav-link" data-scroll-target="#raises-5">Raises</a></li>
+  <li><a href="#examples-7" id="toc-examples-7" class="nav-link" data-scroll-target="#examples-7">Examples</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.AlignmentBundle.get_group_for_timeline" id="toc-timetoalign.alignment.AlignmentBundle.get_group_for_timeline" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_group_for_timeline">get_group_for_timeline</a>
+  <ul class="collapse">
+  <li><a href="#parameters-15" id="toc-parameters-15" class="nav-link" data-scroll-target="#parameters-15">Parameters</a></li>
+  <li><a href="#returns-15" id="toc-returns-15" class="nav-link" data-scroll-target="#returns-15">Returns</a></li>
+  </ul></li>
+  <li><a href="#timetoalign.alignment.AlignmentBundle.get_match_claims" id="toc-timetoalign.alignment.AlignmentBundle.get_match_claims" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_match_claims">get_match_claims</a>
+  <ul class="collapse">
+  <li><a href="#parameters-16" id="toc-parameters-16" class="nav-link" data-scroll-target="#parameters-16">Parameters</a></li>
+  <li><a href="#returns-16" id="toc-returns-16" class="nav-link" data-scroll-target="#returns-16">Returns</a></li>
   <li><a href="#examples-8" id="toc-examples-8" class="nav-link" data-scroll-target="#examples-8">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.get_matchstamp_at" id="toc-timetoalign.alignment.AlignmentBundle.get_matchstamp_at" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_matchstamp_at">get_matchstamp_at</a>
   <ul class="collapse">
-  <li><a href="#parameters-12" id="toc-parameters-12" class="nav-link" data-scroll-target="#parameters-12">Parameters</a></li>
-  <li><a href="#returns-12" id="toc-returns-12" class="nav-link" data-scroll-target="#returns-12">Returns</a></li>
-  <li><a href="#raises-5" id="toc-raises-5" class="nav-link" data-scroll-target="#raises-5">Raises</a></li>
+  <li><a href="#parameters-17" id="toc-parameters-17" class="nav-link" data-scroll-target="#parameters-17">Parameters</a></li>
+  <li><a href="#returns-17" id="toc-returns-17" class="nav-link" data-scroll-target="#returns-17">Returns</a></li>
+  <li><a href="#raises-6" id="toc-raises-6" class="nav-link" data-scroll-target="#raises-6">Raises</a></li>
   <li><a href="#examples-9" id="toc-examples-9" class="nav-link" data-scroll-target="#examples-9">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.get_matchstamp_table" id="toc-timetoalign.alignment.AlignmentBundle.get_matchstamp_table" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_matchstamp_table">get_matchstamp_table</a>
   <ul class="collapse">
-  <li><a href="#parameters-13" id="toc-parameters-13" class="nav-link" data-scroll-target="#parameters-13">Parameters</a></li>
-  <li><a href="#returns-13" id="toc-returns-13" class="nav-link" data-scroll-target="#returns-13">Returns</a></li>
-  <li><a href="#raises-6" id="toc-raises-6" class="nav-link" data-scroll-target="#raises-6">Raises</a></li>
+  <li><a href="#parameters-18" id="toc-parameters-18" class="nav-link" data-scroll-target="#parameters-18">Parameters</a></li>
+  <li><a href="#returns-18" id="toc-returns-18" class="nav-link" data-scroll-target="#returns-18">Returns</a></li>
+  <li><a href="#raises-7" id="toc-raises-7" class="nav-link" data-scroll-target="#raises-7">Raises</a></li>
   <li><a href="#note-2" id="toc-note-2" class="nav-link" data-scroll-target="#note-2">Note</a></li>
   <li><a href="#examples-10" id="toc-examples-10" class="nav-link" data-scroll-target="#examples-10">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.get_matchstamps" id="toc-timetoalign.alignment.AlignmentBundle.get_matchstamps" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_matchstamps">get_matchstamps</a>
   <ul class="collapse">
-  <li><a href="#parameters-14" id="toc-parameters-14" class="nav-link" data-scroll-target="#parameters-14">Parameters</a></li>
-  <li><a href="#returns-14" id="toc-returns-14" class="nav-link" data-scroll-target="#returns-14">Returns</a></li>
-  <li><a href="#raises-7" id="toc-raises-7" class="nav-link" data-scroll-target="#raises-7">Raises</a></li>
+  <li><a href="#parameters-19" id="toc-parameters-19" class="nav-link" data-scroll-target="#parameters-19">Parameters</a></li>
+  <li><a href="#returns-19" id="toc-returns-19" class="nav-link" data-scroll-target="#returns-19">Returns</a></li>
+  <li><a href="#raises-8" id="toc-raises-8" class="nav-link" data-scroll-target="#raises-8">Raises</a></li>
   <li><a href="#examples-11" id="toc-examples-11" class="nav-link" data-scroll-target="#examples-11">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.get_timeline" id="toc-timetoalign.alignment.AlignmentBundle.get_timeline" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_timeline">get_timeline</a>
   <ul class="collapse">
-  <li><a href="#parameters-15" id="toc-parameters-15" class="nav-link" data-scroll-target="#parameters-15">Parameters</a></li>
-  <li><a href="#returns-15" id="toc-returns-15" class="nav-link" data-scroll-target="#returns-15">Returns</a></li>
-  <li><a href="#raises-8" id="toc-raises-8" class="nav-link" data-scroll-target="#raises-8">Raises</a></li>
+  <li><a href="#parameters-20" id="toc-parameters-20" class="nav-link" data-scroll-target="#parameters-20">Parameters</a></li>
+  <li><a href="#returns-20" id="toc-returns-20" class="nav-link" data-scroll-target="#returns-20">Returns</a></li>
+  <li><a href="#raises-9" id="toc-raises-9" class="nav-link" data-scroll-target="#raises-9">Raises</a></li>
   <li><a href="#examples-12" id="toc-examples-12" class="nav-link" data-scroll-target="#examples-12">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.get_timelines" id="toc-timetoalign.alignment.AlignmentBundle.get_timelines" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.get_timelines">get_timelines</a>
   <ul class="collapse">
-  <li><a href="#parameters-16" id="toc-parameters-16" class="nav-link" data-scroll-target="#parameters-16">Parameters</a></li>
-  <li><a href="#returns-16" id="toc-returns-16" class="nav-link" data-scroll-target="#returns-16">Returns</a></li>
-  <li><a href="#raises-9" id="toc-raises-9" class="nav-link" data-scroll-target="#raises-9">Raises</a></li>
+  <li><a href="#parameters-21" id="toc-parameters-21" class="nav-link" data-scroll-target="#parameters-21">Parameters</a></li>
+  <li><a href="#returns-21" id="toc-returns-21" class="nav-link" data-scroll-target="#returns-21">Returns</a></li>
+  <li><a href="#raises-10" id="toc-raises-10" class="nav-link" data-scroll-target="#raises-10">Raises</a></li>
   <li><a href="#examples-13" id="toc-examples-13" class="nav-link" data-scroll-target="#examples-13">Examples</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.summary" id="toc-timetoalign.alignment.AlignmentBundle.summary" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.summary">summary</a>
   <ul class="collapse">
-  <li><a href="#returns-17" id="toc-returns-17" class="nav-link" data-scroll-target="#returns-17">Returns</a></li>
+  <li><a href="#returns-22" id="toc-returns-22" class="nav-link" data-scroll-target="#returns-22">Returns</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.transfer" id="toc-timetoalign.alignment.AlignmentBundle.transfer" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.transfer">transfer</a>
   <ul class="collapse">
-  <li><a href="#parameters-17" id="toc-parameters-17" class="nav-link" data-scroll-target="#parameters-17">Parameters</a></li>
-  <li><a href="#returns-18" id="toc-returns-18" class="nav-link" data-scroll-target="#returns-18">Returns</a></li>
-  <li><a href="#raises-10" id="toc-raises-10" class="nav-link" data-scroll-target="#raises-10">Raises</a></li>
+  <li><a href="#parameters-22" id="toc-parameters-22" class="nav-link" data-scroll-target="#parameters-22">Parameters</a></li>
+  <li><a href="#returns-23" id="toc-returns-23" class="nav-link" data-scroll-target="#returns-23">Returns</a></li>
+  <li><a href="#raises-11" id="toc-raises-11" class="nav-link" data-scroll-target="#raises-11">Raises</a></li>
   </ul></li>
   <li><a href="#timetoalign.alignment.AlignmentBundle.transfer_interval" id="toc-timetoalign.alignment.AlignmentBundle.transfer_interval" class="nav-link" data-scroll-target="#timetoalign.alignment.AlignmentBundle.transfer_interval">transfer_interval</a>
   <ul class="collapse">
-  <li><a href="#parameters-18" id="toc-parameters-18" class="nav-link" data-scroll-target="#parameters-18">Parameters</a></li>
-  <li><a href="#returns-19" id="toc-returns-19" class="nav-link" data-scroll-target="#returns-19">Returns</a></li>
+  <li><a href="#parameters-23" id="toc-parameters-23" class="nav-link" data-scroll-target="#parameters-23">Parameters</a></li>
+  <li><a href="#returns-24" id="toc-returns-24" class="nav-link" data-scroll-target="#returns-24">Returns</a></li>
   </ul></li>
   </ul></li>
   </ul></li>
@@ -1015,7 +1059,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    _cache_claims_hash<span class="op">=</span><span class="dv">0</span>,</span>
 <span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>The primary entry point for all alignment workflows.</p>
-<p>An AlignmentBundle manages timelines and their alignment relationships. Within a group, coordinate transfer uses linear interpolation (<code>TimelineGroup.convert()</code>). Across groups, transfer is mediated by the <code>MatchClaim</code> → <code>MatchLine</code> → <code>WarpMap</code> pipeline.</p>
+<p>An AlignmentBundle manages timelines and their alignment relationships. Within a group, coordinate transfer uses linear interpolation (<code>TimelineGroup.get_coordinate_at()</code>). Across groups, transfer is mediated by the <code>MatchClaim</code> → <code>MatchLine</code> → <code>WarpMap</code> pipeline.</p>
 <p>The bundle provides:</p>
 <ul>
 <li>Timeline registration and lookup</li>
@@ -1086,7 +1130,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.add_timeline(score_timeline, uid<span class="op">=</span><span class="st">"score"</span>)</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.add_timeline(audio_timeline, uid<span class="op">=</span><span class="st">"audio"</span>, grouped_with<span class="op">=</span><span class="st">"score"</span>)</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamp <span class="op">=</span> bundle.get_matchstamp_at(<span class="fl">100.0</span>, <span class="st">"score"</span>)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamp.get(<span class="st">"audio"</span>)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamp.get_coordinate_for(<span class="st">"audio"</span>, <span class="bu">format</span><span class="op">=</span><span class="st">"float"</span>)</span>
 <span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fl">45.5</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 <section id="methods" class="level2">
@@ -1136,46 +1180,66 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Query the columnar claim stores, materialising nothing.</td>
 </tr>
 <tr class="even">
+<td><a href="#timetoalign.alignment.AlignmentBundle.get_coordinate">get_coordinate</a></td>
+<td>Dispatch a positional or event-key bundle coordinate query.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.alignment.AlignmentBundle.get_coordinate_at">get_coordinate_at</a></td>
+<td>Resolve one coordinate onto a requested public bundle UID axis.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.alignment.AlignmentBundle.get_coordinate_for">get_coordinate_for</a></td>
+<td>Return a uniquely owned event’s start on a selected bundle axis.</td>
+</tr>
+<tr class="odd">
+<td><a href="#timetoalign.alignment.AlignmentBundle.get_coordinates_at">get_coordinates_at</a></td>
+<td>Resolve a coordinate collection onto one bundle UID axis.</td>
+</tr>
+<tr class="even">
+<td><a href="#timetoalign.alignment.AlignmentBundle.get_coordinates_for">get_coordinates_for</a></td>
+<td>Return event-start coordinates for a key collection.</td>
+</tr>
+<tr class="odd">
 <td><a href="#timetoalign.alignment.AlignmentBundle.get_group">get_group</a></td>
 <td>Get a group by ID.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.alignment.AlignmentBundle.get_group_for_timeline">get_group_for_timeline</a></td>
 <td>Get the group containing a timeline.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.alignment.AlignmentBundle.get_match_claims">get_match_claims</a></td>
 <td>Query MatchClaims connecting timelines across groups.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.alignment.AlignmentBundle.get_matchstamp_at">get_matchstamp_at</a></td>
 <td>Get a cross-group MatchStamp at a coordinate on a timeline.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.alignment.AlignmentBundle.get_matchstamp_table">get_matchstamp_table</a></td>
 <td>Get a PyArrow table of MatchStamps for alignment queries.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.alignment.AlignmentBundle.get_matchstamps">get_matchstamps</a></td>
 <td>Get MatchStamps for a list of MatchClaims or query coordinates.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.alignment.AlignmentBundle.get_timeline">get_timeline</a></td>
 <td>Get a timeline by ID.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.alignment.AlignmentBundle.get_timelines">get_timelines</a></td>
 <td>Get multiple timelines by their IDs.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.alignment.AlignmentBundle.summary">summary</a></td>
 <td>Get a summary of the bundle contents.</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td><a href="#timetoalign.alignment.AlignmentBundle.transfer">transfer</a></td>
 <td>Transfer a coordinate from one timeline to another.</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td><a href="#timetoalign.alignment.AlignmentBundle.transfer_interval">transfer_interval</a></td>
 <td>Transfer an interval from one timeline to another.</td>
 </tr>
@@ -1378,7 +1442,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <colgroup>
 <col style="width: 3%">
 <col style="width: 16%">
-<col style="width: 77%">
+<col style="width: 76%">
 <col style="width: 3%">
 </colgroup>
 <thead>
@@ -1452,9 +1516,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-1">Raises</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 9%">
-<col style="width: 32%">
-<col style="width: 58%">
+<col style="width: 8%">
+<col style="width: 31%">
+<col style="width: 59%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1681,16 +1745,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    max_children<span class="op">=</span><span class="dv">6</span>,</span>
 <span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    max_standalone<span class="op">=</span><span class="dv">6</span>,</span>
 <span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">unicode</span><span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    depth<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Generate ASCII diagram for this bundle.</p>
 <section id="parameters-6" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-6">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
-<col style="width: 13%">
-<col style="width: 13%">
-<col style="width: 64%">
-<col style="width: 9%">
+<col style="width: 5%">
+<col style="width: 11%">
+<col style="width: 79%">
+<col style="width: 3%">
 </colgroup>
 <thead>
 <tr class="header">
@@ -1731,6 +1796,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td>Use Unicode characters (True) or ASCII fallback (False).</td>
 <td><code>True</code></td>
 </tr>
+<tr class="even">
+<td>depth</td>
+<td><code>bool</code> | <code>int</code></td>
+<td>Child levels to render in nested timeline diagrams. <code>True</code> renders all levels, <code>False</code> renders direct children only, and a non-negative integer renders at most that many levels. In particular, <code>0</code> renders no child rows.</td>
+<td><code>True</code></td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -1754,6 +1825,30 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <td></td>
 <td>'Diagram'</td>
 <td>Diagram object (displays as ASCII in terminal, rich HTML in Jupyter).</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="raises-3" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-3">Raises</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 10%">
+<col style="width: 38%">
+<col style="width: 50%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>ValueError</code></td>
+<td>If <code>depth</code> is a negative integer.</td>
 </tr>
 </tbody>
 </table>
@@ -1839,8 +1934,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-3" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-3">Raises</h4>
+<section id="raises-4" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-4">Raises</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 6%">
@@ -1980,13 +2075,413 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="dv">66780</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
-<section id="timetoalign.alignment.AlignmentBundle.get_group" class="level3">
-<h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_group">get_group</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_group(uid)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<p>Get a group by ID.</p>
-<p>Supports partial string and regex matching: 1. Exact match: If <code>uid</code> matches an ID exactly, returns it. 2. Substring match: If <code>uid</code> is a substring of exactly one ID, returns that group. If multiple match, returns the first and warns. 3. Regex match: If <code>uid</code> is a valid regex, matches via <code>re.search()</code>. Same first-match logic with warning.</p>
+<section id="timetoalign.alignment.AlignmentBundle.get_coordinate" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_coordinate">get_coordinate</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_coordinate(</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    at,</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Dispatch a positional or event-key bundle coordinate query.</p>
 <section id="parameters-9" class="level4 doc-section doc-section-parameters">
 <h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-9">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 72%">
+<col style="width: 17%">
+<col style="width: 6%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>at</td>
+<td><code>CoordinateInput</code> | <code>CoordinateCollection</code> | <code>str</code> | <code>KeyCollection</code></td>
+<td>Scalar or plural coordinate position or event key.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Requested public result UID when required.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="even">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-9" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-9">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 3%">
+<col style="width: 81%">
+<col style="width: 15%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>CoordinateResult</code> | <code>list</code>[<code>CoordinateResult</code>] | <code>pd</code>.<code>Series</code></td>
+<td>The selected precise-getter result.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.alignment.AlignmentBundle.get_coordinate_at" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_coordinate_at">get_coordinate_at</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_coordinate_at(</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>    at,</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Resolve one coordinate onto a requested public bundle UID axis.</p>
+<section id="parameters-10" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-10">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 46%">
+<col style="width: 31%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>at</td>
+<td><code>CoordinateInput</code></td>
+<td>Raw, plain, or ID-bearing coordinate input.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Requested result bundle UID.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="even">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-10" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-10">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 65%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>CoordinateResult</code> | <code>pd</code>.<code>Series</code></td>
+<td>One coordinate projection or a length-one Series.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.alignment.AlignmentBundle.get_coordinate_for" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_coordinate_for">get_coordinate_for</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_coordinate_for(</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>    key,</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return a uniquely owned event’s start on a selected bundle axis.</p>
+<section id="parameters-11" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-11">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 43%">
+<col style="width: 35%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>key</td>
+<td><code>str</code></td>
+<td>Event ID with exactly one owning registered timeline.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Requested result UID, or the owner by default.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="even">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-11" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-11">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 64%">
+<col style="width: 30%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>CoordinateResult</code> | <code>pd</code>.<code>Series</code></td>
+<td>One event-start projection or a length-one Series.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.alignment.AlignmentBundle.get_coordinates_at" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_coordinates_at">get_coordinates_at</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_coordinates_at(</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    at,</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Resolve a coordinate collection onto one bundle UID axis.</p>
+<section id="parameters-12" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-12">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 49%">
+<col style="width: 29%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>at</td>
+<td><code>CoordinateCollection</code></td>
+<td>Coordinate positions to resolve atomically.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Requested result bundle UID.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="even">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-12" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-12">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 68%">
+<col style="width: 26%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>CoordinateResult</code>] | <code>pd</code>.<code>Series</code></td>
+<td>A list of projections or canonical-value Series.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.alignment.AlignmentBundle.get_coordinates_for" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_coordinates_for">get_coordinates_for</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_coordinates_for(</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    keys,</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">format</span><span class="op">=</span><span class="st">'id_coordinate'</span>,</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>    rounding<span class="op">=</span><span class="st">'round'</span>,</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Return event-start coordinates for a key collection.</p>
+<section id="parameters-13" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-13">Parameters</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 45%">
+<col style="width: 33%">
+<col style="width: 12%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>keys</td>
+<td><code>KeyCollection</code></td>
+<td>Event IDs to resolve atomically.</td>
+<td><em>required</em></td>
+</tr>
+<tr class="even">
+<td>timeline_id</td>
+<td><code>str</code> | None</td>
+<td>Requested result UID, or each owner by default.</td>
+<td><code>None</code></td>
+</tr>
+<tr class="odd">
+<td>format</td>
+<td><code>CoordinateFormat</code></td>
+<td>Requested coordinate output format.</td>
+<td><code>'id_coordinate'</code></td>
+</tr>
+<tr class="even">
+<td>rounding</td>
+<td><code>Rounding</code></td>
+<td>Integral projection mode.</td>
+<td><code>'round'</code></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="returns-13" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-13">Returns</h4>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 4%">
+<col style="width: 68%">
+<col style="width: 26%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Name</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td></td>
+<td><code>list</code>[<code>CoordinateResult</code>] | <code>pd</code>.<code>Series</code></td>
+<td>A list of projections or canonical-value Series.</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="timetoalign.alignment.AlignmentBundle.get_group" class="level3">
+<h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_group">get_group</h3>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_group(uid)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>Get a group by ID.</p>
+<p>Supports partial string and regex matching: 1. Exact match: If <code>uid</code> matches an ID exactly, returns it. 2. Substring match: If <code>uid</code> is a substring of exactly one ID, returns that group. If multiple match, returns the first and warns. 3. Regex match: If <code>uid</code> is a valid regex, matches via <code>re.search()</code>. Same first-match logic with warning.</p>
+<section id="parameters-14" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-14">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 8%">
@@ -2012,8 +2507,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-9" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-9">Returns</h4>
+<section id="returns-14" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-14">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2031,8 +2526,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-4" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-4">Raises</h4>
+<section id="raises-5" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-5">Raises</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2052,16 +2547,16 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-7" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-7">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_group(<span class="st">"score"</span>)            <span class="co"># Substring match</span></span>
-<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_group(<span class="vs">r"</span><span class="dv">^</span><span class="vs">perf"</span>)           <span class="co"># Regex match</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_group(<span class="st">"score"</span>)            <span class="co"># Substring match</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_group(<span class="vs">r"</span><span class="dv">^</span><span class="vs">perf"</span>)           <span class="co"># Regex match</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.get_group_for_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_group_for_timeline">get_group_for_timeline</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_group_for_timeline(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_group_for_timeline(timeline_id)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get the group containing a timeline.</p>
-<section id="parameters-10" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-10">Parameters</h4>
+<section id="parameters-15" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-15">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 17%">
@@ -2087,8 +2582,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-10" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-10">Returns</h4>
+<section id="returns-15" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-15">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2109,22 +2604,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.get_match_claims" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_match_claims">get_match_claims</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_match_claims(</span>
-<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    timeline_ids<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    id_pattern<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    between<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    synchronous_only<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>    nomatch_only<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>    include_domains<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>    include_units<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_match_claims(</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    timeline_ids<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    id_pattern<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    between<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    synchronous_only<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    nomatch_only<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>    include_domains<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>    include_units<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Query MatchClaims connecting timelines across groups.</p>
 <p>This is the primary interface for accessing alignment information. All parameters are optional; when none are provided, returns all claims.</p>
 <p>Filters are combined with AND logic: a claim must satisfy every non-None criterion. Uses the Unified Filter API.</p>
 <p>Both claim stores are queried: the per-claim Python list and every columnar <code>MatchClaimField</code>. The columnar matches are filtered vectorized but then <strong>materialised</strong>, one <code>MatchClaim</code> per surviving row — for a dense pairwise alignment that is O(n) Python objects. Use :meth:<code>get_claim_fields</code> when the columnar answer suffices, or narrow the query first.</p>
-<section id="parameters-11" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-11">Parameters</h4>
+<section id="parameters-16" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-16">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 8%">
@@ -2192,8 +2687,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-11" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-11">Returns</h4>
+<section id="returns-16" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-16">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2226,23 +2721,23 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.get_matchstamp_at" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_matchstamp_at">get_matchstamp_at</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_matchstamp_at(</span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    coordinate,</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>    support_policy<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    timeline_ids<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>    id_pattern<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    include_domains<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>    include_units<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_matchstamp_at(</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    coordinate,</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>    support_policy<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>    timeline_ids<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>    id_pattern<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>    include_domains<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a>    include_units<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a cross-group MatchStamp at a coordinate on a timeline.</p>
 <p>This is the primary interface for cross-domain coordinate transfer. Given a coordinate on one timeline, returns coordinates on ALL connected timelines across ALL groups.</p>
 <p>The stamp is the <strong>transitive cross-group union</strong> reachable from the query. Exact-anchor coordinates from the coordinate’s MatchGraph are overlaid first (exact wins over interpolated), then the assembly walks outward across groups to closure: every reached timeline expands into its own group (by interpolation) and warps into not-yet-reached groups (by WarpMap). <code>is_interpolated</code> is <code>False</code> exactly when the query node itself carries an explicit anchor.</p>
 <p>A timeline whose transferred coordinate falls outside alignment support — the entering coordinate lies outside the transferring WarpMap’s source-anchor hull, or the produced coordinate would fall outside <code>[0, length]</code> — is handled by <code>support_policy</code>. No policy ever yields a negative coordinate or one beyond a timeline’s length.</p>
-<section id="parameters-12" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-12">Parameters</h4>
+<section id="parameters-17" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-17">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 4%">
@@ -2310,8 +2805,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-12" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-12">Returns</h4>
+<section id="returns-17" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-17">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2329,8 +2824,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-5" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-5">Raises</h4>
+<section id="raises-6" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-6">Raises</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 7%">
@@ -2365,22 +2860,22 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-9" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-9">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ms <span class="op">=</span> bundle.get_matchstamp_at(<span class="fl">10.0</span>, <span class="st">"score:clt1"</span>)</span>
-<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ms.n_timelines</span>
-<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="dv">23</span>  <span class="co"># score + 22 performers</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ms <span class="op">=</span> bundle.get_matchstamp_at(<span class="fl">10.0</span>, <span class="st">"score:clt1"</span>)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> ms.n_timelines</span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a><span class="dv">23</span>  <span class="co"># score + 22 performers</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.get_matchstamp_table" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_matchstamp_table">get_matchstamp_table</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_matchstamp_table(</span>
-<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>    claims<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
-<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    coordinates<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    timeline_filter<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    from_graph<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_matchstamp_table(</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>    claims<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>    coordinates<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>    timeline_filter<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>    from_graph<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a PyArrow table of MatchStamps for alignment queries.</p>
 <p>Analogous to <code>get_timestamp_table()</code> but for cross-group alignment. Fields are timeline IDs holding their coordinate values; what a <em>row</em> is depends on <code>from_graph</code>:</p>
 <ul>
@@ -2389,8 +2884,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </ul>
 <p>When <code>claims</code> is None both claim stores are read: the per-claim Python list and every columnar <code>MatchClaimField</code>. The columnar stores are read four Arrow columns at a time — no <code>MatchClaim</code> is ever materialised — which is what keeps a hundreds-of-thousands-of-rows alignment tabulable.</p>
 <p>When <code>coordinates</code> is given instead of <code>claims</code>, each coordinate is resolved through :meth:<code>get_matchstamp_at</code> and becomes exactly one row — a full transitive cross-section, every reached timeline filled — in input order. <code>from_graph</code> does not apply on this path (the stamps are already collapsed cross-sections) and is ignored.</p>
-<section id="parameters-13" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-13">Parameters</h4>
+<section id="parameters-18" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-18">Parameters</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2440,8 +2935,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-13" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-13">Returns</h4>
+<section id="returns-18" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-18">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 8%">
@@ -2469,8 +2964,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-6" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-6">Raises</h4>
+<section id="raises-7" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-7">Raises</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 9%">
@@ -2499,34 +2994,34 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-10" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-10">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb29"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> table <span class="op">=</span> bundle.get_matchstamp_table()</span>
-<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> table.num_rows</span>
-<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a><span class="dv">100</span></span>
-<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> table.column_names</span>
-<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>[<span class="st">'score:clt1'</span>, <span class="st">'perf:dlt1'</span>, <span class="st">'perf:dlt2'</span>, ...]</span>
-<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_matchstamp_table(from_graph<span class="op">=</span><span class="va">True</span>).num_rows</span>
-<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a><span class="dv">25</span></span>
-<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_matchstamp_table(</span>
-<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>...     coordinates<span class="op">=</span>[<span class="fl">0.0</span>, <span class="fl">50.0</span>], timeline_id<span class="op">=</span><span class="st">"score:clt1"</span></span>
-<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>... ).num_rows</span>
-<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a><span class="dv">2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> table <span class="op">=</span> bundle.get_matchstamp_table()</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> table.num_rows</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a><span class="dv">100</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> table.column_names</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>[<span class="st">'score:clt1'</span>, <span class="st">'perf:dlt1'</span>, <span class="st">'perf:dlt2'</span>, ...]</span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_matchstamp_table(from_graph<span class="op">=</span><span class="va">True</span>).num_rows</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a><span class="dv">25</span></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_matchstamp_table(</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>...     coordinates<span class="op">=</span>[<span class="fl">0.0</span>, <span class="fl">50.0</span>], timeline_id<span class="op">=</span><span class="st">"score:clt1"</span></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>... ).num_rows</span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a><span class="dv">2</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.get_matchstamps" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_matchstamps">get_matchstamps</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_matchstamps(</span>
-<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>    claims<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
-<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>    coordinates<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
-<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>    from_graph<span class="op">=</span><span class="va">True</span>,</span>
-<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">False</span>,</span>
-<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_matchstamps(</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>    claims<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">*</span>,</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>    coordinates<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>    timeline_id<span class="op">=</span><span class="va">None</span>,</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>    from_graph<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>    conversion_maps<span class="op">=</span><span class="va">False</span>,</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get MatchStamps for a list of MatchClaims or query coordinates.</p>
 <p>Convenience method for retrieving MatchStamps for multiple claims at once. Uses the bundle’s caching mechanism for efficient retrieval.</p>
 <p>When <code>coordinates</code> is given instead of <code>claims</code>, each coordinate is resolved through :meth:<code>get_matchstamp_at</code> — the coordinate-first entry point for callers who hold coordinates rather than <code>MatchClaim</code> objects. Input order is preserved and every coordinate yields exactly one stamp (a full transitive cross-section).</p>
-<section id="parameters-14" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-14">Parameters</h4>
+<section id="parameters-19" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-19">Parameters</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2570,8 +3065,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-14" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-14">Returns</h4>
+<section id="returns-19" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-19">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2594,8 +3089,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-7" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-7">Raises</h4>
+<section id="raises-8" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-8">Raises</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 9%">
@@ -2620,25 +3115,25 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-11" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-11">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamps <span class="op">=</span> bundle.get_matchstamps()</span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">len</span>(stamps)</span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a><span class="dv">100</span></span>
-<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamps[<span class="dv">0</span>].n_timelines</span>
-<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="dv">23</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> coord_stamps <span class="op">=</span> bundle.get_matchstamps(</span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>...     coordinates<span class="op">=</span>[<span class="fl">0.0</span>, <span class="fl">50.0</span>], timeline_id<span class="op">=</span><span class="st">"score:clt1"</span></span>
-<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>... )</span>
-<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> coord_stamps[<span class="dv">1</span>].get(<span class="st">"score:clt1"</span>)</span>
-<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a><span class="fl">50.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamps <span class="op">=</span> bundle.get_matchstamps()</span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">len</span>(stamps)</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="dv">100</span></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> stamps[<span class="dv">0</span>].n_timelines</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a><span class="dv">23</span></span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> coord_stamps <span class="op">=</span> bundle.get_matchstamps(</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>...     coordinates<span class="op">=</span>[<span class="fl">0.0</span>, <span class="fl">50.0</span>], timeline_id<span class="op">=</span><span class="st">"score:clt1"</span></span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>... )</span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> coord_stamps[<span class="dv">1</span>].get_coordinate_for(<span class="st">"score:clt1"</span>, <span class="bu">format</span><span class="op">=</span><span class="st">"float"</span>)</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a><span class="fl">50.0</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.get_timeline" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_timeline">get_timeline</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb32"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_timeline(uid)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_timeline(uid)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a timeline by ID.</p>
 <p>Supports partial string and regex matching: 1. Exact match: If <code>uid</code> matches an ID exactly, returns it. 2. Substring match: If <code>uid</code> is a substring of exactly one ID, returns that timeline. If multiple match, returns the first and warns. 3. Regex match: If <code>uid</code> is a valid regex, matches via <code>re.search()</code>. Same first-match logic with warning.</p>
-<section id="parameters-15" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-15">Parameters</h4>
+<section id="parameters-20" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-20">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 8%">
@@ -2664,8 +3159,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-15" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-15">Returns</h4>
+<section id="returns-20" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-20">Returns</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2683,8 +3178,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-8" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-8">Raises</h4>
+<section id="raises-9" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-9">Raises</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 11%">
@@ -2709,18 +3204,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-12" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-12">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb33"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_timeline(<span class="st">"clt1"</span>)          <span class="co"># Exact match</span></span>
-<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_timeline(<span class="st">"score"</span>)         <span class="co"># Substring match</span></span>
-<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_timeline(<span class="vs">r"</span><span class="dv">^</span><span class="vs">perf:"</span>)       <span class="co"># Regex match</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_timeline(<span class="st">"clt1"</span>)          <span class="co"># Exact match</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_timeline(<span class="st">"score"</span>)         <span class="co"># Substring match</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> bundle.get_timeline(<span class="vs">r"</span><span class="dv">^</span><span class="vs">perf:"</span>)       <span class="co"># Regex match</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.get_timelines" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.get_timelines">get_timelines</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb34"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_timelines(ids)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb39"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.get_timelines(ids)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get multiple timelines by their IDs.</p>
 <p>Convenience method for retrieving several timelines at once. Each ID supports partial string and regex matching (via <code>get_timeline()</code>).</p>
-<section id="parameters-16" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-16">Parameters</h4>
+<section id="parameters-21" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-21">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 7%">
@@ -2746,8 +3241,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-16" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-16">Returns</h4>
+<section id="returns-21" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-21">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 7%">
@@ -2770,8 +3265,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-9" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-9">Raises</h4>
+<section id="raises-10" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-10">Raises</h4>
 <table class="caption-top table">
 <thead>
 <tr class="header">
@@ -2791,18 +3286,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="examples-13" class="level4 doc-section doc-section-examples">
 <h4 class="doc-section doc-section-examples anchored" data-anchor-id="examples-13">Examples</h4>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb35"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timelines <span class="op">=</span> bundle.get_timelines([<span class="st">"score"</span>, <span class="st">"audio"</span>, <span class="st">"midi"</span>])</span>
-<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">len</span>(timelines)</span>
-<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="dv">3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb40"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> timelines <span class="op">=</span> bundle.get_timelines([<span class="st">"score"</span>, <span class="st">"audio"</span>, <span class="st">"midi"</span>])</span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="op">&gt;&gt;&gt;</span> <span class="bu">len</span>(timelines)</span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a><span class="dv">3</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.summary" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.summary">summary</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb36"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb41"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.summary()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Get a summary of the bundle contents.</p>
 <p>Returns a deterministic representation suitable for comparison. Keys and timeline lists are sorted for order-independence.</p>
-<section id="returns-17" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-17">Returns</h4>
+<section id="returns-22" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-22">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 8%">
@@ -2828,17 +3323,17 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.transfer" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.transfer">transfer</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb37"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.transfer(coord, from_timeline, to_timeline)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb42"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.transfer(coord, from_timeline, to_timeline)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Transfer a coordinate from one timeline to another.</p>
 <p>Automatically determines the conversion path:</p>
 <ol type="1">
-<li>If both timelines are in the same group: direct conversion via <code>TimelineGroup.convert()</code>.</li>
+<li>If both timelines are in the same group: typed group retrieval.</li>
 <li>If in different groups with MatchClaims: builds a <code>MatchLine</code> and a cached <code>WarpMap</code> and calls it to interpolate the coordinate.</li>
 <li>If no path exists: returns <code>None</code>.</li>
 </ol>
 <p>Low-level coordinate transfer utility. For user-facing coordinate queries, use <code>get_matchstamp_at()</code> which returns a full cross-section as a MatchStamp.</p>
-<section id="parameters-17" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-17">Parameters</h4>
+<section id="parameters-22" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-22">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 12%">
@@ -2876,8 +3371,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-18" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-18">Returns</h4>
+<section id="returns-23" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-23">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 8%">
@@ -2900,8 +3395,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="raises-10" class="level4 doc-section doc-section-raises">
-<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-10">Raises</h4>
+<section id="raises-11" class="level4 doc-section doc-section-raises">
+<h4 class="doc-section doc-section-raises anchored" data-anchor-id="raises-11">Raises</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 10%">
@@ -2927,15 +3422,15 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="timetoalign.alignment.AlignmentBundle.transfer_interval" class="level3">
 <h3 class="anchored" data-anchor-id="timetoalign.alignment.AlignmentBundle.transfer_interval">transfer_interval</h3>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb38"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.transfer_interval(</span>
-<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>    start,</span>
-<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>    end,</span>
-<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>    from_timeline,</span>
-<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a>    to_timeline,</span>
-<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb43"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>alignment.AlignmentBundle.transfer_interval(</span>
+<span id="cb43-2"><a href="#cb43-2" aria-hidden="true" tabindex="-1"></a>    start,</span>
+<span id="cb43-3"><a href="#cb43-3" aria-hidden="true" tabindex="-1"></a>    end,</span>
+<span id="cb43-4"><a href="#cb43-4" aria-hidden="true" tabindex="-1"></a>    from_timeline,</span>
+<span id="cb43-5"><a href="#cb43-5" aria-hidden="true" tabindex="-1"></a>    to_timeline,</span>
+<span id="cb43-6"><a href="#cb43-6" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <p>Transfer an interval from one timeline to another.</p>
-<section id="parameters-18" class="level4 doc-section doc-section-parameters">
-<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-18">Parameters</h4>
+<section id="parameters-23" class="level4 doc-section doc-section-parameters">
+<h4 class="doc-section doc-section-parameters anchored" data-anchor-id="parameters-23">Parameters</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 8%">
@@ -2979,8 +3474,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </tbody>
 </table>
 </section>
-<section id="returns-19" class="level4 doc-section doc-section-returns">
-<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-19">Returns</h4>
+<section id="returns-24" class="level4 doc-section doc-section-returns">
+<h4 class="doc-section doc-section-returns anchored" data-anchor-id="returns-24">Returns</h4>
 <table class="caption-top table">
 <colgroup>
 <col style="width: 5%">

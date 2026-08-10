@@ -240,7 +240,7 @@ ts = dgt1.get_timestamp(100000.0)
 
 {
     "Query (parent coord)": 100000.0,
-    "Child coord (dgt_holes)": ts["dgt_holes"],
+    "Child coord (dgt_holes)": ts.get_coordinate_for("dgt_holes"),
     "Calculation": f"100000 - {aton_loader.first_hole.value} = {100000 - aton_loader.first_hole.value}",
 }
 
@@ -467,8 +467,9 @@ group_timestamps
 # ## Part H: Coordinate Transfer Using Timestamps
 #
 # **The right way to transfer coordinates is through timestamps!**
-# Instead of manually calling `group.convert()`, we use `get_timestamp_at()`
-# which returns a full cross-section through all timelines.
+# Instead of asking for one target coordinate at a time with
+# `get_coordinate_at()`, we use `get_timestamp_at()`, which returns a full
+# cross-section through all timelines in a single call.
 
 # %% [markdown]
 # ### H.1: Transfer a Specific Harmony Label Across All Timelines
@@ -513,9 +514,9 @@ harmony_ts
 # the child's timeline_id, so the parent automatically applies the offset!
 
 # %%
-if harmony_ts["dgt_holes"] is not None:
-    # Create IdCoordinate from child timeline - parent auto-offsets!
-    child_coord = IdCoordinate(harmony_ts["dgt_holes"], TimeUnit.pixels, "dgt_holes")
+if "dgt_holes" in harmony_ts.present_timelines:
+    # The getter already returns an IdCoordinate carrying the child's timeline_id
+    child_coord = harmony_ts.get_coordinate_for("dgt_holes")
 
     # Parent's to_dataframe() recognizes the child_id and applies offset
     image_ts = dgt1.to_dataframe(coordinates=[child_coord])
@@ -608,22 +609,24 @@ ts1
 
 # %%
 # Step 2: Transfer to audio, then back to holes
-ts2 = group.get_timestamp_at(ts1["dpt1_audio"], "dpt1_audio")
+ts2 = group.get_timestamp_at(ts1.get_coordinate_for("dpt1_audio"), "dpt1_audio")
 ts2
 
 # %%
 # Step 3: Transfer to score, then back to holes
-ts3 = group.get_timestamp_at(ts1["clt1_score"], "clt1_score")
+ts3 = group.get_timestamp_at(ts1.get_coordinate_for("clt1_score"), "clt1_score")
 ts3
 
 # %%
 # Verify round-trip precision by examining coordinates from each timestamp
+via_audio = ts2.get_coordinate_for("dgt_holes", format="int")
+via_score = ts3.get_coordinate_for("dgt_holes", format="int")
 print("Round-trip verification:")
 print(f"  Original:   {test_coord} pixels")
-print(f"  Via audio:  {ts2['dgt_holes']} pixels")
-print(f"  Via score:  {ts3['dgt_holes']} pixels")
-print(f"  Audio diff: {abs(ts2['dgt_holes'] - test_coord):.6f}")
-print(f"  Score diff: {abs(ts3['dgt_holes'] - test_coord):.6f}")
+print(f"  Via audio:  {via_audio} pixels")
+print(f"  Via score:  {via_score} pixels")
+print(f"  Audio diff: {abs(via_audio - test_coord)} pixels")
+print(f"  Score diff: {abs(via_score - test_coord)} pixels")
 
 # %% [markdown]
 # ---

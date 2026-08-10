@@ -24,7 +24,7 @@ The primary entry point for all alignment workflows.
 
 An AlignmentBundle manages timelines and their alignment relationships.
 Within a group, coordinate transfer uses linear interpolation
-(``TimelineGroup.convert()``).  Across groups, transfer is mediated
+(``TimelineGroup.get_coordinate_at()``). Across groups, transfer is mediated
 by the ``MatchClaim`` → ``MatchLine`` → ``WarpMap`` pipeline.
 
 The bundle provides:
@@ -72,7 +72,7 @@ The bundle translates between these two namespaces transparently.
 >>> bundle.add_timeline(score_timeline, uid="score")
 >>> bundle.add_timeline(audio_timeline, uid="audio", grouped_with="score")
 >>> stamp = bundle.get_matchstamp_at(100.0, "score")
->>> stamp.get("audio")
+>>> stamp.get_coordinate_for("audio", format="float")
 45.5
 ```
 
@@ -89,6 +89,11 @@ The bundle translates between these two namespaces transparently.
 | [diagram](#timetoalign.alignment.AlignmentBundle.diagram) | Generate ASCII diagram for this bundle. |
 | [from_bundles](#timetoalign.alignment.AlignmentBundle.from_bundles) | Merge multiple bundles' groups, standalone timelines, and claims. |
 | [get_claim_fields](#timetoalign.alignment.AlignmentBundle.get_claim_fields) | Query the columnar claim stores, materialising nothing. |
+| [get_coordinate](#timetoalign.alignment.AlignmentBundle.get_coordinate) | Dispatch a positional or event-key bundle coordinate query. |
+| [get_coordinate_at](#timetoalign.alignment.AlignmentBundle.get_coordinate_at) | Resolve one coordinate onto a requested public bundle UID axis. |
+| [get_coordinate_for](#timetoalign.alignment.AlignmentBundle.get_coordinate_for) | Return a uniquely owned event's start on a selected bundle axis. |
+| [get_coordinates_at](#timetoalign.alignment.AlignmentBundle.get_coordinates_at) | Resolve a coordinate collection onto one bundle UID axis. |
+| [get_coordinates_for](#timetoalign.alignment.AlignmentBundle.get_coordinates_for) | Return event-start coordinates for a key collection. |
 | [get_group](#timetoalign.alignment.AlignmentBundle.get_group) | Get a group by ID. |
 | [get_group_for_timeline](#timetoalign.alignment.AlignmentBundle.get_group_for_timeline) | Get the group containing a timeline. |
 | [get_match_claims](#timetoalign.alignment.AlignmentBundle.get_match_claims) | Query MatchClaims connecting timelines across groups. |
@@ -220,18 +225,21 @@ alignment.AlignmentBundle.add_timeline(
 Add a timeline, optionally grouped with an existing timeline.
 
 This is the primary method for adding timelines to the bundle.
-Timelines can be standalone or grouped with existing timelines. Group membership makes timelines commensurable through interpolation; it does not by itself assert any MatchClaim between them.
+Timelines can be standalone or grouped with existing timelines.
+Group membership makes timelines commensurable through
+interpolation; it does not by itself assert any MatchClaim
+between them.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name       | Type                                                        | Description                                                                                                                                                                                                                                                                                  | Default    |
-|------------|-------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| timeline   | \'Timeline\'                                                | The Timeline to add.                                                                                                                                                                                                                                                                         | _required_ |
-| uid        | [str](`str`) \| None                                        | Optional explicit ID. If None, uses timeline.id.                                                                                                                                                                                                                                             | `None`     |
-| grouped_with | [str](`str`) \| None                                        | ID of an existing timeline to share a group with. If provided, both timelines become part of the same group. If the target timeline is not yet in a group, a new group is created with the target as reference.                                                                                         | `None`     |
-| as_group   | [str](`str`) \| None                                        | Name for the group if creating a new one.                                                                                                                                                                                                                                                    | `None`     |
-| start      | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Where this timeline's 0-origin starts in the group. - CoordinateSpec: Coordinate in the grouped_with timeline - IdCoordinate: Coordinate with explicit timeline_id (preferred) - float: Coordinate in the grouped_with timeline - None: Use group's current start (default for linear alignment) | `None`     |
-| end        | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Where this timeline's end (length) aligns in the group. - Same options as start - None: Use group's current end (default for linear alignment)                                                                                                                                               | `None`     |
+| Name         | Type                                                        | Description                                                                                                                                                                                                                                                                                      | Default    |
+|--------------|-------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| timeline     | \'Timeline\'                                                | The Timeline to add.                                                                                                                                                                                                                                                                             | _required_ |
+| uid          | [str](`str`) \| None                                        | Optional explicit ID. If None, uses timeline.id.                                                                                                                                                                                                                                                 | `None`     |
+| grouped_with | [str](`str`) \| None                                        | ID of an existing timeline to share a group with. If provided, both timelines become part of the same group. If the target timeline is not yet in a group, a new group is created with the target as reference.                                                                                  | `None`     |
+| as_group     | [str](`str`) \| None                                        | Name for the group if creating a new one.                                                                                                                                                                                                                                                        | `None`     |
+| start        | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Where this timeline's 0-origin starts in the group. - CoordinateSpec: Coordinate in the grouped_with timeline - IdCoordinate: Coordinate with explicit timeline_id (preferred) - float: Coordinate in the grouped_with timeline - None: Use group's current start (default for linear alignment) | `None`     |
+| end          | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| None | Where this timeline's end (length) aligns in the group. - Same options as start - None: Use group's current end (default for linear alignment)                                                                                                                                                   | `None`     |
 
 #### Returns {.doc-section .doc-section-returns}
 
@@ -241,9 +249,9 @@ Timelines can be standalone or grouped with existing timelines. Group membership
 
 #### Raises {.doc-section .doc-section-raises}
 
-| Name   | Type                       | Description                                       |
-|--------|----------------------------|---------------------------------------------------|
-|        | [ValueError](`ValueError`) | If uid already exists in bundle.                  |
+| Name   | Type                       | Description                                         |
+|--------|----------------------------|-----------------------------------------------------|
+|        | [ValueError](`ValueError`) | If uid already exists in bundle.                    |
 |        | [KeyError](`KeyError`)     | If grouped_with references a non-existent timeline. |
 
 #### Examples {.doc-section .doc-section-examples}
@@ -497,6 +505,151 @@ synchronous claims only, ``synchronous_only`` is a no-op here and
 >>> sum(len(f) for f in fields)
 66780
 ```
+
+### get_coordinate { #timetoalign.alignment.AlignmentBundle.get_coordinate }
+
+```python
+alignment.AlignmentBundle.get_coordinate(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Dispatch a positional or event-key bundle coordinate query.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                                                                                                                                                                        | Description                                        | Default           |
+|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) \| [str](`str`) \| [KeyCollection](`timetoalign.core.retrieval.KeyCollection`) | Scalar or plural coordinate position or event key. | _required_        |
+| timeline_id | [str](`str`) \| None                                                                                                                                                                                                        | Requested public result UID when required.         | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)                                                                                                                                                           | Requested coordinate output format.                | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                                                                                                                                                                           | Integral projection mode.                          | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                                                                                                 | Description                         |
+|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | The selected precise-getter result. |
+
+### get_coordinate_at { #timetoalign.alignment.AlignmentBundle.get_coordinate_at }
+
+```python
+alignment.AlignmentBundle.get_coordinate_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve one coordinate onto a requested public bundle UID axis.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                                 | Default           |
+|-------------|-------------------------------------------------------------------|---------------------------------------------|-------------------|
+| at          | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`)   | Raw, plain, or ID-bearing coordinate input. | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Requested result bundle UID.                | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.         | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                   | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                          | Description                                       |
+|--------|---------------------------------------------------------------------------------------------------------------|---------------------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | One coordinate projection or a length-one Series. |
+
+### get_coordinate_for { #timetoalign.alignment.AlignmentBundle.get_coordinate_for }
+
+```python
+alignment.AlignmentBundle.get_coordinate_for(
+    key,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Return a uniquely owned event's start on a selected bundle axis.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                                           | Default           |
+|-------------|-------------------------------------------------------------------|-------------------------------------------------------|-------------------|
+| key         | [str](`str`)                                                      | Event ID with exactly one owning registered timeline. | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Requested result UID, or the owner by default.        | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.                   | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                             | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                          | Description                                        |
+|--------|---------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
+|        | [CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`) \| [pd](`pandas`).[Series](`pandas.Series`) | One event-start projection or a length-one Series. |
+
+### get_coordinates_at { #timetoalign.alignment.AlignmentBundle.get_coordinates_at }
+
+```python
+alignment.AlignmentBundle.get_coordinates_at(
+    at,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Resolve a coordinate collection onto one bundle UID axis.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                                      | Description                                 | Default           |
+|-------------|---------------------------------------------------------------------------|---------------------------------------------|-------------------|
+| at          | [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) | Coordinate positions to resolve atomically. | _required_        |
+| timeline_id | [str](`str`) \| None                                                      | Requested result bundle UID.                | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`)         | Requested coordinate output format.         | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                         | Integral projection mode.                   | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | A list of projections or canonical-value Series. |
+
+### get_coordinates_for { #timetoalign.alignment.AlignmentBundle.get_coordinates_for }
+
+```python
+alignment.AlignmentBundle.get_coordinates_for(
+    keys,
+    timeline_id=None,
+    *,
+    format='id_coordinate',
+    rounding='round',
+)
+```
+
+Return event-start coordinates for a key collection.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name        | Type                                                              | Description                                     | Default           |
+|-------------|-------------------------------------------------------------------|-------------------------------------------------|-------------------|
+| keys        | [KeyCollection](`timetoalign.core.retrieval.KeyCollection`)       | Event IDs to resolve atomically.                | _required_        |
+| timeline_id | [str](`str`) \| None                                              | Requested result UID, or each owner by default. | `None`            |
+| format      | [CoordinateFormat](`timetoalign.core.retrieval.CoordinateFormat`) | Requested coordinate output format.             | `'id_coordinate'` |
+| rounding    | [Rounding](`timetoalign.core.retrieval.Rounding`)                 | Integral projection mode.                       | `'round'`         |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                            | Description                                      |
+|--------|---------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
+|        | [list](`list`)\[[CoordinateResult](`timetoalign.core.retrieval.CoordinateResult`)\] \| [pd](`pandas`).[Series](`pandas.Series`) | A list of projections or canonical-value Series. |
 
 ### get_group { #timetoalign.alignment.AlignmentBundle.get_group }
 
@@ -841,7 +994,7 @@ one stamp (a full transitive cross-section).
 >>> coord_stamps = bundle.get_matchstamps(
 ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
 ... )
->>> coord_stamps[1].get("score:clt1")
+>>> coord_stamps[1].get_coordinate_for("score:clt1", format="float")
 50.0
 ```
 
@@ -951,8 +1104,7 @@ Transfer a coordinate from one timeline to another.
 
 Automatically determines the conversion path:
 
-1. If both timelines are in the same group: direct conversion via
-   ``TimelineGroup.convert()``.
+1. If both timelines are in the same group: typed group retrieval.
 2. If in different groups with MatchClaims: builds a ``MatchLine``
    and a cached ``WarpMap`` and calls it to
    interpolate the coordinate.

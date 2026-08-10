@@ -441,6 +441,18 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/Interval.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Interval</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
+  <a href="../reference/IntervalField.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">IntervalField</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/IntervalToConstantMap.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">IntervalToConstantMap</span></a>
   </div>
@@ -693,6 +705,12 @@ ul.task-list li input[type="checkbox"] {
 </li>
           <li class="sidebar-item">
   <div class="sidebar-item-container">
+  <a href="../reference/SegmentLine.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">SegmentLine</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container">
   <a href="../reference/SegmentNameGenerator.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">SegmentNameGenerator</span></a>
   </div>
@@ -867,6 +885,14 @@ ul.task-list li input[type="checkbox"] {
 <td>A <code>Coordinate</code> that carries the ID of the timeline it belongs to.</td>
 </tr>
 <tr class="odd">
+<td><a href="../reference/Interval.html#timetoalign.Interval">Interval</a></td>
+<td>A non-decreasing interval between two plain coordinates.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/IntervalField.html#timetoalign.IntervalField">IntervalField</a></td>
+<td>Semantic field storing intervals with shared axis metadata.</td>
+</tr>
+<tr class="odd">
 <td><a href="../reference/OptionalCoordinate.html#timetoalign.OptionalCoordinate">OptionalCoordinate</a></td>
 <td></td>
 </tr>
@@ -916,7 +942,7 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="odd">
 <td><a href="../reference/TimeIntervalStamp.html#timetoalign.TimeIntervalStamp">TimeIntervalStamp</a></td>
-<td>An interval defined by start and end TimeStamps.</td>
+<td>A synchronized collection of canonical typed timeline intervals.</td>
 </tr>
 <tr class="even">
 <td><a href="../reference/GroupTimestamp.html#timetoalign.timelines.GroupTimestamp">GroupTimestamp</a></td>
@@ -973,6 +999,10 @@ ul.task-list li input[type="checkbox"] {
 <tr class="odd">
 <td><a href="../reference/BeatGrid.html#timetoalign.timelines.BeatGrid">BeatGrid</a></td>
 <td>A metrical timeline whose native coordinate axis is quarter notes.</td>
+</tr>
+<tr class="even">
+<td><a href="../reference/SegmentLine.html#timetoalign.timelines.SegmentLine">SegmentLine</a></td>
+<td>A timeline whose cached parameterized classes inherit the segment API.</td>
 </tr>
 </tbody>
 </table>
@@ -1272,7 +1302,7 @@ ul.task-list li input[type="checkbox"] {
 </tr>
 <tr class="odd">
 <td><a href="../reference/ScoreMidiLoader.html#timetoalign.loader.midi.score.ScoreMidiLoader">ScoreMidiLoader</a></td>
-<td>Load score MIDI files using partitura.</td>
+<td>Load score MIDI files using partitura or a mido fast path.</td>
 </tr>
 <tr class="even">
 <td><a href="../reference/GraphicalLoader.html#timetoalign.loader.graphical.GraphicalLoader">GraphicalLoader</a></td>
