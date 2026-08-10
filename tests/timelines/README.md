@@ -112,11 +112,12 @@ are checked independently: each must subtract the exact segment or region
 start while preserving the resulting rational representation in the copied
 event data.
 
-The timestamp checks distinguish the two public surfaces: `Stamp.get()`
-continues to return a raw float, while `get_coordinate()` returns the exact
-`Fraction` represented by a stored coordinate for a fraction-typed timeline.
-An interpolated timestamp remains marked with `is_interpolated=True` and is
-allowed to expose a float because interpolation is inherently float-based.
+The timestamp checks distinguish the typed default from explicit projections:
+`get_coordinate_for()` returns an `IdCoordinate`, while
+`format="coordinate"` returns the canonical `Coordinate` and
+`format="float"` performs a requested numeric projection. An interpolated
+timestamp remains marked with `is_interpolated=True` and is re-expressed in
+the axis's declared canonical number type.
 
 ### `test_base.py` - Core Timeline Functionality
 
@@ -1561,7 +1562,7 @@ FlowMap approach with structural slicing in QB-space.
 | `TestSegmentLineAssembly` | Integration: slice + concatenate into a SegmentLine (this module's own manual helper) |
 | `TestCreateUnfoldedTimelineIdentity` | Explicit uid on the same-type unfolded timeline |
 | `TestUnfoldingGoldStandard` | End-to-end validation against 7 ms3 gold standard specimens |
-| `TestGroupUnfolding` | Cross-domain unfolding via GroupTimestamp interpolation |
+| `TestGroupUnfolding` | Cross-domain unfolding via typed GroupTimestamp coordinate retrieval |
 
 **Testing Pyramid:**
 

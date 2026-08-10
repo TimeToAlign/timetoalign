@@ -861,7 +861,7 @@ group conversions at exactly representable ratios and carry no `pytest.approx`.
 | `TestMatchGraphExtendToGroupsImplicitClaims` | 5 | Implicit claims created with correct coordinates and traceability |
 | `TestMatchGraphExtendToGroupsFilters` | 4 | `include_timelines`, `exclude_timelines`, `include_domains`, `include_units` |
 | `TestMatchGraphFilter` | 3 | `filter()` preserves non-synchronous claims for remaining timelines |
-| `TestMatchStampGetGroupCoordinates` | 2 | Fixed `get_group_coordinates()` using `timeline_ids` (was broken) |
+| `TestMatchStampGroupRetrieval` | 2 | Retrieves group members with the plural key getter and `timeline_ids` |
 
 ### Key Evidence
 
@@ -876,7 +876,7 @@ group conversions at exactly representable ratios and carry no `pytest.approx`.
 | `test_include_timelines_filter` | Only specified timelines appear in extension |
 | `test_include_domains_filter` | Only timelines from specified domains appear |
 | `test_filter_preserves_relevant_non_synchronous` | `filter()` keeps non-synchronous claims whose timelines survive filtering |
-| `test_get_group_coordinates_basic` | Returns coordinates for all group members via `TimelineGroup.convert()` |
+| `test_group_coordinates_basic` | Returns group-member coordinates via `TimelineGroup.get_coordinates_at()` |
 
 ### The Two-Groups Connectivity Test
 
@@ -893,7 +893,7 @@ def test_two_groups_full_connectivity(self):
     assert len(stamps[0].coordinates) == 5  # All timelines present
 ```
 
-This is the core group-extension test: it verifies that group extension creates implicit claims with coordinates derived from `TimelineGroup.convert()`, producing a fully connected component from a single explicit claim.
+This is the core group-extension test: it verifies that group extension creates implicit claims with coordinates derived from the typed group retrieval API, producing a fully connected component from a single explicit claim.
 
 ---
 
@@ -901,7 +901,7 @@ This is the core group-extension test: it verifies that group extension creates 
 
 ### What We're Validating
 
-`MatchLine` is an ordered sequence of `MatchStamp` objects for a given source timeline. It is the bridge between `MatchGraph` and `WarpMap`. A MatchLine collects stamps, sorts them by source coordinate, and exposes `get_coordinate_pairs()` for WarpMap construction.
+`MatchLine` is an ordered sequence of `MatchStamp` objects for a given source timeline. It is the bridge between `MatchGraph` and `WarpMap`. A MatchLine collects stamps, sorts them by source coordinate, exposes typed `AlignmentAnchor` values, and keeps the float interpolation feed private.
 
 ### Test Classes
 
@@ -909,7 +909,7 @@ This is the core group-extension test: it verifies that group extension creates 
 |-------|-------|---------|
 | `TestMatchLineBasic` | 6 | Construction, sorting, empty/single stamp, filtering of stamps missing source |
 | `TestTargetTimelineIds` | 4 | `target_timeline_ids()` returns only timelines with >= 2 stamps |
-| `TestGetCoordinatePairs` | 6 | Extraction of `(source_coord, target_coord)` pairs, partial stamps, error on self-target |
+| `TestGetAlignmentAnchors` | 6 | Extraction of typed alignment anchors, partial stamps, error on self-target |
 | `TestFromClaims` | 5 | `from_claims()` with ordering, interval claims, group extension, non-synchronous exclusion |
 | `TestFromGraphs` | 6 | `from_graphs()` merging, deduplication, Hendrix M6-M9 pattern |
 | `TestMatchLineSerialization` | 4 | `to_dict()`/`from_dict()` round-trip, `__repr__` |
@@ -922,7 +922,7 @@ This is the core group-extension test: it verifies that group extension creates 
 | `test_stamps_sorted_by_source_coordinate` | Stamps are auto-sorted by source coordinate even if provided out of order |
 | `test_stamps_without_source_are_dropped` | Stamps missing the source timeline are silently dropped (with log warning) |
 | `test_target_timeline_ids_two_or_more` | `target_timeline_ids()` excludes timelines appearing in < 2 stamps (minimum for interpolation) |
-| `test_same_as_source_raises` | `get_coordinate_pairs()` raises ValueError when target == source |
+| `test_same_as_source_raises` | `get_alignment_anchors()` raises ValueError when target == source |
 | `test_from_claims_with_group_extension` | `from_claims()` with group parameters adds group member coordinates (audio mapped linearly) |
 | `test_from_claims_non_synchronous_excluded` | Non-synchronous claims (NOMATCH) do not produce stamps |
 | `test_from_graphs_hendrix_pattern` | Four contiguous M-box graphs merged into 5 unique source coordinates (boundary deduplication) |
@@ -998,6 +998,10 @@ The cache is keyed by `(source_group_id, target_group_id)` and invalidated whene
 ### `get_matchstamp_table` Conversion Columns
 
 `get_matchstamp_table` accepts a keyword-only `conversion_maps` spec
+and represents every timeline column as an `IdCoordinateField`. Numeric
+conversion columns are `CoordinateField` values with the converted unit and
+canonical number-type metadata; tests materialize their exact scalar values
+through those semantic fields rather than comparing raw Arrow floats.
 (default `False`, matching the opt-in default now shared by every
 matchstamp getter). When given, `_assemble_matchstamp_table` adds one
 derived column per (timeline, enabled unit-conversion map) after the
@@ -1063,14 +1067,14 @@ the exact pixel value `2438` for all three coordinate forms.
 
 ### What We're Validating
 
-`WarpMap` is a standalone class that materialises warped timeline copies from alignment data. It wraps an `InterpolationMap` internally for O(log n) coordinate conversion and bridges the gap between `MatchLine` and `AlignmentBundle`.
+`WarpMap` is a standalone class that materialises warped timeline copies from alignment data. It wraps an `InterpolationMap` internally for O(log n) coordinate conversion and bridges the gap between `MatchLine` and `AlignmentBundle`. Public coordinate retrieval is bounded by the source-anchor support; bundle support-policy handling uses the private interpolation lane for explicit clamp or extrapolation behavior.
 
 ### Test Classes
 
 | Class | Tests | Purpose |
 |-------|-------|---------|
 | `TestWarpMapConstruction` | 5 | Basic init, `from_match_line()`, `from_coordinate_pairs()`, rejection of <2 points |
-| `TestForwardInverse` | 5 | Linear mapping, identity, extrapolation, inverse round-trip |
+| `TestForwardInverse` | 5 | Linear mapping, identity, bounded-support errors, inverse round-trip |
 | `TestMaterialise` | 7 | Event warping (instant/interval), child warping, region warping, event count, empty timeline |
 | `TestMaterialiseTypeConversion` | 3 | CLT→CPT type conversion, unit propagation, region unit conversion |
 | `TestSerialization` | 4 | `to_dict()`/`from_dict()` round-trip, repr |
@@ -1096,7 +1100,7 @@ A key implementation discovery documented in the tests: EventData converts `{"in
 
 ### Floating-Point Tolerance (retained `pytest.approx`)
 
-Every anchor, linear/non-linear forward map, inverse map, extrapolation, chord
+Every anchor, linear/non-linear forward map, inverse map, support boundary, chord
 dedup, and every materialise assertion (lengths, instants, note
 start/end/duration, region boundaries) resolves to an exactly representable
 `float` and is asserted with `==`. The two fixed-input round-trip loops
@@ -1249,7 +1253,7 @@ Tests for the Unified Stamp & Query API, using a star-topology bundle (1 score +
 | `TestMatchClaimGetMatchstamp` | 4 | `MatchClaim.get_matchstamp()`: reduced stamp, NOMATCH returns None, no-bundle raises, from-graph with bundle |
 | `TestMatchGraphCache` | 5 | MatchGraph cache: hit, cross-key lookup, invalidation, no-claims raises, different coordinates |
 | `TestGetMatchstampAt` | 6 | `AlignmentBundle.get_matchstamp_at()`: basic, non-zero coordinate, not-in-bundle, no claims, regex filter, timeline_ids filter |
-| `TestMatchStampDisplay` | 8 | `MatchStamp.__str__`/`_repr_html_`: header, entries, empty, integer formatting, valid HTML, bold anchors, greyed inferred, affordance `Try` footer (`stamp.get_coordinate(<tl_id>)` / `stamp.get_group_coordinates(<group>)`) appended after the table |
+| `TestMatchStampDisplay` | 8 | `MatchStamp.__str__`/`_repr_html_`: header, entries, empty, integer formatting, valid HTML, bold anchors, greyed inferred, and typed retrieval affordance appended after the table |
 | `TestMatchClaimDisplay` | 9 | `MatchClaim.__str__`/`_repr_html_`: instant, interval, NOMATCH, metadata, inferred, valid HTML, NOMATCH badge, affordance `Try` footer (`claim.get_matchstamp()`) appended after the table |
 | `TestTransferDocstring` | 1 | `transfer()` docstring no longer says "primary user-facing" |
 | `TestTopLevelExports` | 4 | `MatchGraph`, `MatchStamp`, `ClaimFilter` importable from top-level |

@@ -1,5 +1,7 @@
 """Tests for Timeline conversion map integration."""
 
+from __future__ import annotations
+
 from fractions import Fraction
 
 import numpy as np
@@ -118,7 +120,7 @@ class TestTableMapHonesty:
         assert tl._unit_maps[TimeUnit.seconds] is tmap
 
         ts = tl.get_timestamp(2)
-        assert ts.get_unit(TimeUnit.seconds) == 0.0
+        assert ts.get_unit(TimeUnit.seconds, format="float") == 0.0
 
     def test_extrapolate_error_honored_at_timestamp(self):
         tl = Timeline(length=20, unit=TimeUnit.quarters)
@@ -147,7 +149,7 @@ class TestTableMapHonesty:
         tl.add_conversion_map(tmap)
 
         ts = tl.get_timestamp(20)
-        assert ts.get_unit(TimeUnit.seconds) == 20.0
+        assert ts.get_unit(TimeUnit.seconds, format="float") == 20.0
 
 
 class TestTimelineSerializationWithMeterMap:

@@ -153,19 +153,17 @@ def test_region_and_grouped_segment_boundaries_preserve_exact_values() -> None:
 
 
 def test_fraction_timestamp_coordinate_uses_stored_pair() -> None:
-    """Exact event coordinates materialize as Fractions without changing get()."""
+    """Exact event coordinates materialize from the stored rational pair."""
     timeline = _fraction_timeline("fraction", Fraction(2))
     timeline.add_events(
         [{"id": "fraction:beat", "event_type": "Beat", "instant": Fraction(2, 3)}]
     )
     stored = timeline.events.table.column("start").combine_chunks()[0].as_py()
 
-    stamp = timeline.get_timestamp(stored["value"])
-    coordinate = stamp.get_coordinate(timeline.id)
+    stamp = timeline.get_timestamp(Fraction(stored["numerator"], stored["denominator"]))
+    coordinate = stamp.get_coordinate(timeline.id, format="coordinate")
 
-    assert stamp.get(timeline.id) == stored["value"]
-    assert isinstance(stamp.get(timeline.id), float)
-    assert coordinate is not None
+    assert stamp.get_coordinate_for(timeline.id, format="float") == stored["value"]
     assert coordinate.value == Fraction(2, 3)
     assert isinstance(coordinate.value, Fraction)
 

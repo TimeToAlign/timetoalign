@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from timetoalign.core import Coordinate, TimeStamp, TimeUnit
+from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.maps import (
     QuartersToTicks,
     SamplesToSeconds,
@@ -35,14 +35,14 @@ def test_seconds_to_samples_produces_integer_coordinates() -> None:
     assert upper_tie.value == 2
     assert isinstance(upper_tie.value, int)
 
-    stamp_value = timeline.get_timestamp(2.5).get_unit(TimeUnit.samples)
+    stamp_value = timeline.get_timestamp(2.5).get_unit(TimeUnit.samples, format="int")
     assert stamp_value == 110250
     assert isinstance(stamp_value, int)
 
     sample_axis = DiscretePhysicalTimeline(length=110250, uid="sample-axis")
     sample_axis.add_conversion_map(SamplesToSeconds(sample_rate=44100))
-    resolved = sample_axis.get_coordinate(
-        Coordinate(Fraction(3, 88200), TimeUnit.seconds)
+    resolved = sample_axis.get_coordinate_at(
+        Coordinate(Fraction(3, 88200), TimeUnit.seconds), format="coordinate"
     )
     assert resolved.value == 2
     assert isinstance(resolved.value, int)
@@ -85,14 +85,14 @@ def test_continuous_targets_express_in_the_target_units_type() -> None:
 
     seconds = audio.convert_to(22050, TimeUnit.seconds)
     quarters = score.convert_to(160, TimeUnit.quarters)
-    exact_stamp = TimeStamp(axis=Fraction(160), source=score, source_id=score.id)
+    exact_stamp = score.get_timestamp(160)
     stamped_quarters = exact_stamp.get_unit(TimeUnit.quarters)
 
     assert seconds.value == 0.5
     assert isinstance(seconds.value, float)
     assert quarters.value == Fraction(1, 3)
     assert isinstance(quarters.value, Fraction)
-    assert stamped_quarters == Fraction(1, 3)
-    assert isinstance(stamped_quarters, Fraction)
+    assert stamped_quarters.value == Fraction(1, 3)
+    assert isinstance(stamped_quarters.value, Fraction)
     assert "quarters=Fraction(1, 3)" in repr(exact_stamp)
     assert "1/3 quarters" in exact_stamp._repr_html_()

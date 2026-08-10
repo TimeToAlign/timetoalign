@@ -32,9 +32,18 @@ from timetoalign.alignment.claims import (
     MatchClaim,
     MatchMetadata,
 )
-from timetoalign.alignment.graph import MatchGraph, MatchStamp
-from timetoalign.core import AgentType, Coordinate, IdCoordinate, TimeUnit
+from timetoalign.alignment.graph import MatchGraph
+from timetoalign.alignment.graph import MatchStamp as MatchStampType
+from timetoalign.core import (
+    AgentType,
+    Coordinate,
+    IdCoordinate,
+    IdCoordinateField,
+    TimeUnit,
+)
 from timetoalign.timelines import Timeline
+
+from .helpers import make_match_stamp as MatchStamp
 
 # region Helpers
 
@@ -218,9 +227,9 @@ class TestMatchGraphGetMatchstamp:
         mg = MatchGraph(claims=claims)
         stamp = mg.get_matchstamp()
         assert stamp.n_timelines == 3
-        assert stamp.get("tl_a") == 100.0
-        assert stamp.get("tl_b") == 50.0
-        assert stamp.get("tl_c") == 25.0
+        assert stamp.get_coordinate_for("tl_a", format="float") == 100.0
+        assert stamp.get_coordinate_for("tl_b", format="float") == 50.0
+        assert stamp.get_coordinate_for("tl_c", format="float") == 25.0
 
     def test_multi_component_raises(self):
         """Multiple disconnected components raise ValueError."""
@@ -377,7 +386,7 @@ class TestMatchGraphStarTopology:
         assert mg.n_components == 1
         stamp = mg.get_matchstamp()
         assert stamp.n_timelines == 6  # 1 score + 5 performers
-        assert stamp.get("score:clt1") == 0.0
+        assert stamp.get_coordinate_for("score:clt1", format="float") == 0.0
 
     def test_star_determinism(self):
         """Building graph from any single claim gives same stamp.
@@ -435,8 +444,8 @@ class TestMatchClaimGetMatchstamp:
         stamp = claim.get_matchstamp(from_graph=False)
         assert stamp is not None
         assert stamp.n_timelines == 2
-        assert stamp.get("score:clt1") == 10.0
-        assert stamp.get("perf:dlt1") == 128.0
+        assert stamp.get_coordinate_for("score:clt1", format="float") == 10.0
+        assert stamp.get_coordinate_for("perf:dlt1", format="float") == 128.0
 
     def test_nomatch_returns_none(self):
         """NOMATCH claim returns None."""
@@ -549,20 +558,20 @@ class TestGetMatchstampAt:
         stamp = bundle.get_matchstamp_at(0.0, "score:clt1")
         assert stamp.n_timelines == 4  # score + 3 performers
         assert stamp.is_interpolated is False
-        assert stamp.get("score:clt1") == 0.0
-        assert stamp.get("perf:dlt1") == 0.0
-        assert stamp.get("perf:dlt2") == 0.0
-        assert stamp.get("perf:dlt3") == 0.0
+        assert stamp.get_coordinate_for("score:clt1", format="float") == 0.0
+        assert stamp.get_coordinate_for("perf:dlt1", format="float") == 0.0
+        assert stamp.get_coordinate_for("perf:dlt2", format="float") == 0.0
+        assert stamp.get_coordinate_for("perf:dlt3", format="float") == 0.0
 
     def test_nonzero_coordinate(self):
         """MatchStamp at a non-zero coordinate."""
         bundle, _ = _make_star_bundle()
         stamp = bundle.get_matchstamp_at(50.0, "score:clt1")
         assert stamp.n_timelines == 4
-        assert stamp.get("score:clt1") == 50.0
-        assert stamp.get("perf:dlt1") == 100.0  # 50 * 2.0
-        assert stamp.get("perf:dlt2") == 75.0  # 50 * 1.5
-        assert stamp.get("perf:dlt3") == 90.0  # 50 * 1.8
+        assert stamp.get_coordinate_for("score:clt1", format="float") == 50.0
+        assert stamp.get_coordinate_for("perf:dlt1", format="float") == 100.0
+        assert stamp.get_coordinate_for("perf:dlt2", format="float") == 75.0
+        assert stamp.get_coordinate_for("perf:dlt3", format="float") == 90.0
 
     def test_not_in_bundle_raises(self):
         """Unknown timeline raises KeyError."""
@@ -577,10 +586,10 @@ class TestGetMatchstampAt:
 
         assert stamp.is_interpolated is True
         assert stamp.anchor_edges == []
-        assert stamp.get("score:clt1") == 37.5
-        assert stamp.get("perf:dlt1") == 75.0
-        assert stamp.get("perf:dlt2") == 56.25
-        assert stamp.get("perf:dlt3") == 67.5
+        assert stamp.get_coordinate_for("score:clt1", format="float") == 37.5
+        assert stamp.get_coordinate_for("perf:dlt1", format="float") == 75.0
+        assert stamp.get_coordinate_for("perf:dlt2", format="float") == 56.25
+        assert stamp.get_coordinate_for("perf:dlt3", format="float") == 67.5
         assert set(stamp.inferred_edges) == {
             ("score:clt1", "perf:dlt1"),
             ("score:clt1", "perf:dlt2"),
@@ -653,11 +662,14 @@ class TestCoordinateBatch:
             coordinates=[0.0, 50.0, 100.0], timeline_id="score:clt1"
         )
         assert len(stamps) == 3
-        assert stamps[1].coordinates == self.COORD_50
-        assert stamps[0].coordinates["perf:dlt1"] == 0.0
-        assert stamps[2].coordinates["perf:dlt1"] == 200.0
-        assert stamps[2].coordinates["perf:dlt2"] == 150.0
-        assert stamps[2].coordinates["perf:dlt3"] == 180.0
+        assert {
+            timeline_id: stamps[1].get_coordinate_for(timeline_id, format="float")
+            for timeline_id in stamps[1].present_timelines
+        } == self.COORD_50
+        assert stamps[0].get_coordinate_for("perf:dlt1", format="float") == 0.0
+        assert stamps[2].get_coordinate_for("perf:dlt1", format="float") == 200.0
+        assert stamps[2].get_coordinate_for("perf:dlt2", format="float") == 150.0
+        assert stamps[2].get_coordinate_for("perf:dlt3", format="float") == 180.0
 
     def test_matchstamps_idcoordinate_carries_timeline(self):
         """An IdCoordinate carries its own timeline, so timeline_id is optional."""
@@ -666,7 +678,10 @@ class TestCoordinateBatch:
             coordinates=[IdCoordinate(50.0, TimeUnit.number, "score:clt1")]
         )
         assert len(stamps) == 1
-        assert stamps[0].coordinates == self.COORD_50
+        assert {
+            timeline_id: stamps[0].get_coordinate_for(timeline_id, format="float")
+            for timeline_id in stamps[0].present_timelines
+        } == self.COORD_50
 
     def test_matchstamps_wiring_parity_with_singular(self):
         """Batch fan-out equals mapping get_matchstamp_at over the coordinates."""
@@ -696,7 +711,10 @@ class TestCoordinateBatch:
             "perf:dlt2",
             "perf:dlt3",
         }
-        assert table.to_pylist()[1] == self.COORD_50
+        assert {
+            timeline_id: IdCoordinateField.from_table(table, timeline_id)[1].value
+            for timeline_id in table.column_names
+        } == self.COORD_50
 
     def test_table_timeline_filter_narrows_columns(self):
         """timeline_filter narrows the coordinate table to the named fields."""
@@ -707,7 +725,10 @@ class TestCoordinateBatch:
             timeline_filter={"score:clt1", "perf:dlt1"},
         )
         assert set(table.column_names) == {"score:clt1", "perf:dlt1"}
-        assert table.to_pylist()[1] == {"score:clt1": 50.0, "perf:dlt1": 100.0}
+        assert {
+            timeline_id: IdCoordinateField.from_table(table, timeline_id)[1].value
+            for timeline_id in table.column_names
+        } == {"score:clt1": 50.0, "perf:dlt1": 100.0}
 
     def test_empty_coordinates_yield_empty_output(self):
         """Empty coordinates yield an empty table and an empty stamp list."""
@@ -765,11 +786,10 @@ class TestMatchStampDisplay:
         assert "audio" in s
         assert "45.5" in s
 
-    def test_str_empty(self):
-        """Empty stamp shows just header."""
-        stamp = MatchStamp()
-        s = str(stamp)
-        assert "0 timelines" in s
+    def test_empty_stamp_is_invalid(self):
+        """A match stamp requires a source-axis coordinate."""
+        with pytest.raises((TypeError, ValueError)):
+            MatchStampType()
 
     def test_str_integer_formatting(self):
         """Integer-valued coordinates shown without decimals."""
@@ -824,8 +844,8 @@ class TestMatchStampDisplay:
         assert "<strong>score</strong>" in html
         # The Try footer surfaces the real MatchStamp accessors.
         assert (
-            "Try: <code>stamp.get(&lt;tl_id&gt;)</code>, "
-            "<code>stamp.get_coordinate(&lt;tl_id&gt;)</code>" in html
+            "Try: <code>stamp.get_coordinate_for(&lt;tl_id&gt;)</code>, "
+            "<code>stamp.get_coordinates_for(&lt;tl_ids&gt;)</code>" in html
         )
         # Footer is a free-standing div after the table close.
         assert html.index("</table>") < html.index("Try:")
@@ -1242,7 +1262,7 @@ class TestTopLevelExports:
         """MatchStamp importable from top-level."""
         from timetoalign import MatchStamp as MS
 
-        assert MS is MatchStamp
+        assert MS is MatchStampType
 
     def test_claimfilter_importable(self):
         """ClaimFilter importable from top-level."""

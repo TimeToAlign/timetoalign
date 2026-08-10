@@ -111,6 +111,8 @@ from timetoalign.core import (
     EventType,
     IdCoordinate,
     IdGenerator,
+    Interval,
+    IntervalField,
     NumberType,
     OptionalCoordinate,
     ResolvedCoordinate,
@@ -257,6 +259,8 @@ __all__ = [
     "CoordinateField",
     "Coord",  # Alias for Coordinate
     "IdCoordinate",
+    "Interval",
+    "IntervalField",
     "CoordinateValue",
     "CoordinateSpec",
     "OptionalCoordinate",

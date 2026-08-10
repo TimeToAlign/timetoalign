@@ -201,11 +201,16 @@ class TestAlignmentAnchor:
 
     def test_get_coordinate_for(self, basic_anchor: AlignmentAnchor) -> None:
         """Test getting coordinate for specific timeline."""
-        score_coordinate = basic_anchor.get_coordinate_for("score:1")
-        recording_coordinate = basic_anchor.get_coordinate_for("recording:1")
+        score_coordinate = basic_anchor.get_coordinate_for(
+            "score:1", format="coordinate"
+        )
+        recording_coordinate = basic_anchor.get_coordinate_for(
+            "recording:1", format="coordinate"
+        )
         assert score_coordinate == Coordinate(100.0, TimeUnit.quarters)
         assert recording_coordinate == Coordinate(45.5, TimeUnit.seconds)
-        assert basic_anchor.get_coordinate_for("other") is None
+        with pytest.raises(KeyError):
+            basic_anchor.get_coordinate_for("other")
 
     def test_get_coordinate_for_preserves_fraction_and_unit(self) -> None:
         anchor = AlignmentAnchor(
@@ -456,9 +461,8 @@ class TestMatchClaim:
             start_anchor=basic_anchor,
         )
 
-        start, end = claim.get_coordinates_for("score:1")
+        start = claim.get_coordinate_for("score:1")
         assert start.value == 100.0
-        assert end is None
 
     def test_get_coordinates_for_interval(self) -> None:
         """Test get_coordinates_for with interval match."""
@@ -481,13 +485,13 @@ class TestMatchClaim:
             end_anchor=end,
         )
 
-        start_coord, end_coord = claim.get_coordinates_for("dgt1")
-        assert start_coord.value == 0.0
-        assert end_coord.value == 975.0
+        interval = claim.get_interval_for("dgt1")
+        assert interval.start.value == 0.0
+        assert interval.end.value == 975.0
 
-        start_coord, end_coord = claim.get_coordinates_for("dgt2")
-        assert start_coord.value == 0.0
-        assert end_coord.value == 866.0
+        interval = claim.get_interval_for("dgt2")
+        assert interval.start.value == 0.0
+        assert interval.end.value == 866.0
 
     def test_get_coordinates_invalid_timeline(
         self, basic_anchor: AlignmentAnchor
@@ -499,8 +503,8 @@ class TestMatchClaim:
             start_anchor=basic_anchor,
         )
 
-        with pytest.raises(ValueError, match="not in this claim"):
-            claim.get_coordinates_for("other")
+        with pytest.raises(KeyError, match="other"):
+            claim.get_coordinate_for("other")
 
     def test_get_coordinates_non_synchronous_raises(self) -> None:
         """Test error when getting coordinates from non-synchronous claim."""
@@ -510,7 +514,7 @@ class TestMatchClaim:
             is_synchronous=False,
         )
         with pytest.raises(ValueError, match="no anchors"):
-            claim.get_coordinates_for("tl1")
+            claim.get_coordinate_for("tl1")
 
     def test_connects(self, basic_anchor: AlignmentAnchor) -> None:
         """Test connects method."""
@@ -630,9 +634,9 @@ class TestMatchClaim:
         assert claim.is_interval is True
         assert claim.timeline_a_id == "dgt1"
         assert claim.timeline_b_id == "dgt2"
-        start, end = claim.get_coordinates_for("dgt1")
-        assert start.value == 0.0
-        assert end.value == 975.0
+        interval = claim.get_interval_for("dgt1")
+        assert interval.start.value == 0.0
+        assert interval.end.value == 975.0
 
     def test_from_events_factory(self) -> None:
         """Test from_events() factory method (case a: event-based)."""
@@ -1172,17 +1176,17 @@ class TestClaimIntegration:
         assert all(c.connects_both("dgt1", "dgt2") for c in claims)
 
         # Check first segment
-        start, end = claims[0].get_coordinates_for("dgt1")
-        assert start.value == 0.0
-        assert end.value == 975.0
+        interval = claims[0].get_interval_for("dgt1")
+        assert interval.start.value == 0.0
+        assert interval.end.value == 975.0
 
-        start, end = claims[0].get_coordinates_for("dgt2")
-        assert start.value == 0.0
-        assert end.value == 866.0
+        interval = claims[0].get_interval_for("dgt2")
+        assert interval.start.value == 0.0
+        assert interval.end.value == 866.0
 
         # Check last segment ends at total length
-        _, end_dgt1 = claims[4].get_coordinates_for("dgt1")
-        _, end_dgt2 = claims[4].get_coordinates_for("dgt2")
+        end_dgt1 = claims[4].get_interval_for("dgt1").end
+        end_dgt2 = claims[4].get_interval_for("dgt2").end
         assert end_dgt1.value == 4875.0
         assert end_dgt2.value == 4328.0
 

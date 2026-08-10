@@ -29,7 +29,7 @@ from timetoalign.alignment.claims import (
 from timetoalign.alignment.graph import MatchGraph
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.alignment.warpmap import WarpMap
-from timetoalign.core import AgentType, Coordinate, TimeUnit
+from timetoalign.core import AgentType, Coordinate, IdCoordinate, TimeUnit
 from timetoalign.core.time import (
     is_rational_wire,
     rational_to_wire,
@@ -430,8 +430,14 @@ def _json_safety_cases() -> list[tuple[str, dict[str, Any]]]:
             WarpMap.from_coordinate_pairs(
                 source_timeline_id="score",
                 target_timeline_id="audio",
-                source_coords=[0.0, 1.0],
-                target_coords=[0.0, 2.0],
+                source_coords=[
+                    IdCoordinate(0.0, TimeUnit.quarters, "score"),
+                    IdCoordinate(1.0, TimeUnit.quarters, "score"),
+                ],
+                target_coords=[
+                    IdCoordinate(0.0, TimeUnit.seconds, "audio"),
+                    IdCoordinate(2.0, TimeUnit.seconds, "audio"),
+                ],
                 source_unit=TimeUnit.quarters,
                 target_unit=TimeUnit.seconds,
             ).to_dict(),

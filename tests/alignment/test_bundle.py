@@ -17,6 +17,8 @@ Per ZERO TOLERANCE policy, all assertions use exact expected values.
 
 from __future__ import annotations
 
+from fractions import Fraction
+
 import pytest
 
 from timetoalign.alignment import (
@@ -25,11 +27,18 @@ from timetoalign.alignment import (
     MatchClaim,
     MatchClaimField,
 )
-from timetoalign.alignment.graph import MatchStamp
 from timetoalign.alignment.matchline import MatchLine
-from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
+from timetoalign.core import (
+    Coordinate,
+    CoordinateField,
+    IdCoordinate,
+    IdCoordinateField,
+    TimeUnit,
+)
 from timetoalign.maps import ScalarMap, TableMap
 from timetoalign.timelines import Timeline, TimelineGroup
+
+from .helpers import make_match_stamp as MatchStamp
 
 # region Fixtures
 
@@ -256,12 +265,12 @@ class TestGroupManagement:
         group = bundle.default_group
         assert group is not None
         assert group.get_timestamp_at_index(1).coordinates == {
-            "actual-reference": 25.0,
-            "actual-section": 0.0,
+            "actual-reference": Coordinate(25.0, TimeUnit.seconds),
+            "actual-section": Coordinate(0.0, TimeUnit.seconds),
         }
         assert group.get_timestamp_at_index(2).coordinates == {
-            "actual-reference": 125.0,
-            "actual-section": 100.0,
+            "actual-reference": Coordinate(125.0, TimeUnit.seconds),
+            "actual-section": Coordinate(100.0, TimeUnit.seconds),
         }
 
     def test_add_timeline_coordinate_boundary_rejects_wrong_unit(self) -> None:
@@ -407,8 +416,10 @@ class TestCustomAlignment:
 
         # At tl2 coord 50: 25% through tl2's range (0-200)
         # Should map to 25% through the mapped range (0-50) = 12.5 in tl1
-        result = group.convert(
-            50.0, source=second_timeline.id, target=simple_timeline.id
+        result = group.get_coordinate_at(
+            IdCoordinate(50.0, second_timeline.unit, second_timeline.id),
+            timeline_id=simple_timeline.id,
+            format="coordinate",
         )
         assert result == Coordinate(12.5, simple_timeline.unit)
 
@@ -715,8 +726,8 @@ class TestBundleUidClaimFilters:
         )
 
         assert stamp.coordinates == {
-            "timeline-001": 0.0,
-            "timeline-002": 0.0,
+            "score": Coordinate(Fraction(0, 1), TimeUnit.quarters),
+            "audio": Coordinate(0.0, TimeUnit.seconds),
         }
 
 
@@ -935,9 +946,11 @@ class TestGetMatchstampAtCrossGroup:
         # Source group timelines present (score + image)
         score_key = next(k for k in ts if k.startswith("score"))
         image_key = next(k for k in ts if k.startswith("image"))
-        assert ts[score_key] == 100.0
+        assert ts[score_key]["value"] == 100.0
+        assert ts[score_key]["unit"] == "seconds"
         # image = score * 2 (200 length mapped to 400)
-        assert ts[image_key] == 200.0
+        assert ts[image_key]["value"] == 200.0
+        assert ts[image_key]["unit"] == "seconds"
 
     def test_timestamp_includes_target_group(self) -> None:
         """get_matchstamp_at propagates to connected groups."""
@@ -951,7 +964,7 @@ class TestGetMatchstampAtCrossGroup:
         # Target group timelines should be present
         audio_key = next((k for k in ts if k.startswith("audio")), None)
         assert audio_key is not None
-        assert ts[audio_key] == 50.0
+        assert ts[audio_key]["value"] == 50.0
 
     def test_interpolated_stamp_records_all_group_edges(self) -> None:
         """Interpolation records every materialized group relationship."""
@@ -960,12 +973,10 @@ class TestGetMatchstampAtCrossGroup:
 
         stamp = bundle.get_matchstamp_at(75.0, "score")
 
-        # Edges are keyed by actual timeline id (the namespace the MatchGraph
-        # and the transitive-closure assembly share), not the bundle UID.
         assert stamp.inferred_edges == [
-            ("score_t", "image_t"),
-            ("score_t", "audio_t"),
-            ("audio_t", "midi_t"),
+            ("score", "image"),
+            ("score", "audio"),
+            ("audio", "midi"),
         ]
 
     def test_cached_graph_matchstamp_carries_bundle_units(self) -> None:
@@ -976,8 +987,12 @@ class TestGetMatchstampAtCrossGroup:
         graph = bundle._get_or_build_matchgraph(score_tl.id, 50.0)
         stamp = graph.get_matchstamp()
 
-        assert stamp.get_coordinate(score_tl.id) == Coordinate(50.0, score_tl.unit)
-        assert stamp.get_coordinate(audio_tl.id) == Coordinate(25.0, audio_tl.unit)
+        assert stamp.get_coordinate(score_tl.id, format="coordinate") == Coordinate(
+            50.0, score_tl.unit
+        )
+        assert stamp.get_coordinate(audio_tl.id, format="coordinate") == Coordinate(
+            25.0, audio_tl.unit
+        )
 
     def test_timestamp_nested_format(self) -> None:
         """MatchStamp nested format groups by group_id."""
@@ -989,13 +1004,10 @@ class TestGetMatchstampAtCrossGroup:
 
         # Must have source group
         assert "score_group" in ts
-        # Target group may or may not appear depending on whether WarpMap works
-        if "recording_group" in ts:
-            # Check some value in the recording group
-            recording_vals = ts["recording_group"]
-            audio_key = next((k for k in recording_vals if k.startswith("audio")), None)
-            if audio_key:
-                assert recording_vals[audio_key] == 50.0
+        assert "recording_group" in ts
+        recording_vals = ts["recording_group"]
+        audio_key = next(k for k in recording_vals if k.startswith("audio"))
+        assert recording_vals[audio_key]["value"] == 50.0
 
     def test_timestamp_prefix_format(self) -> None:
         """MatchStamp prefix format uses group/timeline keys."""
@@ -1293,8 +1305,8 @@ class TestAddMatchClaimField:
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
         bundle.add_match_claim_field(self._field(score_tl.id, audio_tl.id))
         stamp = bundle.get_matchstamp_at(100.0, score_tl.id)
-        assert stamp.get(score_tl.id) == 100.0
-        assert stamp.get(audio_tl.id) == 50.0
+        assert stamp.get_coordinate_for("score", format="float") == 100.0
+        assert stamp.get_coordinate_for("audio", format="float") == 50.0
         assert len(bundle.cross_group_claims) == 0
 
     def test_inexact_coordinate_returns_interpolated_source_stamp(self) -> None:
@@ -1305,9 +1317,7 @@ class TestAddMatchClaimField:
         stamp = bundle.get_matchstamp_at(123.456, score_tl.id)
 
         assert stamp.is_interpolated is True
-        # Coordinates are keyed by the actual timeline id (the namespace the
-        # assembly shares with the MatchGraph), not the bundle UID "score".
-        assert stamp.get(score_tl.id) == 123.456
+        assert stamp.get_coordinate_for("score", format="float") == 123.456
 
     def test_list_and_field_stores_coexist(self) -> None:
         # A bundle may hold a Python-list claim AND a columnar field at once;
@@ -1318,7 +1328,7 @@ class TestAddMatchClaimField:
         assert len(bundle.cross_group_claims) == 5
         assert len(bundle.cross_group_claim_fields) == 1
         stamp = bundle.get_matchstamp_at(50.0, score_tl.id)
-        assert stamp.get(audio_tl.id) == 25.0
+        assert stamp.get_coordinate_for("audio", format="float") == 25.0
 
 
 # endregion
@@ -1405,10 +1415,8 @@ def _make_xgroup_bundle_with_claims() -> tuple[AlignmentBundle, str, str]:
     helpers. Claims map score_t -> audio_t linearly (audio = score * 0.5). The
     score and audio timelines are seconds.
 
-    The returned ``score_id`` / ``audio_id`` are the *actual* timeline IDs
-    (the keys ``get_matchstamp_at`` operates on, since the MatchGraph is keyed
-    on the timeline IDs carried by the claims). ``transfer`` is keyed on the
-    bundle UIDs (``"score"`` / ``"audio"``) instead.
+    The returned ``score_id`` / ``audio_id`` are the actual timeline IDs
+    accepted as source selectors. Stamp result axes use public bundle UIDs.
     """
     bundle, score_tl, _image_tl, audio_tl, _midi_tl = _make_cross_group_bundle()
     bundle.add_match_claims(_make_linear_claims(score_tl.id, audio_tl.id, n_points=5))
@@ -1426,10 +1434,10 @@ class TestGetMatchstampAtCoordinateParity:
         # (score_t, audio_t) plus each reached group's cross-section
         # (image_t in score_t's group, midi_t in audio_t's group).
         assert stamp.n_timelines == 4
-        assert stamp.get(score_id) == 100.0
-        assert stamp.get(audio_id) == 50.0
-        assert stamp.get("image_t") == 200.0  # score_t 100 -> image_t (200:400)
-        assert stamp.get("midi_t") == 50.0  # aligned with audio_t
+        assert stamp.get_coordinate_for("score", format="float") == 100.0
+        assert stamp.get_coordinate_for("audio", format="float") == 50.0
+        assert stamp.get_coordinate_for("image", format="float") == 200.0
+        assert stamp.get_coordinate_for("midi", format="float") == 50.0
 
     def test_coordinate_form_equals_raw(self) -> None:
         """A Coordinate with explicit timeline_id matches the raw-float result."""
@@ -1454,8 +1462,8 @@ class TestGetMatchstampAtCoordinateParity:
             IdCoordinate(100.0, TimeUnit.seconds, score_id)
         )
         assert from_id.coordinates == raw.coordinates
-        assert from_id.get(score_id) == 100.0
-        assert from_id.get(audio_id) == 50.0
+        assert from_id.get_coordinate_for("score", format="float") == 100.0
+        assert from_id.get_coordinate_for("audio", format="float") == 50.0
 
     def test_missing_timeline_id_raises_value_error(self) -> None:
         """Raw float without timeline_id raises ValueError."""
@@ -1537,8 +1545,8 @@ class TestGetMatchstampRenderingCoordinateParity:
         ts = stamp.to_dict(format="flat")
         score_key = next(k for k in ts if k.startswith("score"))
         audio_key = next(k for k in ts if k.startswith("audio"))
-        assert ts[score_key] == 100.0
-        assert ts[audio_key] == 50.0
+        assert ts[score_key]["value"] == 100.0
+        assert ts[audio_key]["value"] == 50.0
 
     def test_coordinate_form_equals_raw(self) -> None:
         """A Coordinate with explicit timeline_id matches the raw-float result."""
@@ -1726,9 +1734,15 @@ class TestGetMatchstampTableConversionColumns:
 
         assert set(table.column_names) == {"clock", "milliseconds", "frames"}
         assert table.num_rows == 1
-        assert table.column("clock")[0].as_py() == 25.0
-        assert table.column("milliseconds")[0].as_py() == 25000.0
-        assert table.column("frames")[0].as_py() == 1250.0
+        assert IdCoordinateField.from_table(table, "clock")[0] == IdCoordinate(
+            25.0, TimeUnit.seconds, "clock"
+        )
+        assert CoordinateField.from_table(table, "milliseconds")[0] == Coordinate(
+            25000.0, TimeUnit.milliseconds
+        )
+        assert CoordinateField.from_table(table, "frames")[0] == Coordinate(
+            1250.0, TimeUnit.frames
+        )
 
     def test_matchstamp_table_no_conversion_columns_by_default(self) -> None:
         """Without conversion_maps, only the timeline column is present."""
@@ -1748,8 +1762,12 @@ class TestGetMatchstampTableConversionColumns:
         assert "milliseconds" not in table.column_names
         assert "clock_a:milliseconds" in table.column_names
         assert "clock_b:milliseconds" in table.column_names
-        assert table.column("clock_a:milliseconds")[0].as_py() == 25000.0
-        assert table.column("clock_b:milliseconds")[0].as_py() == 25000.0
+        assert CoordinateField.from_table(table, "clock_a:milliseconds")[
+            0
+        ] == Coordinate(25000.0, TimeUnit.milliseconds)
+        assert CoordinateField.from_table(table, "clock_b:milliseconds")[
+            0
+        ] == Coordinate(25000.0, TimeUnit.milliseconds)
 
 
 # endregion

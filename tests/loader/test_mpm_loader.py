@@ -197,8 +197,8 @@ def test_ticks_to_quarters_cmap(specimen: dict[str, Any]) -> None:
     """The ticks→quarters C-Map on ``score:dlt1`` resolves 360→0.5, 720→1.0."""
     loader = _loaded(specimen["mpr"])
     dlt = loader.create_timeline(SCORE_DLT_ID)
-    assert dlt.get_timestamp(360).get_unit(TimeUnit.quarters) == 0.5
-    assert dlt.get_timestamp(720).get_unit(TimeUnit.quarters) == 1.0
+    assert dlt.get_timestamp(360).get_unit(TimeUnit.quarters, format="float") == 0.5
+    assert dlt.get_timestamp(720).get_unit(TimeUnit.quarters, format="float") == 1.0
 
 
 def test_tempo_table_map_basics(specimen: dict[str, Any]) -> None:
@@ -256,7 +256,7 @@ def test_samples_to_seconds_cmap(specimen: dict[str, Any]) -> None:
     loader = _loaded(specimen["mpr"])
     dpt = loader.create_timeline(PERF_DPT_ID)
     rate = specimen["sample_rate"]
-    assert dpt.get_timestamp(rate).get_unit(TimeUnit.seconds) == 1.0
+    assert dpt.get_timestamp(rate).get_unit(TimeUnit.seconds, format="float") == 1.0
 
 
 def test_beethoven_onset_spot_check() -> None:
@@ -326,8 +326,11 @@ def test_spectrogram_px_to_seconds_cmap(specimen: dict[str, Any]) -> None:
     assert isinstance(cmap, ScalarMap)
     assert cmap.scalar == expected_scalar
     # The axis resolves px -> seconds: map(0)=0, map(1)=scalar.
-    assert dgt.get_timestamp(0).get_unit(TimeUnit.seconds) == 0.0
-    assert dgt.get_timestamp(1).get_unit(TimeUnit.seconds) == expected_scalar
+    assert dgt.get_timestamp(0).get_unit(TimeUnit.seconds, format="float") == 0.0
+    assert (
+        dgt.get_timestamp(1).get_unit(TimeUnit.seconds, format="float")
+        == expected_scalar
+    )
 
 
 def test_beethoven_spectrogram_duration() -> None:
@@ -339,14 +342,18 @@ def test_beethoven_spectrogram_duration() -> None:
     loader = _loaded(BEETHOVEN_MPR)
     dgt = loader.create_timeline(PERF_DGT_ID)
     expected = 26469 * 128 / 44100
-    assert dgt.get_timestamp(26469).get_unit(TimeUnit.seconds) == expected
+    assert (
+        dgt.get_timestamp(26469).get_unit(TimeUnit.seconds, format="float") == expected
+    )
 
 
 def test_reger_spectrogram_first_column() -> None:
     """Reger's first spectrogram column maps to ``512 / 48000`` seconds."""
     loader = _loaded(REGER_MPR)
     dgt = loader.create_timeline(PERF_DGT_ID)
-    assert dgt.get_timestamp(1).get_unit(TimeUnit.seconds) == 512 / 48000
+    assert (
+        dgt.get_timestamp(1).get_unit(TimeUnit.seconds, format="float") == 512 / 48000
+    )
 
 
 def test_bundle_spans_three_domains(specimen: dict[str, Any]) -> None:

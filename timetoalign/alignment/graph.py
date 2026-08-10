@@ -9,7 +9,7 @@ The hierarchy is:
     AlignmentAnchor -> MatchClaim -> MatchGraph -> MatchStamp -> MatchLine
 
 MatchGraph uses networkx to:
-1. Build a graph where nodes are (timeline_id, coordinate) tuples
+1. Build a graph with private ``(timeline_id, canonical_value)`` keys
 2. Edges represent synchronous AlignmentAnchors (explicit or inferred)
 3. Extend edges via Group membership (implicit claims)
 4. Extract MatchStamps from connected components
@@ -25,17 +25,31 @@ Design:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field, replace
+import math
+from dataclasses import dataclass, field
 from fractions import Fraction
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Literal
 
 import networkx as nx
+import pandas as pd
 
 from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim
 from timetoalign.alignment.filters import ClaimFilter
-from timetoalign.core.enums import Domain, TimeUnit
-from timetoalign.core.time import Coordinate, CoordinateValue
+from timetoalign.core.enums import Domain, NumberType, TimeUnit
+from timetoalign.core.retrieval import (
+    CoordinateCollection,
+    CoordinateFormat,
+    CoordinateInput,
+    CoordinateResult,
+    Rounding,
+    classify_dispatch_input,
+    coordinate_wire_entry,
+    format_coordinates,
+    number_type_for_converted_unit,
+    validate_coordinate_collection,
+)
+from timetoalign.core.time import Coordinate, CoordinateValue, IdCoordinate
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
     Stamp,
@@ -50,8 +64,8 @@ if TYPE_CHECKING:
 module_logger = logging.getLogger(__name__)
 
 
-# Type alias for graph nodes: (timeline_id, coordinate)
-GraphNode = tuple[str, CoordinateValue]
+# Private NetworkX key: (timeline_id, canonical coordinate value).
+_GraphNode = tuple[str, CoordinateValue]
 
 
 # region MatchStamp
@@ -69,11 +83,10 @@ class MatchStamp(Stamp):
     are linked via explicit anchors or inferred group membership.
 
     Attributes:
-        coordinates: Dict of timeline_id -> coordinate.
+        coordinates: Dictionary of timeline ID to canonical coordinate.
         anchor_edges: List of (tl_a, tl_b) pairs that are explicitly anchored.
         inferred_edges: List of (tl_a, tl_b) pairs inferred via groups.
-        units: Coordinate unit name for each timeline.
-        axis: Coordinate used to query the stamp.
+        axis: Identified source coordinate derived from storage.
         source: Bundle that produced the stamp.
         source_id: Timeline ID used for the query.
         is_interpolated: Whether the stamp used interpolated transfer.
@@ -82,39 +95,53 @@ class MatchStamp(Stamp):
 
     Examples:
         >>> stamp = MatchStamp(
-        ...     coordinates={"score": 100.0, "audio": 45.5, "video": 1365.0},
+        ...     coordinates={
+        ...         "score": Coordinate(100.0, TimeUnit.quarters),
+        ...         "audio": Coordinate(45.5, TimeUnit.seconds),
+        ...     },
+        ...     source_id="score",
         ...     anchor_edges=[("score", "audio")],
-        ...     inferred_edges=[("audio", "video")],
         ... )
-        >>> stamp.get("audio")
+        >>> stamp.get_coordinate_for("audio", format="float")
         45.5
     """
 
-    coordinates: dict[str, CoordinateValue] = field(default_factory=dict)
+    coordinates: dict[str, Coordinate] = field(default_factory=dict)
+    source_id: str = ""
     anchor_edges: list[tuple[str, str]] = field(default_factory=list)
     inferred_edges: list[tuple[str, str]] = field(default_factory=list)
-    units: dict[str, str] = field(default_factory=dict)
-    axis: int | float | Fraction | None = None
     source: "AlignmentBundle | None" = None
-    source_id: str | None = None
     is_interpolated: bool = False
     conversion_maps: ConversionMapsSpec = False
 
     def __post_init__(self) -> None:
         """Isolate mutable containers from callers and serialized data."""
-        object.__setattr__(self, "coordinates", dict(self.coordinates))
+        if not isinstance(self.source_id, str) or not self.source_id:
+            raise ValueError("MatchStamp source_id must be a non-empty timeline ID")
+        if self.source_id not in self.coordinates:
+            raise ValueError(
+                f"MatchStamp source_id {self.source_id!r} is absent from coordinates"
+            )
+        normalized: dict[str, Coordinate] = {}
+        for timeline_id, coordinate in self.coordinates.items():
+            if not isinstance(timeline_id, str) or not timeline_id:
+                raise ValueError("MatchStamp coordinate keys must be non-empty strings")
+            if type(coordinate) is not Coordinate:
+                raise TypeError(
+                    "MatchStamp coordinates must be plain Coordinate values"
+                )
+            normalized[timeline_id] = Coordinate(
+                coordinate.value,
+                coordinate.unit,
+                number_type=coordinate.number_type,
+            )
+        object.__setattr__(self, "coordinates", normalized)
         object.__setattr__(
             self, "anchor_edges", [tuple(edge) for edge in self.anchor_edges]
         )
         object.__setattr__(
             self, "inferred_edges", [tuple(edge) for edge in self.inferred_edges]
         )
-        object.__setattr__(self, "units", dict(self.units))
-
-    @property
-    def present_timelines(self) -> list[str]:
-        """List of timeline IDs in this stamp."""
-        return list(self.coordinates.keys())
 
     @property
     def n_timelines(self) -> int:
@@ -131,35 +158,14 @@ class MatchStamp(Stamp):
         """Number of inferred (via group) pairs."""
         return len(self.inferred_edges)
 
-    def get(self, timeline_id: str, default: float | None = None) -> float | None:
-        """Get coordinate for a specific timeline.
-
-        Args:
-            timeline_id: The timeline to get coordinate for.
-            default: Value returned when the timeline is absent.
-
-        Returns:
-            The coordinate, or the default if the timeline is absent.
-        """
-        value = self.coordinates.get(timeline_id)
-        return default if value is None else float(value)
-
-    def get_coordinate(self, timeline_id: str) -> Coordinate | None:
-        """Get a typed coordinate without discarding an exact stored value.
-
-        Args:
-            timeline_id: The timeline to get a coordinate for.
-
-        Returns:
-            A Coordinate object, or None when the coordinate or unit is absent.
-        """
-        value = self.coordinates.get(timeline_id)
-        unit = self._unit_for(timeline_id)
-        if value is None or unit is None:
-            return None
-        return Coordinate(value, unit)
-
-    def get_unit(self, unit: TimeUnit) -> float | None:
+    def get_unit(
+        self,
+        unit: TimeUnit,
+        *,
+        timeline_id: str | None = None,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
         """Get the query coordinate converted to a unit.
 
         Unit conversion is delegated to the source timeline's owning group so
@@ -167,57 +173,50 @@ class MatchStamp(Stamp):
 
         Args:
             unit: The target unit.
+            timeline_id: Optional stored axis to select explicitly.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
 
         Returns:
-            The converted coordinate, or None when it cannot be resolved.
+            The converted coordinate projection.
         """
-        timestamp = self._source_timestamp()
-        if timestamp is None:
-            return None
-        return timestamp.get_unit(unit)
+        if not isinstance(unit, TimeUnit):
+            raise TypeError("get_unit requires a TimeUnit")
+        candidates = (
+            [timeline_id] if timeline_id is not None else list(self.coordinates)
+        )
+        for candidate in candidates:
+            coordinate = self.coordinates.get(candidate)
+            if coordinate is None:
+                if timeline_id is not None:
+                    raise KeyError(f"Unknown timeline ID {candidate!r} on MatchStamp")
+                continue
+            result_type = number_type_for_converted_unit(coordinate.number_type, unit)
+            if coordinate.unit == unit:
+                converted = Coordinate(coordinate.value, unit, number_type=result_type)
+            else:
+                if self.source is None:
+                    continue
+                cmap = self.source.get_timeline(candidate)._get_unit_map(unit)
+                if cmap is None or not self._conversion_map_enabled(cmap):
+                    continue
+                converted = Coordinate(
+                    cmap(coordinate.value), unit, number_type=result_type
+                )
+            identified = IdCoordinate.from_coordinate(converted, candidate)
+            return format_coordinates(
+                [identified],
+                format=format,
+                rounding=rounding,
+                scalar=True,
+                series_name=candidate,
+            )
+        raise KeyError(f"No eligible conversion to {unit.value!r} on MatchStamp")
 
     def _unit_for(self, timeline_id: str) -> TimeUnit | None:
         """Get the unit associated with a timeline ID."""
-        unit = self.units.get(timeline_id)
-        if unit is None:
-            return None
-        try:
-            return TimeUnit(unit)
-        except ValueError:
-            return None
-
-    def _source_timestamp(self) -> Any | None:
-        """Resolve the source group's TimeStamp for unit conversion."""
-        if self.source is None or self.source_id is None or self.axis is None:
-            return None
-
-        bundle_uid = self.source._timeline_id_to_uid.get(self.source_id, self.source_id)
-        group_id = self.source.timeline_to_group.get(bundle_uid)
-        if group_id is None:
-            return None
-
-        group = self.source.groups.get(group_id)
-        if group is None:
-            return None
-        actual_timeline_id = self.source._uid_to_timeline_id.get(
-            bundle_uid, self.source_id
-        )
-        try:
-            timestamp = group.get_timestamp_at(
-                self.axis,
-                actual_timeline_id,
-                conversion_maps=self.conversion_maps,
-            )
-            return replace(timestamp, conversion_maps=self.conversion_maps)
-        except (AttributeError, KeyError, TypeError, ValueError):
-            return None
-
-    def _unit_resolution_enabled(self, unit: TimeUnit) -> bool:
-        """Return whether the conversion-map specification permits a unit."""
-        timestamp = self._source_timestamp()
-        if timestamp is None:
-            return False
-        return timestamp._unit_resolution_enabled(unit)
+        coordinate = self.coordinates.get(timeline_id)
+        return None if coordinate is None else coordinate.unit
 
     def _conversion_rows(self) -> list[tuple[str, Any, str]]:
         """Surface every enabled C-Map across the cross-section.
@@ -239,7 +238,7 @@ class MatchStamp(Stamp):
                 if not self._conversion_map_enabled(cmap):
                     continue
                 try:
-                    value = cmap(coordinate)
+                    value = cmap(coordinate.value)
                 except Exception:
                     continue
                 if cmap.target_unit is not None:
@@ -251,32 +250,37 @@ class MatchStamp(Stamp):
                 collected.append((label, value, suffix, timeline_id))
         return self._qualify_conversion_rows(collected)
 
-    def _is_timeline_id(self, key: str) -> bool:
-        """Return whether key names a coordinate carried by this stamp."""
-        return key in self.coordinates or key == self.source_id
-
     def has_timeline(self, timeline_id: str) -> bool:
         """Check if timeline is in this stamp."""
         return timeline_id in self.coordinates
 
-    def get_group_coordinates(
-        self,
-        group: "TimelineGroup",
-    ) -> dict[str, float]:
-        """Get all coordinates for timelines in a specific group.
+    def get_conversion_for(self, key: str) -> object:
+        """Return an enabled conversion-map value by selector.
 
         Args:
-            group: The TimelineGroup to filter by.
+            key: Map name, ID, selector, or target-unit name.
 
         Returns:
-            Dict of timeline_id -> coordinate for timelines in the group.
+            The map result without numeric projection.
+
+        Raises:
+            KeyError: If no eligible conversion matches.
         """
-        group_tl_ids = set(group.timeline_ids)
-        return {
-            timeline_id: float(coordinate)
-            for timeline_id, coordinate in self.coordinates.items()
-            if timeline_id in group_tl_ids
-        }
+        if self.source is None:
+            raise KeyError(f"Unknown conversion selector {key!r}")
+        getter = getattr(self.source, "_get_conversion_maps_for_timeline", None)
+        if getter is None:
+            raise KeyError(f"Unknown conversion selector {key!r}")
+        for timeline_id, coordinate in self.coordinates.items():
+            for cmap in getter(timeline_id):
+                if not self._conversion_map_enabled(cmap):
+                    continue
+                matches = cmap.matches_selector(key) or cmap.name == key
+                if not matches and cmap.target_unit is not None:
+                    matches = cmap.target_unit.value == key
+                if matches:
+                    return cmap(coordinate.value)
+        raise KeyError(f"Unknown conversion selector {key!r}")
 
     def filter_by_timelines(
         self,
@@ -315,14 +319,14 @@ class MatchStamp(Stamp):
 
         return MatchStamp(
             coordinates=filtered_coords,
+            source_id=(
+                self.source_id
+                if self.source_id in filtered_coords
+                else next(iter(filtered_coords))
+            ),
             anchor_edges=filtered_anchor_edges,
             inferred_edges=filtered_inferred_edges,
-            units={
-                tl_id: self.units[tl_id] for tl_id in remaining if tl_id in self.units
-            },
-            axis=self.axis,
             source=self.source,
-            source_id=self.source_id,
             is_interpolated=self.is_interpolated,
             conversion_maps=self.conversion_maps,
         )
@@ -347,8 +351,8 @@ class MatchStamp(Stamp):
         if format == "graph":
             return {
                 "coordinates": {
-                    timeline_id: self.get(timeline_id)
-                    for timeline_id in self.coordinates
+                    timeline_id: coordinate_wire_entry(coordinate)
+                    for timeline_id, coordinate in self.coordinates.items()
                 },
                 "anchor_edges": list(self.anchor_edges),
                 "inferred_edges": list(self.inferred_edges),
@@ -358,13 +362,6 @@ class MatchStamp(Stamp):
             if self.source is None:
                 return timeline_id
             return self.source._timeline_id_to_uid.get(timeline_id, timeline_id)
-
-        def _uid_label(timeline_id: str) -> str:
-            bundle_uid = _bundle_uid(timeline_id)
-            unit = self.units.get(timeline_id) or self.units.get(bundle_uid)
-            if unit is None and self.source is not None:
-                unit = self.source._get_unit_map().get(bundle_uid)
-            return f"{bundle_uid} ({unit})" if unit else bundle_uid
 
         if format not in ("flat", "prefix", "nested"):
             raise ValueError(
@@ -377,89 +374,125 @@ class MatchStamp(Stamp):
                 "to resolve timeline groups"
             )
 
-        grouped: dict[str, dict[str, float | None]] = {}
-        for timeline_id in self.coordinates:
-            coordinate = self.get(timeline_id)
-            assert coordinate is not None
+        grouped: dict[str, dict[str, dict[str, object]]] = {}
+        for timeline_id, coordinate in self.coordinates.items():
+            wire = coordinate_wire_entry(coordinate)
             bundle_uid = _bundle_uid(timeline_id)
             if self.source is None:
-                grouped.setdefault(bundle_uid, {})[timeline_id] = coordinate
+                grouped.setdefault(bundle_uid, {})[timeline_id] = wire
                 continue
 
             group_id = self.source.timeline_to_group.get(bundle_uid, bundle_uid)
-            if group_id in grouped:
-                continue
-            group = self.source.groups.get(group_id)
-            if group is None:
-                grouped[group_id] = {bundle_uid: coordinate}
-                continue
-
-            actual_timeline_id = self.source._uid_to_timeline_id.get(
-                bundle_uid, timeline_id
-            )
-            try:
-                timestamp = group.get_timestamp_at(
-                    coordinate,
-                    actual_timeline_id,
-                    conversion_maps=self.conversion_maps,
-                )
-            except (KeyError, TypeError, ValueError):
-                grouped[group_id] = {bundle_uid: coordinate}
-                continue
-
-            grouped[group_id] = {
-                self.source._timeline_id_to_uid.get(
-                    group_tl_id, group_tl_id
-                ): timestamp.get(group_tl_id)
-                for group_tl_id in group.timeline_ids
-                if not self.units
-                or group_tl_id in self.units
-                or self.source._timeline_id_to_uid.get(group_tl_id, group_tl_id)
-                in self.units
-            }
+            grouped.setdefault(group_id, {})[bundle_uid] = wire
 
         if format == "flat":
             return {
-                _uid_label(timeline_id): coordinate
+                f"{timeline_id} ({wire['unit']})": wire
                 for timeline_coordinates in grouped.values()
-                for timeline_id, coordinate in timeline_coordinates.items()
+                for timeline_id, wire in timeline_coordinates.items()
             }
 
         if format == "nested":
             return {
                 group_id: {
-                    _uid_label(timeline_id): coordinate
-                    for timeline_id, coordinate in timeline_coordinates.items()
+                    f"{timeline_id} ({wire['unit']})": wire
+                    for timeline_id, wire in timeline_coordinates.items()
                 }
                 for group_id, timeline_coordinates in grouped.items()
             }
 
-        result: dict[str, float | None] = {}
+        result: dict[str, dict[str, object]] = {}
         for group_id, timeline_coordinates in grouped.items():
-            for timeline_id, coordinate in timeline_coordinates.items():
-                result[f"{group_id}/{_uid_label(timeline_id)}"] = coordinate
+            for timeline_id, wire in timeline_coordinates.items():
+                result[f"{group_id}/{timeline_id} ({wire['unit']})"] = wire
         return result
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MatchStamp":
-        """Deserialize from dictionary."""
+        """Deserialize a graph-shaped typed wire dictionary.
+
+        Args:
+            data: Graph-shaped stamp payload.
+
+        Returns:
+            A canonical typed match stamp.
+        """
+        coordinates: dict[str, Coordinate] = {}
+        for timeline_id, wire in data["coordinates"].items():
+            if not isinstance(wire, dict):
+                raise TypeError(
+                    "MatchStamp coordinate leaves must be wire dictionaries"
+                )
+            number_type = wire["number_type"]
+            if number_type == "fraction":
+                numerator = wire["numerator"]
+                denominator = wire["denominator"]
+                if (
+                    isinstance(numerator, bool)
+                    or not isinstance(numerator, int)
+                    or isinstance(denominator, bool)
+                    or not isinstance(denominator, int)
+                ):
+                    raise ValueError(
+                        "Fraction wire entries require integer ratio members"
+                    )
+                value: CoordinateValue = Fraction(numerator, denominator)
+                mirror = wire["value"]
+                if (
+                    isinstance(mirror, bool)
+                    or not isinstance(mirror, (int, float))
+                    or not math.isfinite(float(mirror))
+                    or float(mirror) != float(value)
+                ):
+                    raise ValueError("Fraction wire entry has an invalid float mirror")
+            elif number_type == "int":
+                mirror = wire["value"]
+                if (
+                    isinstance(mirror, bool)
+                    or not isinstance(mirror, (int, float))
+                    or not math.isfinite(float(mirror))
+                    or not float(mirror).is_integer()
+                ):
+                    raise ValueError(
+                        "Integer wire entry requires an integral finite mirror"
+                    )
+                if wire["numerator"] is not None or wire["denominator"] is not None:
+                    raise ValueError("Integer wire entry ratio members must be null")
+                value = int(mirror)
+            elif number_type == "float":
+                if wire["numerator"] is not None or wire["denominator"] is not None:
+                    raise ValueError("Float wire entry ratio members must be null")
+                mirror = wire["value"]
+                if (
+                    isinstance(mirror, bool)
+                    or not isinstance(mirror, (int, float))
+                    or not math.isfinite(float(mirror))
+                ):
+                    raise ValueError(
+                        "Float wire entry requires a finite numeric mirror"
+                    )
+                value = float(mirror)
+            else:
+                raise ValueError(f"Unknown wire number_type {number_type!r}")
+            coordinates[timeline_id] = Coordinate(
+                value,
+                TimeUnit(wire["unit"]),
+                number_type=number_type,
+            )
+        if not coordinates:
+            raise ValueError("MatchStamp payload must contain at least one coordinate")
         return cls(
-            coordinates=dict(data["coordinates"]),
+            coordinates=coordinates,
+            source_id=next(iter(coordinates)),
             anchor_edges=[tuple(e) for e in data.get("anchor_edges", [])],
             inferred_edges=[tuple(e) for e in data.get("inferred_edges", [])],
         )
 
-    @property
-    def axis_coordinate(self) -> "Coordinate | None":
-        """Get the axis value with its source unit, when an axis exists."""
-        if self.axis is None:
-            return None
-        return super().axis_coordinate
-
     def __repr__(self) -> str:
         tl_list = ", ".join(
-            f"{timeline_id}={_format_stamp_value(value, self.units.get(timeline_id, ''))}"
-            for timeline_id, value in self.coordinates.items()
+            f"{timeline_id}="
+            f"{_format_stamp_value(coordinate.value, coordinate.unit.value)}"
+            for timeline_id, coordinate in self.coordinates.items()
         )
         return f"MatchStamp({tl_list})"
 
@@ -501,7 +534,11 @@ class MatchStamp(Stamp):
             else:
                 tag = ""
             entries.append(
-                (tl_id, _format_stamp_value(coord, self.units.get(tl_id, "")), tag)
+                (
+                    tl_id,
+                    _format_stamp_value(coord.value, coord.unit.value),
+                    tag,
+                )
             )
 
         for label, value, suffix in self._conversion_rows():
@@ -544,7 +581,7 @@ class MatchStamp(Stamp):
         for tl_id, coord in self.coordinates.items():
             esc_id = html_mod.escape(tl_id)
             formatted = html_mod.escape(
-                _format_stamp_value(coord, self.units.get(tl_id, ""))
+                _format_stamp_value(coord.value, coord.unit.value)
             )
             if tl_id in anchor_tls:
                 tag = "<em>anchor</em>"
@@ -582,9 +619,10 @@ class MatchStamp(Stamp):
         )
 
         affordances = [
-            "stamp.get(<tl_id>)",
-            "stamp.get_coordinate(<tl_id>)",
+            "stamp.get_coordinate_for(<tl_id>)",
+            "stamp.get_coordinates_for(<tl_ids>)",
             "stamp.get_unit(<unit>)",
+            "stamp.get_conversion_for(<key>)",
         ]
         return (
             f"<div style='font-family: monospace;'>"
@@ -655,6 +693,7 @@ class MatchGraph:
         self._logger = module_logger.getChild("MatchGraph")
         self._units = dict(units or {})
         self._timeline_units = self._collect_timeline_units()
+        self._timeline_number_types = self._collect_timeline_number_types()
         self._axis = axis
         self._source = source
         self._source_id = source_id
@@ -735,6 +774,15 @@ class MatchGraph:
                 )
         return timeline_units
 
+    def _collect_timeline_number_types(self) -> dict[str, NumberType]:
+        """Collect declared coordinate representations from claim anchors."""
+        result: dict[str, NumberType] = {}
+        for claim in self._claims:
+            for anchor in claim.anchors:
+                result.setdefault(anchor.timeline_a_id, anchor.coordinate_a.number_type)
+                result.setdefault(anchor.timeline_b_id, anchor.coordinate_b.number_type)
+        return result
+
     def _add_anchor_edge(
         self,
         G: nx.Graph,
@@ -748,8 +796,8 @@ class MatchGraph:
             anchor: The AlignmentAnchor to add.
             claim: The parent MatchClaim for metadata.
         """
-        node_a: GraphNode = (anchor.timeline_a_id, anchor.coordinate_a.value)
-        node_b: GraphNode = (anchor.timeline_b_id, anchor.coordinate_b.value)
+        node_a: _GraphNode = (anchor.timeline_a_id, anchor.coordinate_a.value)
+        node_b: _GraphNode = (anchor.timeline_b_id, anchor.coordinate_b.value)
 
         G.add_edge(
             node_a,
@@ -759,41 +807,277 @@ class MatchGraph:
             claim_id=claim.id,
         )
 
-    def get_nodes_for_timeline(self, timeline_id: str) -> list[GraphNode]:
-        """Get all nodes for a specific timeline.
+    def _get_node_keys_for_timeline(self, timeline_id: str) -> list[_GraphNode]:
+        """Return private graph keys for one timeline."""
+        return [node for node in self._graph.nodes() if node[0] == timeline_id]
+
+    def get_nodes_for_timeline(self, timeline_id: str) -> list[IdCoordinate]:
+        """Get all public graph nodes for a specific timeline.
 
         Args:
             timeline_id: The timeline to get nodes for.
 
         Returns:
-            List of (timeline_id, coordinate) nodes.
-        """
-        return [node for node in self._graph.nodes() if node[0] == timeline_id]
+            Canonical identified coordinates in graph insertion order.
 
-    def get_coordinates_for_timeline(self, timeline_id: str) -> list[float]:
-        """Get all coordinates for a specific timeline.
+        Raises:
+            TypeError: If ``timeline_id`` is not a string.
+            KeyError: If the timeline is unknown.
+        """
+        if not isinstance(timeline_id, str):
+            raise TypeError("get_nodes_for_timeline requires a timeline-ID string")
+        nodes = self._get_node_keys_for_timeline(timeline_id)
+        if not nodes:
+            raise KeyError(f"Unknown timeline ID {timeline_id!r} in MatchGraph")
+        return [self._identified_coordinate(node[0], node[1]) for node in nodes]
+
+    def get_coordinates_for(
+        self,
+        timeline_id: str,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> list[CoordinateResult] | pd.Series:
+        """Return the sorted graph coordinate column for one timeline.
 
         Args:
             timeline_id: The timeline to get coordinates for.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
 
         Returns:
-            List of coordinates, sorted.
+            Typed coordinate projections in sorted order.
         """
+        if not isinstance(timeline_id, str):
+            raise TypeError("get_coordinates_for requires one timeline-ID string")
         coords = [node[1] for node in self._graph.nodes() if node[0] == timeline_id]
-        return sorted(coords)
+        if not coords:
+            raise KeyError(f"Unknown timeline ID {timeline_id!r} in MatchGraph")
+        identified = [
+            self._identified_coordinate(timeline_id, value) for value in sorted(coords)
+        ]
+        return format_coordinates(
+            identified,
+            format=format,
+            rounding=rounding,
+            scalar=False,
+            series_name=timeline_id,
+        )
 
-    def get_connected_nodes(self, node: GraphNode) -> list[GraphNode]:
-        """Get all nodes connected to a given node.
+    def _identified_coordinate(
+        self, timeline_id: str, value: CoordinateValue
+    ) -> IdCoordinate:
+        """Build one canonical ID coordinate from a graph node."""
+        unit = self._timeline_units.get(timeline_id)
+        if unit is None:
+            unit_name = self._units.get(timeline_id)
+            if unit_name is None:
+                raise KeyError(
+                    f"Graph has no declared unit for timeline {timeline_id!r}"
+                )
+            unit = TimeUnit(unit_name)
+        number_type = self._timeline_number_types.get(
+            timeline_id, NumberType.from_number(value)
+        )
+        coordinate = Coordinate(value, unit, number_type=number_type)
+        return IdCoordinate.from_coordinate(coordinate, timeline_id)
+
+    def get_coordinate_at(
+        self,
+        at: CoordinateInput,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
+        """Resolve one exact graph node to a target component coordinate.
 
         Args:
-            node: The (timeline_id, coordinate) node.
+            at: Exact graph-node position.
+            timeline_id: Requested result timeline, or the unique other node.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
 
         Returns:
-            List of connected nodes.
+            One exact connected-coordinate projection or a length-one Series.
         """
-        if node not in self._graph:
+        if not (
+            not isinstance(at, bool)
+            and isinstance(at, (int, float, Fraction, Coordinate))
+        ):
+            raise TypeError("get_coordinate_at requires one scalar coordinate input")
+        if isinstance(at, IdCoordinate):
+            source_id = at.timeline_id
+            source_value = at.value
+            native = self._identified_coordinate(source_id, source_value)
+            if at.unit != native.unit:
+                raise ValueError(
+                    f"Coordinate unit {at.unit} is not native to graph axis {source_id!r}"
+                )
+        else:
+            if timeline_id is None:
+                raise ValueError(
+                    "timeline_id is required for raw or plain MatchGraph queries"
+                )
+            source_id = timeline_id
+            source_value = at.value if isinstance(at, Coordinate) else at
+            native = self._identified_coordinate(source_id, source_value)
+            if isinstance(at, Coordinate) and at.unit != native.unit:
+                raise ValueError(
+                    f"Coordinate unit {at.unit} is not native to graph axis {source_id!r}"
+                )
+        source_node: _GraphNode = (source_id, native.value)
+        if source_node not in self._graph:
+            raise KeyError(
+                f"No exact graph anchor at {native.value!r} on {source_id!r}"
+            )
+        component = nx.node_connected_component(self._graph, source_node)
+        if timeline_id is None:
+            candidates = [node for node in component if node[0] != source_id]
+            if not candidates:
+                raise KeyError(
+                    "Connected component has no coordinate on another timeline"
+                )
+            if len(candidates) != 1:
+                raise ValueError(
+                    f"Connected component has competing nodes {candidates}"
+                )
+        else:
+            candidates = [node for node in component if node[0] == timeline_id]
+            if not candidates:
+                raise KeyError(
+                    f"Connected component has no node on timeline {timeline_id!r}"
+                )
+            if len(candidates) != 1:
+                raise ValueError(
+                    f"Connected component has competing {timeline_id!r} nodes {candidates}"
+                )
+        result = self._identified_coordinate(candidates[0][0], candidates[0][1])
+        return format_coordinates(
+            [result],
+            format=format,
+            rounding=rounding,
+            scalar=True,
+            series_name=result.timeline_id,
+        )
+
+    def get_coordinates_at(
+        self,
+        at: CoordinateCollection,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> list[CoordinateResult] | pd.Series:
+        """Resolve exact graph nodes for a coordinate collection.
+
+        Args:
+            at: Exact graph-node positions to resolve atomically.
+            timeline_id: Requested result timeline.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            A list of projections or canonical-value Series.
+        """
+        values, index = validate_coordinate_collection(at)
+        if not values and timeline_id is None:
+            raise ValueError("timeline_id is required for an empty MatchGraph query")
+        if timeline_id is not None and timeline_id not in self.timeline_ids:
+            raise KeyError(f"Unknown timeline ID {timeline_id!r} in MatchGraph")
+        results: list[IdCoordinate] = []
+        for value in values:
+            result = self.get_coordinate_at(
+                value,
+                timeline_id=timeline_id,
+                format="id_coordinate",
+                rounding=rounding,
+            )
+            assert isinstance(result, IdCoordinate)
+            results.append(result)
+        return format_coordinates(
+            results,
+            format=format,
+            rounding=rounding,
+            scalar=False,
+            index=index,
+            series_name=timeline_id
+            or (
+                results[0].timeline_id
+                if results
+                and all(
+                    result.timeline_id == results[0].timeline_id for result in results
+                )
+                else "coordinate"
+            ),
+            empty_number_type=(
+                self._timeline_number_types.get(timeline_id)
+                if timeline_id is not None
+                else None
+            ),
+        )
+
+    def get_coordinate(
+        self,
+        at: CoordinateInput | CoordinateCollection,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | list[CoordinateResult] | pd.Series:
+        """Dispatch a scalar or plural exact graph-position query.
+
+        Args:
+            at: One graph position or a coordinate collection.
+            timeline_id: Requested result timeline when required.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            The selected precise-getter result.
+        """
+        branch = classify_dispatch_input(at)
+        if branch == "coordinate":
+            return self.get_coordinate_at(
+                at, timeline_id=timeline_id, format=format, rounding=rounding
+            )
+        if branch == "coordinates":
+            return self.get_coordinates_at(
+                at, timeline_id=timeline_id, format=format, rounding=rounding
+            )
+        raise TypeError(
+            "MatchGraph.get_coordinate accepts coordinate inputs; use "
+            "get_coordinates_for for a timeline column"
+        )
+
+    def get_connected_nodes(self, node: IdCoordinate) -> list[IdCoordinate]:
+        """Get all public nodes connected to a given node.
+
+        Args:
+            node: Canonical identified graph coordinate.
+
+        Returns:
+            Canonical identified neighboring coordinates.
+
+        Raises:
+            TypeError: If ``node`` is not an ``IdCoordinate``.
+            ValueError: If its unit is not native to its timeline.
+        """
+        if not isinstance(node, IdCoordinate):
+            raise TypeError("get_connected_nodes requires an IdCoordinate")
+        native = self._identified_coordinate(node.timeline_id, node.value)
+        if node.unit != native.unit:
+            raise ValueError(
+                f"Coordinate unit {node.unit} is not native to graph axis "
+                f"{node.timeline_id!r}"
+            )
+        node_key: _GraphNode = (native.timeline_id, native.value)
+        if node_key not in self._graph:
             return []
-        return list(self._graph.neighbors(node))
+        return [
+            self._identified_coordinate(neighbor[0], neighbor[1])
+            for neighbor in self._graph.neighbors(node_key)
+        ]
 
     def get_connected_timelines(self, timeline_id: str) -> set[str]:
         """Get all timelines connected to a given timeline.
@@ -805,7 +1089,7 @@ class MatchGraph:
             Set of connected timeline IDs.
         """
         connected = set()
-        for node in self.get_nodes_for_timeline(timeline_id):
+        for node in self._get_node_keys_for_timeline(timeline_id):
             for neighbor in self._graph.neighbors(node):
                 connected.add(neighbor[0])
         return connected - {timeline_id}
@@ -884,16 +1168,23 @@ class MatchGraph:
 
                 # Convert coordinate to other timeline
                 try:
-                    other_coord = group.convert(
-                        coord, source=timeline_id, target=other_tl_id
+                    source_timeline = group.get_timeline(timeline_id)
+                    other_coord = group.get_coordinate_at(
+                        IdCoordinate(
+                            coord,
+                            source_timeline.unit,
+                            timeline_id,
+                            number_type=source_timeline.number_type,
+                        ),
+                        timeline_id=other_tl_id,
+                        format="coordinate",
                     )
-                    if other_coord is None:
-                        continue
                 except (KeyError, ValueError):
                     continue
+                assert isinstance(other_coord, Coordinate)
 
                 other_value = float(other_coord.value)
-                other_node: GraphNode = (other_tl_id, other_value)
+                other_node: _GraphNode = (other_tl_id, other_value)
 
                 # Add implicit edge if not already connected
                 if not extended.has_edge(node, other_node):
@@ -929,7 +1220,7 @@ class MatchGraph:
             source_id=self._source_id,
         )
 
-    def _find_source_claim_for_node(self, node: GraphNode) -> MatchClaim | None:
+    def _find_source_claim_for_node(self, node: _GraphNode) -> MatchClaim | None:
         """Find the first explicit synchronous claim that contains this node.
 
         Args:
@@ -1021,6 +1312,7 @@ class MatchGraph:
         instance._logger = module_logger.getChild("MatchGraph")
         instance._units = dict(units or {})
         instance._timeline_units = instance._collect_timeline_units()
+        instance._timeline_number_types = instance._collect_timeline_number_types()
         instance._axis = axis
         instance._source = source
         instance._source_id = source_id
@@ -1137,7 +1429,7 @@ class MatchGraph:
         """Number of connected components in the graph."""
         return nx.number_connected_components(self._graph)
 
-    def _build_stamp_from_node(self, start_node: GraphNode) -> "MatchStamp":
+    def _build_stamp_from_node(self, start_node: _GraphNode) -> "MatchStamp":
         """Build a MatchStamp from a starting node.
 
         Uses BFS to find all connected nodes and categorize edges.
@@ -1149,27 +1441,40 @@ class MatchGraph:
             MatchStamp containing all connected coordinates.
         """
         if start_node not in self._graph:
+            identified = self._identified_coordinate(start_node[0], start_node[1])
             return MatchStamp(
-                coordinates={start_node[0]: start_node[1]},
+                coordinates={start_node[0]: identified.to_coordinate()},
+                source_id=start_node[0],
                 anchor_edges=[],
                 inferred_edges=[],
-                units=self._units,
-                axis=self._axis,
                 source=self._source,
-                source_id=self._source_id,
             )
 
         # Find all nodes in the connected component
         component = nx.node_connected_component(self._graph, start_node)
 
-        # Build coordinates dict
-        coordinates: dict[str, CoordinateValue] = {}
-        for node in component:
+        source_id = (
+            self._source_id
+            if any(node[0] == self._source_id for node in component)
+            else start_node[0]
+        )
+        ordered_nodes = sorted(
+            component,
+            key=lambda node: (
+                node[0] != source_id,
+                "" if node[0] == source_id else node[0],
+                node[1],
+            ),
+        )
+        coordinates: dict[str, Coordinate] = {}
+        for node in ordered_nodes:
             timeline_id, coord = node
             # If timeline already exists, keep the first coordinate
             # (could be multiple nodes for same timeline in complex graphs)
             if timeline_id not in coordinates:
-                coordinates[timeline_id] = coord
+                coordinates[timeline_id] = self._identified_coordinate(
+                    timeline_id, coord
+                ).to_coordinate()
 
         # Categorize edges
         anchor_edges: list[tuple[str, str]] = []
@@ -1177,7 +1482,10 @@ class MatchGraph:
 
         # Get subgraph for this component
         subgraph = self._graph.subgraph(component)
-        for u, v, data in subgraph.edges(data=True):
+        for u, v, data in sorted(
+            subgraph.edges(data=True),
+            key=lambda edge: (edge[0][0], edge[0][1], edge[1][0], edge[1][1]),
+        ):
             edge_pair = (u[0], v[0])
             # Avoid duplicates (edges are undirected)
             reverse_pair = (v[0], u[0])
@@ -1194,12 +1502,10 @@ class MatchGraph:
 
         return MatchStamp(
             coordinates=coordinates,
+            source_id=source_id,
             anchor_edges=anchor_edges,
             inferred_edges=inferred_edges,
-            units=self._units,
-            axis=self._axis,
             source=self._source,
-            source_id=self._source_id,
         )
 
     def filter(

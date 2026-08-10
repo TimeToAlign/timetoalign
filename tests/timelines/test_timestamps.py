@@ -579,10 +579,11 @@ class TestTimestampAccess:
 
         ts = timeline.get_timestamp_at(3.0, conversion_maps=False)
 
-        assert ts.get_unit(TimeUnit.milliseconds) is None
         with pytest.raises(KeyError):
-            _ = ts["milliseconds"]
-        assert ts["timeline"] == 3.0
+            ts.get_unit(TimeUnit.milliseconds)
+        with pytest.raises(KeyError):
+            ts.get_conversion_for("milliseconds")
+        assert ts.get_coordinate_for("timeline", format="float") == 3.0
 
     def test_get_timestamp_at_with_restricted_conversion_maps(self) -> None:
         """Restricted conversion maps expose only their target unit."""
@@ -609,11 +610,12 @@ class TestTimestampAccess:
             conversion_maps=[TimeUnit.milliseconds],
         )
 
-        assert ts.get_unit(TimeUnit.milliseconds) == 3000.0
-        assert ts["milliseconds"] == 3000.0
-        assert ts.get_unit(TimeUnit.samples) is None
+        assert ts.get_unit(TimeUnit.milliseconds, format="float") == 3000.0
+        assert ts.get_conversion_for("milliseconds") == 3000.0
         with pytest.raises(KeyError):
-            _ = ts["samples"]
+            ts.get_unit(TimeUnit.samples)
+        with pytest.raises(KeyError):
+            ts.get_conversion_for("samples")
 
 
 # endregion

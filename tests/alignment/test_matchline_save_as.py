@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.alignment.graph import MatchStamp
 from timetoalign.alignment.match_format import (
     MatchFileContext,
     NoteRecord,
@@ -34,6 +33,8 @@ from timetoalign.alignment.match_format import (
 )
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.core import TimeUnit
+
+from .helpers import make_match_stamp as MatchStamp
 
 # region Test Data Paths
 

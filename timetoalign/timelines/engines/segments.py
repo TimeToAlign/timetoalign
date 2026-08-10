@@ -442,7 +442,7 @@ class SegmentsMixin:
             target_length=(
                 None
                 if target_length is None
-                else self.get_coordinate(target_length).value
+                else self.get_coordinate_at(target_length, format="coordinate").value
             ),
         )
         self.add_flow_map(fm, id=id)

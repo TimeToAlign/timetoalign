@@ -131,7 +131,10 @@ class TestTransitiveUnion:
 
         assert stamp.is_interpolated is False
         assert stamp.n_timelines == 6
-        assert stamp.coordinates == {
+        assert {
+            timeline_id: stamp.get_coordinate_for(timeline_id, format="float")
+            for timeline_id in stamp.present_timelines
+        } == {
             "a1:clt1": 50.0,
             "a2:cpt1": 50.0,
             "a3:cpt2": 25.0,
@@ -143,7 +146,7 @@ class TestTransitiveUnion:
     def test_union_has_no_negative_coordinates(self) -> None:
         merged, _ = _make_bundles()
         stamp = merged.get_matchstamp_at(50, "a1:clt1")
-        assert all(value >= 0 for value in stamp.coordinates.values())
+        assert all(coordinate.value >= 0 for coordinate in stamp.coordinates.values())
 
     def test_b_portion_parity_with_b_bundle_at_reconciled_coordinate(self) -> None:
         # The bridge anchor 5 seconds converts to 500 native samples; B's own
@@ -153,10 +156,14 @@ class TestTransitiveUnion:
         union = merged.get_matchstamp_at(50, "a1:clt1")
         b_only = b_bundle.get_matchstamp_at(500, "b_bridge:dpt1")
 
-        assert b_only.get("b1:dpt2") == 1300.0
-        assert b_only.get("b2:dpt3") == 750.0
-        assert union.get("b1:dpt2") == b_only.get("b1:dpt2")
-        assert union.get("b2:dpt3") == b_only.get("b2:dpt3")
+        assert b_only.get_coordinate_for("b1:dpt2", format="float") == 1300.0
+        assert b_only.get_coordinate_for("b2:dpt3", format="float") == 750.0
+        assert union.get_coordinate_for("b1:dpt2") == b_only.get_coordinate_for(
+            "b1:dpt2"
+        )
+        assert union.get_coordinate_for("b2:dpt3") == b_only.get_coordinate_for(
+            "b2:dpt3"
+        )
 
     def test_mixed_claim_units_normalize_each_anchor(self) -> None:
         source = Timeline(length=1000, unit=TimeUnit.samples, uid="source")
@@ -196,7 +203,7 @@ class TestTransitiveUnion:
         warp = bundle._get_or_build_warp_map("source", "target")
 
         assert warp is not None
-        assert warp.source_coords.tolist() == [200.0, 400.0, 600.0]
+        assert warp._source_float_array.tolist() == [200.0, 400.0, 600.0]
         assert bundle.transfer(300.0, "source", "target") == 30.0
 
 
@@ -219,12 +226,16 @@ class TestSupportPolicy:
         merged, _ = _make_bundles()
         stamp = merged.get_matchstamp_at(50, "b_bridge:dpt1")
         assert stamp.is_interpolated is True
-        assert stamp.coordinates == {"b_bridge:dpt1": 50.0}
+        assert stamp.get_coordinate_for("b_bridge:dpt1", format="float") == 50.0
+        assert stamp.present_timelines == ["b_bridge:dpt1"]
 
     def test_clamp_yields_first_anchor_targets(self) -> None:
         merged, _ = _make_bundles()
         stamp = merged.get_matchstamp_at(50, "b_bridge:dpt1", support_policy="clamp")
-        assert stamp.coordinates == {
+        assert {
+            timeline_id: stamp.get_coordinate_for(timeline_id, format="float")
+            for timeline_id in stamp.present_timelines
+        } == {
             "b_bridge:dpt1": 50.0,
             "b1:dpt2": 100.0,  # warp(200), the first anchor
             "b2:dpt3": 300.0,
@@ -235,7 +246,10 @@ class TestSupportPolicy:
         stamp = merged.get_matchstamp_at(
             50, "b_bridge:dpt1", support_policy=SupportPolicy.extrapolate
         )
-        assert stamp.coordinates == {
+        assert {
+            timeline_id: stamp.get_coordinate_for(timeline_id, format="float")
+            for timeline_id in stamp.present_timelines
+        } == {
             "b_bridge:dpt1": 50.0,
             "b1:dpt2": 0.0,  # warp(50) = -500, floored to 0
             "b2:dpt3": 75.0,  # warp(50) = 75, kept
@@ -245,20 +259,23 @@ class TestSupportPolicy:
     def test_no_policy_emits_a_negative_coordinate(self, policy: str) -> None:
         merged, _ = _make_bundles()
         stamp = merged.get_matchstamp_at(50, "b_bridge:dpt1", support_policy=policy)
-        assert all(value >= 0 for value in stamp.coordinates.values())
+        assert all(coordinate.value >= 0 for coordinate in stamp.coordinates.values())
 
     def test_query_coordinate_never_altered(self) -> None:
         merged, _ = _make_bundles()
         for policy in ("omit", "clamp", "extrapolate"):
             stamp = merged.get_matchstamp_at(50, "b_bridge:dpt1", support_policy=policy)
-            assert stamp.get("b_bridge:dpt1") == 50.0
+            assert stamp.get_coordinate_for("b_bridge:dpt1", format="float") == 50.0
 
     def test_instance_default_governs_omitted_argument(self) -> None:
         # Setting the bundle-level policy changes the no-argument behaviour.
         merged, _ = _make_bundles()
         merged.support_policy = SupportPolicy.clamp
         stamp = merged.get_matchstamp_at(50, "b_bridge:dpt1")
-        assert stamp.coordinates == {
+        assert {
+            timeline_id: stamp.get_coordinate_for(timeline_id, format="float")
+            for timeline_id in stamp.present_timelines
+        } == {
             "b_bridge:dpt1": 50.0,
             "b1:dpt2": 100.0,
             "b2:dpt3": 300.0,

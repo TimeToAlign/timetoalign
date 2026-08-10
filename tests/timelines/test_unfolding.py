@@ -1268,12 +1268,8 @@ def _unfold_group(
         end_ts = group.get_timestamp_at(float(qb_end), "clt1")
 
         for tl_id, tl in timelines.items():
-            coord_start = start_ts[tl_id]
-            coord_end = end_ts[tl_id]
-            assert (
-                coord_start is not None
-            ), f"Section {i}: {tl_id} start coordinate is None"
-            assert coord_end is not None, f"Section {i}: {tl_id} end coordinate is None"
+            coord_start = start_ts.get_coordinate_for(tl_id, format="float")
+            coord_end = end_ts.get_coordinate_for(tl_id, format="float")
 
             seg = tl.get_slice(coord_start, coord_end, truncate_events=True)
             unfolded[tl_id].append_segment(seg, name=f"section_{i}")

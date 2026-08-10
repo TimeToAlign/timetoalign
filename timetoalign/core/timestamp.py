@@ -20,7 +20,7 @@ ConversionMap was registered for that relationship.
 from __future__ import annotations
 
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import (
@@ -28,22 +28,40 @@ from typing import (
     Any,
     Callable,
     Iterator,
-    Literal,
     Protocol,
     runtime_checkable,
 )
 
+import pandas as pd
+
 from ..maps.base import ConversionMap
 from .enums import NumberType, TimeUnit
 from .fields import field_metadata
-from .time import format_number, quantize_to_unit
+from .retrieval import (
+    CoordinateFormat,
+    CoordinateResult,
+    KeyCollection,
+    Rounding,
+    classify_dispatch_input,
+    coordinate_wire_entry,
+    format_coordinates,
+    number_type_for_converted_unit,
+    validate_key_collection,
+)
+from .time import (
+    Coordinate,
+    Duration,
+    IdCoordinate,
+    IdDuration,
+    Interval,
+    format_number,
+    quantize_to_unit,
+)
 
 if TYPE_CHECKING:
-    import pandas as pd
     import pyarrow as pa
 
     from ..core.enums import ColumnNaming
-    from ..core.time import Coordinate
     from ..maps.interpolation import InterpolationMap
 else:
     from ..maps.interpolation import InterpolationMap
@@ -177,15 +195,10 @@ def _format_coordinate(coordinate: Coordinate) -> str:
 def _as_float_lane(value: Any) -> Any:
     """Coerce a numeric value to the float lane, passing anything else through.
 
-    Stamps answer in two currencies. ``get_coordinate()``, ``get_unit()`` and
-    the conversion paths are the **exact lane**: they carry whatever
-    representation the coordinate actually has, so a tick position converts
-    to exactly a third of a quarter. ``get()``, subscript access and the raw
-    stamp table are the **float lane**: their job is a uniform numeric
-    currency that tables, dataframes and arithmetic downstream can rely on,
-    and handing those an exact ratio would turn a float column into an object
-    column. Non-numeric conversion outputs -- labels, mappings -- are not
-    numbers in either currency and pass through untouched.
+    Typed retrieval and conversion paths preserve the coordinate's declared
+    representation. Internal tabular and interpolation lanes use floats where
+    their storage or numerical algorithms require them. Non-numeric conversion
+    outputs -- labels and mappings -- pass through untouched.
     """
     if isinstance(value, bool) or value is None:
         return value
@@ -299,61 +312,148 @@ class TimeStampSource(Protocol):
 
 
 class Stamp(ABC):
-    """Common contract for every synchronized stamp.
+    """Shared typed retrieval behavior for synchronized instant stamps."""
 
-    Any stamp, from any source, has identical structure and behaviour: an axis
-    coordinate, a source identity, timeline and unit accessors, coordinate
-    materialization, and dictionary/subscript views.
-    """
-
-    @property
-    @abstractmethod
-    def axis(self) -> float:
-        """Reference coordinate value."""
-        ...
+    coordinates: dict[str, Coordinate]
+    source_id: str
+    source: object | None
+    is_interpolated: bool
 
     @property
-    @abstractmethod
-    def source(self) -> object | None:
-        """Object that provides the stamp's coordinate relationships."""
-        ...
+    def axis(self) -> IdCoordinate:
+        """Return the source-axis coordinate with its timeline identity."""
+        try:
+            coordinate = self.coordinates[self.source_id]
+        except KeyError as exc:
+            raise ValueError(
+                f"Stamp source_id {self.source_id!r} has no stored coordinate"
+            ) from exc
+        return IdCoordinate.from_coordinate(coordinate, self.source_id)
 
     @property
-    @abstractmethod
-    def source_id(self) -> str | None:
-        """Identifier of the source timeline or group."""
-        ...
-
-    @property
-    @abstractmethod
     def present_timelines(self) -> list[str]:
-        """Timeline IDs that have coordinates at this instant."""
-        ...
+        """Return stored timeline IDs in deterministic insertion order."""
+        return list(self.coordinates)
 
-    @property
-    @abstractmethod
-    def is_interpolated(self) -> bool:
-        """Whether this stamp was computed by interpolation."""
-        ...
-
-    @abstractmethod
-    def get(self, timeline_id: str, default: float | None = None) -> float | None:
-        """Get a coordinate on a related timeline."""
-        ...
-
-    @abstractmethod
-    def get_unit(self, unit: TimeUnit) -> int | float | Fraction | None:
-        """Get a coordinate converted to a unit."""
-        ...
-
-    @abstractmethod
-    def to_dict(
+    def get_coordinate_for(
         self,
-        include_children: bool = True,
-        conversion_units: list[TimeUnit] | Literal["all"] | None = None,
-    ) -> dict[str, float | None]:
-        """Materialize the stamp as a coordinate dictionary."""
-        ...
+        timeline_id: str,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
+        """Return one stored coordinate by timeline identity.
+
+        Args:
+            timeline_id: Stored timeline identity.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            The requested scalar projection or a length-one Series.
+
+        Raises:
+            KeyError: If the timeline is absent.
+        """
+        if not isinstance(timeline_id, str):
+            raise TypeError("get_coordinate_for requires a timeline-ID string")
+        try:
+            coordinate = self.coordinates[timeline_id]
+        except KeyError:
+            owner = getattr(self.source, "id", self.source_id)
+            raise KeyError(
+                f"Unknown timeline ID {timeline_id!r} on stamp from {owner!r}"
+            ) from None
+        identified = IdCoordinate.from_coordinate(coordinate, timeline_id)
+        return format_coordinates(
+            [identified],
+            format=format,
+            rounding=rounding,
+            scalar=True,
+            index=pd.Index([timeline_id]) if format == "series" else None,
+            series_name="coordinate",
+        )
+
+    def get_coordinates_for(
+        self,
+        timeline_ids: KeyCollection,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> list[CoordinateResult] | pd.Series:
+        """Return stored coordinates for a collection of timeline identities.
+
+        Args:
+            timeline_ids: Timeline IDs to retrieve in input order.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            A list of projections or one canonical-value Series.
+        """
+        keys, index = validate_key_collection(timeline_ids)
+        identified: list[IdCoordinate] = []
+        for key in keys:
+            try:
+                coordinate = self.coordinates[key]
+            except KeyError:
+                owner = getattr(self.source, "id", self.source_id)
+                raise KeyError(
+                    f"Unknown timeline ID {key!r} on stamp from {owner!r}"
+                ) from None
+            identified.append(IdCoordinate.from_coordinate(coordinate, key))
+        if format == "series" and index is None:
+            index = pd.Index(keys)
+        return format_coordinates(
+            identified,
+            format=format,
+            rounding=rounding,
+            scalar=False,
+            index=index,
+            series_name="coordinate",
+        )
+
+    def get_coordinate(
+        self,
+        at: str | KeyCollection,
+        timeline_id: None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | list[CoordinateResult] | pd.Series:
+        """Dispatch a key query to the singular or plural precise getter.
+
+        Args:
+            at: One timeline ID or a collection of timeline IDs.
+            timeline_id: Must be ``None`` because ``at`` carries the key.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            The singular or plural precise-getter result.
+        """
+        if timeline_id is not None:
+            raise TypeError("Stamp.get_coordinate does not accept timeline_id")
+        branch = classify_dispatch_input(at, empty_is_keys=True)
+        if branch == "key":
+            return self.get_coordinate_for(at, format=format, rounding=rounding)
+        if branch == "keys":
+            return self.get_coordinates_for(at, format=format, rounding=rounding)
+        raise TypeError(
+            "Stamp.get_coordinate accepts timeline keys; use a positional getter "
+            "on the owning timeline or alignment object for coordinate inputs"
+        )
+
+    def to_dict(self) -> dict[str, dict[str, object]]:
+        """Serialize stored coordinates as typed rational wire entries.
+
+        Returns:
+            Timeline IDs mapped to canonical coordinate wire entries.
+        """
+        return {
+            timeline_id: coordinate_wire_entry(coordinate)
+            for timeline_id, coordinate in self.coordinates.items()
+        }
 
     def _on_axis(self, value: Any, timeline_id: str) -> "Coordinate":
         """Express *value* in the declared representation of *timeline_id*.
@@ -387,121 +487,25 @@ class Stamp(ABC):
         """
         return None
 
-    @abstractmethod
     def _unit_for(self, timeline_id: str) -> TimeUnit | None:
-        """Get the unit associated with a timeline ID."""
-        ...
+        """Return the stored unit for a timeline, when present."""
+        coordinate = self.coordinates.get(timeline_id)
+        return None if coordinate is None else coordinate.unit
 
-    def get_coordinate(self, timeline_id: str) -> "Coordinate | None":
-        """Get a coordinate value with its timeline unit attached.
-
-        Args:
-            timeline_id: The timeline to get a coordinate for.
-
-        Returns:
-            A Coordinate object, or None when the timeline or unit is unavailable.
-        """
-        raw = self.get(timeline_id)
-        unit = self._unit_for(timeline_id)
-        if raw is None or unit is None:
-            return None
-
-        exact_getter = getattr(self.source, "_get_exact_coordinate_value", None)
-        if exact_getter is not None:
-            exact = exact_getter(timeline_id, self.axis)
-            if exact is not None:
-                return self._on_axis(exact, timeline_id)
-        # *raw* came off the float lane; the axis decides how it is written.
-        return self._on_axis(raw, timeline_id)
-
-    @property
-    def axis_coordinate(self) -> "Coordinate":
-        """Get the axis value as a Coordinate with its source unit."""
-        from ..core.time import Coordinate
-
-        unit = self._unit_for(self.source_id or "")
-        if unit is None:
-            unit = TimeUnit.seconds
-        return Coordinate(self.axis, unit)
-
-    def get_conversion(self, key: str) -> Any:
-        """Get the raw output of a conversion map addressed by name/selector.
-
-        Base implementation resolves nothing; stamps backed by a timeline
-        subtree override this to expose every attached C-Map -- including
-        label and structured-value maps -- by name, id, selector, or
-        target-unit name.
+    def get_conversion_for(self, key: str) -> object:
+        """Return a structured conversion-map value by selector.
 
         Args:
-            key: A conversion-map name, id, selector, or target-unit name.
-
-        Returns:
-            The C-Map's output at this instant, or None if unreachable.
-        """
-        return None
-
-    def __getitem__(self, key: str) -> Any:
-        """Get a timeline coordinate, a converted unit, or a C-Map output.
-
-        Resolution order: timeline ID, then unit name, then conversion-map
-        name/selector. This makes every attached C-Map -- numeric or not --
-        reachable by subscript.
-
-        Args:
-            key: Timeline ID, unit name, or conversion-map name/selector.
-
-        Returns:
-            The resolved coordinate, unit conversion, or C-Map output. None
-            for an existing timeline/unit that has no value at this instant.
+            key: Conversion-map selector.
 
         Raises:
-            KeyError: If key names nothing reachable at this instant.
+            KeyError: Always for a stamp without conversion-map resolution.
         """
-        result = self.get(key)
-        if result is not None:
-            return result
-        if self._is_timeline_id(key):
-            return result
-
-        try:
-            unit = TimeUnit(key)
-        except ValueError:
-            conversion = self.get_conversion(key)
-            if conversion is not None:
-                return conversion
-            raise KeyError(
-                f"{key!r} names no timeline, unit, or conversion map on this "
-                f"stamp. Present timelines: {self.present_timelines}"
-            ) from None
-
-        if self._unit_resolution_enabled(unit):
-            unit_value = self.get_unit(unit)
-            if unit_value is not None:
-                # Subscript is ``get``'s other spelling, so it answers in the
-                # same float lane; ``get_unit`` is the exact one.
-                return _as_float_lane(unit_value)
-        conversion = self.get_conversion(key)
-        if conversion is not None:
-            return _as_float_lane(conversion)
-        raise KeyError(
-            f"{key!r} names no timeline, unit, or conversion map on this "
-            f"stamp. Present timelines: {self.present_timelines}"
-        )
+        raise KeyError(f"Unknown conversion selector {key!r} on this stamp")
 
     def _unit_resolution_enabled(self, unit: TimeUnit) -> bool:
         """Return whether the stamp's conversion-map spec permits a unit."""
         return True
-
-    def _is_timeline_id(self, key: str) -> bool:
-        """Return whether key names the source or a subtree timeline."""
-        if self.source is None:
-            return key == self.source_id
-        if key == self.source_id:
-            return True
-        if key in self.source._get_related_timeline_ids():  # type: ignore[attr-defined]
-            return True
-        getter = getattr(self.source, "_get_descendant_timeline_ids", None)
-        return getter is not None and key in getter()
 
     def _conversion_map_enabled(self, cmap: "ConversionMap[Any]") -> bool:
         """Return whether this stamp's spec surfaces *cmap*."""
@@ -543,8 +547,8 @@ class TimeStamp(Stamp):
     Works identically for Timeline (with children) and TimelineGroup (with members).
 
     The TimeStamp represents a cross-section through the timeline structure at
-    a specific axis coordinate. All related timelines' coordinates can be
-    retrieved via get() or subscript access.
+    a specific axis coordinate. Related coordinates are retrieved through the
+    typed precise getters and dispatcher.
 
     Attributes:
         axis: The root/reference coordinate value.
@@ -555,160 +559,113 @@ class TimeStamp(Stamp):
 
     Examples:
         >>> ts = timeline.get_timestamp(5.0)
-        >>> ts.axis  # The root coordinate
-        5.0
-        >>> ts["child:1"]  # Get coordinate on child timeline
+        >>> ts.axis  # The root coordinate with identity
+        IdCoordinate(5.0, seconds, 'audio')
+        >>> ts.get_coordinate_for("child:1", format="float")
         2.5
-        >>> ts.get("child:2", default=0.0)  # With default
-        0.0
 
         >>> # Convert to different unit
-        >>> ts.get_unit(TimeUnit.seconds)
+        >>> ts.get_unit(TimeUnit.seconds, format="float")
         10.5
     """
 
-    axis: int | float | Fraction
-    source: TimeStampSource
+    coordinates: dict[str, Coordinate]
     source_id: str
+    source: TimeStampSource | None = field(default=None)
     row_index: int | None = field(default=None)
+    is_interpolated: bool = field(default=False)
     conversion_maps: ConversionMapsSpec = field(default=True)
 
-    def get(self, timeline_id: str, default: float | None = None) -> float | None:
-        """Get coordinate on another timeline.
+    def __post_init__(self) -> None:
+        """Validate canonical typed storage and source identity."""
+        if not isinstance(self.source_id, str) or not self.source_id:
+            raise ValueError("TimeStamp source_id must be a non-empty string")
+        if self.source_id not in self.coordinates:
+            raise ValueError(
+                f"TimeStamp source_id {self.source_id!r} is absent from coordinates"
+            )
+        normalized: dict[str, Coordinate] = {}
+        for timeline_id, coordinate in self.coordinates.items():
+            if not isinstance(timeline_id, str) or not timeline_id:
+                raise ValueError("TimeStamp coordinate keys must be non-empty strings")
+            if type(coordinate) is not Coordinate:
+                raise TypeError(
+                    "TimeStamp coordinates must contain plain Coordinate values; "
+                    f"got {type(coordinate).__name__} for {timeline_id!r}"
+                )
+            normalized[timeline_id] = Coordinate(
+                coordinate.value,
+                coordinate.unit,
+                number_type=coordinate.number_type,
+            )
+        object.__setattr__(self, "coordinates", normalized)
 
-        Returns ``default`` (None) when the queried coordinate falls
-        outside the related timeline's span -- for instance, asking a
-        child whose parent-side interval is ``[10, 30)`` for the
-        coordinate at axis 5.
-
-        For `Timeline` sources, child coordinates are resolved via exact
-        offset arithmetic (no interpolation). For `TimelineGroup` sources,
-        coordinates are resolved via `InterpolationMap`.
-
-        Args:
-            timeline_id: The timeline to get coordinate for.
-            default: Value to return if timeline not reachable or out of span.
-
-        Returns:
-            Coordinate on the target timeline, or *default* if not
-            reachable or the axis is outside the target's span.
-        """
-        if timeline_id == self.source_id:
-            # Round for discrete timelines (TimelineGroup members)
-            if self._number_type_for(timeline_id) == "int":
-                return round(self.axis)
-            return _as_float_lane(self.axis)
-
-        # Bounds check: is axis inside the related timeline's span?
-        if not self.source._contains_coordinate(timeline_id, self.axis, self.source_id):
-            return default
-
-        # Strategy 1: exact offset arithmetic (Timeline with children)
-        _get_child = getattr(self.source, "_get_child_coordinate", None)
-        if _get_child is not None:
-            result = _get_child(timeline_id, self.axis)
-            if result is not None:
-                return float(result)
-            # If child coordinate returned None but _contains_coordinate
-            # said True, fall through to interpolation (should not happen
-            # for Timeline, but is safe).
-
-        # Strategy 2: InterpolationMap (TimelineGroup or fallback)
-        imap = self.source._get_interpolation_map(timeline_id, source_id=self.source_id)
-        if imap is None:
-            return default
-
-        # Determine direction based on source/target IDs
-        if imap.source_id == self.source_id:
-            result = float(imap(self.axis))
-        else:
-            result = float(imap.inverse()(self.axis))
-
-        # Round for discrete timelines (TimelineGroup members)
-        if self._number_type_for(timeline_id) == "int":
-            result = round(result)
-
-        return result
-
-    def get_coordinate(self, timeline_id: str) -> "Coordinate | None":
-        """Get a coordinate while retaining exact scalar information.
-
-        Raw access through :meth:`get` remains float-valued. This accessor
-        evaluates exact parent/child and group relationships separately so a
-        rational query is not approximated at the typed boundary.
+    def get_unit(
+        self,
+        unit: TimeUnit,
+        *,
+        timeline_id: str | None = None,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
+        """Convert one stored coordinate through an eligible unit map.
 
         Args:
-            timeline_id: The timeline to get a coordinate for.
+            unit: Requested target unit.
+            timeline_id: Optional stored axis to select explicitly.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
 
         Returns:
-            A Coordinate object, or None when the timeline is unavailable.
+            The converted coordinate projection.
+
+        Raises:
+            KeyError: If the selected timeline is absent or no eligible map exists.
         """
-        unit = self._unit_for(timeline_id)
-        if unit is None:
-            return None
-
-        # Each branch resolves a coordinate a different way -- a stored row,
-        # offset arithmetic, group interpolation -- and every one of them
-        # then crosses the target axis, which is where its representation is
-        # decided. Computation stays as exact as its inputs allow; expressing
-        # the answer is a separate and final step.
-        if timeline_id == self.source_id:
-            # A stamp queried with a float may still sit on a stored row whose
-            # value is exact; the row is the better answer, and the axis is
-            # only a way of finding it.
-            exact_getter = getattr(self.source, "_get_exact_coordinate_value", None)
-            if exact_getter is not None:
-                stored = exact_getter(timeline_id, self.axis)
-                if stored is not None:
-                    return self._on_axis(stored, timeline_id)
-            return self._on_axis(self.axis, timeline_id)
-
-        child_getter = getattr(self.source, "_get_child_coordinate", None)
-        if child_getter is not None:
-            offset_result = child_getter(timeline_id, self.axis)
-            if offset_result is not None:
-                return self._on_axis(offset_result, timeline_id)
-
-        group_getter = getattr(self.source, "_get_exact_interpolated_coordinate", None)
-        if group_getter is not None:
-            structural = group_getter(timeline_id, self.source_id, self.axis)
-            if structural is not None:
-                return self._on_axis(structural, timeline_id)
-
-        return Stamp.get_coordinate(self, timeline_id)
-
-    def get_unit(self, unit: "TimeUnit") -> int | float | Fraction | None:
-        """Get coordinate converted to a specific unit.
-
-        Works with any map registered by ``add_conversion_map``, called
-        directly regardless of concrete type (``TableMap``, ``ScalarMap``,
-        ``LinearMap``, ``InterpolationMap``, ...).
-
-        Searches the source and every descendant/member timeline for a C-Map
-        with this target unit, evaluating it at the timeline's own coordinate.
-        A timestamp therefore surfaces unit conversions registered at any
-        depth of the hierarchy, not just on the queried timeline.
-
-        Args:
-            unit: The target unit for conversion.
-
-        Returns:
-            Converted coordinate, or None if no C-Map available.
-        """
-        if not self._unit_resolution_enabled(unit):
-            return None
-
-        from ..core.time import Coordinate
-
-        for timeline_id in self._surfaceable_ids():
-            umap = self.source._get_unit_map_for_timeline(timeline_id, unit)
-            if umap is None:
+        if not isinstance(unit, TimeUnit):
+            raise TypeError("get_unit requires a TimeUnit")
+        candidates = (
+            [timeline_id] if timeline_id is not None else self._surfaceable_ids()
+        )
+        for candidate in candidates:
+            if candidate not in self.coordinates:
+                if timeline_id is not None:
+                    raise KeyError(
+                        f"Unknown timeline ID {candidate!r} on stamp from {self.source_id!r}"
+                    )
                 continue
-            value = self._coordinate_on(timeline_id)
-            if value is None:
-                continue
-            return Coordinate(quantize_to_unit(umap(value), unit), unit).value
-        return None
+            coordinate = self.coordinates[candidate]
+            converted_number_type = number_type_for_converted_unit(
+                coordinate.number_type, unit
+            )
+            if coordinate.unit == unit:
+                converted = Coordinate(
+                    coordinate.value,
+                    unit,
+                    number_type=converted_number_type,
+                )
+            else:
+                if self.source is None or not self._unit_resolution_enabled(unit):
+                    continue
+                umap = self.source._get_unit_map_for_timeline(candidate, unit)
+                if umap is None:
+                    continue
+                converted = Coordinate(
+                    quantize_to_unit(umap(coordinate.value), unit),
+                    unit,
+                    number_type=converted_number_type,
+                )
+            identified = IdCoordinate.from_coordinate(converted, candidate)
+            return format_coordinates(
+                [identified],
+                format=format,
+                rounding=rounding,
+                scalar=True,
+                series_name=candidate,
+            )
+        raise KeyError(
+            f"No eligible conversion to {unit.value!r} on stamp from {self.source_id!r}"
+        )
 
     def _surfaceable_ids(self) -> list[str]:
         """Timeline IDs whose C-Maps this stamp surfaces: source, then subtree.
@@ -718,37 +675,16 @@ class TimeStamp(Stamp):
         gathered via ``_get_descendant_timeline_ids`` when the source exposes
         it, otherwise the direct relations are used.
         """
-        ids = [self.source_id]
-        getter = getattr(self.source, "_get_descendant_timeline_ids", None)
-        related = (
-            getter() if getter is not None else self.source._get_related_timeline_ids()
-        )
-        for timeline_id in related:
-            if timeline_id not in ids:
-                ids.append(timeline_id)
-        return ids
+        return list(self.coordinates)
 
     def _coordinate_on(self, timeline_id: str) -> int | float | Fraction | None:
         """Resolve this stamp's coordinate on *timeline_id* (source or subtree).
 
-        Returns the coordinate in whatever representation it actually has,
-        so a C-Map applied to it converts exactly. ``get`` stays float --
-        that is its documented currency -- which is why this reaches for
-        the typed coordinate first and falls back to ``get`` only when
-        there is no exact answer to be had.
+        Returns the coordinate in its stored canonical representation so a
+        conversion map receives the declared axis type.
         """
-        if timeline_id == self.source_id:
-            return self.axis
-        coordinate = self.get_coordinate(timeline_id)
-        if coordinate is not None:
-            return coordinate.value
-        value = self.get(timeline_id)
-        if value is not None:
-            return value
-        resolver = getattr(self.source, "_descendant_coordinate", None)
-        if resolver is not None:
-            return resolver(timeline_id, self.axis, self.source_id)
-        return None
+        coordinate = self.coordinates.get(timeline_id)
+        return None if coordinate is None else coordinate.value
 
     def _conversion_rows(self) -> list[tuple[str, Any, str]]:
         """Surface every C-Map across the cross-section.
@@ -792,7 +728,7 @@ class TimeStamp(Stamp):
 
         return self._qualify_conversion_rows(collected)
 
-    def get_conversion(self, key: str) -> Any:
+    def get_conversion_for(self, key: str) -> object:
         """Get the raw output of a conversion map addressed by name/selector.
 
         Searches the source and every descendant/member present at this axis
@@ -803,11 +739,14 @@ class TimeStamp(Stamp):
             key: A conversion-map name, id, selector, or target-unit name.
 
         Returns:
-            The C-Map's output at this instant, or None if unreachable.
+            The C-Map's output at this instant without projection.
+
+        Raises:
+            KeyError: If no enabled map matches ``key``.
         """
         getter = getattr(self.source, "_get_conversion_maps_for_timeline", None)
         if getter is None:
-            return None
+            raise KeyError(f"Unknown conversion selector {key!r}")
         for timeline_id in self._surfaceable_ids():
             coord = self._coordinate_on(timeline_id)
             if coord is None:
@@ -819,81 +758,12 @@ class TimeStamp(Stamp):
                 if not matches and cmap.target_unit is not None:
                     matches = cmap.target_unit.value == key
                 if matches:
-                    value = cmap(coord)
-                    if cmap.target_unit is not None:
-                        from ..core.time import Coordinate
-
-                        value = Coordinate(value, cmap.target_unit).value
-                    return value
-        return None
-
-    def to_dict(
-        self,
-        include_children: bool = True,
-        conversion_units: list["TimeUnit"] | Literal["all"] | None = None,
-        format: Literal["flat", "prefix", "nested", "graph"] = "flat",
-    ) -> dict[str, Any]:
-        """Materialize all coordinates in a flat or structured dictionary.
-
-        Args:
-            include_children: Include child/member timeline coordinates.
-            conversion_units: C-Map conversions to include.
-                - None: Every C-Map enabled on this stamp
-                - "all": Every C-Map across the subtree, of every kind
-                  (unit conversions, labels, structured values)
-                - list: Specific units only
-            format: Output representation. ``"flat"`` retains the legacy
-                one-level mapping, ``"prefix"`` prefixes keys with the source
-                container ID, ``"nested"`` groups them under that ID, and
-                ``"graph"`` separates timeline coordinates from conversions.
-
-        Returns:
-            Dict mapping timeline_id/unit_name/cmap-label to value.
-        """
-        # to_dict is the dict-shaped sibling of the raw stamp table, so it
-        # answers in the float lane throughout -- see :func:`_as_float_lane`.
-        # The exact values remain one call away via ``get_coordinate()`` and
-        # ``get_unit()``, and the rendered forms (``__str__`` / HTML) show
-        # them exactly.
-        coordinates: dict[str, Any] = {self.source_id: self.get(self.source_id)}
-
-        # Add child/member coordinates
-        if include_children:
-            for tid in self.source._get_related_timeline_ids():
-                coordinates[tid] = self.get(tid)
-
-        conversions: dict[str, Any] = {}
-        if conversion_units is None or conversion_units == "all":
-            for label, value, _suffix in self._conversion_rows():
-                conversions[label] = _as_float_lane(value)
-        elif conversion_units:
-            for unit in conversion_units:
-                value = self.get_unit(unit)
-                if value is not None:
-                    conversions[unit.value] = _as_float_lane(value)
-
-        if format == "graph":
-            return {"coordinates": coordinates, "conversions": conversions}
-
-        if format not in ("flat", "prefix", "nested"):
-            raise ValueError(
-                f"Unknown format: {format!r}. Use 'flat', 'prefix', "
-                "'nested', or 'graph'"
-            )
-
-        result = {**coordinates, **conversions}
-        if format == "flat":
-            return result
-
-        container_id = getattr(self.source, "id", self.source_id)
-        if format == "nested":
-            return {container_id: result}
-
-        return {f"{container_id}/{key}": value for key, value in result.items()}
+                    return cmap(coord)
+        raise KeyError(f"Unknown conversion selector {key!r}")
 
     def _unit_for(self, timeline_id: str) -> "TimeUnit | None":
         """Get the unit associated with a timeline ID."""
-        return self.source._get_unit_for_timeline(timeline_id)
+        return Stamp._unit_for(self, timeline_id)
 
     def _unit_resolution_enabled(self, unit: TimeUnit) -> bool:
         """Return whether conversion-map specification permits a unit."""
@@ -942,20 +812,6 @@ class TimeStamp(Stamp):
             number_type = timeline.number_type if timeline is not None else None
         return number_type.name if number_type is not None else None
 
-    @property
-    def is_interpolated(self) -> bool:
-        """True if this timestamp was computed via interpolation."""
-        return self.row_index == -1
-
-    @property
-    def present_timelines(self) -> list[str]:
-        """Timeline IDs that have coordinates at this instant."""
-        result = [self.source_id]
-        for tid in self.source._get_related_timeline_ids():
-            if self.get(tid) is not None:
-                result.append(tid)
-        return result
-
     def __repr__(self) -> str:
         interp = " (interpolated)" if self.is_interpolated else ""
         conversions = "".join(
@@ -983,26 +839,30 @@ class TimeStamp(Stamp):
         lines: list[str] = []
 
         # Header: axis value with unit
-        axis_unit = self.source._get_unit_for_timeline(self.source_id)
-        unit_str = axis_unit.value if axis_unit else ""
-        lines.append(f"TimeStamp @{_format_coordinate_value(self.axis, unit_str)}")
+        axis_entry = self.coordinates[self.source_id]
+        unit_str = axis_entry.unit.value
+        lines.append(
+            f"TimeStamp @{_format_coordinate_value(axis_entry.value, unit_str)}"
+        )
 
         # Collect all entries: (label, value_str)
         entries: list[tuple[str, str]] = []
 
         # Source timeline
-        entries.append((self.source_id, _format_coordinate_value(self.axis, unit_str)))
+        entries.append(
+            (
+                self.source_id,
+                _format_coordinate_value(axis_entry.value, unit_str),
+            )
+        )
 
         # Children / related timelines (skip source_id to avoid duplicate)
-        for tid in self.source._get_related_timeline_ids():
+        for tid, coordinate in self.coordinates.items():
             if tid == self.source_id:
-                continue  # Already added above
-            val = self.get(tid)
-            if val is not None:
-                t_unit = self.source._get_unit_for_timeline(tid)
-                entries.append(
-                    (tid, _format_coordinate_value(val, t_unit.value if t_unit else ""))
-                )
+                continue
+            entries.append(
+                (tid, _format_coordinate_value(coordinate.value, coordinate.unit.value))
+            )
 
         # C-Map conversions (all kinds, across the whole subtree)
         for label, value, suffix in self._conversion_rows():
@@ -1026,34 +886,32 @@ class TimeStamp(Stamp):
 
         from timetoalign.display.html import affordance_line
 
-        def _fmt_html(value: float, unit_name: str = "") -> str:
+        def _fmt_html(value: int | float | Fraction, unit_name: str = "") -> str:
             """Format for HTML display, keeping unit separate."""
             return _format_coordinate_value(value, unit_name)
 
         rows = []
 
         # Add axis coordinate
-        axis_unit = self.source._get_unit_for_timeline(self.source_id)
-        axis_unit_name = axis_unit.value if axis_unit else ""
+        axis_entry = self.coordinates[self.source_id]
+        axis_unit_name = axis_entry.unit.value
         rows.append(
             f"<tr><td><strong>{html.escape(self.source_id)}</strong></td>"
-            f"<td style='text-align: right;'>{_fmt_html(self.axis, axis_unit_name)}</td>"
+            f"<td style='text-align: right;'>"
+            f"{_fmt_html(axis_entry.value, axis_unit_name)}</td>"
             f"<td><em>axis</em></td></tr>"
         )
 
         # Add related timeline coordinates (children) - skip source_id to avoid duplicate
-        for tid in self.source._get_related_timeline_ids():
+        for tid, coordinate in self.coordinates.items():
             if tid == self.source_id:
-                continue  # Already added above
-            val = self.get(tid)
-            if val is not None:
-                unit = self.source._get_unit_for_timeline(tid)
-                unit_name = unit.value if unit else ""
-                rows.append(
-                    f"<tr><td>{html.escape(tid)}</td>"
-                    f"<td style='text-align: right;'>{_fmt_html(val, unit_name)}</td>"
-                    f"<td><em>child</em></td></tr>"
-                )
+                continue
+            rows.append(
+                f"<tr><td>{html.escape(tid)}</td>"
+                f"<td style='text-align: right;'>"
+                f"{_fmt_html(coordinate.value, coordinate.unit.value)}</td>"
+                f"<td><em>child</em></td></tr>"
+            )
 
         # Add C-Map conversions (all kinds, across the whole subtree)
         for label, value, suffix in self._conversion_rows():
@@ -1071,6 +929,14 @@ class TimeStamp(Stamp):
             else ""
         )
 
+        affordances = affordance_line(
+            [
+                "ts.get_coordinate_for(<tl_id>)",
+                "ts.get_unit(<unit>)",
+                "ts.get_conversion_for(<key>)",
+            ]
+        )
+
         return (
             f"<div style='font-family: monospace;'>"
             f"<strong>TimeStamp</strong>{interp_badge}"
@@ -1082,7 +948,7 @@ class TimeStamp(Stamp):
             f"</tr></thead>"
             f"<tbody>{''.join(rows)}</tbody>"
             f"</table>"
-            f"{affordance_line(['ts.get(<tl_id>)', 'ts.get_unit(<unit>)', 'ts[<cmap>]'])}"
+            f"{affordances}"
             f"</div>"
         )
 
@@ -1095,287 +961,168 @@ class TimeStamp(Stamp):
 
 @dataclass(frozen=True, slots=True)
 class TimeIntervalStamp:
-    """An interval defined by start and end TimeStamps.
+    """A synchronized collection of canonical typed timeline intervals.
 
-    Provides facilities for zipping corresponding (start, end) pairs
-    across all related timelines.
-
-    Attributes:
-        start: TimeStamp at interval start.
-        end: TimeStamp at interval end.
-
-    Examples:
-        >>> interval = timeline.get_interval_stamp(0.0, 10.0)
-        >>> interval.duration  # On axis timeline
-        10.0
-        >>> interval.get_interval("child:1")  # (start, end) tuple
-        (0.0, 7.5)
-        >>> interval.get_duration("child:1")
-        7.5
-
-        >>> # Get all intervals at once
-        >>> interval.zip_intervals()
-        {'tl:1': (0.0, 10.0), 'child:1': (0.0, 7.5)}
+    Args:
+        intervals: Timeline-ID to interval mapping.
+        source_id: Timeline identity defining the interval axis.
+        source: Optional object providing conversion maps.
+        is_interpolated: Whether any endpoint was estimated.
     """
 
-    start: TimeStamp
-    end: TimeStamp
+    intervals: dict[str, Interval]
+    source_id: str
+    source: TimeStampSource | None = field(default=None)
+    is_interpolated: bool = field(default=False)
 
     def __post_init__(self) -> None:
-        """Validate that start and end are from the same source."""
-        if self.start.source_id != self.end.source_id:
+        """Validate canonical interval storage and source identity."""
+        if not isinstance(self.source_id, str) or not self.source_id:
+            raise ValueError("TimeIntervalStamp source_id must be a non-empty string")
+        if self.source_id not in self.intervals:
             raise ValueError(
-                f"Start and end must be from the same source: "
-                f"got {self.start.source_id!r} and {self.end.source_id!r}"
+                f"TimeIntervalStamp source_id {self.source_id!r} is absent from intervals"
             )
+        normalized: dict[str, Interval] = {}
+        for timeline_id, interval in self.intervals.items():
+            if not isinstance(timeline_id, str) or not timeline_id:
+                raise ValueError("Interval keys must be non-empty timeline IDs")
+            if not isinstance(interval, Interval):
+                raise TypeError(
+                    "TimeIntervalStamp intervals must contain Interval values; "
+                    f"got {type(interval).__name__} for {timeline_id!r}"
+                )
+            normalized[timeline_id] = interval.model_copy(deep=True)
+        object.__setattr__(self, "intervals", normalized)
 
     @property
-    def duration(self) -> float:
-        """Duration on the axis timeline."""
-        return self.end.axis - self.start.axis
+    def duration(self) -> Duration:
+        """Return the typed duration on the source axis."""
+        return self.intervals[self.source_id].duration
 
     @property
-    def source(self) -> TimeStampSource:
-        """The source Timeline/Group."""
-        return self.start.source
+    def present_timelines(self) -> list[str]:
+        """Return stored timeline IDs in deterministic insertion order."""
+        return list(self.intervals)
 
     @property
-    def source_id(self) -> str:
-        """ID of the source."""
-        return self.start.source_id
+    def axis(self) -> Interval:
+        """Return the typed interval on the source axis."""
+        return self.intervals[self.source_id]
 
-    def get_interval(self, timeline_id: str) -> tuple[float, float] | None:
-        """Get (start, end) pair for a specific timeline.
+    @property
+    def start(self) -> TimeStamp:
+        """Return a derived instant stamp of all interval starts."""
+        return TimeStamp(
+            coordinates={key: value.start for key, value in self.intervals.items()},
+            source_id=self.source_id,
+            source=self.source,
+            is_interpolated=self.is_interpolated,
+        )
 
-        Args:
-            timeline_id: The timeline to get interval for.
+    @property
+    def end(self) -> TimeStamp:
+        """Return a derived instant stamp of all interval ends."""
+        return TimeStamp(
+            coordinates={key: value.end for key, value in self.intervals.items()},
+            source_id=self.source_id,
+            source=self.source,
+            is_interpolated=self.is_interpolated,
+        )
 
-        Returns:
-            Tuple of (start, end) coordinates, or None if timeline not reachable.
-        """
-        s = self.start.get(timeline_id)
-        e = self.end.get(timeline_id)
-        if s is not None and e is not None:
-            return (s, e)
-        return None
-
-    def get_duration(self, timeline_id: str) -> float | None:
-        """Get duration on a specific timeline.
-
-        Args:
-            timeline_id: The timeline to get duration for.
-
-        Returns:
-            Duration (end - start), or None if timeline not reachable.
-        """
-        interval = self.get_interval(timeline_id)
-        if interval:
-            return interval[1] - interval[0]
-        return None
-
-    def get_unit_interval(self, unit: "TimeUnit") -> tuple[float, float] | None:
-        """Get (start, end) pair for a specific unit.
+    def get_interval(self, timeline_id: str) -> Interval:
+        """Return one stored interval by timeline identity.
 
         Args:
-            unit: The target unit.
+            timeline_id: Stored timeline identity.
 
         Returns:
-            Tuple of (start, end) in the target unit, or None if no C-Map.
+            The canonical typed interval.
+
+        Raises:
+            KeyError: If the timeline is absent.
         """
-        s = self.start.get_unit(unit)
-        e = self.end.get_unit(unit)
-        if s is not None and e is not None:
-            return (s, e)
-        return None
+        if not isinstance(timeline_id, str):
+            raise TypeError("get_interval requires a timeline-ID string")
+        try:
+            return self.intervals[timeline_id]
+        except KeyError:
+            raise KeyError(
+                f"Unknown timeline ID {timeline_id!r} on interval stamp "
+                f"from {self.source_id!r}"
+            ) from None
 
-    def get_coordinate_interval(
-        self, timeline_id: str
-    ) -> "tuple[Coordinate, Coordinate] | None":
-        """Get (start, end) as proper Coordinate objects.
-
-        Unlike get_interval() which returns floats, this returns Coordinates
-        with the correct TimeUnit attached.
+    def get_intervals(
+        self, timeline_ids: KeyCollection | None = None
+    ) -> dict[str, Interval]:
+        """Return selected stored intervals in requested order.
 
         Args:
-            timeline_id: The timeline to get interval for.
+            timeline_ids: Timeline IDs, or ``None`` for every stored interval.
 
         Returns:
-            Tuple of (start, end) Coordinates, or None if not reachable.
-
-        Examples:
-            >>> interval = timeline.get_interval_stamp(10.0, 50.0)
-            >>> start, end = interval.get_coordinate_interval("child:1")
-            >>> start.unit
-            <TimeUnit.seconds: 'seconds'>
+            A new ordered interval dictionary.
         """
-        start_coord = self.start.get_coordinate(timeline_id)
-        end_coord = self.end.get_coordinate(timeline_id)
-        if start_coord is not None and end_coord is not None:
-            return (start_coord, end_coord)
-        return None
+        if timeline_ids is None:
+            return dict(self.intervals)
+        keys, _ = validate_key_collection(timeline_ids)
+        return {key: self.get_interval(key) for key in keys}
 
-    def zip_intervals(
-        self,
-        timeline_ids: list[str] | None = None,
-        include_units: list["TimeUnit"] | None = None,
-    ) -> dict[str, tuple[float, float]]:
-        """Get all (start, end) pairs across timelines.
+    def get_duration_for(self, timeline_id: str) -> IdDuration:
+        """Return one stored interval duration with timeline identity.
 
         Args:
-            timeline_ids: Specific timelines to include (None = all).
-            include_units: C-Map units to include as well.
+            timeline_id: Stored timeline identity.
 
         Returns:
-            Dict mapping timeline_id/unit to (start, end) tuple.
+            The canonical typed ID duration.
         """
-        result: dict[str, tuple[float, float]] = {}
+        return IdDuration.from_duration(
+            self.get_interval(timeline_id).duration, timeline_id
+        )
 
-        # Add source timeline
-        result[self.source_id] = (self.start.axis, self.end.axis)
+    def get_interval_in(
+        self, unit: TimeUnit, *, timeline_id: str | None = None
+    ) -> Interval:
+        """Convert both endpoints of one stored interval to a target unit.
 
-        # Get timeline intervals
-        ids = timeline_ids or self.source._get_related_timeline_ids()
-        for tid in ids:
-            interval = self.get_interval(tid)
-            if interval:
-                result[tid] = interval
+        Args:
+            unit: Requested target unit.
+            timeline_id: Optional stored axis to select explicitly.
 
-        # Get unit intervals
-        if include_units:
-            for unit in include_units:
-                interval = self.get_unit_interval(unit)
-                if interval:
-                    result[unit.name] = interval
-
-        return result
+        Returns:
+            A typed interval in the target unit.
+        """
+        selected = timeline_id
+        start = self.start.get_unit(unit, timeline_id=selected, format="coordinate")
+        end = self.end.get_unit(unit, timeline_id=selected, format="coordinate")
+        if not isinstance(start, Coordinate) or not isinstance(end, Coordinate):
+            raise TypeError("Internal interval conversion did not return coordinates")
+        return Interval(start=start, end=end)
 
     def __iter__(self) -> Iterator[TimeStamp]:
         """Iterate as (start, end) pair."""
         return iter((self.start, self.end))
 
-    def __getitem__(self, key: str) -> tuple[float, float] | None:
-        """Subscript access for intervals."""
-        return self.get_interval(key)
-
     def __repr__(self) -> str:
         return (
-            f"TimeIntervalStamp(start={self.start.axis}, end={self.end.axis}, "
+            f"TimeIntervalStamp(start={self.axis.start!r}, end={self.axis.end!r}, "
             f"source={self.source_id!r})"
         )
 
     def __str__(self) -> str:
-        """Readable cross-section showing start/end across all reachable timelines.
-
-        Entries where only one endpoint is in range display ``-`` for the
-        missing side, making it easy to see events that straddle children.
-
-        Examples:
-            >>> print(timeline.get_interval_stamp(8.0, 12.0))
-            TimeIntervalStamp [8, 12) seconds
-                          start    end
-              audio           8     12 seconds
-              intro           8      - seconds
-              verse           -      2 seconds
-              milliseconds 8000  12000
-              samples    384000 576000
-        """
-
-        def _fmt(v: float | None, unit_name: str = "") -> str:
-            """Format a coordinate value; ``None`` becomes ``-``."""
-            if v is None:
-                return "-"
-            # Use the module-level formatter but strip unit suffix (we add it separately)
-            formatted = _format_coordinate_value(v, unit_name)
-            # Remove the unit suffix since we display it at the end of the row
-            if unit_name and formatted.endswith(f" {unit_name}"):
-                formatted = formatted[: -(len(unit_name) + 1)]
-            return formatted
-
-        axis_unit = self.source._get_unit_for_timeline(self.source_id)
-        unit_str = f" {axis_unit.value}" if axis_unit else ""
-        unit_name = axis_unit.value if axis_unit else ""
-
-        # Header - format axis values properly
-        start_fmt = _format_coordinate_value(self.start.axis, unit_name)
-        end_fmt = _format_coordinate_value(self.end.axis, unit_name)
-        # Strip unit from these since we show it at end
-        if unit_name:
-            if start_fmt.endswith(f" {unit_name}"):
-                start_fmt = start_fmt[: -(len(unit_name) + 1)]
-            if end_fmt.endswith(f" {unit_name}"):
-                end_fmt = end_fmt[: -(len(unit_name) + 1)]
-
-        # Header
-        lines: list[str] = [f"TimeIntervalStamp [{start_fmt}, {end_fmt}){unit_str}"]
-
-        # Collect rows: (label, start_str, end_str, suffix)
-        rows: list[tuple[str, str, str, str]] = []
-
-        # Axis / source timeline
-        rows.append(
-            (
-                self.source_id,
-                _fmt(self.start.axis, unit_name),
-                _fmt(self.end.axis, unit_name),
-                unit_str.strip(),
-            )
-        )
-
-        # Children / related timelines
-        for tid in self.source._get_related_timeline_ids():
-            s = self.start.get(tid)
-            e = self.end.get(tid)
-            if s is None and e is None:
-                continue
-            t_unit = self.source._get_unit_for_timeline(tid)
-            suffix = t_unit.value if t_unit else ""
-            rows.append((tid, _fmt(s, suffix), _fmt(e, suffix), suffix))
-
-        # C-Map conversions (all kinds, across the whole subtree)
-        def _fmt_any(value: object | None, suffix: str) -> str:
-            """Format a C-Map endpoint; ``None`` becomes ``-``."""
-            if value is None:
-                return "-"
-            if isinstance(value, bool):
-                return str(value)
-            if isinstance(value, (int, float)):
-                return _fmt(value, suffix)
-            return str(value)
-
-        start_rows = {
-            label: (value, suffix)
-            for label, value, suffix in self.start._conversion_rows()
-        }
-        end_rows = {
-            label: (value, suffix)
-            for label, value, suffix in self.end._conversion_rows()
-        }
-        ordered_labels = list(start_rows) + [
-            label for label in end_rows if label not in start_rows
+        """Return a readable typed interval cross-section."""
+        axis = self.axis
+        lines = [
+            "TimeIntervalStamp "
+            f"[{format_number(axis.start.value)}, {format_number(axis.end.value)}) "
+            f"{axis.unit.value}"
         ]
-        for label in ordered_labels:
-            s_val, suffix = start_rows.get(label, (None, end_rows[label][1]))
-            e_val = end_rows.get(label, (None, ""))[0]
-            rows.append((label, _fmt_any(s_val, suffix), _fmt_any(e_val, suffix), ""))
-
-        # Align fields
-        if rows:
-            max_label = max(len(r[0]) for r in rows)
-            max_start = max(len(r[1]) for r in rows)
-            max_end = max(len(r[2]) for r in rows)
-
-            # Column headers
+        for timeline_id, interval in self.intervals.items():
             lines.append(
-                f"  {'':>{max_label}}  {'start':>{max_start}}  {'end':>{max_end}}"
+                f"  {timeline_id}  {format_number(interval.start.value)}  "
+                f"{format_number(interval.end.value)} {interval.unit.value}"
             )
-
-            for label, s_str, e_str, suffix in rows:
-                suffix_part = f" {suffix}" if suffix else ""
-                lines.append(
-                    f"  {label:<{max_label}}  {s_str:>{max_start}}  "
-                    f"{e_str:>{max_end}}{suffix_part}"
-                )
-
         return "\n".join(lines)
 
 

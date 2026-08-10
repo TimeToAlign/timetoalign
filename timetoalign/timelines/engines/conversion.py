@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Iterator
 
 import numpy as np
+import pandas as pd
 
 from timetoalign.core import (
     Coordinate,
@@ -17,6 +17,18 @@ from timetoalign.core import (
     TimeUnit,
     express_as,
     resolve_coordinate_spec,
+)
+from timetoalign.core.retrieval import (
+    CoordinateCollection,
+    CoordinateFormat,
+    CoordinateInput,
+    CoordinateResult,
+    KeyCollection,
+    Rounding,
+    classify_dispatch_input,
+    format_coordinates,
+    validate_coordinate_collection,
+    validate_key_collection,
 )
 from timetoalign.core.time import coordinate_numeric_value, exact_coordinate_value
 from timetoalign.maps import ConversionMap, InterpolationMap
@@ -54,32 +66,7 @@ class ConversionMapsMixin:
         Returns:
             A timestamp with exact scalar provenance when one exists.
         """
-        timestamp = super().get_timestamp(
-            coord,
-            unit=unit,
-            conversion_maps=conversion_maps,
-        )
-        if unit is None:
-            native_coord = self.get_coordinate(coord)
-        else:
-            target_unit = TimeUnit(unit) if isinstance(unit, str) else unit
-            decomposed = resolve_coordinate_spec(coord)
-            if decomposed.timeline_id is None:
-                qualified_coord: CoordinateSpec = Coordinate(
-                    decomposed.value, target_unit
-                )
-            else:
-                qualified_coord = IdCoordinate(
-                    decomposed.value,
-                    target_unit,
-                    decomposed.timeline_id,
-                )
-            native_coord = self.get_coordinate(qualified_coord)
-
-        # The coordinate is already written in this timeline's declared type,
-        # so the axis carries it as-is; everything derived from the stamp is
-        # expressed on its own axis in turn.
-        return replace(timestamp, axis=native_coord.value)
+        return super().get_timestamp(coord, unit=unit, conversion_maps=conversion_maps)
 
     @property
     def n_conversion_maps(self) -> int:
@@ -596,17 +583,11 @@ class ConversionMapsMixin:
             return True
         return self._get_child_coordinate(timeline_id, axis) is not None
 
-    def get_coordinate(
-        self, value: CoordinateSpec, timeline_id: str | None = None
-    ) -> Coordinate:
-        """Resolve a coordinate into this timeline's coordinate system.
+    def _convert_coordinate_to_self(self, value: CoordinateSpec) -> Coordinate:
+        """Resolve one coordinate into this timeline's canonical axis.
 
         Args:
-            value: Numeric, unit-qualified, or timeline-qualified coordinate. A
-                bare number with ``timeline_id`` is expressed in that descendant
-                timeline's native coordinate system.
-            timeline_id: Timeline that owns ``value``. An embedded ID on an
-                ``IdCoordinate`` must match this value when both are provided.
+            value: Numeric, unit-qualified, or timeline-qualified coordinate.
 
         Returns:
             A coordinate expressed in this timeline's native unit.
@@ -614,7 +595,7 @@ class ConversionMapsMixin:
         Raises:
             ValueError: If a timeline ID is unknown or no unit conversion path exists.
         """
-        resolved = resolve_coordinate_spec(value, timeline_id=timeline_id)
+        resolved = resolve_coordinate_spec(value)
         owner_id = resolved.timeline_id or self._id
         path = self._descendant_offset_path(owner_id)
         if path is None:
@@ -670,6 +651,215 @@ class ConversionMapsMixin:
             number_type=self._number_type,
         )
 
+    def get_coordinate_at(
+        self,
+        at: CoordinateInput,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
+        """Resolve one position onto this timeline's canonical axis.
+
+        Args:
+            at: Coordinate position to resolve.
+            timeline_id: Optional result-axis validator.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            One coordinate projection or a length-one Series.
+
+        Raises:
+            KeyError: If the result or embedded source timeline is unknown.
+            ValueError: If a unit has no unique invertible conversion path.
+            TypeError: If ``at`` is not a scalar coordinate input.
+        """
+        if timeline_id is not None and timeline_id != self._id:
+            raise KeyError(
+                f"Unknown result timeline ID {timeline_id!r} on timeline {self._id!r}"
+            )
+        if not (
+            not isinstance(at, bool)
+            and isinstance(at, (int, float, Fraction, Coordinate))
+        ):
+            raise TypeError("get_coordinate_at requires one scalar coordinate input")
+        try:
+            coordinate = self._convert_coordinate_to_self(at)
+        except ValueError as exc:
+            if isinstance(at, IdCoordinate) and "Timeline ID" in str(exc):
+                raise KeyError(
+                    f"Unknown source timeline ID {at.timeline_id!r} on "
+                    f"timeline {self._id!r}"
+                ) from None
+            raise
+        identified = IdCoordinate.from_coordinate(coordinate, self._id)
+        return format_coordinates(
+            [identified],
+            format=format,
+            rounding=rounding,
+            scalar=True,
+            series_name=self._id,
+        )
+
+    def get_coordinates_at(
+        self,
+        at: CoordinateCollection,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> list[CoordinateResult] | pd.Series:
+        """Resolve a collection of positions onto this timeline.
+
+        Args:
+            at: Coordinate positions to resolve.
+            timeline_id: Optional result-axis validator.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            A list of projections or canonical-value Series.
+        """
+        values, index = validate_coordinate_collection(at)
+        coordinates: list[IdCoordinate] = []
+        for value in values:
+            result = self.get_coordinate_at(
+                value,
+                timeline_id=timeline_id,
+                format="id_coordinate",
+                rounding=rounding,
+            )
+            assert isinstance(result, IdCoordinate)
+            coordinates.append(result)
+        return format_coordinates(
+            coordinates,
+            format=format,
+            rounding=rounding,
+            scalar=False,
+            index=index,
+            series_name=self._id,
+            empty_number_type=self._number_type,
+        )
+
+    def get_coordinate_for(
+        self,
+        key: str,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
+        """Return an event's start coordinate on this timeline.
+
+        Args:
+            key: Event ID to find recursively.
+            timeline_id: Optional result-axis validator.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            The event-start coordinate projection.
+        """
+        if not isinstance(key, str):
+            raise TypeError("get_coordinate_for requires an event-ID string")
+        if timeline_id is not None and timeline_id != self._id:
+            raise KeyError(
+                f"Unknown result timeline ID {timeline_id!r} on timeline {self._id!r}"
+            )
+        stamp = self.get_timestamp_of(key)
+        if hasattr(stamp, "get_interval"):
+            coordinate = stamp.get_interval(self._id).start
+        else:
+            coordinate = stamp.get_coordinate_for(self._id, format="coordinate")
+        assert isinstance(coordinate, Coordinate)
+        return format_coordinates(
+            [IdCoordinate.from_coordinate(coordinate, self._id)],
+            format=format,
+            rounding=rounding,
+            scalar=True,
+            index=pd.Index([key]) if format == "series" else None,
+            series_name="coordinate",
+        )
+
+    def get_coordinates_for(
+        self,
+        keys: KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> list[CoordinateResult] | pd.Series:
+        """Return event-start coordinates for a collection of event IDs.
+
+        Args:
+            keys: Event IDs to retrieve.
+            timeline_id: Optional result-axis validator.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            A list of projections or canonical-value Series.
+        """
+        key_values, index = validate_key_collection(keys)
+        coordinates: list[IdCoordinate] = []
+        for key in key_values:
+            result = self.get_coordinate_for(
+                key,
+                timeline_id=timeline_id,
+                format="id_coordinate",
+                rounding=rounding,
+            )
+            assert isinstance(result, IdCoordinate)
+            coordinates.append(result)
+        if format == "series" and index is None:
+            index = pd.Index(key_values)
+        return format_coordinates(
+            coordinates,
+            format=format,
+            rounding=rounding,
+            scalar=False,
+            index=index,
+            series_name="coordinate",
+            empty_number_type=self._number_type,
+        )
+
+    def get_coordinate(
+        self,
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | list[CoordinateResult] | pd.Series:
+        """Dispatch a positional or event-key coordinate query.
+
+        Args:
+            at: Scalar or plural coordinate position or event key.
+            timeline_id: Optional result-axis validator.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            The selected precise-getter result.
+        """
+        branch = classify_dispatch_input(at)
+        if branch == "coordinate":
+            return self.get_coordinate_at(
+                at, timeline_id=timeline_id, format=format, rounding=rounding
+            )
+        if branch == "coordinates":
+            return self.get_coordinates_at(
+                at, timeline_id=timeline_id, format=format, rounding=rounding
+            )
+        if branch == "key":
+            return self.get_coordinate_for(
+                at, timeline_id=timeline_id, format=format, rounding=rounding
+            )
+        return self.get_coordinates_for(
+            at, timeline_id=timeline_id, format=format, rounding=rounding
+        )
+
     def _resolve_axis_value(self, coord: CoordinateSpec) -> int | float | Fraction:
         """Resolve a coordinate and return its native numeric value."""
-        return self.get_coordinate(coord).value
+        return self._convert_coordinate_to_self(coord).value

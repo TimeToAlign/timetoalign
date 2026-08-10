@@ -145,10 +145,10 @@ class TestRecursiveOffset:
         child.add_child(grandchild, offset=5.0)
 
         assert parent.get_coordinate(
-            IdCoordinate(0.0, TimeUnit.seconds, "grandchild")
+            IdCoordinate(0.0, TimeUnit.seconds, "grandchild"), format="coordinate"
         ) == Coordinate(15.0, TimeUnit.seconds)
         assert parent.get_coordinate(
-            IdCoordinate(5.0, TimeUnit.seconds, "grandchild")
+            IdCoordinate(5.0, TimeUnit.seconds, "grandchild"), format="coordinate"
         ) == Coordinate(20.0, TimeUnit.seconds)
         assert parent._get_parent_coordinate_from_child("grandchild", 5.0) == 20.0
 
@@ -161,7 +161,8 @@ class TestRecursiveOffset:
         parent.add_child(child, offset=Fraction(9, 2))
 
         assert parent.get_coordinate(
-            IdCoordinate(Fraction(0), TimeUnit.quarters, "grandchild")
+            IdCoordinate(Fraction(0), TimeUnit.quarters, "grandchild"),
+            format="coordinate",
         ) == Coordinate(Fraction(6), TimeUnit.quarters)
         assert parent._get_parent_coordinate_from_child(
             "grandchild", Fraction(1, 2)
@@ -182,23 +183,24 @@ class TestTimeStampOffsetArithmetic:
         parent: ContinuousPhysicalTimeline,
         child: ContinuousPhysicalTimeline,
     ) -> None:
-        """Verify TimeStamp.get() uses offset arithmetic for children."""
+        """Verify typed timestamp retrieval uses child offset arithmetic."""
         parent.add_child(child, offset=10.0)
 
         ts = parent.get_timestamp(25.0)
-        assert ts.axis == 25.0
-        assert ts.get("child") == 15.0  # exact: 25.0 - 10.0
+        assert ts.axis == IdCoordinate(25.0, TimeUnit.seconds, "parent")
+        assert ts.get_coordinate_for("child", format="float") == 15.0
 
     def test_timestamp_out_of_bounds_returns_none(
         self,
         parent: ContinuousPhysicalTimeline,
         child: ContinuousPhysicalTimeline,
     ) -> None:
-        """Verify TimeStamp returns None for coordinates outside child span."""
+        """Verify TimeStamp raises for coordinates outside a child span."""
         parent.add_child(child, offset=10.0)
 
         ts = parent.get_timestamp(5.0)
-        assert ts.get("child") is None  # 5.0 < offset 10.0
+        with pytest.raises(KeyError):
+            ts.get_coordinate_for("child")
 
     def test_timestamp_boundary_values(
         self,
@@ -210,15 +212,16 @@ class TestTimeStampOffsetArithmetic:
 
         # Start: inclusive (child coord = 0.0)
         ts_start = parent.get_timestamp(10.0)
-        assert ts_start.get("child") == 0.0
+        assert ts_start.get_coordinate_for("child", format="float") == 0.0
 
         # Just before end: in range
         ts_near_end = parent.get_timestamp(39.9)
-        assert ts_near_end.get("child") == 29.9
+        assert ts_near_end.get_coordinate_for("child", format="float") == 29.9
 
         # End: exclusive (child coord = 30.0 == length, out of range)
         ts_end = parent.get_timestamp(40.0)
-        assert ts_end.get("child") is None
+        with pytest.raises(KeyError):
+            ts_end.get_coordinate_for("child")
 
     def test_no_interpolation_map_for_children(
         self,

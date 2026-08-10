@@ -19,10 +19,9 @@ import numpy as np
 import pytest
 
 from timetoalign.alignment.claims import AlignmentAnchor, MatchClaim
-from timetoalign.alignment.graph import MatchStamp
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.alignment.warpmap import WarpMap
-from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
 from timetoalign.timelines.base import Timeline
 from timetoalign.timelines.regions import Region
 from timetoalign.timelines.types import (
@@ -31,7 +30,38 @@ from timetoalign.timelines.types import (
     DiscreteGraphicalTimeline,
 )
 
+from .helpers import make_match_stamp as MatchStamp
+
 # region Fixtures
+
+
+def _warp_from_values(
+    source_timeline_id: str,
+    target_timeline_id: str,
+    source_values: list[int | float],
+    target_values: list[int | float],
+    *,
+    source_unit: TimeUnit = TimeUnit.number,
+    target_unit: TimeUnit = TimeUnit.number,
+) -> WarpMap:
+    """Build a WarpMap from typed ID-bearing coordinate fixtures."""
+    return WarpMap.from_coordinate_pairs(
+        source_timeline_id,
+        target_timeline_id,
+        [
+            IdCoordinate(value, source_unit, source_timeline_id)
+            for value in source_values
+        ],
+        [
+            IdCoordinate(value, target_unit, target_timeline_id)
+            for value in target_values
+        ],
+    )
+
+
+def _float_at(warp: WarpMap, value: int | float) -> float:
+    """Project one typed WarpMap query to a float."""
+    return warp.get_coordinate_at(value, format="float")
 
 
 @pytest.fixture
@@ -46,14 +76,17 @@ def linear_match_line() -> MatchLine:
     stamps = [
         MatchStamp(
             coordinates={"score": 0.0, "audio": 0.0},
+            coordinate_units={"score": "quarters", "audio": "seconds"},
             anchor_edges=[("score", "audio")],
         ),
         MatchStamp(
             coordinates={"score": 100.0, "audio": 50.0},
+            coordinate_units={"score": "quarters", "audio": "seconds"},
             anchor_edges=[("score", "audio")],
         ),
         MatchStamp(
             coordinates={"score": 200.0, "audio": 100.0},
+            coordinate_units={"score": "quarters", "audio": "seconds"},
             anchor_edges=[("score", "audio")],
         ),
     ]
@@ -256,13 +289,13 @@ class TestConstruction:
     def test_from_match_line_rejects_missing_target(
         self, linear_match_line: MatchLine
     ) -> None:
-        """Target timeline not in stamps raises ValueError."""
-        with pytest.raises(ValueError, match="at least 2 coordinate pairs"):
+        """Target timeline not in stamps raises KeyError."""
+        with pytest.raises(KeyError, match="nonexistent"):
             WarpMap.from_match_line(linear_match_line, "nonexistent")
 
     def test_from_coordinate_pairs(self) -> None:
         """Direct construction from coordinate arrays."""
-        warp = WarpMap.from_coordinate_pairs(
+        warp = _warp_from_values(
             "src",
             "tgt",
             [0.0, 100.0, 200.0],
@@ -275,14 +308,12 @@ class TestConstruction:
     def test_from_coordinate_pairs_rejects_too_few(self) -> None:
         """Fewer than 2 coordinate pairs raises ValueError."""
         with pytest.raises(ValueError, match="at least 2 anchor points"):
-            WarpMap.from_coordinate_pairs("src", "tgt", [0.0], [0.0])
+            _warp_from_values("src", "tgt", [0.0], [0.0])
 
     def test_from_coordinate_pairs_rejects_non_monotonic(self) -> None:
         """Non-monotonic source coords raises ValueError."""
         with pytest.raises(ValueError, match="monotonically increasing"):
-            WarpMap.from_coordinate_pairs(
-                "src", "tgt", [0.0, 100.0, 50.0], [0.0, 50.0, 25.0]
-            )
+            _warp_from_values("src", "tgt", [0.0, 100.0, 50.0], [0.0, 50.0, 25.0])
 
     def test_from_coordinate_pairs_rejects_ambiguous_duplicate_source(self) -> None:
         """A repeated source location cannot select different target times."""
@@ -290,7 +321,7 @@ class TestConstruction:
             ValueError,
             match=r"source timeline 'edition'.*get_matchstamp_at\(\)",
         ):
-            WarpMap.from_coordinate_pairs(
+            _warp_from_values(
                 "edition",
                 "spine",
                 [0.0, 50.0, 50.0, 100.0],
@@ -323,7 +354,7 @@ class TestConstruction:
 
         # The duplicate at coord 100 should be averaged to 50.0
         assert warp.n_anchors == 3
-        result = warp(100.0)
+        result = _float_at(warp, 100.0)
         assert result == 50.0
 
     def test_from_match_line_rejects_ambiguous_duplicate_source(self) -> None:
@@ -358,14 +389,14 @@ class TestConstruction:
 
     def test_monotone_duplicate_source_still_averages_exactly(self) -> None:
         """Compatible duplicate anchors retain the established chord behavior."""
-        warp = WarpMap.from_coordinate_pairs(
+        warp = _warp_from_values(
             "score",
             "audio",
             [0.0, 100.0, 100.0, 200.0],
             [0.0, 48.0, 52.0, 100.0],
         )
 
-        assert warp(100.0) == 50.0
+        assert _float_at(warp, 100.0) == 50.0
 
 
 # endregion
@@ -380,19 +411,19 @@ class TestForwardInverse:
     def test_forward_linear(self, linear_match_line: MatchLine) -> None:
         """Linear warp: forward maps correctly."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
-        assert warp(0.0) == 0.0
-        assert warp(100.0) == 50.0
-        assert warp(200.0) == 100.0
+        assert _float_at(warp, 0.0) == 0.0
+        assert _float_at(warp, 100.0) == 50.0
+        assert _float_at(warp, 200.0) == 100.0
         # Interpolated midpoint
-        assert warp(50.0) == 25.0
+        assert _float_at(warp, 50.0) == 25.0
 
     def test_inverse_linear(self, linear_match_line: MatchLine) -> None:
         """Linear warp: inverse maps correctly."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
         inverse = warp.inverse()
-        assert inverse(0.0) == 0.0
-        assert inverse(50.0) == 100.0
-        assert inverse(100.0) == 200.0
+        assert _float_at(inverse, 0.0) == 0.0
+        assert _float_at(inverse, 50.0) == 100.0
+        assert _float_at(inverse, 100.0) == 200.0
         assert warp.inverse() is inverse
         assert inverse.inverse() is warp
 
@@ -401,46 +432,48 @@ class TestForwardInverse:
         warp = WarpMap.from_match_line(linear_match_line, "audio")
         for val in [0.0, 25.0, 50.0, 75.0, 100.0]:
             # These fixed inputs recover bit-exactly through inverse-then-forward.
-            assert warp(warp.inverse()(val)) == val
+            inverse_value = warp.inverse().get_coordinate_at(val, format="float")
+            assert warp.get_coordinate_at(inverse_value, format="float") == val
 
     def test_round_trip_nonlinear(self, nonlinear_match_line: MatchLine) -> None:
         """Applying a warp after its inverse recovers non-linear values."""
         warp = WarpMap.from_match_line(nonlinear_match_line, "audio")
         for val in [0.0, 30.0, 60.0, 80.0, 100.0, 120.0]:
             # These fixed inputs recover bit-exactly through inverse-then-forward.
-            assert warp(warp.inverse()(val)) == val
+            inverse_value = warp.inverse().get_coordinate_at(val, format="float")
+            assert warp.get_coordinate_at(inverse_value, format="float") == val
 
     def test_forward_nonlinear(self, nonlinear_match_line: MatchLine) -> None:
         """Non-linear warp: anchor points map exactly."""
         warp = WarpMap.from_match_line(nonlinear_match_line, "audio")
-        assert warp(0.0) == 0.0
-        assert warp(100.0) == 60.0
-        assert warp(200.0) == 100.0
-        assert warp(300.0) == 120.0
+        assert _float_at(warp, 0.0) == 0.0
+        assert _float_at(warp, 100.0) == 60.0
+        assert _float_at(warp, 200.0) == 100.0
+        assert _float_at(warp, 300.0) == 120.0
 
-    def test_forward_array(self, linear_match_line: MatchLine) -> None:
-        """convert_array() accepts numpy arrays."""
+    def test_forward_collection(self, linear_match_line: MatchLine) -> None:
+        """The plural typed getter accepts NumPy arrays."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
         coords = np.array([0.0, 50.0, 100.0, 150.0, 200.0])
-        result = warp.convert_array(coords)
-        expected = np.array([0.0, 25.0, 50.0, 75.0, 100.0])
-        np.testing.assert_allclose(result, expected, atol=1e-10)
+        result = warp.get_coordinates_at(coords, format="float")
+        assert result == [0.0, 25.0, 50.0, 75.0, 100.0]
 
-    def test_inverse_array(self, linear_match_line: MatchLine) -> None:
-        """inverse() accepts numpy arrays."""
+    def test_inverse_collection(self, linear_match_line: MatchLine) -> None:
+        """Inverse accepts NumPy arrays through the plural typed getter."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
         coords = np.array([0.0, 25.0, 50.0, 75.0, 100.0])
-        result = warp.inverse().convert_array(coords)
-        expected = np.array([0.0, 50.0, 100.0, 150.0, 200.0])
-        np.testing.assert_allclose(result, expected, atol=1e-10)
+        result = warp.inverse().get_coordinates_at(coords, format="float")
+        assert result == [0.0, 50.0, 100.0, 150.0, 200.0]
 
-    def test_extrapolation_beyond_anchors(self, linear_match_line: MatchLine) -> None:
-        """Extrapolation extends linearly beyond anchor range."""
+    def test_queries_beyond_anchor_support_raise(
+        self, linear_match_line: MatchLine
+    ) -> None:
+        """Public retrieval rejects positions beyond the anchor hull."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
-        # Beyond right end: slope is 0.5, so 300 -> 150
-        assert warp(300.0) == 150.0
-        # Beyond left end (negative): slope is 0.5, so -100 -> -50
-        assert warp(-100.0) == -50.0
+        with pytest.raises(ValueError):
+            _float_at(warp, 300.0)
+        with pytest.raises(ValueError):
+            _float_at(warp, -100.0)
 
     def test_is_invertible(self, linear_match_line: MatchLine) -> None:
         """Monotonic target coords -> invertible."""
@@ -564,11 +597,13 @@ class TestMaterialise:
     ) -> None:
         """Children are warped recursively with correct offsets."""
         # Create a WarpMap that doubles all coordinates
-        warp = WarpMap.from_coordinate_pairs(
+        warp = _warp_from_values(
             "parent",
             "target",
             [0.0, 100.0],
             [0.0, 200.0],
+            source_unit=TimeUnit.seconds,
+            target_unit=TimeUnit.seconds,
         )
         warped = warp.materialise(source_timeline_with_children)
 
@@ -682,7 +717,7 @@ class TestTypeConversion:
             ]
         )
 
-        warp = WarpMap.from_coordinate_pairs(
+        warp = _warp_from_values(
             "score",
             "audio",
             [0.0, 200.0],
@@ -706,11 +741,13 @@ class TestTypeConversion:
             ]
         )
 
-        warp = WarpMap.from_coordinate_pairs(
+        warp = _warp_from_values(
             "dgt1",
             "dgt2",
-            [0.0, 1000.0],
-            [0.0, 2000.0],
+            [0, 1000],
+            [0, 2000],
+            source_unit=TimeUnit.pixels,
+            target_unit=TimeUnit.pixels,
         )
         warped = warp.materialise(dgt)
 
@@ -744,34 +781,28 @@ class TestSerialization:
         assert restored.source_unit == warp.source_unit
         assert restored.target_unit == warp.target_unit
         assert restored.n_anchors == warp.n_anchors
-        np.testing.assert_array_equal(restored.source_coords, warp.source_coords)
-        np.testing.assert_array_equal(restored.target_coords, warp.target_coords)
+        assert restored.get_coordinates_at(
+            [0.0, 100.0, 200.0], format="float"
+        ) == warp.get_coordinates_at([0.0, 100.0, 200.0], format="float")
 
-    def test_round_trip_no_units(self) -> None:
-        """Serialization works when units are None."""
-        warp = WarpMap.from_coordinate_pairs("a", "b", [0.0, 100.0], [0.0, 50.0])
+    def test_round_trip_default_units(self) -> None:
+        """Serialization preserves inferred dimensionless units."""
+        warp = _warp_from_values("a", "b", [0.0, 100.0], [0.0, 50.0])
         data = warp.to_dict()
         restored = WarpMap.from_dict(data)
-        assert restored.source_unit is None
-        assert restored.target_unit is None
-        assert restored(50.0) == 25.0
+        assert restored.source_unit == TimeUnit.number
+        assert restored.target_unit == TimeUnit.number
+        assert _float_at(restored, 50.0) == 25.0
 
     def test_to_dict_structure(self, linear_match_line: MatchLine) -> None:
         """to_dict contains expected keys and types."""
         warp = WarpMap.from_match_line(linear_match_line, "audio")
         data = warp.to_dict()
-        assert set(data.keys()) == {
-            "source_timeline_id",
-            "target_timeline_id",
-            "source_coords",
-            "target_coords",
-            "source_unit",
-            "target_unit",
-        }
-        assert isinstance(data["source_coords"], list)
-        assert isinstance(data["target_coords"], list)
-        assert len(data["source_coords"]) == 3
-        assert len(data["target_coords"]) == 3
+        assert data["source_timeline_id"] == "score"
+        assert data["target_timeline_id"] == "audio"
+        assert data["source_unit"] == "quarters"
+        assert data["target_unit"] == "seconds"
+        assert WarpMap.from_dict(data).n_anchors == 3
 
 
 # endregion
@@ -817,10 +848,10 @@ class TestMultiTarget:
         warp_pixels = WarpMap.from_match_line(multi_target_match_line, "pixels")
 
         # Audio: 200 -> 100 (0.5x)
-        assert warp_audio(200.0) == 100.0
+        assert _float_at(warp_audio, 200.0) == 100.0
 
         # Pixels: 200 -> 1000 (5x)
-        assert warp_pixels(200.0) == 1000.0
+        assert _float_at(warp_pixels, 200.0) == 1000.0
 
 
 # endregion
@@ -853,8 +884,8 @@ class TestIntegrationWithClaims:
         line = MatchLine.from_claims(claims, source_timeline_id="score")
         warp = WarpMap.from_match_line(line, "audio")
 
-        assert warp(50.0) == 25.0
-        assert warp.inverse()(75.0) == 150.0
+        assert _float_at(warp, 50.0) == 25.0
+        assert _float_at(warp.inverse(), 75.0) == 150.0
 
 
 # endregion
@@ -883,30 +914,27 @@ class TestThoresenIntegration:
         dgt2_boundaries = [0, 866, 1733, 2600, 3464, 4328]
         dgt1_boundaries = [0, 967, 1934, 2901, 3868, 4835]
 
-        warp = WarpMap.from_coordinate_pairs(
-            source_timeline_id="dgt2",
-            target_timeline_id="dgt1",
-            source_coords=[float(x) for x in dgt2_boundaries],
-            target_coords=[float(x) for x in dgt1_boundaries],
+        warp = _warp_from_values(
+            "dgt2",
+            "dgt1",
+            dgt2_boundaries,
+            dgt1_boundaries,
+            source_unit=TimeUnit.pixels,
+            target_unit=TimeUnit.pixels,
         )
 
         # Verify boundary points map exactly
         for s, t in zip(dgt2_boundaries, dgt1_boundaries):
-            assert warp(float(s)) == float(t)
+            assert warp.get_coordinate_at(s, format="int") == t
 
         # Event H is at position 378 within segment 2 of DGT2.
         # Segment 2 of DGT2 starts at 866, so H is at global 866 + 378 = 1244.
         event_h_global = 866 + 378
-        warped_h = warp(float(event_h_global))
+        warped_h = warp.get_coordinate_at(event_h_global, format="int")
 
         # Segment 2 of DGT2 is [866, 1733] -> DGT1 [967, 1934]
         # 378 / 867 * 967 + 967 = proportional position
-        prop = 378 / 867
-        expected = 967 + prop * 967
-        # 378/867 is a non-dyadic rational, so the map's interpolation and this
-        # recomputation evaluate it via slightly different float operation orders.
-        # The difference is ~2.27e-13; a tight tolerance pins it.
-        assert warped_h == pytest.approx(expected, abs=1e-9)
+        assert warped_h == 1389
 
         # Verify Event H' lands in segment 2 of DGT1: [967, 1934)
         assert 967.0 <= warped_h < 1934.0

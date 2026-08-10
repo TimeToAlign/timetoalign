@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from fractions import Fraction
 
-from timetoalign.core import TimeUnit
+import pytest
+
 from timetoalign.maps import SecondsToSamples
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
@@ -42,38 +43,37 @@ def test_group_coordinate_between_anchors_is_interpolated() -> None:
     assert "interpolated" in repr(stamp)
 
 
-def test_conversion_units_appear_in_every_dictionary_format() -> None:
-    """Every dictionary representation surfaces enabled conversion units."""
+def test_conversion_values_are_separate_from_typed_wire_entries() -> None:
+    """Typed wire entries stay structural and conversions remain verbatim."""
     stamp = _sample_timeline().get_timestamp(2.5)
 
-    assert stamp.to_dict(format="flat") == {"audio": 2.5, "samples": 110250}
-    assert stamp.to_dict(format="prefix") == {
-        "audio/audio": 2.5,
-        "audio/samples": 110250,
+    assert stamp.to_dict() == {
+        "audio": {
+            "value": 2.5,
+            "numerator": None,
+            "denominator": None,
+            "unit": "seconds",
+            "number_type": "float",
+        }
     }
-    assert stamp.to_dict(format="nested") == {
-        "audio": {"audio": 2.5, "samples": 110250}
-    }
-    assert stamp.to_dict(format="graph") == {
-        "coordinates": {"audio": 2.5},
-        "conversions": {"samples": 110250},
-    }
+    assert stamp.get_conversion_for("samples") == 110250.0
 
 
-def test_disabled_conversion_units_are_absent_from_every_rendering() -> None:
-    """Disabled conversion maps stay absent from dictionaries and displays."""
+def test_disabled_conversion_units_are_absent_from_access_and_rendering() -> None:
+    """Disabled conversion maps stay unavailable and absent from displays."""
     stamp = _sample_timeline().get_timestamp(2.5, conversion_maps=False)
 
-    assert stamp.to_dict(format="flat") == {"audio": 2.5}
-    assert stamp.to_dict(format="prefix") == {"audio/audio": 2.5}
-    assert stamp.to_dict(format="nested") == {"audio": {"audio": 2.5}}
-    assert stamp.to_dict(format="graph") == {
-        "coordinates": {"audio": 2.5},
-        "conversions": {},
+    assert stamp.to_dict() == {
+        "audio": {
+            "value": 2.5,
+            "numerator": None,
+            "denominator": None,
+            "unit": "seconds",
+            "number_type": "float",
+        }
     }
-    assert stamp.to_dict(conversion_units=[TimeUnit.samples], format="flat") == {
-        "audio": 2.5
-    }
+    with pytest.raises(KeyError):
+        stamp.get_conversion_for("samples")
     assert "samples" not in repr(stamp)
     assert "samples" not in stamp._repr_html_()
 

@@ -594,11 +594,11 @@ def write_match_file(
         target_id = sorted(target_ids)[0]
 
     for stamp in match_line.stamps:
-        source_coord = stamp.get_coordinate(source_id)
+        source_coord = stamp._get_float_coordinate_for(source_id)
         if source_coord is None:
             continue
 
-        target_coord = stamp.get_coordinate(target_id) if target_id else None
+        target_coord = stamp._get_float_coordinate_for(target_id) if target_id else None
 
         snote = _lookup_snote(context, source_coord)
         if target_coord is not None:
@@ -745,12 +745,12 @@ def _build_minimal_context(match_line: "MatchLine") -> MatchFileContext:
     perf_notes: dict[float, list[NoteRecord]] = {}
 
     for stamp in match_line.stamps:
-        source_coord = stamp.get_coordinate(source_id)
+        source_coord = stamp._get_float_coordinate_for(source_id)
         if source_coord is not None and source_coord not in score_notes:
             score_notes[source_coord] = [_placeholder_snote(source_coord)]
 
         if target_id is not None:
-            target_coord = stamp.get_coordinate(target_id)
+            target_coord = stamp._get_float_coordinate_for(target_id)
             if target_coord is not None and target_coord not in perf_notes:
                 perf_notes[target_coord] = [_placeholder_note(target_coord)]
 

@@ -24,7 +24,7 @@ from timetoalign.alignment.claims import (
     MatchClaimField,
     MatchMetadata,
 )
-from timetoalign.core import AgentType, Coordinate, Domain, TimeUnit
+from timetoalign.core import AgentType, Coordinate, Domain, IdCoordinateField, TimeUnit
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
@@ -267,7 +267,7 @@ def test_matchstamp_table_per_claim(
         assert table.num_rows == 9
         assert table.column_names == [PERF_1, PERF_2, SCORE]
         # Each pairwise claim fills exactly two cells and leaves one null.
-        assert table.to_pylist() == expected
+        assert _coordinate_rows(table) == expected
 
 
 def test_matchstamp_table_from_graph(
@@ -282,7 +282,7 @@ def test_matchstamp_table_from_graph(
         table = bundle.get_matchstamp_table(from_graph=True)
         assert table.num_rows == 3
         assert table.column_names == [PERF_1, PERF_2, SCORE]
-        assert table.to_pylist() == expected
+        assert _coordinate_rows(table) == expected
 
 
 def test_matchstamp_table_timeline_filter(
@@ -296,7 +296,11 @@ def test_matchstamp_table_timeline_filter(
             timeline_filter={SCORE}, from_graph=True
         )
         assert collapsed.column_names == [SCORE]
-        assert collapsed.to_pylist() == [{SCORE: 0.0}, {SCORE: 4.0}, {SCORE: 8.0}]
+        assert _coordinate_rows(collapsed) == [
+            {SCORE: 0.0},
+            {SCORE: 4.0},
+            {SCORE: 8.0},
+        ]
 
 
 def test_get_matchstamp_at(
@@ -343,3 +347,15 @@ def test_diagram_reports_claim_count(
 
 
 # endregion
+def _coordinate_rows(table) -> list[dict[str, float | None]]:
+    """Materialize semantic coordinate columns as exact numeric rows."""
+    columns = {
+        name: IdCoordinateField.from_table(table, name) for name in table.column_names
+    }
+    return [
+        {
+            name: None if field[position] is None else field[position].value
+            for name, field in columns.items()
+        }
+        for position in range(table.num_rows)
+    ]

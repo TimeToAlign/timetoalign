@@ -20,7 +20,13 @@ from dataclasses import dataclass
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, ClassVar, Iterator, Literal
 
-from timetoalign.core import Coordinate, CoordinateSpec, NumberType, TimeUnit
+from timetoalign.core import (
+    Coordinate,
+    CoordinateSpec,
+    IdCoordinate,
+    NumberType,
+    TimeUnit,
+)
 
 from .base import Timeline
 
@@ -64,8 +70,9 @@ class MetricalResult:
             Dictionary with 'seconds', 'quarters', 'mc', 'beat', 'mn' keys.
         """
         ts = self.group.get_timestamp_at(seconds, self.physical_timeline.id)
-        quarters = ts[self.grid.id]
-        if quarters is None:
+        try:
+            quarters = ts.get_coordinate_for(self.grid.id, format="float")
+        except KeyError:
             return {
                 "seconds": seconds,
                 "quarters": None,
@@ -97,14 +104,12 @@ class MetricalResult:
             ValueError: If the measure/beat position is outside the aligned range.
         """
         quarters = self.metrical_map.quarters_at(mc, beat)
-        result = self.group.convert(
-            float(quarters), self.grid.id, self.physical_timeline.id
+        result = self.group.get_coordinate_at(
+            IdCoordinate(float(quarters), self.grid.unit, self.grid.id),
+            timeline_id=self.physical_timeline.id,
+            format="float",
         )
-        if result is None:
-            raise ValueError(
-                f"Metrical position (MC={mc}, beat={beat}) at quarter {quarters} "
-                f"is outside the aligned range"
-            )
+        assert isinstance(result, float)
         return result
 
 
@@ -336,8 +341,12 @@ class ContinuousPhysicalTimeline(PhysicalTimeline):
             >>> result.seconds_at(mc=10, beat=Fraction(1, 1))
             18.5
 
-            >>> # Access the group for general coordinate conversion
-            >>> result.group.convert(100.0, result.grid.id, audio.id)  # quarters -> seconds
+            >>> # Access the group for typed coordinate retrieval
+            >>> result.group.get_coordinate_at(
+            ...     IdCoordinate(100.0, result.grid.unit, result.grid.id),
+            ...     timeline_id=audio.id,
+            ...     format="float",
+            ... )
             50.5
 
             >>> # With anacrusis (pickup beat)
@@ -891,11 +900,14 @@ class SegmentLineMixin:
         coord_val = float(self._resolve_axis_value(coord))
 
         for i, seg_id in enumerate(self._segment_order):
-            seg_coord = ts.get(seg_id)
-            if seg_coord is not None and seg_coord >= 0:
+            try:
+                seg_coord = ts.get_coordinate_for(seg_id, format="coordinate")
+            except KeyError:
+                continue
+            if seg_coord.value >= 0:
                 segment = self._children[seg_id]
-                if seg_coord <= segment.length.value:
-                    seg_ts = segment.get_timestamp(seg_coord)
+                if seg_coord.value <= segment.length.value:
+                    seg_ts = segment.get_timestamp(seg_coord.value)
                     return (i, segment, seg_ts)
 
         raise ValueError(f"No segment contains coordinate {coord_val}")

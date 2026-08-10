@@ -64,7 +64,7 @@ import json
 import math
 import operator
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from decimal import Decimal
 from fractions import Fraction
 from typing import Any, ClassVar, NamedTuple, Union
@@ -1967,235 +1967,6 @@ class TimeScalar(ScalarVocabulary, BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Coordinate
-# ---------------------------------------------------------------------------
-
-
-class Coordinate(TimeScalar):
-    """A position on a timeline, defined by a value and unit.
-
-    Coordinates are immutable and support arithmetic operations when
-    units match.  They preserve the native numeric type (int, float, or
-    Fraction) for precision.
-
-    Attributes:
-        value: The numeric position (int, float, or Fraction).
-        unit: The time unit (e.g., seconds, quarters, pixels).
-
-    Examples:
-        >>> c1 = Coordinate(120, TimeUnit.ticks)
-        >>> c2 = Coordinate(240, TimeUnit.ticks)
-        >>> c2 - c1
-        Duration(120, ticks)
-    """
-
-    def __init__(
-        self,
-        value: TimeScalarValue | dict[str, Any] | None = None,
-        unit: TimeUnit | str | None = None,
-        /,
-        *,
-        number_type: NumberType | str | None = None,
-        rounding: str = "round",
-        **data: Any,
-    ) -> None:
-        if value is not None or unit is not None:
-            if "value" in data or "unit" in data:
-                raise TypeError(
-                    f"{type(self).__name__} received conflicting positional "
-                    "and keyword arguments"
-                )
-            data = {"value": value, "unit": unit, **data}
-        data = _apply_construction_protocol(
-            data, number_type=number_type, rounding=rounding
-        )
-        super().__init__(**data)
-
-    def __index__(self) -> int:
-        if isinstance(self.value, int) and not isinstance(self.value, bool):
-            return self.value
-        raise TypeError(
-            f"Cannot use Coordinate with {type(self.value).__name__} value as index. "
-            f"Only integer Coordinates can be used as indices."
-        )
-
-    @property
-    def semantic_type(self) -> str:
-        return "Coordinate"
-
-    # -- arithmetic ---------------------------------------------------------
-
-    @data_shaped
-    def __add__(self, other: object) -> Coordinate:
-        if isinstance(other, Coordinate):
-            raise TypeError(
-                "Cannot add two Coordinates; subtract them to obtain a Duration"
-            )
-        value, tl_id = self._combine(other, "add", "add")
-        return _make_coordinate(value, self.unit, tl_id)
-
-    @data_shaped
-    def __sub__(self, other: object) -> TimeScalar:
-        value, tl_id = self._combine(other, "subtract", "subtract")
-        # Two positions differ by an extent; everything else stays a position.
-        if isinstance(other, Coordinate):
-            return _make_duration(value, self.unit, tl_id)
-        return _make_coordinate(value, self.unit, tl_id)
-
-    @data_shaped
-    def __mul__(self, scalar: object) -> Coordinate:
-        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
-        return _make_coordinate(
-            self._scale(scalar, "multiply", "multiply", "*"),
-            self.unit,
-            self._id_or_none(),
-        )
-
-    @data_shaped
-    def __rmul__(self, scalar: object) -> Coordinate:
-        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
-        return self.__mul__(scalar)
-
-    @data_shaped
-    def __truediv__(self, scalar: object) -> Coordinate:
-        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
-        return _make_coordinate(
-            self._scale(scalar, "divide", "divide", "/"),
-            self.unit,
-            self._id_or_none(),
-        )
-
-    @data_shaped
-    def __floordiv__(self, scalar: object) -> Coordinate:
-        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
-        return _make_coordinate(
-            self._scale(scalar, "floor-divide", "floor_divide", "//"),
-            self.unit,
-            self._id_or_none(),
-        )
-
-    # -- copy-on-write ------------------------------------------------------
-
-    def with_timeline(self, timeline_id: str) -> IdCoordinate:
-        """Return an ``IdCoordinate`` carrying the given timeline id."""
-        return IdCoordinate(self.value, self.unit, timeline_id)
-
-    # -- formatting ---------------------------------------------------------
-
-    def __repr__(self) -> str:
-        return f"Coordinate({self.value!r}, {self.unit})"
-
-    def __str__(self) -> str:
-        return f"{self._format_value()} {self.unit}"
-
-
-# ---------------------------------------------------------------------------
-# Duration
-# ---------------------------------------------------------------------------
-
-
-class Duration(TimeScalar):
-    """An elapsed extent on a timeline.
-
-    Same physical storage as :class:`Coordinate` (denormalised
-    ``{value, numerator, denominator}``) — the distinction is semantic.
-    Durations may be negative when produced by ``Coordinate - Coordinate``
-    where the second operand precedes the first; status predicates
-    (:meth:`is_negative`, :meth:`is_positive`) make the sign queryable.
-
-    Attributes:
-        value: The numeric duration (int, float, or Fraction; any sign).
-        unit: The time unit (e.g., seconds, quarters, ticks).
-    """
-
-    def __init__(
-        self,
-        value: TimeScalarValue | dict[str, Any] | None = None,
-        unit: TimeUnit | str | None = None,
-        /,
-        *,
-        number_type: NumberType | str | None = None,
-        rounding: str = "round",
-        **data: Any,
-    ) -> None:
-        if value is not None or unit is not None:
-            if "value" in data or "unit" in data:
-                raise TypeError(
-                    f"{type(self).__name__} received conflicting positional "
-                    "and keyword arguments"
-                )
-            data = {"value": value, "unit": unit, **data}
-        data = _apply_construction_protocol(
-            data, number_type=number_type, rounding=rounding
-        )
-        super().__init__(**data)
-
-    @property
-    def semantic_type(self) -> str:
-        return "Duration"
-
-    # -- arithmetic ---------------------------------------------------------
-
-    @data_shaped
-    def __add__(self, other: object) -> Duration:
-        if isinstance(other, Coordinate):
-            raise TypeError(
-                "Cannot add a Coordinate to a Duration; use 'coord + dur' instead"
-            )
-        value, tl_id = self._combine(other, "add", "add")
-        return _make_duration(value, self.unit, tl_id)
-
-    @data_shaped
-    def __sub__(self, other: object) -> Duration:
-        if isinstance(other, Coordinate):
-            raise TypeError("Cannot subtract a Coordinate from a Duration")
-        value, tl_id = self._combine(other, "subtract", "subtract")
-        return _make_duration(value, self.unit, tl_id)
-
-    @data_shaped
-    def __mul__(self, scalar: object) -> Duration:
-        return _make_duration(
-            self._scale(scalar, "multiply", "multiply", "*"),
-            self.unit,
-            self._id_or_none(),
-        )
-
-    @data_shaped
-    def __rmul__(self, scalar: object) -> Duration:
-        return self.__mul__(scalar)
-
-    @data_shaped
-    def __truediv__(self, scalar: object) -> Duration:
-        return _make_duration(
-            self._scale(scalar, "divide", "divide", "/"),
-            self.unit,
-            self._id_or_none(),
-        )
-
-    @data_shaped
-    def __floordiv__(self, scalar: object) -> Duration:
-        return _make_duration(
-            self._scale(scalar, "floor-divide", "floor_divide", "//"),
-            self.unit,
-            self._id_or_none(),
-        )
-
-    # -- copy-on-write ------------------------------------------------------
-
-    def with_timeline(self, timeline_id: str) -> IdDuration:
-        """Return an ``IdDuration`` carrying the given timeline id."""
-        return IdDuration(self.value, self.unit, timeline_id)
-
-    # -- formatting ---------------------------------------------------------
-
-    def __repr__(self) -> str:
-        return f"Duration({self.value!r}, {self.unit})"
-
-    def __str__(self) -> str:
-        return f"{self._format_value()} {self.unit}"
-
-
-# ---------------------------------------------------------------------------
 # IdTimeScalar — abstract; contributes only the ``timeline_id`` field
 # ---------------------------------------------------------------------------
 
@@ -2224,135 +1995,6 @@ class IdTimeScalar(TimeScalar):
         if not v:
             raise ValueError("timeline_id cannot be empty")
         return v
-
-
-# ---------------------------------------------------------------------------
-# IdCoordinate — diamond MRO: IdCoordinate -> Coordinate -> IdTimeScalar
-#                            -> TimeScalar -> BaseModel
-# ---------------------------------------------------------------------------
-
-
-class IdCoordinate(Coordinate, IdTimeScalar):
-    """A ``Coordinate`` that carries the ID of the timeline it belongs to.
-
-    Extends ``Coordinate`` with a ``timeline_id`` field, providing the
-    most specific form of coordinate specification.  Operator results
-    inherit the timeline_id (``IdCoordinate + Duration → IdCoordinate``;
-    ``IdCoordinate - IdCoordinate → IdDuration`` when the ids match).
-    """
-
-    # An IdCoordinate is stored by CoordinateField (the timeline id lives
-    # in field metadata, not in the row), so the discriminator is the
-    # plain coordinate one rather than the derived "IdCoordinateField".
-    field_type_name: ClassVar[str] = "CoordinateField"
-
-    def __init__(
-        self,
-        value: TimeScalarValue | None = None,
-        unit: TimeUnit | str | None = None,
-        timeline_id: str | None = None,
-        /,
-        *,
-        number_type: NumberType | str | None = None,
-        rounding: str = "round",
-        **data: Any,
-    ) -> None:
-        positional = {
-            k: v
-            for k, v in (
-                ("value", value),
-                ("unit", unit),
-                ("timeline_id", timeline_id),
-            )
-            if v is not None
-        }
-        if positional and any(k in data for k in positional):
-            raise TypeError(
-                "IdCoordinate received conflicting positional and keyword arguments"
-            )
-        data = _apply_construction_protocol(
-            {**positional, **data}, number_type=number_type, rounding=rounding
-        )
-        BaseModel.__init__(self, **data)
-
-    @classmethod
-    def from_coordinate(cls, coord: Coordinate, timeline_id: str) -> IdCoordinate:
-        return cls(coord.value, coord.unit, timeline_id)
-
-    def to_coordinate(self) -> Coordinate:
-        return Coordinate(self.value, self.unit)
-
-    def with_timeline(self, timeline_id: str) -> IdCoordinate:
-        return IdCoordinate(self.value, self.unit, timeline_id)
-
-    def __repr__(self) -> str:
-        return f"IdCoordinate({self.value!r}, {self.unit}, {self.timeline_id!r})"
-
-    def __str__(self) -> str:
-        return f"{self._format_value()} {self.unit} @{self.timeline_id}"
-
-
-# ---------------------------------------------------------------------------
-# IdDuration — diamond MRO: IdDuration -> Duration -> IdTimeScalar
-#                          -> TimeScalar -> BaseModel
-# ---------------------------------------------------------------------------
-
-
-class IdDuration(Duration, IdTimeScalar):
-    """A ``Duration`` that carries the ID of the timeline it belongs to.
-
-    Produced by ``Coordinate - Coordinate`` (with at least one operand
-    being an ``IdCoordinate``) and ``IdDuration ± Duration``.
-    """
-
-    # Mirrors IdCoordinate: stored by DurationField, with the timeline id
-    # carried in field metadata rather than derived into the name.
-    field_type_name: ClassVar[str] = "DurationField"
-
-    def __init__(
-        self,
-        value: TimeScalarValue | None = None,
-        unit: TimeUnit | str | None = None,
-        timeline_id: str | None = None,
-        /,
-        *,
-        number_type: NumberType | str | None = None,
-        rounding: str = "round",
-        **data: Any,
-    ) -> None:
-        positional = {
-            k: v
-            for k, v in (
-                ("value", value),
-                ("unit", unit),
-                ("timeline_id", timeline_id),
-            )
-            if v is not None
-        }
-        if positional and any(k in data for k in positional):
-            raise TypeError(
-                "IdDuration received conflicting positional and keyword arguments"
-            )
-        data = _apply_construction_protocol(
-            {**positional, **data}, number_type=number_type, rounding=rounding
-        )
-        BaseModel.__init__(self, **data)
-
-    @classmethod
-    def from_duration(cls, dur: Duration, timeline_id: str) -> IdDuration:
-        return cls(dur.value, dur.unit, timeline_id)
-
-    def to_duration(self) -> Duration:
-        return Duration(self.value, self.unit)
-
-    def with_timeline(self, timeline_id: str) -> IdDuration:
-        return IdDuration(self.value, self.unit, timeline_id)
-
-    def __repr__(self) -> str:
-        return f"IdDuration({self.value!r}, {self.unit}, {self.timeline_id!r})"
-
-    def __str__(self) -> str:
-        return f"{self._format_value()} {self.unit} @{self.timeline_id}"
 
 
 # ---------------------------------------------------------------------------
@@ -2416,56 +2058,6 @@ def _drop_field_projector(
 register_value_projector(TimeScalar, "value", _time_value_projector)
 register_value_projector(TimeScalar, "unit", _drop_field_projector)
 register_value_projector(IdTimeScalar, "timeline_id", _drop_field_projector)
-
-
-# ---------------------------------------------------------------------------
-# Type aliases used by callers
-# ---------------------------------------------------------------------------
-
-# CoordinateSpec: any form of coordinate specification.
-CoordinateSpec = Union[int, float, Fraction, Coordinate, IdCoordinate]
-
-
-class ResolvedCoordinate(NamedTuple):
-    """Decomposed form of a CoordinateSpec input."""
-
-    value: int | float | Fraction
-    timeline_id: str | None
-    unit: TimeUnit | None
-
-
-def resolve_coordinate_spec(
-    spec: CoordinateSpec, *, timeline_id: str | None = None
-) -> ResolvedCoordinate:
-    """Decompose a coordinate specification without converting its unit.
-
-    Args:
-        spec: Coordinate specification to decompose.
-        timeline_id: Optional timeline ID for otherwise unqualified input.
-
-    Returns:
-        The numeric value and any timeline or unit metadata.
-
-    Raises:
-        ValueError: If an explicit timeline ID conflicts with an IdCoordinate.
-        TypeError: If spec is not a supported coordinate specification.
-    """
-    if isinstance(spec, IdCoordinate):
-        if timeline_id is not None and timeline_id != spec.timeline_id:
-            raise ValueError(
-                f"Timeline ID '{timeline_id}' conflicts with coordinate timeline ID "
-                f"'{spec.timeline_id}'"
-            )
-        return ResolvedCoordinate(spec.value, spec.timeline_id, spec.unit)
-    if isinstance(spec, Coordinate):
-        return ResolvedCoordinate(spec.value, timeline_id, spec.unit)
-    if not isinstance(spec, bool) and isinstance(spec, (int, float, Fraction)):
-        return ResolvedCoordinate(spec, timeline_id, None)
-    raise TypeError(f"Unsupported coordinate specification type: {type(spec).__name__}")
-
-
-# Optional coordinate (common pattern).
-OptionalCoordinate = Union[Coordinate, None]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -3037,6 +2629,129 @@ class TimeScalarField(SemanticField):
 
 
 # ---------------------------------------------------------------------------
+# Coordinate
+# ---------------------------------------------------------------------------
+
+
+class Coordinate(TimeScalar):
+    """A position on a timeline, defined by a value and unit.
+
+    Coordinates are immutable and support arithmetic operations when
+    units match.  They preserve the native numeric type (int, float, or
+    Fraction) for precision.
+
+    Attributes:
+        value: The numeric position (int, float, or Fraction).
+        unit: The time unit (e.g., seconds, quarters, pixels).
+
+    Examples:
+        >>> c1 = Coordinate(120, TimeUnit.ticks)
+        >>> c2 = Coordinate(240, TimeUnit.ticks)
+        >>> c2 - c1
+        Duration(120, ticks)
+    """
+
+    def __init__(
+        self,
+        value: TimeScalarValue | dict[str, Any] | None = None,
+        unit: TimeUnit | str | None = None,
+        /,
+        *,
+        number_type: NumberType | str | None = None,
+        rounding: str = "round",
+        **data: Any,
+    ) -> None:
+        if value is not None or unit is not None:
+            if "value" in data or "unit" in data:
+                raise TypeError(
+                    f"{type(self).__name__} received conflicting positional "
+                    "and keyword arguments"
+                )
+            data = {"value": value, "unit": unit, **data}
+        data = _apply_construction_protocol(
+            data, number_type=number_type, rounding=rounding
+        )
+        super().__init__(**data)
+
+    def __index__(self) -> int:
+        if isinstance(self.value, int) and not isinstance(self.value, bool):
+            return self.value
+        raise TypeError(
+            f"Cannot use Coordinate with {type(self.value).__name__} value as index. "
+            f"Only integer Coordinates can be used as indices."
+        )
+
+    @property
+    def semantic_type(self) -> str:
+        return "Coordinate"
+
+    # -- arithmetic ---------------------------------------------------------
+
+    @data_shaped
+    def __add__(self, other: object) -> Coordinate:
+        if isinstance(other, Coordinate):
+            raise TypeError(
+                "Cannot add two Coordinates; subtract them to obtain a Duration"
+            )
+        value, tl_id = self._combine(other, "add", "add")
+        return _make_coordinate(value, self.unit, tl_id)
+
+    @data_shaped
+    def __sub__(self, other: object) -> TimeScalar:
+        value, tl_id = self._combine(other, "subtract", "subtract")
+        # Two positions differ by an extent; everything else stays a position.
+        if isinstance(other, Coordinate):
+            return _make_duration(value, self.unit, tl_id)
+        return _make_coordinate(value, self.unit, tl_id)
+
+    @data_shaped
+    def __mul__(self, scalar: object) -> Coordinate:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
+        return _make_coordinate(
+            self._scale(scalar, "multiply", "multiply", "*"),
+            self.unit,
+            self._id_or_none(),
+        )
+
+    @data_shaped
+    def __rmul__(self, scalar: object) -> Coordinate:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
+        return self.__mul__(scalar)
+
+    @data_shaped
+    def __truediv__(self, scalar: object) -> Coordinate:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
+        return _make_coordinate(
+            self._scale(scalar, "divide", "divide", "/"),
+            self.unit,
+            self._id_or_none(),
+        )
+
+    @data_shaped
+    def __floordiv__(self, scalar: object) -> Coordinate:
+        """Scales a *position* — see Duration for tempo-style scaling of *extents*."""
+        return _make_coordinate(
+            self._scale(scalar, "floor-divide", "floor_divide", "//"),
+            self.unit,
+            self._id_or_none(),
+        )
+
+    # -- copy-on-write ------------------------------------------------------
+
+    def with_timeline(self, timeline_id: str) -> IdCoordinate:
+        """Return an ``IdCoordinate`` carrying the given timeline id."""
+        return IdCoordinate(self.value, self.unit, timeline_id)
+
+    # -- formatting ---------------------------------------------------------
+
+    def __repr__(self) -> str:
+        return f"Coordinate({self.value!r}, {self.unit})"
+
+    def __str__(self) -> str:
+        return f"{self._format_value()} {self.unit}"
+
+
+# ---------------------------------------------------------------------------
 # CoordinateField
 # ---------------------------------------------------------------------------
 
@@ -3150,6 +2865,255 @@ class CoordinateField(TimeScalarField):
 
 
 # ---------------------------------------------------------------------------
+# Duration
+# ---------------------------------------------------------------------------
+
+
+class Duration(TimeScalar):
+    """An elapsed extent on a timeline.
+
+    Same physical storage as :class:`Coordinate` (denormalised
+    ``{value, numerator, denominator}``) — the distinction is semantic.
+    Durations may be negative when produced by ``Coordinate - Coordinate``
+    where the second operand precedes the first; status predicates
+    (:meth:`is_negative`, :meth:`is_positive`) make the sign queryable.
+
+    Attributes:
+        value: The numeric duration (int, float, or Fraction; any sign).
+        unit: The time unit (e.g., seconds, quarters, ticks).
+    """
+
+    def __init__(
+        self,
+        value: TimeScalarValue | dict[str, Any] | None = None,
+        unit: TimeUnit | str | None = None,
+        /,
+        *,
+        number_type: NumberType | str | None = None,
+        rounding: str = "round",
+        **data: Any,
+    ) -> None:
+        if value is not None or unit is not None:
+            if "value" in data or "unit" in data:
+                raise TypeError(
+                    f"{type(self).__name__} received conflicting positional "
+                    "and keyword arguments"
+                )
+            data = {"value": value, "unit": unit, **data}
+        data = _apply_construction_protocol(
+            data, number_type=number_type, rounding=rounding
+        )
+        super().__init__(**data)
+
+    @property
+    def semantic_type(self) -> str:
+        return "Duration"
+
+    # -- arithmetic ---------------------------------------------------------
+
+    @data_shaped
+    def __add__(self, other: object) -> Duration:
+        if isinstance(other, Coordinate):
+            raise TypeError(
+                "Cannot add a Coordinate to a Duration; use 'coord + dur' instead"
+            )
+        value, tl_id = self._combine(other, "add", "add")
+        return _make_duration(value, self.unit, tl_id)
+
+    @data_shaped
+    def __sub__(self, other: object) -> Duration:
+        if isinstance(other, Coordinate):
+            raise TypeError("Cannot subtract a Coordinate from a Duration")
+        value, tl_id = self._combine(other, "subtract", "subtract")
+        return _make_duration(value, self.unit, tl_id)
+
+    @data_shaped
+    def __mul__(self, scalar: object) -> Duration:
+        return _make_duration(
+            self._scale(scalar, "multiply", "multiply", "*"),
+            self.unit,
+            self._id_or_none(),
+        )
+
+    @data_shaped
+    def __rmul__(self, scalar: object) -> Duration:
+        return self.__mul__(scalar)
+
+    @data_shaped
+    def __truediv__(self, scalar: object) -> Duration:
+        return _make_duration(
+            self._scale(scalar, "divide", "divide", "/"),
+            self.unit,
+            self._id_or_none(),
+        )
+
+    @data_shaped
+    def __floordiv__(self, scalar: object) -> Duration:
+        return _make_duration(
+            self._scale(scalar, "floor-divide", "floor_divide", "//"),
+            self.unit,
+            self._id_or_none(),
+        )
+
+    # -- copy-on-write ------------------------------------------------------
+
+    def with_timeline(self, timeline_id: str) -> IdDuration:
+        """Return an ``IdDuration`` carrying the given timeline id."""
+        return IdDuration(self.value, self.unit, timeline_id)
+
+    # -- formatting ---------------------------------------------------------
+
+    def __repr__(self) -> str:
+        return f"Duration({self.value!r}, {self.unit})"
+
+    def __str__(self) -> str:
+        return f"{self._format_value()} {self.unit}"
+
+
+# ---------------------------------------------------------------------------
+# DurationField
+# ---------------------------------------------------------------------------
+
+
+class DurationField(TimeScalarField):
+    """Semantic field for duration fields.
+
+    Uses the same coordinate struct ``{value, numerator, denominator}``
+    as :class:`CoordinateField`; the distinction is semantic.
+    Pairs with :class:`Duration`.
+    """
+
+    scalar_cls = Duration
+
+    @property
+    def semantic_type(self) -> str:
+        return "Duration"
+
+    def __getitem__(self, i: int) -> Duration | None:
+        value = self._materialise_value(i)
+        if value is None:
+            return None
+        return Duration(value, self._unit, number_type=self._number_type)
+
+    # -- vectorized arithmetic mirrors --------------------------------------
+
+    def __add__(self, other: object) -> DurationField:
+        if isinstance(other, (Coordinate, CoordinateField)):
+            raise TypeError(
+                "Cannot add a Coordinate to a Duration field; "
+                "use 'coord + dur' instead"
+            )
+        struct, tl = _field_binop(self, other, "add", "add")
+        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
+
+    def __sub__(self, other: object) -> DurationField:
+        if isinstance(other, (Coordinate, CoordinateField)):
+            raise TypeError("Cannot subtract a Coordinate from a Duration field")
+        struct, tl = _field_binop(self, other, "subtract", "subtract")
+        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
+
+    def __mul__(self, scalar: object) -> DurationField:
+        struct, tl = _field_binop(self, scalar, "multiply", "multiply")
+        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
+
+    def __rmul__(self, scalar: object) -> DurationField:
+        return self.__mul__(scalar)
+
+    def __truediv__(self, scalar: object) -> DurationField:
+        struct, tl = _field_binop(self, scalar, "divide", "divide")
+        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
+
+    def __floordiv__(self, scalar: object) -> DurationField:
+        struct, tl = _field_binop(self, scalar, "floor_divide", "floor_divide")
+        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
+
+    @classmethod
+    def matches_pa_field(cls, pa_field: pa.Field) -> bool:
+        """Reject ``IdDurationField`` shapes; otherwise defer to the base."""
+        if (
+            pa_field.metadata is not None
+            and TIMETOALIGN_METADATA_KEY in pa_field.metadata
+        ):
+            try:
+                meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
+            except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
+                meta = {}
+            if meta:
+                ft = meta.get("field_type")
+                if ft == "IdDurationField":
+                    return False
+                if ft == cls.__name__:
+                    return True
+        return super().matches_pa_field(pa_field)
+
+
+# ---------------------------------------------------------------------------
+# IdCoordinate — diamond MRO: IdCoordinate -> Coordinate -> IdTimeScalar
+#                            -> TimeScalar -> BaseModel
+# ---------------------------------------------------------------------------
+
+
+class IdCoordinate(Coordinate, IdTimeScalar):
+    """A ``Coordinate`` that carries the ID of the timeline it belongs to.
+
+    Extends ``Coordinate`` with a ``timeline_id`` field, providing the
+    most specific form of coordinate specification.  Operator results
+    inherit the timeline_id (``IdCoordinate + Duration → IdCoordinate``;
+    ``IdCoordinate - IdCoordinate → IdDuration`` when the ids match).
+    """
+
+    # An IdCoordinate is stored by CoordinateField (the timeline id lives
+    # in field metadata, not in the row), so the discriminator is the
+    # plain coordinate one rather than the derived "IdCoordinateField".
+    field_type_name: ClassVar[str] = "CoordinateField"
+
+    def __init__(
+        self,
+        value: TimeScalarValue | None = None,
+        unit: TimeUnit | str | None = None,
+        timeline_id: str | None = None,
+        /,
+        *,
+        number_type: NumberType | str | None = None,
+        rounding: str = "round",
+        **data: Any,
+    ) -> None:
+        positional = {
+            k: v
+            for k, v in (
+                ("value", value),
+                ("unit", unit),
+                ("timeline_id", timeline_id),
+            )
+            if v is not None
+        }
+        if positional and any(k in data for k in positional):
+            raise TypeError(
+                "IdCoordinate received conflicting positional and keyword arguments"
+            )
+        data = _apply_construction_protocol(
+            {**positional, **data}, number_type=number_type, rounding=rounding
+        )
+        BaseModel.__init__(self, **data)
+
+    @classmethod
+    def from_coordinate(cls, coord: Coordinate, timeline_id: str) -> IdCoordinate:
+        return cls(coord.value, coord.unit, timeline_id)
+
+    def to_coordinate(self) -> Coordinate:
+        return Coordinate(self.value, self.unit)
+
+    def with_timeline(self, timeline_id: str) -> IdCoordinate:
+        return IdCoordinate(self.value, self.unit, timeline_id)
+
+    def __repr__(self) -> str:
+        return f"IdCoordinate({self.value!r}, {self.unit}, {self.timeline_id!r})"
+
+    def __str__(self) -> str:
+        return f"{self._format_value()} {self.unit} @{self.timeline_id}"
+
+
+# ---------------------------------------------------------------------------
 # IdCoordinateField — carries timeline_id, materialises IdCoordinate
 # ---------------------------------------------------------------------------
 
@@ -3253,80 +3217,66 @@ class IdCoordinateField(CoordinateField):
 
 
 # ---------------------------------------------------------------------------
-# DurationField
+# IdDuration — diamond MRO: IdDuration -> Duration -> IdTimeScalar
+#                          -> TimeScalar -> BaseModel
 # ---------------------------------------------------------------------------
 
 
-class DurationField(TimeScalarField):
-    """Semantic field for duration fields.
+class IdDuration(Duration, IdTimeScalar):
+    """A ``Duration`` that carries the ID of the timeline it belongs to.
 
-    Uses the same coordinate struct ``{value, numerator, denominator}``
-    as :class:`CoordinateField`; the distinction is semantic.
-    Pairs with :class:`Duration`.
+    Produced by ``Coordinate - Coordinate`` (with at least one operand
+    being an ``IdCoordinate``) and ``IdDuration ± Duration``.
     """
 
-    scalar_cls = Duration
+    # Mirrors IdCoordinate: stored by DurationField, with the timeline id
+    # carried in field metadata rather than derived into the name.
+    field_type_name: ClassVar[str] = "DurationField"
 
-    @property
-    def semantic_type(self) -> str:
-        return "Duration"
-
-    def __getitem__(self, i: int) -> Duration | None:
-        value = self._materialise_value(i)
-        if value is None:
-            return None
-        return Duration(value, self._unit, number_type=self._number_type)
-
-    # -- vectorized arithmetic mirrors --------------------------------------
-
-    def __add__(self, other: object) -> DurationField:
-        if isinstance(other, (Coordinate, CoordinateField)):
-            raise TypeError(
-                "Cannot add a Coordinate to a Duration field; "
-                "use 'coord + dur' instead"
+    def __init__(
+        self,
+        value: TimeScalarValue | None = None,
+        unit: TimeUnit | str | None = None,
+        timeline_id: str | None = None,
+        /,
+        *,
+        number_type: NumberType | str | None = None,
+        rounding: str = "round",
+        **data: Any,
+    ) -> None:
+        positional = {
+            k: v
+            for k, v in (
+                ("value", value),
+                ("unit", unit),
+                ("timeline_id", timeline_id),
             )
-        struct, tl = _field_binop(self, other, "add", "add")
-        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
-
-    def __sub__(self, other: object) -> DurationField:
-        if isinstance(other, (Coordinate, CoordinateField)):
-            raise TypeError("Cannot subtract a Coordinate from a Duration field")
-        struct, tl = _field_binop(self, other, "subtract", "subtract")
-        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
-
-    def __mul__(self, scalar: object) -> DurationField:
-        struct, tl = _field_binop(self, scalar, "multiply", "multiply")
-        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
-
-    def __rmul__(self, scalar: object) -> DurationField:
-        return self.__mul__(scalar)
-
-    def __truediv__(self, scalar: object) -> DurationField:
-        struct, tl = _field_binop(self, scalar, "divide", "divide")
-        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
-
-    def __floordiv__(self, scalar: object) -> DurationField:
-        struct, tl = _field_binop(self, scalar, "floor_divide", "floor_divide")
-        return _dur_field_from_value(struct, self._unit, self._number_type, tl)
+            if v is not None
+        }
+        if positional and any(k in data for k in positional):
+            raise TypeError(
+                "IdDuration received conflicting positional and keyword arguments"
+            )
+        data = _apply_construction_protocol(
+            {**positional, **data}, number_type=number_type, rounding=rounding
+        )
+        BaseModel.__init__(self, **data)
 
     @classmethod
-    def matches_pa_field(cls, pa_field: pa.Field) -> bool:
-        """Reject ``IdDurationField`` shapes; otherwise defer to the base."""
-        if (
-            pa_field.metadata is not None
-            and TIMETOALIGN_METADATA_KEY in pa_field.metadata
-        ):
-            try:
-                meta = parse_metadata_blob(pa_field.metadata[TIMETOALIGN_METADATA_KEY])
-            except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
-                meta = {}
-            if meta:
-                ft = meta.get("field_type")
-                if ft == "IdDurationField":
-                    return False
-                if ft == cls.__name__:
-                    return True
-        return super().matches_pa_field(pa_field)
+    def from_duration(cls, dur: Duration, timeline_id: str) -> IdDuration:
+        return cls(dur.value, dur.unit, timeline_id)
+
+    def to_duration(self) -> Duration:
+        return Duration(self.value, self.unit)
+
+    def with_timeline(self, timeline_id: str) -> IdDuration:
+        return IdDuration(self.value, self.unit, timeline_id)
+
+    def __repr__(self) -> str:
+        return f"IdDuration({self.value!r}, {self.unit}, {self.timeline_id!r})"
+
+    def __str__(self) -> str:
+        return f"{self._format_value()} {self.unit} @{self.timeline_id}"
 
 
 # ---------------------------------------------------------------------------
@@ -3422,6 +3372,365 @@ class IdDurationField(DurationField):
         except (json.JSONDecodeError, TypeError, UnicodeDecodeError):
             return False
         return meta.get("field_type") == "IdDurationField"
+
+
+# ---------------------------------------------------------------------------
+# Type aliases used by callers
+# ---------------------------------------------------------------------------
+
+# CoordinateSpec: any form of coordinate specification.
+CoordinateSpec = Union[int, float, Fraction, Coordinate, IdCoordinate]
+
+
+class ResolvedCoordinate(NamedTuple):
+    """Decomposed form of a CoordinateSpec input."""
+
+    value: int | float | Fraction
+    timeline_id: str | None
+    unit: TimeUnit | None
+
+
+def resolve_coordinate_spec(
+    spec: CoordinateSpec, *, timeline_id: str | None = None
+) -> ResolvedCoordinate:
+    """Decompose a coordinate specification without converting its unit.
+
+    Args:
+        spec: Coordinate specification to decompose.
+        timeline_id: Optional timeline ID for otherwise unqualified input.
+
+    Returns:
+        The numeric value and any timeline or unit metadata.
+
+    Raises:
+        ValueError: If an explicit timeline ID conflicts with an IdCoordinate.
+        TypeError: If spec is not a supported coordinate specification.
+    """
+    if isinstance(spec, IdCoordinate):
+        if timeline_id is not None and timeline_id != spec.timeline_id:
+            raise ValueError(
+                f"Timeline ID '{timeline_id}' conflicts with coordinate timeline ID "
+                f"'{spec.timeline_id}'"
+            )
+        return ResolvedCoordinate(spec.value, spec.timeline_id, spec.unit)
+    if isinstance(spec, Coordinate):
+        return ResolvedCoordinate(spec.value, timeline_id, spec.unit)
+    if not isinstance(spec, bool) and isinstance(spec, (int, float, Fraction)):
+        return ResolvedCoordinate(spec, timeline_id, None)
+    raise TypeError(f"Unsupported coordinate specification type: {type(spec).__name__}")
+
+
+# Optional coordinate (common pattern).
+OptionalCoordinate = Union[Coordinate, None]
+
+
+# ---------------------------------------------------------------------------
+# Interval / IntervalField
+# ---------------------------------------------------------------------------
+
+
+class Interval(BaseModel):
+    """A non-decreasing interval between two plain coordinates.
+
+    Args:
+        start: Inclusive interval start.
+        end: Exclusive interval end.
+
+    Raises:
+        TypeError: If either endpoint is not a plain :class:`Coordinate`.
+        ValueError: If endpoint units or number types differ, or if the end
+            precedes the start.
+    """
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
+
+    start: Coordinate
+    end: Coordinate
+
+    @field_validator("start", "end", mode="before")
+    @classmethod
+    def _validate_plain_coordinate(cls, value: object) -> Coordinate:
+        if type(value) is not Coordinate:
+            raise TypeError(
+                "Interval endpoints must be plain Coordinate values; "
+                f"got {type(value).__name__}"
+            )
+        return Coordinate(
+            value.value,
+            value.unit,
+            number_type=value.number_type,
+        )
+
+    @model_validator(mode="after")
+    def _validate_interval(self) -> Interval:
+        if self.start.unit != self.end.unit:
+            raise ValueError(
+                "Interval endpoints must use the same unit: "
+                f"{self.start.unit} != {self.end.unit}"
+            )
+        if self.start.number_type != self.end.number_type:
+            raise ValueError(
+                "Interval endpoints must use the same number_type: "
+                f"{self.start.number_type} != {self.end.number_type}"
+            )
+        if self.start.value > self.end.value:
+            raise ValueError("Interval start must not exceed interval end")
+        return self
+
+    @property
+    def unit(self) -> TimeUnit:
+        """Return the common endpoint unit."""
+        return self.start.unit
+
+    @property
+    def number_type(self) -> NumberType:
+        """Return the common endpoint number type."""
+        return self.start.number_type
+
+    @property
+    def duration(self) -> Duration:
+        """Return the exact non-negative interval duration."""
+        return Duration(
+            self.end.value - self.start.value,
+            self.unit,
+            number_type=self.number_type,
+        )
+
+
+class IntervalField(SemanticField[Interval]):
+    """Semantic field storing intervals with shared axis metadata.
+
+    Args:
+        raw: Struct field containing ``start`` and ``end`` coordinate structs.
+        unit: Common endpoint unit.
+        number_type: Common endpoint number type.
+        source_fields: Optional blueprint source-field declaration.
+    """
+
+    scalar_cls = Interval
+
+    def __init__(
+        self,
+        raw: StructField | None = None,
+        unit: TimeUnit | str | None = None,
+        number_type: NumberType | str | None = None,
+        *,
+        source_fields: str | dict[str, Any] | None = None,
+    ) -> None:
+        if raw is None and source_fields is None:
+            raise TypeError(
+                "IntervalField requires either a raw field or source_fields="
+            )
+        super().__init__(raw, source_fields=source_fields)
+        if raw is None:
+            self._unit = None
+            self._number_type = NumberType.float
+            return
+        resolved_unit, resolved_number_type = TimeScalarField._resolve_metadata(
+            raw.field, unit, number_type
+        )
+        if resolved_unit is None:
+            raise ValueError("IntervalField requires unit metadata or an explicit unit")
+        self._unit = resolved_unit
+        self._number_type = resolved_number_type
+
+    @property
+    def unit(self) -> TimeUnit:
+        """Return the common endpoint unit."""
+        return self._unit
+
+    @property
+    def domain(self) -> Domain:
+        """Return the temporal domain implied by the unit."""
+        return self._unit.domain
+
+    @property
+    def number_type(self) -> NumberType:
+        """Return the common endpoint number type."""
+        return self._number_type
+
+    @property
+    def semantic_type(self) -> str:
+        """Return the paired scalar semantic type."""
+        return "Interval"
+
+    def metadata_dict(self) -> dict[str, str]:
+        """Return semantic type and shared axis metadata."""
+        return {
+            **super().metadata_dict(),
+            "unit": self.unit.value,
+            "domain": self.domain.value,
+            "number_type": self.number_type.name,
+        }
+
+    @classmethod
+    def from_intervals(
+        cls,
+        intervals: Sequence[Interval | None],
+        *,
+        unit: TimeUnit | str | None = None,
+        number_type: NumberType | str | None = None,
+        name: str = "interval",
+    ) -> IntervalField:
+        """Build an interval field from scalar intervals.
+
+        Args:
+            intervals: Interval values, optionally containing null rows.
+            unit: Shared unit override, required for an empty/all-null input.
+            number_type: Shared number type override, required for an
+                empty/all-null input.
+            name: Arrow field name.
+
+        Returns:
+            A live interval field.
+
+        Raises:
+            ValueError: If non-null intervals do not share one metadata triple.
+        """
+        present = [value for value in intervals if value is not None]
+        if present:
+            inferred_unit = present[0].unit
+            inferred_number_type = present[0].number_type
+            if any(
+                value.unit != inferred_unit or value.number_type != inferred_number_type
+                for value in present
+            ):
+                raise ValueError(
+                    "IntervalField values must share one unit and number_type"
+                )
+            resolved_unit = TimeUnit(unit) if isinstance(unit, str) else unit
+            resolved_number_type = (
+                NumberType(number_type) if isinstance(number_type, str) else number_type
+            )
+            if resolved_unit is not None and resolved_unit != inferred_unit:
+                raise ValueError("Explicit IntervalField unit conflicts with values")
+            if (
+                resolved_number_type is not None
+                and resolved_number_type != inferred_number_type
+            ):
+                raise ValueError(
+                    "Explicit IntervalField number_type conflicts with values"
+                )
+            resolved_unit = inferred_unit
+            resolved_number_type = inferred_number_type
+        else:
+            if unit is None or number_type is None:
+                raise ValueError(
+                    "Empty IntervalField input requires unit and number_type"
+                )
+            resolved_unit = TimeUnit(unit) if isinstance(unit, str) else unit
+            resolved_number_type = (
+                NumberType(number_type) if isinstance(number_type, str) else number_type
+            )
+        rows = [
+            (
+                None
+                if value is None
+                else {
+                    "start": coordinate_to_struct(value.start.value),
+                    "end": coordinate_to_struct(value.end.value),
+                }
+            )
+            for value in intervals
+        ]
+        interval_type = pa.struct(
+            [
+                pa.field("start", RATIONAL_STRUCT_TYPE),
+                pa.field("end", RATIONAL_STRUCT_TYPE),
+            ]
+        )
+        array = pa.array(rows, type=interval_type)
+        field = pa.field(name, interval_type)
+        return cls(StructField(array, field), resolved_unit, resolved_number_type)
+
+    @classmethod
+    def from_field(
+        cls,
+        source: (
+            pa.Array
+            | pa.ChunkedArray
+            | StructField
+            | pa.Field
+            | tuple[pa.Array | None, pa.Field]
+        ),
+        *,
+        unit: TimeUnit | str | None = None,
+        number_type: NumberType | str | None = None,
+        name: str = "interval",
+    ) -> IntervalField:
+        """Build an interval field from an Arrow or raw field source.
+
+        Args:
+            source: Supported Arrow field representation.
+            unit: Common endpoint unit override.
+            number_type: Common endpoint number type override.
+            name: Field name for a bare array.
+
+        Returns:
+            A live or blueprint interval field.
+        """
+        if isinstance(source, tuple):
+            data, field = source
+            return cls(StructField(data, field), unit, number_type)
+        if isinstance(source, pa.Field):
+            return cls(StructField(None, source), unit, number_type)
+        if isinstance(source, StructField):
+            return cls(source, unit, number_type)
+        if isinstance(source, (pa.Array, pa.ChunkedArray)):
+            return cls(
+                StructField(source, pa.field(name, source.type)), unit, number_type
+            )
+        raise TypeError(
+            f"Unsupported source type for IntervalField.from_field: "
+            f"{type(source).__name__}"
+        )
+
+    def __getitem__(self, i: int) -> Interval | None:
+        """Materialize one interval scalar or null."""
+        cell = self._raw[i]
+        if cell is None:
+            return None
+        return Interval(
+            start=Coordinate(
+                struct_to_coordinate(cell["start"], self.number_type),
+                self.unit,
+                number_type=self.number_type,
+            ),
+            end=Coordinate(
+                struct_to_coordinate(cell["end"], self.number_type),
+                self.unit,
+                number_type=self.number_type,
+            ),
+        )
+
+    def _endpoint(self, name: str) -> CoordinateField:
+        array = self.to_pyarrow()
+        if isinstance(array, pa.ChunkedArray):
+            array = array.combine_chunks()
+        child = array.field(name)
+        outer_valid = array.is_valid()
+        child = pc.if_else(outer_valid, child, pa.scalar(None, type=child.type))
+        return CoordinateField.from_field(
+            child,
+            unit=self.unit,
+            number_type=self.number_type,
+            name=name,
+        )
+
+    @property
+    def start(self) -> CoordinateField:
+        """Return the vectorized start-coordinate field."""
+        return self._endpoint("start")
+
+    @property
+    def end(self) -> CoordinateField:
+        """Return the vectorized end-coordinate field."""
+        return self._endpoint("end")
+
+    @property
+    def duration(self) -> DurationField:
+        """Return the vectorized duration field."""
+        return self.end - self.start
 
 
 # ---------------------------------------------------------------------------

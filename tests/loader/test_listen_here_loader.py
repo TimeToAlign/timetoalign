@@ -49,7 +49,7 @@ import pyarrow.compute as pc
 import pytest
 
 from timetoalign.alignment.claims import MatchClaim, MatchClaimField
-from timetoalign.core import TimeUnit
+from timetoalign.core import IdCoordinateField, TimeUnit
 from timetoalign.loader.alignment import ListenHereLoader
 from timetoalign.timelines import DiscretePhysicalTimeline
 
@@ -434,7 +434,19 @@ def test_bundle_matchstamp_table_from_graph(loader: ListenHereLoader) -> None:
     table = loader.create_bundle().get_matchstamp_table(from_graph=True)
     assert table.num_rows == 5
     assert table.column_names == ["rec-a:dpt1", "rec-b:dpt1", "rec-ref:dpt1"]
-    assert table.to_pylist() == [
+    semantic_rows = [
+        {
+            name: (
+                None
+                if (coordinate := IdCoordinateField.from_table(table, name)[position])
+                is None
+                else coordinate.value
+            )
+            for name in table.column_names
+        }
+        for position in range(table.num_rows)
+    ]
+    assert semantic_rows == [
         {"rec-a:dpt1": 0, "rec-b:dpt1": -441, "rec-ref:dpt1": 0},
         {"rec-a:dpt1": 882, "rec-b:dpt1": 441, "rec-ref:dpt1": 1102},
         {"rec-a:dpt1": 1764, "rec-b:dpt1": 1323, "rec-ref:dpt1": 1984},

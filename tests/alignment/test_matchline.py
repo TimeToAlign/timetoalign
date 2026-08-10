@@ -6,7 +6,7 @@ Tests cover:
 - Construction from stamps (direct)
 - from_claims() with ordering verification
 - from_graphs() merging multiple MatchGraphs (Hendrix M6-M9 pattern)
-- get_coordinate_pairs() extraction
+- get_alignment_anchors() extraction
 - target_timeline_ids() returns only timelines with >= 2 stamps
 - Serialization round-trip
 - Edge cases (empty, single stamp, stamps missing source)
@@ -20,7 +20,7 @@ from timetoalign.alignment import (
     AlignmentAnchor,
     MatchClaim,
 )
-from timetoalign.alignment.graph import MatchGraph, MatchStamp
+from timetoalign.alignment.graph import MatchGraph
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.core import Coordinate, TimeUnit
 from timetoalign.timelines import (
@@ -29,7 +29,21 @@ from timetoalign.timelines import (
     TimelineGroup,
 )
 
+from .helpers import make_match_stamp as MatchStamp
+
 # region Fixtures
+
+
+def _anchor_values(
+    line: MatchLine, target_timeline_id: str
+) -> list[tuple[int | float, int | float]]:
+    """Return values after validating typed alignment-anchor identities."""
+    anchors = line.get_alignment_anchors(target_timeline_id)
+    assert all(anchor.timeline_a_id == line.source_timeline_id for anchor in anchors)
+    assert all(anchor.timeline_b_id == target_timeline_id for anchor in anchors)
+    return [
+        (anchor.coordinate_a.value, anchor.coordinate_b.value) for anchor in anchors
+    ]
 
 
 @pytest.fixture
@@ -88,7 +102,8 @@ class TestMatchLineBasic:
 
         assert line.n_stamps == 3
         coords = line.source_coordinates
-        assert coords == [0.0, 100.0, 200.0]
+        assert [coordinate.value for coordinate in coords] == [0.0, 100.0, 200.0]
+        assert all(coordinate.timeline_id == "src" for coordinate in coords)
 
     def test_empty_matchline(self) -> None:
         """Create an empty MatchLine."""
@@ -105,7 +120,7 @@ class TestMatchLineBasic:
         line = MatchLine(source_timeline_id="src", stamps=[stamp])
 
         assert line.n_stamps == 1
-        assert line.source_coordinates == [50.0]
+        assert [coordinate.value for coordinate in line.source_coordinates] == [50.0]
         # Single stamp: no target has >= 2 stamps
         assert line.target_timeline_ids() == set()
 
@@ -119,11 +134,20 @@ class TestMatchLineBasic:
         line = MatchLine(source_timeline_id="src", stamps=stamps)
 
         assert line.n_stamps == 2
-        assert line.source_coordinates == [0.0, 100.0]
+        assert [coordinate.value for coordinate in line.source_coordinates] == [
+            0.0,
+            100.0,
+        ]
 
     def test_source_coordinates_property(self, three_stamp_line: MatchLine) -> None:
         """source_coordinates returns sorted list of source coordinates."""
-        assert three_stamp_line.source_coordinates == [0.0, 100.0, 200.0]
+        assert [
+            coordinate.value for coordinate in three_stamp_line.source_coordinates
+        ] == [
+            0.0,
+            100.0,
+            200.0,
+        ]
 
 
 # endregion
@@ -169,20 +193,20 @@ class TestTargetTimelineIds:
 # endregion
 
 
-# region get_coordinate_pairs Tests
+# region get_alignment_anchors Tests
 
 
-class TestGetCoordinatePairs:
-    """Tests for get_coordinate_pairs() method."""
+class TestGetAlignmentAnchors:
+    """Tests for get_alignment_anchors() method."""
 
     def test_basic_extraction(self, three_stamp_line: MatchLine) -> None:
         """Extract coordinate pairs for a target timeline."""
-        pairs = three_stamp_line.get_coordinate_pairs("audio")
+        pairs = _anchor_values(three_stamp_line, "audio")
         assert pairs == [(0.0, 0.0), (100.0, 45.5), (200.0, 91.0)]
 
     def test_video_pairs(self, three_stamp_line: MatchLine) -> None:
         """Extract coordinate pairs for video target."""
-        pairs = three_stamp_line.get_coordinate_pairs("video")
+        pairs = _anchor_values(three_stamp_line, "video")
         assert pairs == [(0.0, 0.0), (100.0, 1365.0), (200.0, 2730.0)]
 
     def test_missing_target_returns_partial(self) -> None:
@@ -193,7 +217,7 @@ class TestGetCoordinatePairs:
             MatchStamp(coordinates={"src": 100.0, "tgt": 10.0}),
         ]
         line = MatchLine(source_timeline_id="src", stamps=stamps)
-        pairs = line.get_coordinate_pairs("tgt")
+        pairs = _anchor_values(line, "tgt")
 
         assert len(pairs) == 2
         assert pairs == [(0.0, 0.0), (100.0, 10.0)]
@@ -202,13 +226,13 @@ class TestGetCoordinatePairs:
         self, three_stamp_line: MatchLine
     ) -> None:
         """Non-existent target returns empty list."""
-        pairs = three_stamp_line.get_coordinate_pairs("nonexistent")
-        assert pairs == []
+        with pytest.raises(KeyError):
+            three_stamp_line.get_alignment_anchors("nonexistent")
 
     def test_same_as_source_raises(self, three_stamp_line: MatchLine) -> None:
         """target_timeline_id same as source raises ValueError."""
         with pytest.raises(ValueError, match="cannot be the same"):
-            three_stamp_line.get_coordinate_pairs("score")
+            three_stamp_line.get_alignment_anchors("score")
 
     def test_pairs_ordered_by_source_coordinate(self) -> None:
         """Pairs are always ordered by source coordinate."""
@@ -218,7 +242,7 @@ class TestGetCoordinatePairs:
             MatchStamp(coordinates={"src": 200.0, "tgt": 20.0}),
         ]
         line = MatchLine(source_timeline_id="src", stamps=stamps)
-        pairs = line.get_coordinate_pairs("tgt")
+        pairs = _anchor_values(line, "tgt")
 
         assert pairs == [(100.0, 10.0), (200.0, 20.0), (300.0, 30.0)]
 
@@ -271,7 +295,7 @@ class TestFromClaims:
         # Each claim creates a separate connected component -> 3 stamps
         assert line.n_stamps == 3
         coords = line.source_coordinates
-        assert coords == [0.0, 100.0, 200.0]
+        assert [coordinate.value for coordinate in coords] == [0.0, 100.0, 200.0]
 
     def test_from_claims_coordinate_pairs(self) -> None:
         """from_claims() yields correct coordinate pairs."""
@@ -308,7 +332,7 @@ class TestFromClaims:
             ),
         ]
         line = MatchLine.from_claims(claims, source_timeline_id="tl_a")
-        pairs = line.get_coordinate_pairs("tl_b")
+        pairs = _anchor_values(line, "tl_b")
 
         assert pairs == [(0.0, 0.0), (100.0, 50.0), (200.0, 100.0)]
 
@@ -325,10 +349,12 @@ class TestFromClaims:
 
         # Verify ordering
         coords = line.source_coordinates
-        assert coords == sorted(coords)
+        assert [coordinate.value for coordinate in coords] == sorted(
+            coordinate.value for coordinate in coords
+        )
 
         # First coordinate should be 0.0
-        assert coords[0] == 0.0
+        assert coords[0].value == 0.0
 
     def test_from_claims_with_group_extension(self) -> None:
         """from_claims() with group extension adds group member coordinates."""
@@ -385,7 +411,7 @@ class TestFromClaims:
         assert "external" in line.target_timeline_ids()
 
         # Audio coordinates should be linearly mapped
-        pairs = line.get_coordinate_pairs("audio")
+        pairs = _anchor_values(line, "audio")
         assert len(pairs) == 3
         assert pairs[0] == (0.0, 0.0)
         assert pairs[1] == (500.0, 50.0)
@@ -426,7 +452,10 @@ class TestFromClaims:
 
         # Only 2 synchronous claims produce stamps
         assert line.n_stamps == 2
-        assert line.source_coordinates == [0.0, 200.0]
+        assert [coordinate.value for coordinate in line.source_coordinates] == [
+            0.0,
+            200.0,
+        ]
 
 
 # endregion
@@ -495,7 +524,12 @@ class TestFromGraphs:
         line = MatchLine.from_graphs([graph1, graph2], source_timeline_id="tl_a")
 
         assert line.n_stamps == 4
-        assert line.source_coordinates == [0.0, 100.0, 200.0, 300.0]
+        assert [coordinate.value for coordinate in line.source_coordinates] == [
+            0.0,
+            100.0,
+            200.0,
+            300.0,
+        ]
 
     def test_from_graphs_deduplicates_by_source_coordinate(self) -> None:
         """from_graphs() deduplicates stamps at the same source coordinate."""
@@ -534,7 +568,7 @@ class TestFromGraphs:
         # Should be 1 stamp (deduplicated), keeping the one with more TLs
         # But both have 2 timelines, so either could be kept
         assert line.n_stamps == 1
-        assert line.source_coordinates == [100.0]
+        assert [coordinate.value for coordinate in line.source_coordinates] == [100.0]
 
     def test_from_graphs_keeps_richer_stamp(self) -> None:
         """When deduplicating, keeps the stamp with more timelines."""
@@ -625,7 +659,7 @@ class TestFromGraphs:
         # 5 unique source coordinates: 0, 100, 200, 300, 400
         # (boundaries are shared/deduplicated)
         assert line.n_stamps == 5
-        assert line.source_coordinates == [
+        assert [coordinate.value for coordinate in line.source_coordinates] == [
             0.0,
             100.0,
             200.0,
@@ -668,7 +702,10 @@ class TestFromGraphs:
         line = MatchLine.from_graphs([graph], source_timeline_id="tl_a")
 
         assert line.n_stamps == 2
-        assert line.source_coordinates == [0.0, 100.0]
+        assert [coordinate.value for coordinate in line.source_coordinates] == [
+            0.0,
+            100.0,
+        ]
 
 
 # endregion
@@ -687,11 +724,15 @@ class TestMatchLineSerialization:
 
         assert restored.source_timeline_id == "score"
         assert restored.n_stamps == 3
-        assert restored.source_coordinates == [0.0, 100.0, 200.0]
+        assert [coordinate.value for coordinate in restored.source_coordinates] == [
+            0.0,
+            100.0,
+            200.0,
+        ]
 
         # Coordinate pairs should be preserved
-        original_pairs = three_stamp_line.get_coordinate_pairs("audio")
-        restored_pairs = restored.get_coordinate_pairs("audio")
+        original_pairs = three_stamp_line.get_alignment_anchors("audio")
+        restored_pairs = restored.get_alignment_anchors("audio")
         assert original_pairs == restored_pairs
 
     def test_to_dict_structure(self, three_stamp_line: MatchLine) -> None:
@@ -744,7 +785,7 @@ class TestMatchLineIntegration:
         assert "dgt2" in line.target_timeline_ids()
 
         # Get coordinate pairs
-        pairs = line.get_coordinate_pairs("dgt2")
+        pairs = _anchor_values(line, "dgt2")
         assert len(pairs) >= 2
 
         # First pair should be (0.0, 0.0)
@@ -798,12 +839,12 @@ class TestMatchLineIntegration:
         # Audio should be available as a target
         assert "audio" in line.target_timeline_ids()
 
-        audio_pairs = line.get_coordinate_pairs("audio")
+        audio_pairs = _anchor_values(line, "audio")
         assert len(audio_pairs) == 2
         assert audio_pairs[0] == (0.0, 0.0)
         assert audio_pairs[1] == (1000.0, 100.0)
 
-        dgt2_pairs = line.get_coordinate_pairs("dgt2")
+        dgt2_pairs = _anchor_values(line, "dgt2")
         assert len(dgt2_pairs) == 2
         assert dgt2_pairs == [(0.0, 0.0), (1000.0, 800.0)]
 

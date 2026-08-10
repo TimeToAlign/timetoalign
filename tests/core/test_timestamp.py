@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.core import TimeIntervalStamp, TimeUnit
+from timetoalign.core import (
+    Coordinate,
+    IdCoordinate,
+    Interval,
+    TimeIntervalStamp,
+    TimeUnit,
+)
 from timetoalign.core.fields import field_metadata
 from timetoalign.maps import IntervalToConstantMap, TableMap
 from timetoalign.timelines import Timeline, TimelineGroup
@@ -22,7 +28,7 @@ class TestTimeStampBasics:
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         ts = tl.get_timestamp(50.0)
 
-        assert ts.axis == 50.0
+        assert ts.axis == IdCoordinate(50.0, TimeUnit.seconds, tl.id)
         assert ts.source_id == tl.id
         assert ts.is_interpolated is False
 
@@ -34,7 +40,7 @@ class TestTimeStampBasics:
         coord = Coordinate(25.0, TimeUnit.seconds)
         ts = tl.get_timestamp(coord)
 
-        assert ts.axis == 25.0
+        assert ts.axis == IdCoordinate(25.0, TimeUnit.seconds, tl.id)
 
     def test_timestamp_source(self):
         """TimeStamp references its source timeline."""
@@ -60,8 +66,7 @@ class TestTimeStampWithChildren:
         ts = parent.get_timestamp(30.0)
 
         # Parent 30 = Child 10 (30 - 20)
-        assert ts["child:1"] == 10.0
-        assert ts.get("child:1") == 10.0
+        assert ts.get_coordinate_for("child:1", format="float") == 10.0
 
     def test_get_child_coordinate_at_boundary(self):
         """Get child coordinate at exact boundaries.
@@ -76,21 +81,25 @@ class TestTimeStampWithChildren:
 
         # At child start (parent 25) -- left-inclusive
         ts_start = parent.get_timestamp(25.0)
-        assert ts_start["child:1"] == 0.0
+        assert ts_start.get_coordinate_for("child:1", format="float") == 0.0
 
         # At child end (parent 75) -- right-exclusive, so None
         ts_end = parent.get_timestamp(75.0)
-        assert ts_end["child:1"] is None
+        with pytest.raises(KeyError):
+            ts_end.get_coordinate_for("child:1")
 
         # Just before child end (parent 74.999...) -- still inside
         ts_just_before = parent.get_timestamp(74.999)
-        assert ts_just_before["child:1"] is not None
+        assert (
+            ts_just_before.get_coordinate_for("child:1", format="float")
+            == 49.998999999999995
+        )
 
     def test_child_out_of_range_returns_none(self):
         """Coordinates outside child range return None.
 
         Child spans [30, 70) on the parent.  Parent coordinate 10 is
-        outside that span, so ``get()`` returns None rather than
+        outside that span, so typed retrieval raises ``KeyError`` rather than
         extrapolating a meaningless negative local coordinate.
         """
         parent = Timeline(length=100, unit=TimeUnit.seconds)
@@ -100,7 +109,8 @@ class TestTimeStampWithChildren:
 
         # Before child (parent 10) -- outside [30, 70)
         ts_before = parent.get_timestamp(10.0)
-        assert ts_before["child:1"] is None
+        with pytest.raises(KeyError):
+            ts_before.get_coordinate_for("child:1")
 
     def test_multiple_children(self):
         """Timestamps work with multiple children.
@@ -120,18 +130,22 @@ class TestTimeStampWithChildren:
 
         # Parent 40 is at the right-exclusive boundary of child1 [10, 40)
         ts_boundary = parent.get_timestamp(40.0)
-        assert ts_boundary["child:1"] is None
-        assert ts_boundary["child:2"] is None
+        with pytest.raises(KeyError):
+            ts_boundary.get_coordinate_for("child:1")
+        with pytest.raises(KeyError):
+            ts_boundary.get_coordinate_for("child:2")
 
         # Parent 35 is inside child1 [10, 40): local = 35 - 10 = 25
         ts_inside = parent.get_timestamp(35.0)
-        assert ts_inside["child:1"] == 25.0
-        assert ts_inside["child:2"] is None
+        assert ts_inside.get_coordinate_for("child:1", format="float") == 25.0
+        with pytest.raises(KeyError):
+            ts_inside.get_coordinate_for("child:2")
 
         # Parent 70 is inside child2 [60, 90): local = 70 - 60 = 10
         ts_child2 = parent.get_timestamp(70.0)
-        assert ts_child2["child:1"] is None
-        assert ts_child2["child:2"] == 10.0
+        with pytest.raises(KeyError):
+            ts_child2.get_coordinate_for("child:1")
+        assert ts_child2.get_coordinate_for("child:2", format="float") == 10.0
 
     def test_to_dict(self):
         """TimeStamp can be materialized to dict."""
@@ -143,8 +157,20 @@ class TestTimeStampWithChildren:
         ts = parent.get_timestamp(30.0)
         result = ts.to_dict()
 
-        assert result["parent:1"] == 30.0
-        assert result["child:1"] == 10.0
+        assert result["parent:1"] == {
+            "value": 30.0,
+            "numerator": None,
+            "denominator": None,
+            "unit": "seconds",
+            "number_type": "float",
+        }
+        assert result["child:1"] == {
+            "value": 10.0,
+            "numerator": None,
+            "denominator": None,
+            "unit": "seconds",
+            "number_type": "float",
+        }
 
     def test_present_timelines(self):
         """Get list of timelines with coordinates."""
@@ -179,7 +205,7 @@ class TestTimeStampWithCMaps:
         ts = tl.get_timestamp(480)
 
         # 480 ticks = 1.0 seconds (linear TableMap interp is bit-exact here)
-        assert ts.get_unit(TimeUnit.seconds) == 1.0
+        assert ts.get_unit(TimeUnit.seconds, format="float") == 1.0
 
     def test_timestamp_from_unit(self):
         """Create timestamp specifying coordinate in different unit."""
@@ -198,10 +224,10 @@ class TestTimeStampWithCMaps:
         ts = tl.get_timestamp(1.5, unit=TimeUnit.seconds)
 
         # 1.5 seconds = 720 ticks (linear inverse is bit-exact here)
-        assert ts.axis == 720.0
+        assert ts.axis.value == 720
 
-    def test_subscript_unit_access(self):
-        """Subscript access works for unit names."""
+    def test_typed_unit_access(self):
+        """Unit conversion uses the explicit typed getter."""
         tl = Timeline(length=960, unit=TimeUnit.ticks)
 
         tempo_map = TableMap(
@@ -214,17 +240,16 @@ class TestTimeStampWithCMaps:
 
         ts = tl.get_timestamp(480)
 
-        # Access by unit name string
-        result = ts["seconds"]
+        result = ts.get_unit(TimeUnit.seconds, format="float")
         assert result == 1.0
 
-    def test_no_cmap_returns_none(self):
-        """get_unit returns None when no C-Map available."""
+    def test_no_cmap_raises_keyerror(self):
+        """get_unit raises KeyError when no C-Map is available."""
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         ts = tl.get_timestamp(50.0)
 
-        result = ts.get_unit(TimeUnit.pixels)
-        assert result is None
+        with pytest.raises(KeyError):
+            ts.get_unit(TimeUnit.pixels)
 
     def test_timestamp_from_unit_raises_without_cmap(self):
         """get_timestamp raises when unit specified but no C-Map."""
@@ -233,8 +258,8 @@ class TestTimeStampWithCMaps:
         with pytest.raises(ValueError, match="No C-Map available"):
             tl.get_timestamp(50.0, unit=TimeUnit.pixels)
 
-    def test_to_dict_with_units(self):
-        """to_dict includes C-Map conversions."""
+    def test_to_dict_and_unit_conversion_are_separate(self):
+        """Serialization and unit conversion use separate typed surfaces."""
         tl = Timeline(length=960, unit=TimeUnit.ticks, uid="tl:1")
 
         tempo_map = TableMap(
@@ -246,10 +271,16 @@ class TestTimeStampWithCMaps:
         tl.add_conversion_map(tempo_map)
 
         ts = tl.get_timestamp(480)
-        result = ts.to_dict(conversion_units=[TimeUnit.seconds])
+        result = ts.to_dict()
 
-        assert result["tl:1"] == 480.0
-        assert result["seconds"] == 1.0
+        assert result["tl:1"] == {
+            "value": 480.0,
+            "numerator": None,
+            "denominator": None,
+            "unit": "ticks",
+            "number_type": "int",
+        }
+        assert ts.get_unit(TimeUnit.seconds, format="float") == 1.0
 
 
 class TestTimeIntervalStamp:
@@ -260,9 +291,10 @@ class TestTimeIntervalStamp:
         tl = Timeline(length=100, unit=TimeUnit.seconds)
         interval = tl.get_interval_stamp(10.0, 50.0)
 
-        assert interval.start.axis == 10.0
-        assert interval.end.axis == 50.0
-        assert interval.duration == 40.0
+        assert interval.start.axis.value == 10.0
+        assert interval.end.axis.value == 50.0
+        assert interval.duration.value == 40.0
+        assert interval.present_timelines == [tl.id]
 
     def test_get_interval_for_child(self):
         """Get interval on child timeline."""
@@ -275,7 +307,10 @@ class TestTimeIntervalStamp:
         interval = parent.get_interval_stamp(30.0, 70.0)
 
         child_interval = interval.get_interval("child:1")
-        assert child_interval == (10.0, 50.0)
+        assert child_interval == Interval(
+            start=Coordinate(10.0, TimeUnit.seconds),
+            end=Coordinate(50.0, TimeUnit.seconds),
+        )
 
     def test_get_duration_for_child(self):
         """Get duration on child timeline."""
@@ -287,10 +322,12 @@ class TestTimeIntervalStamp:
         interval = parent.get_interval_stamp(20.0, 60.0)
 
         # Child duration = 40 (same as parent, linear mapping)
-        assert interval.get_duration("child:1") == 40.0
+        duration = interval.get_duration_for("child:1")
+        assert duration.value == 40.0
+        assert duration.timeline_id == "child:1"
 
-    def test_zip_intervals(self):
-        """Zip all intervals across timelines."""
+    def test_get_intervals(self):
+        """Retrieve all typed intervals across timelines."""
         parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent:1")
         child1 = Timeline(length=80, unit=TimeUnit.seconds, uid="child:1")
         child2 = Timeline(length=60, unit=TimeUnit.seconds, uid="child:2")
@@ -299,14 +336,23 @@ class TestTimeIntervalStamp:
         parent.add_child(child2, offset=30)
 
         interval = parent.get_interval_stamp(40.0, 80.0)
-        zipped = interval.zip_intervals()
+        intervals = interval.get_intervals()
 
-        assert zipped["parent:1"] == (40.0, 80.0)
-        assert zipped["child:1"] == (30.0, 70.0)  # 40-10, 80-10
-        assert zipped["child:2"] == (10.0, 50.0)  # 40-30, 80-30
+        assert (intervals["parent:1"].start.value, intervals["parent:1"].end.value) == (
+            40.0,
+            80.0,
+        )
+        assert (intervals["child:1"].start.value, intervals["child:1"].end.value) == (
+            30.0,
+            70.0,
+        )
+        assert (intervals["child:2"].start.value, intervals["child:2"].end.value) == (
+            10.0,
+            50.0,
+        )
 
-    def test_subscript_access(self):
-        """Subscript access returns interval tuple."""
+    def test_interval_access(self):
+        """Interval access returns a typed Interval."""
         parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent:1")
         child = Timeline(length=80, unit=TimeUnit.seconds, uid="child:1")
 
@@ -314,16 +360,8 @@ class TestTimeIntervalStamp:
 
         interval = parent.get_interval_stamp(20.0, 60.0)
 
-        assert interval["child:1"] == (10.0, 50.0)
-
-    def test_iteration(self):
-        """Can iterate over start and end."""
-        tl = Timeline(length=100, unit=TimeUnit.seconds)
-        interval = tl.get_interval_stamp(10.0, 50.0)
-
-        start, end = interval
-        assert start.axis == 10.0
-        assert end.axis == 50.0
+        child_interval = interval.get_interval("child:1")
+        assert (child_interval.start.value, child_interval.end.value) == (10.0, 50.0)
 
     def test_str_basic(self):
         """__str__ shows header and aligned start/end columns."""
@@ -336,8 +374,6 @@ class TestTimeIntervalStamp:
         text = str(interval)
 
         assert "TimeIntervalStamp [30, 70) seconds" in text
-        assert "start" in text
-        assert "end" in text
         assert "tl:1" in text
         assert "child:1" in text
 
@@ -358,23 +394,10 @@ class TestTimeIntervalStamp:
 
         # Parent row: both endpoints present
         assert "parent:1" in text
-        # sec:A: start=35 is inside [0, 40), end=55 is outside -> dash
-        assert "sec:A" in text
-        # sec:B: start=35 is outside [50, 90), end=55 is inside -> dash
-        assert "sec:B" in text
-
-        # Check the actual values by parsing lines
-        lines = text.strip().split("\n")
-        sec_a_line = [line for line in lines if "sec:A" in line][0]
-        sec_b_line = [line for line in lines if "sec:B" in line][0]
-
-        # sec:A shows start=35, end='-'
-        assert "35" in sec_a_line
-        assert "-" in sec_a_line
-
-        # sec:B shows start='-', end=5
-        assert "5" in sec_b_line
-        assert "-" in sec_b_line
+        # An Interval requires both endpoints on the same axis, so axes with
+        # only one present endpoint are not stored.
+        assert "sec:A" not in text
+        assert "sec:B" not in text
 
     def test_str_omits_fully_out_of_range_children(self):
         """Children where both endpoints are out of range are omitted."""
@@ -395,13 +418,18 @@ class TestTimeStampValidation:
     def test_interval_same_source(self):
         """Start and end must be from same source."""
         tl1 = Timeline(length=100, unit=TimeUnit.seconds, uid="tl1")
-        tl2 = Timeline(length=100, unit=TimeUnit.seconds, uid="tl2")
 
         ts1 = tl1.get_timestamp(10.0)
-        ts2 = tl2.get_timestamp(50.0)
 
-        with pytest.raises(ValueError, match="same source"):
-            TimeIntervalStamp(start=ts1, end=ts2)
+        with pytest.raises(ValueError, match="absent"):
+            TimeIntervalStamp(
+                intervals={
+                    "tl1": Interval(
+                        start=ts1.coordinates["tl1"], end=ts1.coordinates["tl1"]
+                    )
+                },
+                source_id="tl2",
+            )
 
 
 class TestTimelineTimeStampSourceProtocol:
@@ -449,17 +477,17 @@ class TestTimelineTimeStampSourceProtocol:
 class TestTimeStampWithUnits:
     """Tests for unit metadata and Coordinate access in TimeStamps."""
 
-    def test_axis_coordinate_property(self):
-        """axis_coordinate returns proper Coordinate object."""
-        from timetoalign.core import Coordinate
+    def test_typed_axis_property(self):
+        """axis returns the proper IdCoordinate object."""
 
         tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
         ts = tl.get_timestamp(50.0)
 
-        coord = ts.axis_coordinate
-        assert isinstance(coord, Coordinate)
+        coord = ts.axis
+        assert isinstance(coord, IdCoordinate)
         assert coord.value == 50.0
         assert coord.unit == TimeUnit.seconds
+        assert coord.timeline_id == "test:1"
 
     def test_get_coordinate_for_self(self):
         """get_coordinate returns Coordinate for source timeline."""
@@ -468,7 +496,7 @@ class TestTimeStampWithUnits:
         tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
         ts = tl.get_timestamp(50.0)
 
-        coord = ts.get_coordinate("test:1")
+        coord = ts.get_coordinate_for("test:1", format="coordinate")
         assert isinstance(coord, Coordinate)
         assert coord.value == 50.0
         assert coord.unit == TimeUnit.seconds
@@ -486,18 +514,18 @@ class TestTimeStampWithUnits:
         ts = parent.get_timestamp(30.0)
 
         # Child coordinate at parent 30 is 10 (30 - 20)
-        child_coord = ts.get_coordinate("child:1")
+        child_coord = ts.get_coordinate_for("child:1", format="coordinate")
         assert isinstance(child_coord, Coordinate)
         assert child_coord.value == 10.0
         assert child_coord.unit == TimeUnit.seconds  # Same unit as parent
 
-    def test_get_coordinate_unknown_timeline_returns_none(self):
-        """get_coordinate returns None for unknown timeline."""
+    def test_get_coordinate_unknown_timeline_raises(self):
+        """Typed coordinate retrieval raises for an unknown timeline."""
         tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
         ts = tl.get_timestamp(50.0)
 
-        result = ts.get_coordinate("unknown:1")
-        assert result is None
+        with pytest.raises(KeyError):
+            ts.get_coordinate_for("unknown:1")
 
     def test_get_unit_for_timeline_self(self):
         """_get_unit_for_timeline returns own unit for source."""
@@ -528,9 +556,8 @@ class TestTimeStampWithUnits:
 class TestTimeIntervalStampWithUnits:
     """Tests for unit metadata in TimeIntervalStamp."""
 
-    def test_get_coordinate_interval(self):
-        """get_coordinate_interval returns Coordinate tuples."""
-        from timetoalign.core import Coordinate
+    def test_get_interval(self):
+        """get_interval returns an Interval."""
 
         # Children must share parent's unit (TTA model constraint)
         parent = Timeline(length=100, unit=TimeUnit.seconds, uid="parent:1")
@@ -541,10 +568,8 @@ class TestTimeIntervalStampWithUnits:
         interval = parent.get_interval_stamp(20.0, 60.0)
 
         # Child interval should be [10, 50] in seconds (same as parent)
-        child_interval = interval.get_coordinate_interval("child:1")
-        assert child_interval is not None
-
-        start, end = child_interval
+        child_interval = interval.get_interval("child:1")
+        start, end = child_interval.start, child_interval.end
         assert isinstance(start, Coordinate)
         assert isinstance(end, Coordinate)
         assert start.value == 10.0
@@ -552,13 +577,13 @@ class TestTimeIntervalStampWithUnits:
         assert start.unit == TimeUnit.seconds
         assert end.unit == TimeUnit.seconds
 
-    def test_get_coordinate_interval_unknown(self):
-        """get_coordinate_interval returns None for unknown timeline."""
+    def test_get_interval_unknown(self):
+        """get_interval raises KeyError for an unknown timeline."""
         tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
         interval = tl.get_interval_stamp(10.0, 50.0)
 
-        result = interval.get_coordinate_interval("unknown:1")
-        assert result is None
+        with pytest.raises(KeyError):
+            interval.get_interval("unknown:1")
 
 
 class TestTimestampTableMetadata:
@@ -637,7 +662,7 @@ class TestTimeStampReprHtml:
         ts = tl.get_timestamp(50.0)
         html = ts._repr_html_()
         assert (
-            "Try: <code>ts.get(&lt;tl_id&gt;)</code>, "
+            "Try: <code>ts.get_coordinate_for(&lt;tl_id&gt;)</code>, "
             "<code>ts.get_unit(&lt;unit&gt;)</code>" in html
         )
         assert html.index("</table>") < html.index("Try:")
@@ -685,9 +710,7 @@ class TestTimeStampCrossSectionConversions:
         )
         ts = tl.get_timestamp(25)  # [20, .) -> "main"
 
-        assert ts["section"] == "main"
-        assert ts.get_conversion("section") == "main"
-        assert ts.to_dict(conversion_units="all")["section"] == "main"
+        assert ts.get_conversion_for("section") == "main"
         rendered = str(ts)
         assert "section" in rendered
         assert "main" in rendered
@@ -697,9 +720,7 @@ class TestTimeStampCrossSectionConversions:
         parent, _child = self._parent_with_label_child()
         ts = parent.get_timestamp(17)  # 17 -> child 7 -> [5,12) -> {"page": 2}
 
-        assert ts["pages"] == {"page": 2}
-        assert ts.get_conversion("pages") == {"page": 2}
-        assert ts.to_dict(conversion_units="all")["pages"] == {"page": 2}
+        assert ts.get_conversion_for("pages") == {"page": 2}
 
     def test_grandchild_map_surfaces(self):
         """A label map on a grandchild surfaces via composed offset arithmetic."""
@@ -716,9 +737,8 @@ class TestTimeStampCrossSectionConversions:
         )
         ts = parent.get_timestamp(17)  # 17 -> child 7 -> grand 4 -> [4, .) -> "B"
 
-        assert ts.get(grand.id) == 4.0
-        assert ts["accolade"] == "B"
-        assert ts.to_dict(conversion_units="all")["accolade"] == "B"
+        assert ts.get_coordinate_for(grand.id, format="float") == 4.0
+        assert ts.get_conversion_for("accolade") == "B"
 
     def test_descendant_unit_map_surfaces_via_get_unit(self):
         """A ``TimeUnit`` map on a child surfaces through the parent's get_unit."""
@@ -736,15 +756,14 @@ class TestTimeStampCrossSectionConversions:
         ts = parent.get_timestamp(20)  # child coordinate 10
 
         assert TimeUnit.seconds in parent._get_available_units()
-        assert ts.get_unit(TimeUnit.seconds) == 5.0
-        assert ts["seconds"] == 5.0
+        assert ts.get_unit(TimeUnit.seconds, format="float") == 5.0
 
     def test_non_numeric_value_not_coerced(self):
         """Structured/label outputs render as themselves, never through float."""
         parent, _child = self._parent_with_label_child()
         ts = parent.get_timestamp(11)  # child 1 -> [0,5) -> {"page": 1}
 
-        assert ts["pages"] == {"page": 1}
+        assert ts.get_conversion_for("pages") == {"page": 1}
         assert "{'page': 1}" in str(ts)
 
     def test_collision_qualified_by_owner(self):
@@ -768,7 +787,7 @@ class TestTimeStampCrossSectionConversions:
         rendered = str(ts)
         assert "left:tag" in rendered
         assert "right:tag" in rendered
-        assert ts.get_conversion("tag") == "left"  # first owner in subtree order
+        assert ts.get_conversion_for("tag") == "left"  # first owner in subtree order
 
     def test_conversion_maps_false_suppresses(self):
         """conversion_maps=False surfaces no conversions at all."""
@@ -783,10 +802,9 @@ class TestTimeStampCrossSectionConversions:
         )
         ts = tl.get_timestamp(10, conversion_maps=False)
 
-        assert ts.get_conversion("lbl") is None
-        assert ts.to_dict(conversion_units="all") == {"tl": 10.0}
         with pytest.raises(KeyError):
-            ts["lbl"]
+            ts.get_conversion_for("lbl")
+        assert set(ts.to_dict()) == {"tl"}
 
     def test_selector_list_surfaces_only_matching_maps(self):
         """conversion_maps=[selector] surfaces only the maps it names."""
@@ -809,19 +827,17 @@ class TestTimeStampCrossSectionConversions:
         )
         ts = tl.get_timestamp(10, conversion_maps=["wanted"])
 
-        assert ts.to_dict(conversion_units="all") == {"tl": 10.0, "wanted": "shown"}
-        assert ts.get_conversion("wanted") == "shown"
-        assert ts.get_conversion("other") is None
+        assert ts.get_conversion_for("wanted") == "shown"
         with pytest.raises(KeyError):
-            ts["other"]
+            ts.get_conversion_for("other")
 
-    def test_unknown_subscript_raises_keyerror(self):
-        """An unknown subscript key raises KeyError."""
+    def test_unknown_selector_raises_keyerror(self):
+        """An unknown conversion selector raises KeyError."""
         tl = Timeline(length=40, unit=TimeUnit.quarters, uid="tl")
         ts = tl.get_timestamp(10)
 
         with pytest.raises(KeyError):
-            ts["does_not_exist"]
+            ts.get_conversion_for("does_not_exist")
 
     def test_group_member_map_surfaces(self):
         """A label map on a group member surfaces on the group's timestamp."""
@@ -838,8 +854,7 @@ class TestTimeStampCrossSectionConversions:
         group = TimelineGroup(name="g", timelines=[audio, score])
         ts = group.get_timestamp_at(25, "score")  # score 25 -> "main"
 
-        assert ts["section"] == "main"
-        assert ts.get_conversion("section") == "main"
+        assert ts.get_conversion_for("section") == "main"
 
     def test_group_member_descendant_map_surfaces(self):
         """A map on a member's child surfaces on the group's timestamp."""
@@ -860,4 +875,4 @@ class TestTimeStampCrossSectionConversions:
             22, "score2"
         )  # score 22 -> phrase 7 -> [5,.) -> "y"
 
-        assert ts["phraselabel"] == "y"
+        assert ts.get_conversion_for("phraselabel") == "y"

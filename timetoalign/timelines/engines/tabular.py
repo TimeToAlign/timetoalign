@@ -15,6 +15,7 @@ from timetoalign.core import (
     Coordinate,
     CoordinateSpec,
     IdCoordinate,
+    Interval,
     NumberType,
     TimeUnit,
     resolve_coordinate_spec,
@@ -63,17 +64,27 @@ class TabularExportMixin:
             ValueError: If unit specified but no inverse C-Map available.
 
         Examples:
-            >>> ts = timeline.get_timestamp(5.0)
-            >>> ts["child_a"]  # Get coordinate on child_a
-            2.5
+            >>> from timetoalign.maps import TableMap
+            >>> from timetoalign.timelines import Timeline
+            >>> parent = Timeline(length=960, unit=TimeUnit.ticks, uid="timeline:1")
+            >>> child_a = Timeline(length=200, unit=TimeUnit.ticks, uid="child_a")
+            >>> parent.add_child(child_a, offset=100)
+            >>> tempo_map = TableMap(
+            ...     x_values=[0, 960], y_values=[0.0, 2.0],
+            ...     source_unit=TimeUnit.ticks, target_unit=TimeUnit.seconds,
+            ... )
+            >>> parent.add_conversion_map(tempo_map)
+            >>> ts = parent.get_timestamp(250)
+            >>> ts.get_coordinate_for("child_a", format="float")
+            150.0
 
             >>> # Query with unit conversion
-            >>> ts = timeline.get_timestamp(10.5, unit=TimeUnit.seconds)
-            >>> ts.axis  # Converted from seconds to timeline's unit
-            5.0
+            >>> ts = parent.get_timestamp(1.5, unit=TimeUnit.seconds)
+            >>> ts.axis  # Converted from seconds to timeline's native unit (ticks)
+            IdCoordinate(720, ticks, 'timeline:1')
         """
         if unit is None:
-            native_coord = self.get_coordinate(coord)
+            native_coord = self.get_coordinate_at(coord, format="coordinate")
         else:
             target_unit = TimeUnit(unit) if isinstance(unit, str) else unit
             decomposed = resolve_coordinate_spec(coord)
@@ -87,10 +98,28 @@ class TabularExportMixin:
                     target_unit,
                     decomposed.timeline_id,
                 )
-            native_coord = self.get_coordinate(qualified_coord)
+            native_coord = self.get_coordinate_at(qualified_coord, format="coordinate")
+
+        if not isinstance(native_coord, Coordinate):
+            raise TypeError("Timeline coordinate resolution did not return Coordinate")
+        coordinates: dict[str, Coordinate] = {self._id: native_coord}
+        descendants = getattr(self, "_get_descendant_timeline_ids", lambda: [])()
+        child_getter = getattr(self, "_get_child_coordinate", None)
+        for timeline_id in descendants:
+            if timeline_id == self._id or child_getter is None:
+                continue
+            value = child_getter(timeline_id, native_coord.value)
+            if value is None:
+                continue
+            unit_for = self._get_unit_for_timeline(timeline_id)
+            number_type_for = self._get_number_type_for_timeline(timeline_id)
+            if unit_for is None:
+                continue
+            declared = number_type_for or unit_for.default_number_type
+            coordinates[timeline_id] = Coordinate(value, unit_for, number_type=declared)
 
         return TimeStamp(
-            axis=float(native_coord.value),
+            coordinates=coordinates,
             source=self,
             source_id=self._id,
             conversion_maps=conversion_maps,
@@ -147,15 +176,37 @@ class TabularExportMixin:
             TimeIntervalStamp with start and end TimeStamps.
 
         Examples:
-            >>> interval = timeline.get_interval_stamp(0.0, 10.0)
+            >>> from timetoalign.timelines import Timeline
+            >>> parent = Timeline(length=20, unit=TimeUnit.seconds, uid="timeline:1")
+            >>> child = Timeline(length=15, unit=TimeUnit.seconds, uid="child:1")
+            >>> parent.add_child(child, offset=0)
+            >>> interval = parent.get_interval_stamp(0.0, 10.0)
             >>> interval.duration
-            10.0
-            >>> interval["child:1"]  # Get (start, end) tuple for child
-            (0.0, 7.5)
+            Duration(10.0, seconds)
+            >>> interval.get_interval("child:1")
+            Interval(start=Coordinate(0.0, seconds), end=Coordinate(10.0, seconds))
         """
+        start_stamp = self.get_timestamp(
+            start, unit=unit, conversion_maps=conversion_maps
+        )
+        end_stamp = self.get_timestamp(end, unit=unit, conversion_maps=conversion_maps)
+        common = [
+            timeline_id
+            for timeline_id in start_stamp.coordinates
+            if timeline_id in end_stamp.coordinates
+        ]
+        intervals = {
+            timeline_id: Interval(
+                start=start_stamp.coordinates[timeline_id],
+                end=end_stamp.coordinates[timeline_id],
+            )
+            for timeline_id in common
+        }
         return TimeIntervalStamp(
-            start=self.get_timestamp(start, unit=unit, conversion_maps=conversion_maps),
-            end=self.get_timestamp(end, unit=unit, conversion_maps=conversion_maps),
+            intervals=intervals,
+            source_id=self._id,
+            source=self,
+            is_interpolated=(start_stamp.is_interpolated or end_stamp.is_interpolated),
         )
 
     def get_timestamp_of(
@@ -181,15 +232,23 @@ class TabularExportMixin:
             KeyError: If no event with the given ID exists.
 
         Examples:
-            >>> ts = timeline.get_timestamp_of("note:000001")
+            >>> from timetoalign.timelines import Timeline
+            >>> parent = Timeline(length=20, unit=TimeUnit.seconds, uid="timeline:1")
+            >>> child = Timeline(length=10, unit=TimeUnit.seconds, uid="clt1")
+            >>> parent.add_child(child, offset=5)
+            >>> parent.add_events([{"event_type": "Note", "instant": 5.0}])
+            >>> child.add_events(
+            ...     [{"id": "clt1:note:000001", "event_type": "Note", "start": 0.0, "end": 2.5}]
+            ... )
+            >>> ts = parent.get_timestamp_of("note:000001")
             >>> ts.axis  # For instant events
-            5.0
+            IdCoordinate(5.0, seconds, 'timeline:1')
 
-            >>> ts = timeline.get_timestamp_of("clt1:note:000001")
+            >>> ts = parent.get_timestamp_of("clt1:note:000001")
             >>> ts.start.axis  # For interval events
-            0.0
+            IdCoordinate(5.0, seconds, 'timeline:1')
             >>> ts.end.axis
-            2.5
+            IdCoordinate(7.5, seconds, 'timeline:1')
 
         See Also:
             get_timestamp: Get timestamp by coordinate.

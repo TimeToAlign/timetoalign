@@ -47,7 +47,7 @@ import pyarrow.compute as pc
 import pytest
 
 from timetoalign.alignment.claims import MatchClaim, MatchClaimField
-from timetoalign.core import NumberType, TimeUnit
+from timetoalign.core import IdCoordinateField, NumberType, TimeUnit
 from timetoalign.loader.alignment import Ieee1599Loader
 from timetoalign.maps.interval import IntervalToConstantMap
 from timetoalign.timelines.types import (
@@ -847,11 +847,13 @@ class TestCrossSection:
     ) -> None:
         """One row per component, never more than one per spine coordinate."""
         table = ieee1599_bundle(specimen).get_matchstamp_table(from_graph=True)
-        spine_column = table.column("spine:dlt1")
+        spine_column = IdCoordinateField.from_table(table, "spine:dlt1")
 
         assert table.num_rows == n_rows
-        assert spine_column.null_count == 0
-        assert len(set(spine_column.to_pylist())) == n_rows
+        assert all(spine_column[position] is not None for position in range(n_rows))
+        assert (
+            len({spine_column[position].value for position in range(n_rows)}) == n_rows
+        )
         assert n_rows <= n_spine_coordinates
         spine = ieee1599_loader(specimen).create_timeline("spine:dlt1")
         assert len(set(_coordinates(spine))) == n_spine_coordinates
@@ -868,7 +870,23 @@ class TestCrossSection:
     def test_gymnopedie_origin_row(self, ieee1599_bundle) -> None:
         """The work's origin, as every layer states it."""
         table = ieee1599_bundle("gymnopedie").get_matchstamp_table(from_graph=True)
-        origin = [row for row in table.to_pylist() if row["spine:dlt1"] == 0.0]
+        rows = [
+            {
+                name: (
+                    None
+                    if (
+                        coordinate := IdCoordinateField.from_table(table, name)[
+                            position
+                        ]
+                    )
+                    is None
+                    else coordinate.value
+                )
+                for name in table.column_names
+            }
+            for position in range(table.num_rows)
+        ]
+        origin = [row for row in rows if row["spine:dlt1"] == 0.0]
 
         assert origin == [
             {
@@ -884,7 +902,23 @@ class TestCrossSection:
     def test_animals_cross_section_cell_by_cell(self, ieee1599_bundle) -> None:
         """The one specimen with no merging: eight animals, every cell exact."""
         table = ieee1599_bundle("animals").get_matchstamp_table(from_graph=True)
-        by_spine = {row["spine:dlt1"]: row for row in table.to_pylist()}
+        rows = [
+            {
+                name: (
+                    None
+                    if (
+                        coordinate := IdCoordinateField.from_table(table, name)[
+                            position
+                        ]
+                    )
+                    is None
+                    else coordinate.value
+                )
+                for name in table.column_names
+            }
+            for position in range(table.num_rows)
+        ]
+        by_spine = {row["spine:dlt1"]: row for row in rows}
 
         assert sorted(by_spine) == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
         # The cow: depicted twice in "Animal shapes", the collapse keeps the

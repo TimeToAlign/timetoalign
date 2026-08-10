@@ -33,6 +33,7 @@ from collections.abc import Iterator, Sequence
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, ClassVar
 
+import pandas as pd
 import pyarrow as pa
 import pyarrow.compute as pc
 from pydantic import (
@@ -51,12 +52,22 @@ from timetoalign.core import (
     CoordinateSpec,
     IdCoordinate,
     IdGenerator,
+    Interval,
     TimeUnit,
 )
 from timetoalign.core.fields import (
     SemanticField,
     StructField,
     register_value_projector,
+)
+from timetoalign.core.retrieval import (
+    CoordinateFormat,
+    CoordinateResult,
+    KeyCollection,
+    Rounding,
+    classify_dispatch_input,
+    format_coordinates,
+    validate_key_collection,
 )
 from timetoalign.core.time import (
     rational_to_wire,
@@ -255,7 +266,7 @@ class AlignmentAnchor(BaseModel):
         ...     coordinate_b=Coordinate(45.5, TimeUnit.seconds),
         ... )
         >>> anchor.get_coordinate_for("score:1")
-        Coordinate(100.0, quarters)
+        IdCoordinate(Fraction(100, 1), quarters, 'score:1')
     """
 
     model_config = ConfigDict(frozen=True)
@@ -275,20 +286,40 @@ class AlignmentAnchor(BaseModel):
         """Return tuple of coordinates."""
         return (self.coordinate_a, self.coordinate_b)
 
-    def get_coordinate_for(self, timeline_id: str) -> Coordinate | None:
+    def get_coordinate_for(
+        self,
+        timeline_id: str,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
         """Get the coordinate for a specific timeline.
 
         Args:
             timeline_id: The timeline to get coordinate for.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
 
         Returns:
-            The coordinate, or None if timeline not in this anchor.
+            The requested coordinate projection.
+
+        Raises:
+            KeyError: If the timeline is not part of this anchor.
         """
         if timeline_id == self.timeline_a_id:
-            return self.coordinate_a
-        if timeline_id == self.timeline_b_id:
-            return self.coordinate_b
-        return None
+            coordinate = self.coordinate_a
+        elif timeline_id == self.timeline_b_id:
+            coordinate = self.coordinate_b
+        else:
+            raise KeyError(f"Timeline {timeline_id!r} is not part of this anchor")
+        return format_coordinates(
+            [IdCoordinate.from_coordinate(coordinate, timeline_id)],
+            format=format,
+            rounding=rounding,
+            scalar=True,
+            index=pd.Index([timeline_id]),
+            series_name="coordinate",
+        )
 
     def connects(self, timeline_id: str) -> bool:
         """Check if this anchor connects to a specific timeline.
@@ -610,35 +641,121 @@ class MatchClaim(BaseModel):
         """Return tuple of timeline IDs."""
         return (self.timeline_a_id, self.timeline_b_id)
 
-    def get_coordinates_for(
-        self, timeline_id: str
-    ) -> tuple[Coordinate, Coordinate | None]:
-        """Get start and end coordinates for a specific timeline.
+    def get_coordinate_for(
+        self,
+        timeline_id: str,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
+        """Return the start anchor coordinate for one member timeline.
 
         Args:
             timeline_id: The timeline to get coordinates for.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
 
         Returns:
-            Tuple of (start_coord, end_coord). end_coord is None for instants.
+            The requested start-coordinate projection.
 
         Raises:
-            ValueError: If timeline is not in this claim or claim has no anchors.
+            ValueError: If the claim is non-synchronous.
+            KeyError: If the timeline is not in this claim.
         """
         if self.start_anchor is None:
             raise ValueError(
                 f"Claim has no anchors (non-synchronous). "
-                f"Cannot get coordinates for '{timeline_id}'."
+                f"Cannot get a coordinate for '{timeline_id}'."
             )
+        return self.start_anchor.get_coordinate_for(
+            timeline_id, format=format, rounding=rounding
+        )
 
-        start = self.start_anchor.get_coordinate_for(timeline_id)
-        if start is None:
-            raise ValueError(f"Timeline '{timeline_id}' not in this claim")
+    def get_coordinates_for(
+        self,
+        timeline_ids: KeyCollection,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> list[CoordinateResult] | pd.Series:
+        """Return start-anchor coordinates for timeline identities.
 
-        end = None
-        if self.end_anchor is not None:
-            end = self.end_anchor.get_coordinate_for(timeline_id)
+        Args:
+            timeline_ids: Member timeline IDs in retrieval order.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
 
-        return (start, end)
+        Returns:
+            A list of projections or canonical-value Series.
+        """
+        keys, index = validate_key_collection(timeline_ids)
+        results: list[IdCoordinate] = []
+        for key in keys:
+            result = self.get_coordinate_for(
+                key, format="id_coordinate", rounding=rounding
+            )
+            assert isinstance(result, IdCoordinate)
+            results.append(result)
+        if format == "series" and index is None:
+            index = pd.Index(keys)
+        return format_coordinates(
+            results,
+            format=format,
+            rounding=rounding,
+            scalar=False,
+            index=index,
+            series_name="coordinate",
+        )
+
+    def get_interval_for(self, timeline_id: str) -> Interval:
+        """Return the asserted interval for one member timeline.
+
+        Args:
+            timeline_id: Member timeline ID.
+
+        Returns:
+            The typed asserted interval.
+
+        Raises:
+            ValueError: If the claim is non-synchronous or instantaneous.
+            KeyError: If the timeline is not in the claim.
+        """
+        if self.start_anchor is None:
+            raise ValueError("Non-synchronous claims contain no coordinate assertion")
+        if self.end_anchor is None:
+            raise ValueError("Instant claims contain no interval assertion")
+        start = self.start_anchor.get_coordinate_for(timeline_id, format="coordinate")
+        end = self.end_anchor.get_coordinate_for(timeline_id, format="coordinate")
+        assert isinstance(start, Coordinate) and isinstance(end, Coordinate)
+        return Interval(start=start, end=end)
+
+    def get_coordinate(
+        self,
+        at: str | KeyCollection,
+        timeline_id: None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | list[CoordinateResult] | pd.Series:
+        """Dispatch a singular or plural timeline-key claim query.
+
+        Args:
+            at: One member timeline ID or a collection of member IDs.
+            timeline_id: Must be ``None`` because ``at`` carries the keys.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            The selected precise-getter result.
+        """
+        if timeline_id is not None:
+            raise TypeError("MatchClaim.get_coordinate does not accept timeline_id")
+        branch = classify_dispatch_input(at, empty_is_keys=True)
+        if branch == "key":
+            return self.get_coordinate_for(at, format=format, rounding=rounding)
+        if branch == "keys":
+            return self.get_coordinates_for(at, format=format, rounding=rounding)
+        raise TypeError("MatchClaim.get_coordinate accepts timeline keys only")
 
     def connects(self, timeline_id: str) -> bool:
         """Check if this claim connects to a specific timeline.
@@ -749,30 +866,16 @@ class MatchClaim(BaseModel):
             from timetoalign.alignment.graph import MatchStamp
 
             coords = {
-                self.timeline_a_id: float(self.start_anchor.coordinate_a.value),
-                self.timeline_b_id: float(self.start_anchor.coordinate_b.value),
+                self.timeline_a_id: self.start_anchor.coordinate_a,
+                self.timeline_b_id: self.start_anchor.coordinate_b,
             }
             effective_bundle = bundle if bundle is not None else self._bundle
-            units: dict[str, str] = {
-                self.timeline_a_id: self.start_anchor.coordinate_a.unit.value,
-                self.timeline_b_id: self.start_anchor.coordinate_b.unit.value,
-            }
-            if effective_bundle is not None:
-                unit_map = effective_bundle._get_unit_map()
-                for timeline_id in coords:
-                    bundle_uid = effective_bundle._timeline_id_to_uid.get(
-                        timeline_id, timeline_id
-                    )
-                    if bundle_uid in unit_map:
-                        units[timeline_id] = unit_map[bundle_uid]
             return MatchStamp(
                 coordinates=coords,
+                source_id=self.timeline_a_id,
                 anchor_edges=[(self.timeline_a_id, self.timeline_b_id)],
                 inferred_edges=[],
-                units=units,
-                axis=float(self.start_anchor.coordinate_a.value),
                 source=effective_bundle,
-                source_id=self.timeline_a_id,
                 is_interpolated=False,
                 conversion_maps=conversion_maps,
             )
@@ -1133,8 +1236,10 @@ class MatchClaim(BaseModel):
             return f"MatchClaim({timeline_a} <-> {self.timeline_b_id}{badge})"
 
         if self.is_interval:
-            start_a, end_a = self.get_coordinates_for(self.timeline_a_id)
-            start_b, end_b = self.get_coordinates_for(self.timeline_b_id)
+            interval_a = self.get_interval_for(self.timeline_a_id)
+            interval_b = self.get_interval_for(self.timeline_b_id)
+            start_a, end_a = interval_a.start, interval_a.end
+            start_b, end_b = interval_b.start, interval_b.end
             return (
                 f"MatchClaim({match_type}: "
                 f"{self.timeline_a_id}["

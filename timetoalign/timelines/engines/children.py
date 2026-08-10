@@ -89,7 +89,7 @@ class ChildrenMixin:
             raise ValueError(f"Child '{child.id}' is already a child of this timeline")
 
         # Validate offset
-        offset_coord = self.get_coordinate(offset)
+        offset_coord = self.get_coordinate_at(offset, format="coordinate")
         if offset_coord.value < 0:
             raise ValueError(
                 f"Offset cannot be negative: "
@@ -244,7 +244,7 @@ class ChildrenMixin:
 
         self.validate_child(child, offset)
 
-        offset_coord = self.get_coordinate(offset)
+        offset_coord = self.get_coordinate_at(offset, format="coordinate")
         child_end = offset_coord.value + child.length.value
 
         # Ensure capacity

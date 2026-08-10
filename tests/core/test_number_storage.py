@@ -522,12 +522,13 @@ class TestDisplayShowsWhatIsCarried:
 
 
 class TestNoFabricatedExactness:
-    """``limit_denominator`` invents ratios; the library must not hold one."""
+    """Denominator limiting invents ratios; the package must not use it."""
 
     def test_zero_occurrences_in_the_package(self) -> None:
         package_root = Path(timetoalign.__file__).parent
+        forbidden = "limit" + "_denominator"
         hits = subprocess.run(
-            ["grep", "-rn", "limit_denominator", "--include=*.py", str(package_root)],
+            ["grep", "-rn", forbidden, "--include=*.py", str(package_root)],
             capture_output=True,
             text=True,
         )

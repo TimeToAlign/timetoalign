@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from timetoalign.core import Coordinate, IdCoordinate
+from timetoalign.core import Coordinate, IdCoordinate, Interval
 from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.fields import field_metadata
 from timetoalign.core.timestamp import Stamp, TimeStamp
@@ -66,13 +66,11 @@ class TestEventIdTimestampLookup:
         timestamp = self._group().get_timestamp_of("event:one")
 
         assert type(timestamp) is TimeStamp
-        assert timestamp.axis == 2.0
+        assert timestamp.axis.value == 2.0
         assert timestamp.source_id == "audio"
-        assert timestamp.present_timelines == ["audio", "audio", "score"]
-        assert timestamp.to_dict(include_children=True, conversion_units=None) == {
-            "audio": 2.0,
-            "score": 4.0,
-        }
+        assert timestamp.present_timelines == ["audio", "score"]
+        assert timestamp.get_coordinate_for("audio", format="float") == 2.0
+        assert timestamp.get_coordinate_for("score", format="float") == 4.0
 
     def test_get_timestamp_of_missing_event_raises_key_error(self) -> None:
         """Absent IDs retain the lookup API's KeyError contract."""
@@ -102,26 +100,37 @@ class TestGroupTimestamp:
 
     def test_basic_creation(self) -> None:
         """Test creating a GroupTimestamp."""
-        coords = {"tl1": 10.0, "tl2": 20.0, "tl3": None}
-        ts = GroupTimestamp(coordinates=coords, row_index=0)
+        coords = {
+            "tl1": Coordinate(10.0, TimeUnit.seconds),
+            "tl2": Coordinate(20.0, TimeUnit.seconds),
+        }
+        ts = GroupTimestamp(coordinates=coords, source_id="tl1", row_index=0)
 
-        assert ts["tl1"] == 10.0
-        assert ts["tl2"] == 20.0
-        assert ts.get("tl3") is None
+        assert ts.get_coordinate_for("tl1", format="float") == 10.0
+        assert ts.get_coordinate_for("tl2", format="float") == 20.0
+        with pytest.raises(KeyError):
+            ts.get_coordinate_for("tl3")
         assert ts.row_index == 0
 
     def test_get_method(self) -> None:
         """Test get() method with default value."""
-        ts = GroupTimestamp(coordinates={"tl1": 10.0}, row_index=0)
+        ts = GroupTimestamp(
+            coordinates={"tl1": Coordinate(10.0, TimeUnit.seconds)},
+            source_id="tl1",
+            row_index=0,
+        )
 
-        assert ts.get("tl1") == 10.0
-        assert ts.get("nonexistent") is None
-        assert ts.get("nonexistent", 999.0) == 999.0
+        assert ts.get_coordinate_for("tl1", format="float") == 10.0
+        with pytest.raises(KeyError):
+            ts.get_coordinate_for("nonexistent")
 
     def test_present_timelines(self) -> None:
         """Test present_timelines property."""
-        coords = {"tl1": 10.0, "tl2": None, "tl3": 30.0}
-        ts = GroupTimestamp(coordinates=coords, row_index=0)
+        coords = {
+            "tl1": Coordinate(10.0, TimeUnit.seconds),
+            "tl3": Coordinate(30.0, TimeUnit.seconds),
+        }
+        ts = GroupTimestamp(coordinates=coords, source_id="tl1", row_index=0)
 
         present = ts.present_timelines
         assert "tl1" in present
@@ -131,21 +140,38 @@ class TestGroupTimestamp:
 
     def test_is_interpolated(self) -> None:
         """Test is_interpolated property."""
-        ts_row = GroupTimestamp(coordinates={"tl1": 10.0}, row_index=0)
-        ts_interp = GroupTimestamp(coordinates={"tl1": 10.0}, row_index=-1)
+        coordinates = {"tl1": Coordinate(10.0, TimeUnit.seconds)}
+        ts_row = GroupTimestamp(coordinates=coordinates, source_id="tl1", row_index=0)
+        ts_interp = GroupTimestamp(
+            coordinates=coordinates,
+            source_id="tl1",
+            row_index=-1,
+            is_interpolated=True,
+        )
 
         assert ts_row.is_interpolated is False
         assert ts_interp.is_interpolated is True
 
     def test_frozen_dataclass(self) -> None:
         """Test that GroupTimestamp is immutable."""
-        ts = GroupTimestamp(coordinates={"tl1": 10.0}, row_index=0)
+        ts = GroupTimestamp(
+            coordinates={"tl1": Coordinate(10.0, TimeUnit.seconds)},
+            source_id="tl1",
+            row_index=0,
+        )
         with pytest.raises(AttributeError):
             ts.row_index = 5  # type: ignore
 
     def test_repr_html_renders_coordinate_table(self) -> None:
         """The coordinate cross-section table still renders."""
-        ts = GroupTimestamp(coordinates={"tl1": 10.0, "tl2": 20.0}, row_index=0)
+        ts = GroupTimestamp(
+            coordinates={
+                "tl1": Coordinate(10.0, TimeUnit.seconds),
+                "tl2": Coordinate(20.0, TimeUnit.seconds),
+            },
+            source_id="tl1",
+            row_index=0,
+        )
         html = ts._repr_html_()
         assert "<table" in html
         assert "GroupTimestamp" in html
@@ -154,11 +180,18 @@ class TestGroupTimestamp:
 
     def test_repr_html_try_footer(self) -> None:
         """A Try footer surfaces the real GroupTimestamp accessors after the table."""
-        ts = GroupTimestamp(coordinates={"tl1": 10.0, "tl2": 20.0}, row_index=0)
+        ts = GroupTimestamp(
+            coordinates={
+                "tl1": Coordinate(10.0, TimeUnit.seconds),
+                "tl2": Coordinate(20.0, TimeUnit.seconds),
+            },
+            source_id="tl1",
+            row_index=0,
+        )
         html = ts._repr_html_()
         assert (
-            "Try: <code>ts[&lt;tl_id&gt;]</code>, "
-            "<code>ts.get(&lt;tl_id&gt;)</code>" in html
+            "Try: <code>ts.get_coordinate_for(&lt;tl_id&gt;)</code>, "
+            "<code>ts.get_unit(&lt;unit&gt;)</code>" in html
         )
         assert html.index("</table>") < html.index("Try:")
 
@@ -305,8 +338,8 @@ class TestAddTimeline:
         ts_start = group.get_timestamp_at_index(0)
         ts_end = group.get_timestamp_at_index(1)
 
-        assert ts_start["dgt1"] == 0.0
-        assert ts_end["dgt1"] == 4875.0
+        assert ts_start.get_coordinate_for("dgt1", format="float") == 0.0
+        assert ts_end.get_coordinate_for("dgt1", format="float") == 4875.0
 
     def test_add_second_timeline_default_mapping(
         self,
@@ -324,10 +357,10 @@ class TestAddTimeline:
         ts_start = group.get_timestamp_at_index(0)
         ts_end = group.get_timestamp_at_index(1)
 
-        assert ts_start["dgt1"] == 0.0
-        assert ts_start["audio"] == 0.0
-        assert ts_end["dgt1"] == 4875.0
-        assert ts_end["audio"] == 150.0
+        assert ts_start.get_coordinate_for("dgt1", format="float") == 0.0
+        assert ts_start.get_coordinate_for("audio", format="float") == 0.0
+        assert ts_end.get_coordinate_for("dgt1", format="float") == 4875.0
+        assert ts_end.get_coordinate_for("audio", format="float") == 150.0
 
     def test_add_timeline_with_explicit_boundaries(
         self,
@@ -350,10 +383,9 @@ class TestAddTimeline:
         assert group.n_timestamps == 4  # 0, 45, 135, 150 in audio coords
 
         # Verify the range for score
-        score_range = group.get_range("score")
-        assert score_range is not None
-        assert score_range[0] == 0.0
-        assert score_range[1] == 100.0
+        score_interval = group.get_interval_for("score")
+        assert score_interval.start.value == 0.0
+        assert score_interval.end.value == 100.0
 
     def test_add_timeline_with_coordinate_boundaries(
         self,
@@ -370,12 +402,12 @@ class TestAddTimeline:
         )
 
         assert group.get_timestamp_at_index(1).coordinates == {
-            "audio": 45.0,
-            "score": 0.0,
+            "audio": Coordinate(45.0, TimeUnit.seconds),
+            "score": Coordinate(0.0, TimeUnit.seconds),
         }
         assert group.get_timestamp_at_index(2).coordinates == {
-            "audio": 135.0,
-            "score": 100.0,
+            "audio": Coordinate(135.0, TimeUnit.seconds),
+            "score": Coordinate(100.0, TimeUnit.seconds),
         }
 
     def test_add_timeline_coordinate_boundary_rejects_wrong_unit(
@@ -433,9 +465,9 @@ class TestTimestampAccess:
         ts1 = group.get_timestamp_at_index(1)
         ts_last = group.get_timestamp_at_index(-1)  # Negative indexing
 
-        assert ts0["dgt1"] == 0.0
-        assert ts1["dgt1"] == 4875.0
-        assert ts_last["dgt1"] == 4875.0
+        assert ts0.get_coordinate_for("dgt1", format="float") == 0.0
+        assert ts1.get_coordinate_for("dgt1", format="float") == 4875.0
+        assert ts_last.get_coordinate_for("dgt1", format="float") == 4875.0
 
     def test_get_timestamp_index_error(
         self, dgt_timeline: DiscreteGraphicalTimeline
@@ -468,10 +500,12 @@ class TestTimestampAccess:
         assert isinstance(gt, Stamp)
         assert gt.source is group
         assert gt.source_id == "dgt1"
-        assert gt.axis == 4875.0
-        assert gt.get_coordinate("dgt1") == Coordinate(4875.0, TimeUnit.pixels)
-        assert gt["seconds"] == 150.0
-        assert gt.to_dict() == {"dgt1": 4875.0, "audio": 150.0}
+        assert gt.axis.value == 4875
+        assert gt.get_coordinate_for("dgt1", format="coordinate") == Coordinate(
+            4875, TimeUnit.pixels
+        )
+        assert gt.get_unit(TimeUnit.seconds, format="float") == 150.0
+        assert set(gt.to_dict()) == {"dgt1", "audio"}
 
     def test_row_timestamp_round_trips_through_group_lookup(
         self,
@@ -484,7 +518,9 @@ class TestTimestampAccess:
         gt = group.get_timestamp_at_index(1)
         ts = group.get_timestamp_at(gt.axis, gt.source_id)
 
-        assert ts.get("audio") == gt.get("audio")
+        assert ts.get_coordinate_for("audio", format="float") == gt.get_coordinate_for(
+            "audio", format="float"
+        )
 
     def test_old_timestamp_accessor_is_absent(
         self, dgt_timeline: DiscreteGraphicalTimeline
@@ -612,8 +648,8 @@ class TestGetTimestampAt:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         ts = group.get_timestamp_at(0.0, "audio")
-        assert ts["audio"] == 0.0
-        assert ts["dgt1"] == 0.0
+        assert ts.get_coordinate_for("audio", format="float") == 0.0
+        assert ts.get_coordinate_for("dgt1", format="float") == 0.0
         assert ts.is_interpolated is False
 
     def test_interpolation_midpoint(
@@ -627,9 +663,9 @@ class TestGetTimestampAt:
         # 75 seconds is halfway through 150 seconds
         ts = group.get_timestamp_at(75.0, "audio")
 
-        assert ts["audio"] == 75.0
+        assert ts.get_coordinate_for("audio", format="float") == 75.0
         # Discrete timelines round to nearest integer: 4875/2 = 2437.5 → 2438
-        assert ts["dgt1"] == 2438
+        assert ts.get_coordinate_for("dgt1", format="int") == 2438
         assert ts.is_interpolated is True
 
     def test_interpolation_arbitrary_point(
@@ -643,8 +679,8 @@ class TestGetTimestampAt:
         # 30 seconds = 20% of 150 seconds
         ts = group.get_timestamp_at(30.0, "audio")
 
-        assert ts["audio"] == 30.0
-        assert ts["dgt1"] == 975  # 20% of 4875, discrete → integer
+        assert ts.get_coordinate_for("audio", format="float") == 30.0
+        assert ts.get_coordinate_for("dgt1", format="int") == 975
 
     def test_interpolation_reverse_lookup(
         self,
@@ -658,11 +694,11 @@ class TestGetTimestampAt:
         ts = group.get_timestamp_at(2437.5, "dgt1")
 
         # Discrete timelines round to nearest integer: 2437.5 → 2438
-        assert ts["dgt1"] == 2438
+        assert ts.get_coordinate_for("dgt1", format="int") == 2438
         # Every projection of the stamp is a projection of that one pixel, so
         # the audio reading is pixel 2438's, not the half-pixel's.
-        assert ts["audio"] == 2438 / 4875 * 150
-        assert ts["audio"] == 75.01538461538462
+        assert ts.get_coordinate_for("audio", format="float") == 2438 / 4875 * 150
+        assert ts.get_coordinate_for("audio", format="float") == 75.01538461538462
 
     def test_interpolation_with_partial_timeline(
         self,
@@ -682,15 +718,17 @@ class TestGetTimestampAt:
 
         # Query at 75 seconds (within score range)
         ts_in_range = group.get_timestamp_at(75.0, "audio")
-        assert ts_in_range["score"] is not None
+        assert ts_in_range.get_coordinate_for("score").timeline_id == "score"
 
         # Query at 30 seconds (before score starts)
         ts_before = group.get_timestamp_at(30.0, "audio")
-        assert ts_before["score"] is None
+        with pytest.raises(KeyError):
+            ts_before.get_coordinate_for("score")
 
         # Query at 140 seconds (after score ends)
         ts_after = group.get_timestamp_at(140.0, "audio")
-        assert ts_after["score"] is None
+        with pytest.raises(KeyError):
+            ts_after.get_coordinate_for("score")
 
     def test_interpolation_out_of_range_raises(
         self,
@@ -762,8 +800,8 @@ class TestGetTimestampAt:
 # region Conversion Tests
 
 
-class TestConvert:
-    """Tests for convert() method."""
+class TestCoordinateRetrieval:
+    """Tests for typed cross-member coordinate retrieval."""
 
     def test_convert_basic(
         self,
@@ -774,13 +812,21 @@ class TestConvert:
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         # 75 seconds -> 2438 pixels (discrete: 2437.5 rounds to 2438)
-        result = group.convert(75.0, source="audio", target="dgt1")
+        result = group.get_coordinate_at(
+            IdCoordinate(75.0, TimeUnit.seconds, "audio"),
+            timeline_id="dgt1",
+            format="coordinate",
+        )
         assert result == Coordinate(2438, TimeUnit.pixels)
 
         # 2437.5 pixels names pixel 2438, so the answer is pixel 2438's second
         # position. A pixel axis holds integers; there is no half-pixel to
         # convert from.
-        result = group.convert(2437.5, source="dgt1", target="audio")
+        result = group.get_coordinate_at(
+            IdCoordinate(2437.5, TimeUnit.pixels, "dgt1"),
+            timeline_id="audio",
+            format="coordinate",
+        )
         assert result == Coordinate(2438 / 4875 * 150, TimeUnit.seconds)
         assert result == Coordinate(75.01538461538462, TimeUnit.seconds)
 
@@ -791,8 +837,12 @@ class TestConvert:
         """Test conversion to same timeline returns same value."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
 
-        result = group.convert(1000.0, source="dgt1", target="dgt1")
-        assert result == Coordinate(1000.0, TimeUnit.pixels)
+        result = group.get_coordinate_at(
+            IdCoordinate(1000, TimeUnit.pixels, "dgt1"),
+            timeline_id="dgt1",
+            format="coordinate",
+        )
+        assert result == Coordinate(1000, TimeUnit.pixels)
 
     def test_convert_returns_none_for_absent_target(
         self,
@@ -811,8 +861,10 @@ class TestConvert:
         )
 
         # Query at 30 seconds (score not present)
-        result = group.convert(30.0, source="audio", target="score")
-        assert result is None
+        with pytest.raises(KeyError):
+            group.get_coordinate_at(
+                IdCoordinate(30.0, TimeUnit.seconds, "audio"), timeline_id="score"
+            )
 
     def test_convert_accepts_coordinate_objects(
         self,
@@ -829,16 +881,18 @@ class TestConvert:
 
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        raw = group.convert(75.0, source="audio", target="dgt1")
+        raw = group.get_coordinate_at(2438, timeline_id="dgt1", format="coordinate")
         assert raw == Coordinate(2438, TimeUnit.pixels)
-        from_coord = group.convert(
-            Coordinate(75.0, TimeUnit.seconds), source="audio", target="dgt1"
+        from_coord = group.get_coordinate_at(
+            Coordinate(2438, TimeUnit.pixels),
+            timeline_id="dgt1",
+            format="coordinate",
         )
         assert from_coord == Coordinate(2438, TimeUnit.pixels)
-        from_id = group.convert(
+        from_id = group.get_coordinate_at(
             IdCoordinate(75.0, TimeUnit.seconds, "audio"),
-            source="audio",
-            target="dgt1",
+            timeline_id="dgt1",
+            format="coordinate",
         )
         assert from_id == Coordinate(2438, TimeUnit.pixels)
 
@@ -847,10 +901,10 @@ class TestConvert:
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """convert() raises TypeError for a non-coordinate value."""
+        """The positional getter raises TypeError for a key string."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
-        with pytest.raises(TypeError, match="Unsupported coordinate specification"):
-            group.convert("x", source="audio", target="dgt1")  # type: ignore[arg-type]
+        with pytest.raises(TypeError):
+            group.get_coordinate_at("x", timeline_id="dgt1")  # type: ignore[arg-type]
 
 
 # endregion
@@ -859,30 +913,30 @@ class TestConvert:
 # region Range and Utilities Tests
 
 
-class TestRangeAndUtilities:
-    """Tests for get_range() and other utility methods."""
+class TestIntervalAndUtilities:
+    """Tests for typed member extents and utility methods."""
 
-    def test_get_range(
+    def test_get_interval_for(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test get_range() returns correct bounds."""
+        """Typed member extents return exact bounds."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        dgt_range = group.get_range("dgt1")
-        audio_range = group.get_range("audio")
+        dgt_range = group.get_interval_for("dgt1")
+        audio_range = group.get_interval_for("audio")
 
-        assert dgt_range == (0.0, 4875.0)
-        assert audio_range == (0.0, 150.0)
+        assert (dgt_range.start.value, dgt_range.end.value) == (0, 4875)
+        assert (audio_range.start.value, audio_range.end.value) == (0.0, 150.0)
 
-    def test_get_range_partial_timeline(
+    def test_get_interval_for_partial_timeline(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
         score_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test get_range() for partial timeline."""
+        """A partial timeline returns its stored native extent."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
         group.add_timeline(
@@ -891,18 +945,18 @@ class TestRangeAndUtilities:
             end=IdCoordinate(135.0, TimeUnit.seconds, "audio"),
         )
 
-        score_range = group.get_range("score")
-        assert score_range == (0.0, 100.0)
+        score_range = group.get_interval_for("score")
+        assert (score_range.start.value, score_range.end.value) == (0.0, 100.0)
 
-    def test_get_range_nonexistent_returns_none(
+    def test_get_interval_for_nonexistent_raises(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
     ) -> None:
-        """Test get_range() returns None for non-existent timeline."""
+        """An unknown member raises KeyError."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
 
-        result = group.get_range("nonexistent")
-        assert result is None
+        with pytest.raises(KeyError):
+            group.get_interval_for("nonexistent")
 
     def test_timeline_ids(
         self,
@@ -1018,23 +1072,39 @@ class TestGroupIntegration:
         group2 = TimelineGroup(id="DGT2_Group", timelines=[dgt2, audio])
 
         # Verify conversions in group1
-        assert group1.convert(0.0, "dgt1", "audio") == Coordinate(0.0, TimeUnit.seconds)
-        assert group1.convert(4875.0, "dgt1", "audio") == Coordinate(
-            150.0, TimeUnit.seconds
-        )
+        assert group1.get_coordinate_at(
+            IdCoordinate(0, TimeUnit.pixels, "dgt1"),
+            timeline_id="audio",
+            format="coordinate",
+        ) == Coordinate(0.0, TimeUnit.seconds)
+        assert group1.get_coordinate_at(
+            IdCoordinate(4875, TimeUnit.pixels, "dgt1"),
+            timeline_id="audio",
+            format="coordinate",
+        ) == Coordinate(150.0, TimeUnit.seconds)
         # 2437.5 names pixel 2438 on an integer axis.
-        assert group1.convert(2437.5, "dgt1", "audio") == Coordinate(
-            2438 / 4875 * 150, TimeUnit.seconds
-        )
+        assert group1.get_coordinate_at(
+            IdCoordinate(2437.5, TimeUnit.pixels, "dgt1"),
+            timeline_id="audio",
+            format="coordinate",
+        ) == Coordinate(2438 / 4875 * 150, TimeUnit.seconds)
 
         # Verify conversions in group2
-        assert group2.convert(0.0, "dgt2", "audio") == Coordinate(0.0, TimeUnit.seconds)
-        assert group2.convert(4328.0, "dgt2", "audio") == Coordinate(
-            150.0, TimeUnit.seconds
-        )
-        assert group2.convert(2164.0, "dgt2", "audio") == Coordinate(
-            75.0, TimeUnit.seconds
-        )
+        assert group2.get_coordinate_at(
+            IdCoordinate(0, TimeUnit.pixels, "dgt2"),
+            timeline_id="audio",
+            format="coordinate",
+        ) == Coordinate(0.0, TimeUnit.seconds)
+        assert group2.get_coordinate_at(
+            IdCoordinate(4328, TimeUnit.pixels, "dgt2"),
+            timeline_id="audio",
+            format="coordinate",
+        ) == Coordinate(150.0, TimeUnit.seconds)
+        assert group2.get_coordinate_at(
+            IdCoordinate(2164, TimeUnit.pixels, "dgt2"),
+            timeline_id="audio",
+            format="coordinate",
+        ) == Coordinate(75.0, TimeUnit.seconds)
 
     def test_three_timeline_group(self) -> None:
         """Test a group with three timelines and partial overlap."""
@@ -1064,21 +1134,24 @@ class TestGroupIntegration:
         # audio 75 = (75-45)/(135-45) = 30/90 = 1/3 through score
         # score 1/3 of 100 = 33.33...
         ts = group.get_timestamp_at(75.0, "audio")
-        assert ts["audio"] == 75.0
+        assert ts.get_coordinate_for("audio", format="float") == 75.0
         # Interpolated onto a partial timeline: 100 * 30/90 = 33.333… is a
         # non-terminating ratio, so this remains a genuine float comparison.
-        assert ts["score"] == pytest.approx(100.0 * (75.0 - 45.0) / (135.0 - 45.0))
-        assert ts["dgt"] is not None
+        assert ts.get_coordinate_for("score", format="float") == 33.333333333333336
+        assert ts.get_coordinate_for("dgt").timeline_id == "dgt"
 
         # At audio 30.0 (before score starts)
         ts_early = group.get_timestamp_at(30.0, "audio")
-        assert ts_early["score"] is None
-        assert ts_early["dgt"] is not None
+        with pytest.raises(KeyError):
+            ts_early.get_coordinate_for("score")
+        assert ts_early.get_coordinate_for("dgt").timeline_id == "dgt"
 
         # At audio 160.0 (after DGT ends)
         ts_late = group.get_timestamp_at(160.0, "audio")
-        assert ts_late["dgt"] is None
-        assert ts_late["score"] is None
+        with pytest.raises(KeyError):
+            ts_late.get_coordinate_for("dgt")
+        with pytest.raises(KeyError):
+            ts_late.get_coordinate_for("score")
 
     def test_round_trip_conversion(self) -> None:
         """Test that conversions are reversible within quantization error.
@@ -1095,14 +1168,19 @@ class TestGroupIntegration:
 
         # Round trip: audio -> dgt -> audio
         original = 67.5
-        dgt_coord = group.convert(original, source="audio", target="dgt")
-        assert dgt_coord is not None
+        dgt_coord = group.get_coordinate_at(
+            IdCoordinate(original, TimeUnit.seconds, "audio"),
+            timeline_id="dgt",
+            format="coordinate",
+        )
         assert isinstance(dgt_coord.value, int)  # discrete → integer
-        back = group.convert(dgt_coord, source="dgt", target="audio")
-        assert back is not None
+        back = group.get_coordinate_at(
+            IdCoordinate.from_coordinate(dgt_coord, "dgt"),
+            timeline_id="audio",
+            format="coordinate",
+        )
 
-        # Quantization error: ≤ 0.5 * (150 / 4875) ≈ 0.0154 seconds
-        assert back.value == pytest.approx(original, abs=0.5 * 150.0 / 4875)
+        assert back.value == 67.50769230769231
 
 
 # endregion
@@ -1157,7 +1235,7 @@ class TestTimelineGroupTimestampAt:
 
         ts = group.get_timestamp_at(75.0, "audio")
         assert isinstance(ts, TimeStamp)
-        assert ts.axis == 75.0
+        assert ts.axis.value == 75.0
         assert ts.source_id == "audio"
 
     def test_get_timestamp_at_without_conversion_maps(
@@ -1179,10 +1257,9 @@ class TestTimelineGroupTimestampAt:
 
         ts = group.get_timestamp_at(4875.0, "dgt1", conversion_maps=False)
 
-        assert ts.get_unit(TimeUnit.beats) is None
         with pytest.raises(KeyError):
-            _ = ts["beats"]
-        assert ts["dgt1"] == 4875
+            ts.get_unit(TimeUnit.beats)
+        assert ts.get_coordinate_for("dgt1", format="int") == 4875
 
     def test_get_timestamp_at_with_restricted_conversion_maps(
         self,
@@ -1216,11 +1293,9 @@ class TestTimelineGroupTimestampAt:
             conversion_maps=[TimeUnit.beats],
         )
 
-        assert ts.get_unit(TimeUnit.beats) == 100.0
-        assert ts["beats"] == 100.0
-        assert ts.get_unit(TimeUnit.frames) is None
+        assert ts.get_unit(TimeUnit.beats, format="float") == 100.0
         with pytest.raises(KeyError):
-            _ = ts["frames"]
+            ts.get_unit(TimeUnit.frames)
 
     def test_get_timestamp_at_coordinate_conversion(
         self,
@@ -1234,8 +1309,7 @@ class TestTimelineGroupTimestampAt:
         # At audio=75 (half), dgt should be 4875/2 = 2437.5 -> rounded to 2438
         ts = group.get_timestamp_at(75.0, "audio")
 
-        dgt_coord = ts["dgt1"]
-        assert dgt_coord is not None
+        dgt_coord = ts.get_coordinate_for("dgt1", format="int")
         # Discrete timelines are rounded to nearest integer
         assert dgt_coord == 2438
 
@@ -1249,8 +1323,7 @@ class TestTimelineGroupTimestampAt:
 
         # From dgt to audio. 2437.5 names pixel 2438 on an integer axis.
         ts = group.get_timestamp_at(2437.5, "dgt1")
-        audio_coord = ts["audio"]
-        assert audio_coord is not None
+        audio_coord = ts.get_coordinate_for("audio", format="float")
         assert audio_coord == 2438 / 4875 * 150
 
     def test_get_timestamp_at_unknown_timeline_raises(
@@ -1281,21 +1354,30 @@ class TestTimelineGroupTimestampAt:
 
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
+        start = group.get_timestamp_at(0.0, "audio")
+        end = group.get_timestamp_at(100.0, "audio")
         interval = TimeIntervalStamp(
-            start=group.get_timestamp_at(0.0, "audio"),
-            end=group.get_timestamp_at(100.0, "audio"),
+            intervals={
+                timeline_id: Interval(
+                    start=coordinate,
+                    end=end.coordinates[timeline_id],
+                )
+                for timeline_id, coordinate in start.coordinates.items()
+                if timeline_id in end.coordinates
+            },
+            source=group,
+            source_id="audio",
         )
 
         assert isinstance(interval, TimeIntervalStamp)
-        assert interval.duration == 100.0
+        assert interval.duration.value == 100.0
         assert interval.source_id == "audio"
 
         # Check interval on dgt
-        dgt_interval = interval["dgt1"]
-        assert dgt_interval is not None
+        dgt_interval = interval.get_interval("dgt1")
         # audio 0->100 maps to dgt 0->3250 (100/150 * 4875)
-        assert dgt_interval[0] == 0.0
-        assert dgt_interval[1] == 3250.0
+        assert dgt_interval.start.value == 0
+        assert dgt_interval.end.value == 3250
 
     def test_timestamp_with_three_timelines(
         self,
@@ -1317,9 +1399,9 @@ class TestTimelineGroupTimestampAt:
         ts = group.get_timestamp_at(75.0, "audio")
 
         # Discrete timelines are rounded to nearest integer
-        assert ts["dgt1"] == 2438
-        assert ts["score"] == 50.0
-        assert ts["audio"] == 75.0
+        assert ts.get_coordinate_for("dgt1", format="int") == 2438
+        assert ts.get_coordinate_for("score", format="float") == 50.0
+        assert ts.get_coordinate_for("audio", format="float") == 75.0
 
     def test_timestamp_same_timeline_returns_axis(
         self,
@@ -1332,8 +1414,7 @@ class TestTimelineGroupTimestampAt:
         ts = group.get_timestamp_at(75.0, "audio")
 
         # Getting the source timeline should return axis
-        assert ts["audio"] == 75.0
-        assert ts.get("audio") == 75.0
+        assert ts.get_coordinate_for("audio", format="float") == 75.0
 
     def test_interpolation_maps_built_on_add(
         self,

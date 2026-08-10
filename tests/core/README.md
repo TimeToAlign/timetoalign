@@ -133,8 +133,9 @@ is where int64 lives. Both are asserted.
 above governs the constructor, and the identical rule governs every other
 route a value can take onto this axis — see "Number type is preserved
 everywhere" below. `Coordinate(9.5, quarters)` and
-`timeline.get_timestamp(9.5).get_coordinate("clt1")` both give
-`Fraction(19, 2)`; there is one answer per axis, not one per entry point.
+`timeline.get_timestamp(9.5).get_coordinate_for("clt1", format="coordinate")`
+both give a `Coordinate` containing `Fraction(19, 2)`; there is one answer per
+axis, not one per entry point.
 
 #### Number type is preserved everywhere
 
@@ -148,7 +149,7 @@ that happens.
 
 ```python
 Coordinate(9.5, quarters)                          # Fraction(19, 2)
-timeline.get_timestamp(9.5).get_coordinate("clt1") # Fraction(19, 2)
+timeline.get_timestamp(9.5).get_coordinate_for("clt1", format="coordinate")
 ```
 
 The two agree, and that is the property worth having: a caller reasoning
@@ -202,28 +203,41 @@ float: one answer per axis, not one per entry point. Each producer is asserted
 on the value *and* its Python type, since `Fraction(10, 1) == 10.0` compares
 equal and an equality-only check would pass on a wrong-typed axis.
 
-### Stamp currencies: the float lane and the exact lane
+### Stamp retrieval formats and canonical storage
 
-A stamp answers in two currencies, and which one a caller gets is a property
-of the method rather than of the data. The tests pin both, because a method
-that quietly switched lanes would be invisible until a dataframe column
-turned into an object column or a conversion lost a third of a beat.
+A stamp stores one canonical `Coordinate` per present timeline. Retrieval uses
+the six shared formats; the typed `IdCoordinate` is the default, and numeric
+or Series projections are explicit.
 
-| Lane | Members | Why |
+| Result | Members | Why |
 |---|---|---|
-| **float** | `get()`, subscript (`stamp["id"]`, `stamp["quarters"]`), `to_dict()`, raw stamp-table columns | A uniform numeric currency that tables, dataframes and downstream arithmetic can rely on. An exact ratio here would turn a float column into an object column. |
-| **exact** | `get_coordinate()`, `get_unit()`, conversion evaluation, `axis` | Carries whatever representation the coordinate actually has, so 160 ticks at 480 per quarter converts to exactly `Fraction(1, 3)` quarters rather than `0.3333333333333333`. |
+| **typed default** | `get_coordinate_for()`, dispatcher queries, `axis` | Carries the result timeline ID, canonical representation, and unit. |
+| **explicit projection** | `format="coordinate"`, `"float"`, `"int"`, `"fraction"`, or `"series"` | Converts only when requested and applies the shared rounding contract. |
 
 Rendered output (`__str__`, `_repr_html_`) reads from the exact lane and
 formats it for a human: that same conversion displays as `1/3 quarters`.
 Non-numeric conversion outputs — labels, mappings — are not numbers in either
 currency and pass through both lanes untouched.
 
-**Interpolated values are float even on a fraction-canonical timeline.** An
-interpolated position is an estimate between two anchors, so typing it as an
-exact rational would claim the alignment pinned down something it did not. A
-coordinate that lands exactly on an anchor keeps the axis's own
-representation, because that one *is* claimed.
+Collection retrieval validates every member before producing output. A pandas
+Series input preserves its index; a list of event keys becomes the output
+index; scalar Series results use a one-row index naming the queried axis or
+key. Float and integer canonical axes use `float64` and `int64` Series dtypes,
+while exact ratios and heterogeneous typed values use `object`. Empty results
+retain the dtype implied by the selected axis.
+
+**Interpolated values use the declared canonical number type.** Estimate
+provenance is carried by `is_interpolated`; it does not change the coordinate's
+number type. Exact anchors use the same canonical representation.
+
+### `test_interval.py` - Typed interval scalar and field pairing
+
+An `Interval` accepts equal endpoints and rejects reversed endpoints, mixed
+units, or mixed canonical number types. `duration` preserves the shared unit
+and number type exactly. `IntervalField` stores both coordinate structs under
+one metadata triple; indexing reconstructs `Interval | None`, and its `start`,
+`end`, and `duration` accessors return the paired semantic field types without
+changing exact rational values.
 
 ### `test_number_storage.py` - One struct, one canonical side, one builder
 
@@ -248,8 +262,8 @@ row is null. Which side is authoritative is declared per field, in
 
 The float mirrors are the **exact dyadic** ratios, because every finite double
 is exactly one rational with a power-of-two denominator. Nothing here searches
-for a tidier ratio nearby: `limit_denominator` has zero occurrences in the
-library and the tests grep for it to keep it that way.
+for a tidier ratio nearby: denominator-limiting approximation is absent from
+the library, and the tests enforce that source-level invariant.
 
 The `int` row settles ties on the even integer — `round(2.5) == 2`, Python's
 own rule and PyArrow's `half_to_even`. This is asserted rather than assumed,
@@ -518,9 +532,9 @@ The ID system ensures:
    - Source reference preservation
 
 2. **TimeStampWithChildren** (6 tests)
-   - Child coordinate resolution via `ts["child:id"]`
+   - Child coordinate resolution via `get_coordinate_for("child:id")`
    - Boundary handling: left-inclusive, right-exclusive `[offset, offset+length)`
-   - Out-of-range returns `None` (no extrapolation)
+   - Out-of-range axes raise `KeyError` (no extrapolation)
    - Multiple children with staggered offsets
    - `to_dict()` materialization
    - `present_timelines` property
@@ -528,10 +542,11 @@ The ID system ensures:
 3. **TimeStampWithCMaps** (7 tests)
    - Unit conversion via `get_unit(TimeUnit)`
    - Creating timestamp in alternate unit
-   - Subscript access by unit name
-   - No C-Map returns None
+   - Unit access through `get_unit()`
+   - Missing C-Map raises `KeyError`
    - Missing C-Map raises ValueError
-   - `to_dict()` with conversion units
+   - `to_dict()` emits typed wire entries only for stored timeline coordinates;
+     conversion-map values are retrieved verbatim with `get_conversion_for()`
    - C-Map conversion values assert exact `==`, not `pytest.approx`: the
      `TableMap` anchors (e.g. `[0,960]->[0,2]`, `[0,20]->[0,10]`) are exactly
      representable, so linear interpolation is bit-exact (480 ticks -> `1.0` s,
@@ -540,10 +555,9 @@ The ID system ensures:
 4. **TimeIntervalStamp** (10 tests)
    - Interval creation from start/end coordinates
    - `get_interval()` for child timelines
-   - `get_duration()` calculation
-   - `zip_intervals()` for all timelines
-   - Subscript access for intervals
-   - Iteration as (start, end) pair
+   - Typed `duration` and `get_duration_for()` calculation
+   - `get_intervals()` for all timelines
+   - `get_interval()` access
    - `__str__` basic format (header + aligned start/end columns)
    - `__str__` straddling children (`-` for out-of-range endpoint)
    - `__str__` omits fully out-of-range children
@@ -560,12 +574,12 @@ The ID system ensures:
 7. **TimeStampReprHtml** (2 tests)
    - `_repr_html_` still renders the coordinate cross-section table
    - `_repr_html_` appends an affordance `Try` footer after the table
-     surfacing the real accessors (`ts.get(<tl_id>)` / `ts.get_unit(<unit>)`)
+     surfacing the real accessors (`ts.get_coordinate_for(<tl_id>)` / `ts.get_unit(<unit>)`)
 
 8. **TimeStampCrossSectionConversions** — every C-Map surfaces, at any depth
    - A conversion map with **no `target_unit`** (a label or structured-value
      map such as `IntervalToConstantMap`) surfaces in `__str__`, `to_dict`,
-     subscript, and `get_conversion` — not only `TimeUnit`-targeted maps. This
+     and `get_conversion_for` — not only `TimeUnit`-targeted maps. This
      is the core-contract requirement: a timestamp is a cross-section, so it
      exposes ALL attached conversions, not just the numeric-unit subset.
    - A C-Map registered on a **direct child** surfaces on the parent's
@@ -576,8 +590,8 @@ The ID system ensures:
      hide these — the whole subtree is walked.
    - **Non-numeric outputs render intact**: a mapping/label value appears as
      itself (e.g. `{'page': 2}`, `'B'`), never coerced through `float`.
-   - **Subscript by map name/selector**: `ts["<cmap-name>"]` returns the raw
-     C-Map output; an unknown key raises `KeyError`.
+   - **Map name/selector retrieval**: `get_conversion_for("<cmap-name>")`
+     returns the raw C-Map output; an unknown key raises `KeyError`.
    - **Collision qualification**: when two present timelines expose the same
      label, both are qualified as `"{owner_id}:{label}"`.
    - **`conversion_maps` gating** still applies — `conversion_maps=False`
@@ -602,22 +616,23 @@ The unified TimeStamp architecture enables:
 ```python
 # Timeline unified API
 ts = timeline.get_timestamp(30.0)
-ts.axis                    # 30.0
-ts["child:1"]              # Converted coordinate (None if out of range)
-ts.to_dict()               # All coordinates as dict
+ts.axis                              # Typed IdCoordinate
+ts.get_coordinate_for("child:1")    # Typed coordinate; absent axes raise KeyError
+ts.to_dict()                         # Typed coordinate wire entries
 print(ts)                  # Full cross-section display
 
 # Interval stamps
 interval = timeline.get_interval_stamp(20.0, 60.0)
-interval.duration          # 40.0
-interval["child:1"]        # (start, end) tuple (None if both out of range)
+interval.duration                    # Typed Duration
+interval.get_interval("child:1")    # Typed Interval; absent axes raise KeyError
 print(interval)            # Two-column (start, end) display with '-' for out-of-range
 ```
 
 **Design Notes:**
 
-- **Child bounds checking**: `TimeStamp.get(child_id)` returns `None` when the queried
-  coordinate falls outside the child's `[offset, offset+length)` span, per the TTA
+- **Child bounds checking**: `TimeStamp.get_coordinate_for(child_id)` raises
+  `KeyError` when the queried coordinate falls outside the child's
+  `[offset, offset+length)` span, per the TTA
   left-inclusive, right-exclusive interval convention.
 - **TimeIntervalStamp.__str__**: Shows a `-` when one endpoint is out of range for a
   child, making it easy to see events that straddle children.
@@ -625,10 +640,9 @@ print(interval)            # Two-column (start, end) display with '-' for out-of
 ### `test_stamp_interface.py` - Stamp Family Contract
 
 **Purpose:** Pins the shared `Stamp` contract across `TimeStamp` and `MatchStamp`.
-The exact coordinate values distinguish raw `get()` lookup from the
-`Coordinate`-returning `get_coordinate()` API and make attached `TimeUnit`
-values observable. The cases pin `present_timelines`, timeline-ID-first
-subscript lookup with unit-name fallback, conversion-map gating, every
+The exact coordinate values distinguish the typed default from explicit
+numeric projections and make attached `TimeUnit` values observable. The cases
+pin `present_timelines`, singular and plural retrieval, conversion-map gating, every
 `MatchStamp.to_dict()` format, and frozen `MatchStamp` fields. Exact dictionary
 shapes ensure neither grouped rendering nor legacy graph serialization drifts.
 

@@ -21,7 +21,7 @@ from fractions import Fraction
 import pytest
 
 from timetoalign.alignment import MatchClaim
-from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
 from timetoalign.timelines import (
     ContinuousPhysicalTimeline,
     DiscreteGraphicalTimeline,
@@ -181,19 +181,27 @@ class TestThoresenGroupSetup:
         # axis holds integers, so the query is the pixel it names -- 2418 --
         # and the answer is that pixel's position, not the half-pixel's.
         mid_pixels = DGT1_TOTAL_WIDTH / 2
-        mid_seconds = dgt1_group.convert(mid_pixels, "dgt1", "audio")
+        mid_seconds = dgt1_group.get_coordinate_at(
+            IdCoordinate(mid_pixels, TimeUnit.pixels, "dgt1"),
+            timeline_id="audio",
+            format="coordinate",
+        )
         assert mid_seconds == Coordinate(
             2418 / DGT1_TOTAL_WIDTH * AUDIO_DURATION_SECONDS, TimeUnit.seconds
         )
         assert mid_seconds == Coordinate(75.01551189245087, TimeUnit.seconds)
 
         # Endpoints
-        assert dgt1_group.convert(0, "dgt1", "audio") == Coordinate(
-            Fraction(0), TimeUnit.seconds
-        )
-        assert dgt1_group.convert(DGT1_TOTAL_WIDTH, "dgt1", "audio") == Coordinate(
-            Fraction(AUDIO_DURATION_SECONDS), TimeUnit.seconds
-        )
+        assert dgt1_group.get_coordinate_at(
+            IdCoordinate(0, TimeUnit.pixels, "dgt1"),
+            timeline_id="audio",
+            format="coordinate",
+        ) == Coordinate(Fraction(0), TimeUnit.seconds)
+        assert dgt1_group.get_coordinate_at(
+            IdCoordinate(DGT1_TOTAL_WIDTH, TimeUnit.pixels, "dgt1"),
+            timeline_id="audio",
+            format="coordinate",
+        ) == Coordinate(Fraction(AUDIO_DURATION_SECONDS), TimeUnit.seconds)
 
 
 # endregion
@@ -226,17 +234,17 @@ class TestThoresenSegmentClaims:
         # Check DGT1 side
         prev_end = 0.0
         for claim in thoresen_segment_claims:
-            start, end = claim.get_coordinates_for("dgt1")
-            assert start.value == prev_end, f"Gap before segment starting at {start}"
-            prev_end = end.value
+            interval = claim.get_interval_for("dgt1")
+            assert interval.start.value == prev_end
+            prev_end = interval.end.value
         assert prev_end == DGT1_TOTAL_WIDTH
 
         # Check DGT2 side
         prev_end = 0.0
         for claim in thoresen_segment_claims:
-            start, end = claim.get_coordinates_for("dgt2")
-            assert start.value == prev_end, f"Gap before segment starting at {start}"
-            prev_end = end.value
+            interval = claim.get_interval_for("dgt2")
+            assert interval.start.value == prev_end
+            prev_end = interval.end.value
         assert prev_end == DGT2_TOTAL_WIDTH
 
     def test_claim_metadata(self, thoresen_segment_claims: list[MatchClaim]) -> None:

@@ -158,7 +158,7 @@ class EventsMixin:
             if isinstance(value, Coordinate):
                 if resolved is None:
                     resolved = dict(row)
-                resolved[key] = self.get_coordinate(value).value
+                resolved[key] = self.get_coordinate_at(value, format="coordinate").value
         return resolved if resolved is not None else row
 
     def _add_events_unchecked(self, rows: list[dict[str, Any]]) -> None:
@@ -450,13 +450,16 @@ class EventsMixin:
             ts = self.get_timestamp(coord_val)
 
             for child_id in self._children.keys():
-                child_coord = ts.get(child_id)
-                if child_coord is not None and child_coord >= 0:
+                try:
+                    child_coord = ts.get_coordinate_for(child_id, format="coordinate")
+                except KeyError:
+                    continue
+                if child_coord.value >= 0:
                     child = self._children[child_id]
-                    if child_coord <= child.length.value:
+                    if child_coord.value <= child.length.value:
                         # Recursively get events in child
                         child_result = child.get_events_at(
-                            child_coord,
+                            child_coord.value,
                             tolerance=tolerance,
                             include_children=True,
                         )

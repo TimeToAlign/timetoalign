@@ -4,8 +4,8 @@ This module implements the `AlignmentBundle` class, a single entry point for
 all alignment workflows as described in the API redesign specification. The
 bundle manages timelines, groups, and coordinate transfer operations.
 
-Within a group, coordinate transfer uses linear interpolation
-(``TimelineGroup.convert()``).  Across groups, transfer is mediated by
+Within a group, coordinate transfer uses typed coordinate retrieval.
+Across groups, transfer is mediated by
 the ``MatchClaim`` -> ``MatchLine`` -> ``WarpMap`` pipeline.
 WarpMaps are built lazily and cached for repeated queries.
 
@@ -22,16 +22,33 @@ from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any
 
+import pandas as pd
+
 from timetoalign.core import (
     Coordinate,
+    CoordinateField,
     CoordinateSpec,
     IdCoordinate,
+    IdCoordinateField,
     IdGenerator,
     SupportPolicy,
     TimeUnit,
     express_as,
     resolve_coordinate_spec,
     resolve_id,
+)
+from timetoalign.core.enums import NumberType
+from timetoalign.core.retrieval import (
+    CoordinateCollection,
+    CoordinateFormat,
+    CoordinateInput,
+    CoordinateResult,
+    KeyCollection,
+    Rounding,
+    classify_dispatch_input,
+    format_coordinates,
+    validate_coordinate_collection,
+    validate_key_collection,
 )
 from timetoalign.timelines import TimelineGroup
 
@@ -104,7 +121,7 @@ class AlignmentBundle:
 
     An AlignmentBundle manages timelines and their alignment relationships.
     Within a group, coordinate transfer uses linear interpolation
-    (``TimelineGroup.convert()``).  Across groups, transfer is mediated
+    (``TimelineGroup.get_coordinate_at()``). Across groups, transfer is mediated
     by the ``MatchClaim`` → ``MatchLine`` → ``WarpMap`` pipeline.
 
     The bundle provides:
@@ -148,7 +165,7 @@ class AlignmentBundle:
         >>> bundle.add_timeline(score_timeline, uid="score")
         >>> bundle.add_timeline(audio_timeline, uid="audio", grouped_with="score")
         >>> stamp = bundle.get_matchstamp_at(100.0, "score")
-        >>> stamp.get("audio")
+        >>> stamp.get_coordinate_for("audio", format="float")
         45.5
     """
 
@@ -621,8 +638,7 @@ class AlignmentBundle:
 
         Automatically determines the conversion path:
 
-        1. If both timelines are in the same group: direct conversion via
-           ``TimelineGroup.convert()``.
+        1. If both timelines are in the same group: typed group retrieval.
         2. If in different groups with MatchClaims: builds a ``MatchLine``
            and a cached ``WarpMap`` and calls it to
            interpolate the coordinate.
@@ -660,7 +676,7 @@ class AlignmentBundle:
         if unit is not None:
             coord = float(
                 self.get_timeline(from_timeline)
-                .get_coordinate(Coordinate(coord_value, unit))
+                .get_coordinate_at(Coordinate(coord_value, unit), format="coordinate")
                 .value
             )
         else:
@@ -680,8 +696,16 @@ class AlignmentBundle:
             group = self.groups[from_group_id]
             actual_from_id = self._uid_to_timeline_id[from_timeline]
             actual_to_id = self._uid_to_timeline_id[to_timeline]
-            converted = group.convert(coord, actual_from_id, actual_to_id)
-            return None if converted is None else float(converted.value)
+            converted = group.get_coordinate_at(
+                IdCoordinate(
+                    coord,
+                    self.get_timeline(from_timeline).unit,
+                    actual_from_id,
+                ),
+                timeline_id=actual_to_id,
+                format="float",
+            )
+            return float(converted)
 
         # Cross-group transfer via MatchLine/WarpMap pipeline
         actual_from_id = self._uid_to_timeline_id[from_timeline]
@@ -690,7 +714,7 @@ class AlignmentBundle:
         warp = self._get_or_build_warp_map(actual_from_id, actual_to_id)
         if warp is not None:
             try:
-                return float(warp(coord))
+                return warp._interpolate_float(coord)
             except Exception as e:
                 self._logger.warning(
                     "WarpMap forward failed for %s -> %s at %s: %s",
@@ -711,12 +735,17 @@ class AlignmentBundle:
                 if warp is None:
                     continue
                 try:
-                    intermediate = source_group.convert(
-                        coord, source=actual_from_id, target=src_other_tl_id
+                    intermediate = source_group.get_coordinate_at(
+                        IdCoordinate(
+                            coord,
+                            self.get_timeline(from_timeline).unit,
+                            actual_from_id,
+                        ),
+                        timeline_id=src_other_tl_id,
+                        format="coordinate",
                     )
-                    if intermediate is None:
-                        continue
-                    return float(warp(float(intermediate.value)))
+                    assert isinstance(intermediate, Coordinate)
+                    return warp._interpolate_float(intermediate.value)
                 except Exception:
                     continue
 
@@ -731,12 +760,16 @@ class AlignmentBundle:
                 if warp is None:
                     continue
                 try:
-                    warped = float(warp(coord))
-                    result = target_group.convert(
-                        warped, source=tgt_other_tl_id, target=actual_to_id
+                    warped = warp._interpolate_float(coord)
+                    target_source = self.get_timeline(
+                        self._timeline_id_to_uid.get(tgt_other_tl_id, tgt_other_tl_id)
                     )
-                    if result is None:
-                        continue
+                    result = target_group.get_coordinate_at(
+                        IdCoordinate(warped, target_source.unit, tgt_other_tl_id),
+                        timeline_id=actual_to_id,
+                        format="coordinate",
+                    )
+                    assert isinstance(result, Coordinate)
                     return float(result.value)
                 except Exception:
                     continue
@@ -776,12 +809,16 @@ class AlignmentBundle:
         )
         source_timeline = self.get_timeline(from_timeline)
         start = float(
-            source_timeline.get_coordinate(Coordinate(start_value, start_unit)).value
+            source_timeline.get_coordinate_at(
+                Coordinate(start_value, start_unit), format="coordinate"
+            ).value
             if start_unit is not None
             else start_value
         )
         end = float(
-            source_timeline.get_coordinate(Coordinate(end_value, end_unit)).value
+            source_timeline.get_coordinate_at(
+                Coordinate(end_value, end_unit), format="coordinate"
+            ).value
             if end_unit is not None
             else end_value
         )
@@ -1445,6 +1482,257 @@ class AlignmentBundle:
 
         return mg
 
+    def get_coordinate_at(
+        self,
+        at: CoordinateInput,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
+        """Resolve one coordinate onto a requested public bundle UID axis.
+
+        Args:
+            at: Raw, plain, or ID-bearing coordinate input.
+            timeline_id: Requested result bundle UID.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            One coordinate projection or a length-one Series.
+        """
+        if not (
+            not isinstance(at, bool)
+            and isinstance(at, (int, float, Fraction, Coordinate))
+        ):
+            raise TypeError("get_coordinate_at requires one scalar coordinate input")
+        if isinstance(at, IdCoordinate):
+            source_uid = at.timeline_id
+            result_uid = timeline_id or source_uid
+        else:
+            if timeline_id is None:
+                raise ValueError(
+                    "timeline_id is required for raw or plain bundle coordinate queries"
+                )
+            source_uid = timeline_id
+            result_uid = timeline_id
+        if source_uid not in self.timelines:
+            raise KeyError(f"Unknown source bundle UID {source_uid!r} in {self.id!r}")
+        if result_uid not in self.timelines:
+            raise KeyError(f"Unknown result bundle UID {result_uid!r} in {self.id!r}")
+        if source_uid == result_uid:
+            plain = at.to_coordinate() if isinstance(at, IdCoordinate) else at
+            result = self.get_timeline(result_uid).get_coordinate_at(
+                plain,
+                timeline_id=self.get_timeline(result_uid).id,
+                format="coordinate",
+                rounding=rounding,
+            )
+            assert isinstance(result, Coordinate)
+            identified = IdCoordinate.from_coordinate(result, result_uid)
+            return format_coordinates(
+                [identified],
+                format=format,
+                rounding=rounding,
+                scalar=True,
+                series_name=result_uid,
+            )
+        stamp = self.get_matchstamp_at(at, source_uid)
+        return stamp.get_coordinate_for(result_uid, format=format, rounding=rounding)
+
+    def get_coordinates_at(
+        self,
+        at: CoordinateCollection,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> list[CoordinateResult] | pd.Series:
+        """Resolve a coordinate collection onto one bundle UID axis.
+
+        Args:
+            at: Coordinate positions to resolve atomically.
+            timeline_id: Requested result bundle UID.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            A list of projections or canonical-value Series.
+        """
+        values, index = validate_coordinate_collection(at)
+        if not values and timeline_id is None:
+            raise ValueError("timeline_id is required for an empty bundle query")
+        if timeline_id is not None and timeline_id not in self.timelines:
+            raise KeyError(f"Unknown result bundle UID {timeline_id!r} in {self.id!r}")
+        results: list[IdCoordinate] = []
+        for value in values:
+            result = self.get_coordinate_at(
+                value,
+                timeline_id=timeline_id,
+                format="id_coordinate",
+                rounding=rounding,
+            )
+            assert isinstance(result, IdCoordinate)
+            results.append(result)
+        return format_coordinates(
+            results,
+            format=format,
+            rounding=rounding,
+            scalar=False,
+            index=index,
+            series_name=timeline_id
+            or (
+                results[0].timeline_id
+                if results
+                and all(
+                    result.timeline_id == results[0].timeline_id for result in results
+                )
+                else "coordinate"
+            ),
+            empty_number_type=(
+                self.get_timeline(timeline_id).number_type
+                if timeline_id is not None
+                else None
+            ),
+        )
+
+    def _event_owners(self, key: str) -> list[str]:
+        """Return public UIDs whose registered timeline owns an event key."""
+        return [
+            uid
+            for uid, timeline in self.timelines.items()
+            if timeline.get_event(key) is not None
+        ]
+
+    def get_coordinate_for(
+        self,
+        key: str,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
+        """Return a uniquely owned event's start on a selected bundle axis.
+
+        Args:
+            key: Event ID with exactly one owning registered timeline.
+            timeline_id: Requested result UID, or the owner by default.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            One event-start projection or a length-one Series.
+        """
+        if not isinstance(key, str):
+            raise TypeError("get_coordinate_for requires an event-ID string")
+        owners = self._event_owners(key)
+        if not owners:
+            raise KeyError(f"Event {key!r} not found in bundle {self.id!r}")
+        if len(owners) != 1:
+            raise ValueError(f"Event {key!r} has competing owners {owners}")
+        owner = owners[0]
+        source = self.get_timeline(owner).get_coordinate_for(
+            key, format="coordinate", rounding=rounding
+        )
+        assert isinstance(source, Coordinate)
+        result = self.get_coordinate_at(
+            IdCoordinate.from_coordinate(source, owner),
+            timeline_id=timeline_id or owner,
+            format="id_coordinate",
+            rounding=rounding,
+        )
+        assert isinstance(result, IdCoordinate)
+        return format_coordinates(
+            [result],
+            format=format,
+            rounding=rounding,
+            scalar=True,
+            index=pd.Index([key]) if format == "series" else None,
+            series_name="coordinate",
+        )
+
+    def get_coordinates_for(
+        self,
+        keys: KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> list[CoordinateResult] | pd.Series:
+        """Return event-start coordinates for a key collection.
+
+        Args:
+            keys: Event IDs to resolve atomically.
+            timeline_id: Requested result UID, or each owner by default.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            A list of projections or canonical-value Series.
+        """
+        values, index = validate_key_collection(keys)
+        results: list[IdCoordinate] = []
+        for key in values:
+            result = self.get_coordinate_for(
+                key,
+                timeline_id=timeline_id,
+                format="id_coordinate",
+                rounding=rounding,
+            )
+            assert isinstance(result, IdCoordinate)
+            results.append(result)
+        if format == "series" and index is None:
+            index = pd.Index(values)
+        return format_coordinates(
+            results,
+            format=format,
+            rounding=rounding,
+            scalar=False,
+            index=index,
+            series_name="coordinate",
+            empty_number_type=(
+                self.get_timeline(timeline_id).number_type
+                if timeline_id is not None
+                else None
+            ),
+        )
+
+    def get_coordinate(
+        self,
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | list[CoordinateResult] | pd.Series:
+        """Dispatch a positional or event-key bundle coordinate query.
+
+        Args:
+            at: Scalar or plural coordinate position or event key.
+            timeline_id: Requested public result UID when required.
+            format: Requested coordinate output format.
+            rounding: Integral projection mode.
+
+        Returns:
+            The selected precise-getter result.
+        """
+        branch = classify_dispatch_input(at)
+        if branch == "coordinate":
+            return self.get_coordinate_at(
+                at, timeline_id=timeline_id, format=format, rounding=rounding
+            )
+        if branch == "coordinates":
+            return self.get_coordinates_at(
+                at, timeline_id=timeline_id, format=format, rounding=rounding
+            )
+        if branch == "key":
+            return self.get_coordinate_for(
+                at, timeline_id=timeline_id, format=format, rounding=rounding
+            )
+        return self.get_coordinates_for(
+            at, timeline_id=timeline_id, format=format, rounding=rounding
+        )
+
     def get_matchstamp_at(
         self,
         coordinate: CoordinateSpec,
@@ -1536,7 +1824,7 @@ class AlignmentBundle:
         actual_timeline_id = self._uid_to_timeline_id.get(bundle_uid, timeline_id)
         coordinate = float(
             self.get_timeline(bundle_uid)
-            .get_coordinate(Coordinate(coordinate_value, unit))
+            .get_coordinate_at(Coordinate(coordinate_value, unit), format="coordinate")
             .value
             if unit is not None
             else coordinate_value
@@ -1557,22 +1845,43 @@ class AlignmentBundle:
             )
         )
 
-        unit_map = self._get_unit_map()
-        units = dict(unit_map)
-        units.update(
-            {
-                self._uid_to_timeline_id.get(bundle_tl_id, bundle_tl_id): unit
-                for bundle_tl_id, unit in unit_map.items()
-            }
-        )
+        source_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+        public_values = {
+            self._timeline_id_to_uid.get(coordinate_id, coordinate_id): value
+            for coordinate_id, value in coordinates.items()
+            if value is not None
+        }
+        declared = [uid for uid in self.timelines if uid in public_values]
+        ordered_ids = [source_uid]
+        ordered_ids.extend(uid for uid in declared if uid != source_uid)
+        ordered_ids.extend(sorted(set(public_values).difference(ordered_ids)))
+        typed_coordinates: dict[str, Coordinate] = {}
+        for public_uid in ordered_ids:
+            value = public_values[public_uid]
+            timeline = self.get_timeline(public_uid)
+            typed_coordinates[public_uid] = Coordinate(
+                value,
+                timeline.unit,
+                number_type=timeline.number_type,
+            )
         stamp = MatchStamp(
-            coordinates=coordinates,
-            anchor_edges=anchor_edges,
-            inferred_edges=inferred_edges,
-            units=units,
-            axis=self._axis_on(coordinate, timeline_id),
+            coordinates=typed_coordinates,
+            source_id=source_uid,
+            anchor_edges=[
+                (
+                    self._timeline_id_to_uid.get(a, a),
+                    self._timeline_id_to_uid.get(b, b),
+                )
+                for a, b in anchor_edges
+            ],
+            inferred_edges=[
+                (
+                    self._timeline_id_to_uid.get(a, a),
+                    self._timeline_id_to_uid.get(b, b),
+                )
+                for a, b in inferred_edges
+            ],
             source=self,
-            source_id=timeline_id,
             is_interpolated=not query_has_anchor,
             conversion_maps=conversion_maps,
         )
@@ -1612,6 +1921,11 @@ class AlignmentBundle:
             remaining = set(filtered_coords.keys())
             stamp = MatchStamp(
                 coordinates=filtered_coords,
+                source_id=(
+                    stamp.source_id
+                    if stamp.source_id in filtered_coords
+                    else next(iter(filtered_coords))
+                ),
                 anchor_edges=[
                     (a, b)
                     for a, b in stamp.anchor_edges
@@ -1622,14 +1936,7 @@ class AlignmentBundle:
                     for a, b in stamp.inferred_edges
                     if a in remaining and b in remaining
                 ],
-                units={
-                    tl_id: stamp.units[tl_id]
-                    for tl_id in remaining
-                    if tl_id in stamp.units
-                },
-                axis=stamp.axis,
                 source=stamp.source,
-                source_id=stamp.source_id,
                 is_interpolated=stamp.is_interpolated,
                 conversion_maps=stamp.conversion_maps,
             )
@@ -1701,7 +2008,12 @@ class AlignmentBundle:
         query_has_anchor = mg is not None
         if query_has_anchor:
             graph_stamp = mg.get_matchstamp()
-            coordinates.update(graph_stamp.coordinates)
+            coordinates.update(
+                {
+                    timeline_id: float(stored.value)
+                    for timeline_id, stored in graph_stamp.coordinates.items()
+                }
+            )
             anchor_edges.extend(graph_stamp.anchor_edges)
             inferred_edges.extend(graph_stamp.inferred_edges)
         # The query timeline's coordinate is authoritative and never altered.
@@ -1830,7 +2142,7 @@ class AlignmentBundle:
             >>> coord_stamps = bundle.get_matchstamps(
             ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
             ... )
-            >>> coord_stamps[1].get("score:clt1")
+            >>> coord_stamps[1].get_coordinate_for("score:clt1", format="float")
             50.0
         """
         if coordinates is not None:
@@ -2001,7 +2313,7 @@ class AlignmentBundle:
 
     def _assemble_matchstamp_table(
         self,
-        rows: list[dict[str, float | None]],
+        rows: list[dict[str, Coordinate | float | None]],
         bulk_columns: list[tuple[list[str], list[str], list[float], list[float]]],
         all_tl_ids: set[str],
         timeline_filter: set[str] | None,
@@ -2045,24 +2357,28 @@ class AlignmentBundle:
 
         # Build table with consistent fields, scattering each row into its
         # cells rather than probing every field of every row.
-        field_lists: dict[str, list[float | None]] = {
+        field_lists: dict[str, list[Coordinate | None]] = {
             tl_id: [None] * n_rows for tl_id in sorted(all_tl_ids)
         }
         for position, row in enumerate(rows):
             for tl_id, value in row.items():
                 column = field_lists.get(tl_id)
                 if column is not None:
-                    column[position] = value
+                    column[position] = self._canonical_table_coordinate(tl_id, value)
 
         offset = len(rows)
         for ids_a, ids_b, coordinates_a, coordinates_b in bulk_columns:
             for position in range(len(ids_a)):
                 column = field_lists.get(ids_a[position])
                 if column is not None:
-                    column[offset + position] = coordinates_a[position]
+                    column[offset + position] = self._canonical_table_coordinate(
+                        ids_a[position], coordinates_a[position]
+                    )
                 column = field_lists.get(ids_b[position])
                 if column is not None:
-                    column[offset + position] = coordinates_b[position]
+                    column[offset + position] = self._canonical_table_coordinate(
+                        ids_b[position], coordinates_b[position]
+                    )
             offset += len(ids_a)
 
         if conversion_maps is not False and conversion_maps is not None:
@@ -2081,18 +2397,100 @@ class AlignmentBundle:
                 label_counts[label] = label_counts.get(label, 0) + 1
             for label, tl_id, cmap in collected:
                 col_name = label if label_counts[label] == 1 else f"{tl_id}:{label}"
-                derived: list[float | None] = []
-                for value in field_lists[tl_id]:
-                    if value is None:
+                source_timeline = self.get_timeline(tl_id)
+                target_type = cmap.target_unit.resolve_number_type(
+                    source_timeline.number_type
+                    if source_timeline.number_type
+                    in cmap.target_unit.allowed_number_types
+                    else None
+                )
+                derived: list[Coordinate | None] = []
+                for coordinate in field_lists[tl_id]:
+                    if coordinate is None:
                         derived.append(None)
                         continue
                     try:
-                        derived.append(float(cmap(value)))
+                        derived.append(
+                            Coordinate(
+                                cmap(coordinate.value),
+                                cmap.target_unit,
+                                number_type=target_type,
+                            )
+                        )
                     except Exception:
                         derived.append(None)
                 field_lists[col_name] = derived
 
-        return pa.table(field_lists)
+        arrays: list[pa.Array] = []
+        fields: list[pa.Field] = []
+        for name, coordinates in field_lists.items():
+            exemplar = next(
+                (coordinate for coordinate in coordinates if coordinate is not None),
+                None,
+            )
+            if exemplar is None:
+                if name in self.timelines:
+                    timeline = self.get_timeline(name)
+                    unit = timeline.unit
+                    number_type = timeline.number_type
+                else:
+                    unit = TimeUnit.number
+                    number_type = NumberType.float
+            else:
+                unit = exemplar.unit
+                number_type = exemplar.number_type
+            values = [
+                None if coordinate is None else coordinate.value
+                for coordinate in coordinates
+            ]
+            from timetoalign.core.time import build_number_struct_array
+
+            array = build_number_struct_array(
+                values, number_type=number_type, rounding="round", on_error="raise"
+            )
+            if name in self.timelines:
+                semantic = IdCoordinateField.from_field(
+                    array,
+                    unit=unit,
+                    number_type=number_type,
+                    timeline_id=name,
+                    name=name,
+                )
+            else:
+                semantic = CoordinateField.from_field(
+                    array,
+                    unit=unit,
+                    number_type=number_type,
+                    name=name,
+                )
+            arrays.append(semantic.to_pyarrow())
+            fields.append(semantic.to_field())
+        return pa.Table.from_arrays(arrays, schema=pa.schema(fields))
+
+    def _canonical_table_coordinate(
+        self, timeline_id: str, value: Coordinate | float | None
+    ) -> Coordinate | None:
+        """Return one match-stamp table cell in its timeline's canonical type.
+
+        Args:
+            timeline_id: Public bundle timeline UID.
+            value: Stored coordinate or a numeric value from a columnar claim.
+
+        Returns:
+            Canonical coordinate, or ``None`` for an absent cell.
+
+        Raises:
+            KeyError: If ``timeline_id`` is not registered in the bundle.
+        """
+        if value is None:
+            return None
+        timeline = self.get_timeline(timeline_id)
+        raw_value = value.value if isinstance(value, Coordinate) else value
+        return Coordinate(
+            raw_value,
+            timeline.unit,
+            number_type=timeline.number_type,
+        )
 
     def _collapsed_claim_rows(
         self,
@@ -2176,7 +2574,9 @@ class AlignmentBundle:
                 return coordinate
             if coordinate.unit == TimeUnit.number:
                 return Coordinate(coordinate.value, timeline.unit)
-            return timeline.get_coordinate(coordinate)
+            result = timeline.get_coordinate_at(coordinate, format="coordinate")
+            assert isinstance(result, Coordinate)
+            return result
 
         updates: dict[str, Any] = {}
         for name in ("start_anchor", "end_anchor"):
@@ -2354,7 +2754,10 @@ class AlignmentBundle:
             )
             for tl_id in group.timeline_ids:
                 bundle_uid = self._timeline_id_to_uid.get(tl_id, tl_id)
-                coord = ts.get(tl_id)
+                try:
+                    coord = ts.get_coordinate_for(tl_id, format="float")
+                except KeyError:
+                    coord = None
                 result[bundle_uid] = coord
         except Exception as e:
             self._logger.debug(
@@ -2459,14 +2862,14 @@ class AlignmentBundle:
             The target coordinate (always within ``[0, length]``), or None when
             out-of-support under the ``omit`` policy.
         """
-        source_coords = warp.source_coords
+        source_coords = warp._source_float_array
         hull_low = float(source_coords[0])
         hull_high = float(source_coords[-1])
         entering = float(entering)
         length = self._timeline_length(target_tl_id)
 
         def _produce(value: float) -> float:
-            return float(warp(value))
+            return warp._interpolate_float(value)
 
         produced = _produce(entering)
         within_hull = hull_low <= entering <= hull_high
@@ -2533,11 +2936,17 @@ class AlignmentBundle:
                 continue
             # Convert within source group
             try:
-                intermediate = source_group.convert(
-                    coordinate, source=source_tl_id, target=src_other_tl_id
+                source_uid = self._timeline_id_to_uid.get(source_tl_id, source_tl_id)
+                intermediate = source_group.get_coordinate_at(
+                    IdCoordinate(
+                        coordinate,
+                        self.get_timeline(source_uid).unit,
+                        source_tl_id,
+                    ),
+                    timeline_id=src_other_tl_id,
+                    format="coordinate",
                 )
-                if intermediate is None:
-                    continue
+                assert isinstance(intermediate, Coordinate)
             except (KeyError, ValueError):
                 continue
 

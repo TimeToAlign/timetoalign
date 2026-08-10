@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from fractions import Fraction
+from typing import Literal
 
+import pandas as pd
 import pytest
 
 from timetoalign import (
     AlignmentBundle,
     Coordinate,
     IdCoordinate,
+    NumberType,
     ResolvedCoordinate,
     Timeline,
     TimelineGroup,
@@ -61,9 +64,56 @@ def test_coordinate_spec_rejects_unsupported_type() -> None:
 def test_timeline_resolves_native_fraction_exactly() -> None:
     """Native-unit Fraction values are preserved without float coercion."""
     timeline = Timeline(length=8, unit=TimeUnit.quarters, uid="score")
-    resolved = timeline.get_coordinate(Coordinate(Fraction(7, 4), TimeUnit.quarters))
+    resolved = timeline.get_coordinate_at(
+        Coordinate(Fraction(7, 4), TimeUnit.quarters), format="coordinate"
+    )
     assert resolved == Coordinate(Fraction(7, 4), TimeUnit.quarters)
     assert isinstance(resolved.value, Fraction)
+
+
+@pytest.mark.parametrize(
+    ("rounding", "expected"),
+    [("round", 2), ("floor", 2), ("ceil", 3), ("truncate", 2)],
+)
+def test_timeline_int_projection_rounds_exact_fractions(
+    rounding: Literal["round", "floor", "ceil", "truncate"], expected: int
+) -> None:
+    """Integral projection applies the selected mode to exact ratios too."""
+    timeline = Timeline(length=8, unit=TimeUnit.quarters, uid="score")
+
+    assert (
+        timeline.get_coordinate_at(Fraction(5, 2), format="int", rounding=rounding)
+        == expected
+    )
+
+
+def test_timeline_positional_series_preserves_input_index() -> None:
+    """A pandas input index survives canonical Series projection unchanged."""
+    timeline = Timeline(length=8, unit=TimeUnit.seconds, uid="audio")
+    query = pd.Series([1.25, 2.5], index=pd.Index(["left", "right"], name="side"))
+
+    result = timeline.get_coordinates_at(query, format="series")
+
+    assert result.name == "audio"
+    assert result.index.equals(query.index)
+    assert result.dtype == "float64"
+    assert result.tolist() == [1.25, 2.5]
+
+
+def test_timeline_empty_series_uses_selected_axis_dtype() -> None:
+    """An empty Series retains the selected canonical axis representation."""
+    timeline = Timeline(
+        length=8,
+        unit=TimeUnit.ticks,
+        number_type=NumberType.int,
+        uid="clock",
+    )
+
+    result = timeline.get_coordinates_at([], format="series")
+
+    assert result.name == "clock"
+    assert result.dtype == "int64"
+    assert result.empty
 
 
 def test_timeline_resolves_foreign_unit_through_cmap() -> None:
@@ -76,8 +126,8 @@ def test_timeline_resolves_foreign_unit_through_cmap() -> None:
             target_unit=TimeUnit.milliseconds,
         )
     )
-    assert timeline.get_coordinate(
-        Coordinate(2500, TimeUnit.milliseconds)
+    assert timeline.get_coordinate_at(
+        Coordinate(2500, TimeUnit.milliseconds), format="coordinate"
     ) == Coordinate(2.5, TimeUnit.seconds)
 
 
@@ -85,14 +135,14 @@ def test_timeline_rejects_missing_conversion_path() -> None:
     """A missing C-Map reports both units and the timeline ID."""
     timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
     with pytest.raises(ValueError, match="quarters.*seconds.*audio"):
-        timeline.get_coordinate(Coordinate(2, TimeUnit.quarters))
+        timeline.get_coordinate_at(Coordinate(2, TimeUnit.quarters))
 
 
 def test_timeline_rejects_unknown_timeline_id() -> None:
     """A non-descendant timeline ID is never treated as a native coordinate."""
     timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
-    with pytest.raises(ValueError, match="missing.*audio"):
-        timeline.get_coordinate(IdCoordinate(2, TimeUnit.seconds, "missing"))
+    with pytest.raises(KeyError, match="missing.*audio"):
+        timeline.get_coordinate_at(IdCoordinate(2, TimeUnit.seconds, "missing"))
 
 
 def test_timeline_resolves_direct_child_offset_exactly() -> None:
@@ -101,8 +151,9 @@ def test_timeline_resolves_direct_child_offset_exactly() -> None:
     child = Timeline(length=5, unit=TimeUnit.quarters, uid="measure")
     parent.add_child(child, offset=Fraction(9, 2))
 
-    resolved = parent.get_coordinate(
-        IdCoordinate(Fraction(3, 2), TimeUnit.quarters, "measure")
+    resolved = parent.get_coordinate_at(
+        IdCoordinate(Fraction(3, 2), TimeUnit.quarters, "measure"),
+        format="coordinate",
     )
     assert resolved == Coordinate(Fraction(6), TimeUnit.quarters)
     assert isinstance(resolved.value, Fraction)
@@ -122,7 +173,9 @@ def test_timeline_converts_scalar_child_value_before_native_offset() -> None:
     )
     child_coordinate = IdCoordinate(2000, TimeUnit.milliseconds, "child")
 
-    assert parent.get_coordinate(child_coordinate) == Coordinate(12.0, TimeUnit.seconds)
+    assert parent.get_coordinate_at(
+        child_coordinate, format="coordinate"
+    ) == Coordinate(12.0, TimeUnit.seconds)
     dataframe = parent.to_dataframe(
         coordinates=[child_coordinate], conversion_maps=False
     )
@@ -143,8 +196,8 @@ def test_timeline_converts_affine_child_value_before_native_offset() -> None:
         )
     )
 
-    assert parent.get_coordinate(
-        IdCoordinate(2500, TimeUnit.milliseconds, "child")
+    assert parent.get_coordinate_at(
+        IdCoordinate(2500, TimeUnit.milliseconds, "child"), format="coordinate"
     ) == Coordinate(12.0, TimeUnit.seconds)
 
 
@@ -156,8 +209,8 @@ def test_timeline_resolves_grandchild_offset_exactly() -> None:
     child.add_child(grandchild, offset=5.0)
     parent.add_child(child, offset=10.0)
 
-    assert parent.get_coordinate(
-        IdCoordinate(2.0, TimeUnit.seconds, "grandchild")
+    assert parent.get_coordinate_at(
+        IdCoordinate(2.0, TimeUnit.seconds, "grandchild"), format="coordinate"
     ) == Coordinate(17.0, TimeUnit.seconds)
 
 
@@ -169,31 +222,34 @@ def test_timeline_composes_grandchild_fraction_offsets_exactly() -> None:
     child.add_child(grandchild, offset=Fraction(3, 2))
     parent.add_child(child, offset=Fraction(9, 2))
 
-    resolved = parent.get_coordinate(
-        IdCoordinate(Fraction(0), TimeUnit.quarters, "grandchild")
+    resolved = parent.get_coordinate_at(
+        IdCoordinate(Fraction(0), TimeUnit.quarters, "grandchild"),
+        format="coordinate",
     )
 
     assert resolved == Coordinate(Fraction(6), TimeUnit.quarters)
     assert isinstance(resolved.value, Fraction)
 
 
-def test_timeline_id_keyword_qualifies_bare_descendant_value() -> None:
-    """A bare value can be explicitly qualified with its descendant timeline ID."""
+def test_timeline_id_keyword_validates_the_result_axis() -> None:
+    """A Timeline result-axis validator must identify the receiver."""
     parent = Timeline(length=20, unit=TimeUnit.seconds, uid="parent")
     child = Timeline(length=5, unit=TimeUnit.seconds, uid="child")
     parent.add_child(child, offset=10)
 
-    assert parent.get_coordinate(2, timeline_id="child") == parent.get_coordinate(
-        IdCoordinate(2, TimeUnit.seconds, "child")
-    )
+    with pytest.raises(KeyError, match="child.*parent"):
+        parent.get_coordinate_at(2, timeline_id="child")
+    assert parent.get_coordinate_at(
+        IdCoordinate(2, TimeUnit.seconds, "child"), format="coordinate"
+    ) == Coordinate(12.0, TimeUnit.seconds)
 
 
 def test_timeline_rejects_conflicting_coordinate_and_keyword_ids() -> None:
     """An explicit timeline ID cannot conflict with an embedded timeline ID."""
     timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
 
-    with pytest.raises(ValueError, match="audio.*other"):
-        timeline.get_coordinate(
+    with pytest.raises(KeyError, match="other.*audio"):
+        timeline.get_coordinate_at(
             IdCoordinate(2, TimeUnit.seconds, "other"), timeline_id="audio"
         )
 
@@ -213,8 +269,8 @@ def test_timeline_uses_grandparent_cmap_for_grandchild_coordinate() -> None:
         )
     )
 
-    assert parent.get_coordinate(
-        IdCoordinate(2000, TimeUnit.milliseconds, "grandchild")
+    assert parent.get_coordinate_at(
+        IdCoordinate(2000, TimeUnit.milliseconds, "grandchild"), format="coordinate"
     ) == Coordinate(17.0, TimeUnit.seconds)
 
 
@@ -240,8 +296,8 @@ def test_timeline_uses_intermediate_cmap_for_grandchild_coordinate() -> None:
         )
     )
 
-    assert parent.get_coordinate(
-        IdCoordinate(2000, TimeUnit.milliseconds, "grandchild")
+    assert parent.get_coordinate_at(
+        IdCoordinate(2000, TimeUnit.milliseconds, "grandchild"), format="coordinate"
     ) == Coordinate(17.0, TimeUnit.seconds)
 
 
@@ -271,13 +327,13 @@ def _group_get_timestamps(group: TimelineGroup, coord: IdCoordinate) -> object:
     return group.get_timestamps_at([coord], "audio")
 
 
-def _group_convert(group: TimelineGroup, coord: IdCoordinate) -> object:
-    return group.convert(coord, source="audio", target="audio")
+def _group_get_coordinate(group: TimelineGroup, coord: IdCoordinate) -> object:
+    return group.get_coordinate_at(coord, timeline_id="audio")
 
 
 @pytest.mark.parametrize(
     "query",
-    [_group_get_timestamp, _group_get_timestamps, _group_convert],
+    [_group_get_timestamp, _group_get_timestamps],
 )
 def test_timeline_group_rejects_conflicting_coordinate_id(
     query: GroupCoordinateQuery,
@@ -293,6 +349,15 @@ def test_timeline_group_rejects_conflicting_coordinate_id(
     assert str(exc_info.value) == (
         "Timeline ID 'audio' conflicts with coordinate timeline ID 'other'"
     )
+
+
+def test_timeline_group_retrieval_rejects_unknown_source_axis() -> None:
+    """Typed group retrieval treats the embedded ID as the source axis."""
+    timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
+    group = TimelineGroup(id="group", timelines=[timeline])
+
+    with pytest.raises(KeyError, match="other"):
+        _group_get_coordinate(group, IdCoordinate(2, TimeUnit.seconds, "other"))
 
 
 BundleCoordinateQuery = Callable[[AlignmentBundle, IdCoordinate], object]
