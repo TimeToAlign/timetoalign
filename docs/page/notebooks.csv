@@ -29,3 +29,4 @@ howto,how03_listen_here.py,how03_listen_here,How to Load an Audio-to-Audio Align
 howto,how03_ieee1599.py,how03_ieee1599,How to Load an IEEE 1599 Document,"IEEE 1599 multi-layer XML: spine/VTU hub relating score, page pixels, and audio as one multimodal AlignmentBundle"
 howto,how04_hendrix_song_genesis.py,how04_hendrix_song_genesis,How to Encode Song Genesis (Hendrix),"MatchClaim, NOMATCH, synchronous vs conceptual, TiliaJsonLoader"
 howto,how04_loading_csv.py,how04_loading_csv,How to Load CSV/TSV with column_specs and field_specs,"DataField blueprints, the Step-1 resolution chain, CompositeFieldParser, and a from-scratch .solo loader"
+howto,how04_load_anything.py,how04_load_anything,How to Load Anything,"Every loader through one pattern: load, inspect, create timelines, read events, retrieve timestamps"

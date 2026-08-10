@@ -102,6 +102,8 @@ website:
               href: howto/how04_hendrix_song_genesis.ipynb
             - text: "How to Load CSV/TSV with column_specs and field_specs"
               href: howto/how04_loading_csv.ipynb
+            - text: "How to Load Anything"
+              href: howto/how04_load_anything.ipynb
 
     - title: "Explanation"
       contents:

@@ -14,14 +14,6 @@
 # ---
 
 # %% [markdown]
-# ---
-# ## 1. Ms3Loader (ms3-style score TSV)
-#
-# Loads `.notes.tsv`, `.measures.tsv`, `.chords.tsv`, `.harmonies.tsv` files
-# produced by the ms3 library.  The `auto_discover=True` flag picks up companion
-# facets automatically.
-
-# %% [markdown]
 # # How to Load Anything
 #
 # This notebook demonstrates the unified Loader API in the TimeToAlign! library.
@@ -75,6 +67,14 @@ def first_ids(timeline: Timeline, n: int = 5) -> list[str]:
     """Return the IDs of the timeline's first ``n`` events."""
     return [evt["id"] for evt in list(timeline.get_events())[:n]]
 
+
+# %% [markdown]
+# ---
+# ## 1. Ms3Loader (ms3-style score TSV)
+#
+# Loads `.notes.tsv`, `.measures.tsv`, `.chords.tsv`, `.harmonies.tsv` files
+# produced by the ms3 library.  The `auto_discover=True` flag picks up companion
+# facets automatically.
 
 # %%
 from timetoalign import Ms3Loader
