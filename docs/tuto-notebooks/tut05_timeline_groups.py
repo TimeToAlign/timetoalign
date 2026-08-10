@@ -171,8 +171,16 @@ stamp_view
 # %% [markdown]
 # ## Transferring several coordinates
 #
-# `get_timestamps_at` performs the same transfer for a batch. Use integer tick
-# positions because ticks are a discrete unit.
+# Retrieval follows one grid, and a batch is where you can see the whole of it.
+# The suffix names what you are asking with: `_at` takes a position, `_for`
+# takes a key such as an event ID. The plural of the noun takes many of them.
+# The bare name — `get_timestamp(...)` — is a convenience dispatcher that picks
+# the precise method from what you hand it, and the table is that same query
+# asked for in tabular form.
+#
+# So `get_timestamps_at` is simply the plural of `get_timestamp_at`: the same
+# transfer, many positions. Use integer tick positions because ticks are a
+# discrete unit.
 
 # %%
 batch_positions = [
@@ -180,17 +188,32 @@ batch_positions = [
     Coordinate(4000, TimeUnit.ticks),
     Coordinate(8000, TimeUnit.ticks),
 ]
-batch_frame = group.get_timestamps_at(
+batch_stamps = group.get_timestamps_at(
     batch_positions,
     score.id,
+)
+batch_stamps
+
+# %% [markdown]
+# You get one `TimeStamp` per requested position, in the order you asked for
+# them. A plural getter always returns a list of stamps and never collapses
+# them into a table — tabulating is a separate question, asked of
+# `get_timestamp_table` with the same arguments.
+
+# %%
+batch_frame = group.get_timestamp_table(
+    batch_positions,
+    score.id,
+    format="dataframe",
 )
 batch_frame
 
 # %% [markdown]
-# Each input score tick appears beside its mapped performance tick. This batch
-# result contains plain numbers rather than `Coordinate` objects, but the
-# unit-bearing column names identify both discrete coordinate systems and the
-# displayed values remain integers.
+# Each input score tick now appears beside its mapped performance tick. Every
+# column names the member it belongs to, and every cell holds one value in that
+# member's declared number type — integers here, because both axes are ticks.
+# The default `format="table"` answers the same query as a PyArrow table whose
+# cells are coordinate structs instead.
 
 # %% [markdown]
 # ## The row view
@@ -218,13 +241,14 @@ boundary_view
 # %% [markdown]
 # ## The whole table
 #
-# `group.to_dataframe()` materializes all stored pairs at once. This is useful
-# when you want to inspect or export the group's complete tabular view.
+# Asked without a position, `get_timestamp_table` materializes all stored pairs
+# at once. This is useful when you want to inspect or export the group's
+# complete tabular view.
 
 # %%
 assert boundary_view["is_interpolated"] is False
 assert len(batch_frame) == 3
-group_frame = group.to_dataframe(units=True)
+group_frame = group.get_timestamp_table(format="dataframe", units=True)
 group_frame
 
 # %% [markdown]
@@ -330,11 +354,11 @@ partial_checks
 #
 # - You can load event-bearing score and performance timelines and compare their extents.
 # - You can build a group, inspect its members, and establish commensurability.
-# - You can use the group's interpolation through its public `convert` method.
+# - You can use the group's interpolation through `get_coordinate_at`.
 # - You can transfer one coordinate and identify an interpolated answer.
-# - You can transfer a batch of discrete coordinates.
+# - You can transfer a batch of discrete coordinates and tabulate the same query.
 # - You can retrieve a stored pair as a unit-bearing row view.
-# - You can inspect the full boundary table and recognize its plain-number representation.
+# - You can inspect the full boundary table and read one typed value per cell.
 # - You can query a member's represented range.
 # - You can explain what a group lock protects and when an extension must be made explicit.
 # - You can align a recording to only a named part of a score.

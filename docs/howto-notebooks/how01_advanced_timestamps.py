@@ -64,18 +64,27 @@ parent.add_child(child2, offset=60)  # child2 spans [60, 75] on parent
 
 # %%
 coords = [0.0, 15.0, 25.0, 50.0, 65.0, 100.0]
-parent.to_dataframe(coordinates=coords)
+parent.get_timestamp_table(coords, format="dataframe")
 
 # %%
 # Efficient numpy array query
 coords = np.linspace(0, 100, 21)
-parent.to_dataframe(coordinates=coords)
+parent.get_timestamp_table(coords, format="dataframe")
 
 # %% [markdown]
 # ## Boundary Tables
+#
+# `get_boundary_table()` is a narrower exit onto the same table builder: it
+# collects the child boundaries instead of the events. Asking
+# `get_timestamp_table()` for the boundaries directly is the way to choose the
+# output format.
 
 # %%
-parent.get_boundary_table().to_pandas()
+parent.get_timestamp_table(
+    include_events=False,
+    include_boundaries=True,
+    format="dataframe",
+)
 
 # %% [markdown]
 # ## Filtering Events
@@ -89,8 +98,11 @@ parent.get_events(event_type="Beat", include_children=True).to_dataframe()
 # %% [markdown]
 # ## PyArrow Tables
 #
-# For large datasets, `get_timestamp_table()` returns a PyArrow Table
-# directly --- convert to pandas only when needed.
+# For large datasets, `get_timestamp_table()` returns a PyArrow Table directly.
+# Its cells are coordinate structs rather than bare numbers, which is what keeps
+# an authored ratio exact through a parquet round-trip. Ask for the pandas shape
+# with `format="dataframe"` rather than calling `.to_pandas()` on the Arrow
+# table, which would hand you one dict per cell.
 
 # %%
 table = parent.get_timestamp_table()
@@ -100,7 +112,7 @@ table = parent.get_timestamp_table()
 }
 
 # %%
-table.to_pandas().head()
+parent.get_timestamp_table(format="dataframe").head()
 
 # %% [markdown]
 # ## The TimeStamp Object
@@ -164,7 +176,7 @@ child1_coord = ts.get_coordinate_for("child1")
 # ## Unit Metadata in PyArrow Tables
 
 # %%
-table = parent.get_timestamp_table(coordinates=[0.0, 25.0, 50.0])
+table = parent.get_timestamp_table([0.0, 25.0, 50.0])
 
 for field in table.schema:
     if field.metadata:

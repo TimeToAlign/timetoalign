@@ -447,7 +447,7 @@ class EventsMixin:
 
         # Check children
         if include_children:
-            ts = self.get_timestamp(coord_val)
+            ts = self.get_timestamp_at(coord_val)
 
             for child_id in self._children.keys():
                 try:

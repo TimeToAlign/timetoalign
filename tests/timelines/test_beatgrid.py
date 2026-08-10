@@ -112,7 +112,7 @@ class TestBeatGridExport:
                 "default",
                 {"conversion_maps": False},
                 4,
-                "axis (quarters),beat_grid (quarters)\n0,0\n1,1\n2,2\n3,3\n",
+                "beat_grid (quarters)\n0\n1\n2\n3\n",
             ),
             (
                 "sonic_visualiser",

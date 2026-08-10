@@ -35,7 +35,7 @@ from timetoalign.core.retrieval import (
     CoordinateInput,
     CoordinateResult,
     Rounding,
-    classify_dispatch_input,
+    dispatch_retrieval,
     format_coordinates,
     validate_coordinate_collection,
 )
@@ -425,18 +425,18 @@ class MatchLine:
         Returns:
             The selected precise-getter result.
         """
-        branch = classify_dispatch_input(at)
-        if branch == "coordinate":
-            return self.get_coordinate_at(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        if branch == "coordinates":
-            return self.get_coordinates_at(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        raise TypeError(
-            "MatchLine.get_coordinate accepts coordinate inputs; use "
-            "get_coordinates_for for a timeline column"
+        return dispatch_retrieval(
+            self,
+            "get_coordinate",
+            "get_coordinates",
+            at,
+            timeline_id,
+            positions_only=(
+                "MatchLine.get_coordinate accepts coordinate inputs; use "
+                "get_coordinates_for for a timeline column"
+            ),
+            format=format,
+            rounding=rounding,
         )
 
     @classmethod

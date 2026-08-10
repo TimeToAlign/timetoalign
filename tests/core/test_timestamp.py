@@ -592,13 +592,11 @@ class TestTimestampTableMetadata:
     def test_timestamp_table_has_unit_metadata(self):
         """get_timestamp_table includes unit metadata on fields."""
         tl = Timeline(length=100, unit=TimeUnit.seconds, uid="test:1")
-        table = tl.get_timestamp_table(coordinates=[0.0, 50.0, 100.0])
+        table = tl.get_timestamp_table([0.0, 50.0, 100.0])
 
-        # Check axis field metadata
-        axis_field = table.schema.field("axis")
-        assert axis_field.metadata is not None
-        assert field_metadata(axis_field)["unit"] == "seconds"
-        assert field_metadata(axis_field)["timeline_id"] == "test:1"
+        # Every column names the timeline it belongs to; there is no
+        # separate axis field duplicating this timeline's own column.
+        assert table.column_names == ["test:1"]
 
         # Check timeline field metadata
         tl_field = table.schema.field("test:1")
@@ -613,7 +611,7 @@ class TestTimestampTableMetadata:
 
         parent.add_child(child, offset=20)
 
-        table = parent.get_timestamp_table(coordinates=[30.0, 50.0])
+        table = parent.get_timestamp_table([30.0, 50.0])
 
         # Check child field has its unit metadata
         child_field = table.schema.field("child:1")
@@ -633,9 +631,7 @@ class TestTimestampTableMetadata:
         )
         tl.add_conversion_map(tempo_map)
 
-        table = tl.get_timestamp_table(
-            coordinates=[0.0, 480.0, 960.0], conversion_maps=[tempo_map]
-        )
+        table = tl.get_timestamp_table([0.0, 480.0, 960.0], conversion_maps=[tempo_map])
 
         # Find the C-Map field by name (field names use cmap.name, not cmap.id)
         cmap_field = table.schema.field(tempo_map.name)

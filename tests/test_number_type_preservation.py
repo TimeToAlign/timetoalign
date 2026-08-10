@@ -434,27 +434,21 @@ def _typed_group() -> TimelineGroup:
     return group
 
 
-def test_frame_and_batch_getter_write_the_same_columns() -> None:
-    """``to_dataframe`` and ``get_timestamps_at`` present one set of positions.
+def test_stamp_lane_and_frame_lane_write_the_same_positions() -> None:
+    """The stamp getter and the frame present one set of positions.
 
     Asserted side by side rather than as two pinned tables, because the
-    property is agreement: the group's timestamp table is a float64
+    property is agreement: the group's stored timestamps are a float64
     interpolation lane, and the frame used to hand that lane's doubles
-    straight to the reader while the batch getter went through stamps and
-    reported ``12473`` where the frame said ``12473.0``.
+    straight to the reader while the stamp getter reported ``12473`` where
+    the frame said ``12473.0``.
     """
     group = _typed_group()
 
-    batch = group.get_timestamps_at([0, 12473], "dgt1")
-    frame = group.to_dataframe()
+    stamps = group.get_timestamps_at([0, 12473], "dgt1")
+    frame = group.get_timestamp_table(format="dataframe")
+    queried = group.get_timestamp_table([0, 12473], "dgt1", format="dataframe")
 
-    assert list(batch.columns) == [
-        "dgt1 (pixels)",
-        "cpt1 (seconds)",
-        "clt1 (quarters)",
-        "beats",
-        "seconds",
-    ]
     assert list(frame.columns) == [
         "dgt1 (pixels)",
         "cpt1 (seconds)",
@@ -462,9 +456,16 @@ def test_frame_and_batch_getter_write_the_same_columns() -> None:
         "pixels_to_beats (beats)",
         "quarters_to_seconds (seconds)",
     ]
+    assert list(queried.columns) == list(frame.columns)
+    for name in frame.columns:
+        assert list(queried[name]) == list(frame[name])
 
-    for batch_column, frame_column in zip(batch.columns, frame.columns):
-        assert list(batch[batch_column]) == list(frame[frame_column])
+    for position, stamp in enumerate(stamps):
+        assert stamp.get_coordinate_for("dgt1", format="int") == [0, 12473][position]
+        assert (
+            stamp.get_coordinate_for("clt1").value
+            == [Fraction(0, 1), Fraction(19, 2)][position]
+        )
 
     assert list(frame["dgt1 (pixels)"]) == [0, 12473]
     assert list(frame["cpt1 (seconds)"]) == [0.0, 37.5]
@@ -482,9 +483,6 @@ def test_frame_and_batch_getter_write_the_same_columns() -> None:
     # float64 even though the source axis is exact: a converted reading is
     # written by its target, and seconds are float-canonical.
     assert str(frame["quarters_to_seconds (seconds)"].dtype) == "float64"
-    assert [str(dtype) for dtype in batch.dtypes] == [
-        str(frame[name].dtype) for name in frame.columns
-    ]
 
 
 def test_a_gapped_integer_column_uses_the_nullable_dtype() -> None:
@@ -497,7 +495,7 @@ def test_a_gapped_integer_column_uses_the_nullable_dtype() -> None:
         end=500,
     )
 
-    frame = group.to_dataframe()
+    frame = group.get_timestamp_table(format="dataframe")
     column = frame["dgt2 (pixels)"]
 
     assert str(column.dtype) == "Int64"
@@ -505,23 +503,30 @@ def test_a_gapped_integer_column_uses_the_nullable_dtype() -> None:
     assert list(column.dropna()) == [0, 400]
 
 
-def test_the_raw_timestamp_table_stays_the_float_lane() -> None:
-    """Only the frame is re-expressed; the table underneath keeps its doubles.
+def test_the_stored_timestamps_stay_the_float_lane() -> None:
+    """The store keeps its doubles; the published table carries structs.
 
-    The re-expression belongs at the presentation boundary. Pushing it into
-    the table would turn the group's interpolation store into a column of
-    Python objects, which is the lane the rule explicitly leaves alone.
+    Interpolation runs on doubles, so the group's own store must stay
+    float64. Re-expression happens where the table is published, which is
+    also where the exact side is written alongside it.
     """
-    table = _typed_group().get_timestamp_table()
+    group = _typed_group()
 
-    assert [str(field.type) for field in table.schema] == [
-        "double",
-        "double",
+    assert [str(field.type) for field in group._timestamp_table.schema] == [
         "double",
         "double",
         "double",
     ]
-    assert table.column("dgt1").to_pylist() == [0.0, 12473.0]
+    assert group._timestamp_table.column("dgt1").to_pylist() == [0.0, 12473.0]
+
+    published = group.get_timestamp_table()
+    assert [str(field.type) for field in published.schema] == [
+        "struct<value: double, numerator: int64, denominator: int64>",
+    ] * 5
+    assert published.column("dgt1").combine_chunks().field("numerator").to_pylist() == [
+        0,
+        12473,
+    ]
 
 
 def _float_target_timeline() -> ContinuousLogicalTimeline:

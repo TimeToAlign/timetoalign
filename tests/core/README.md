@@ -368,28 +368,28 @@ and `_repr_html_` cannot disagree. The test asserts the model field and all
 three renderings, because an anchorless claim has no getter to go through:
 `get_coordinate_for` raises on it, correctly, and is left alone.
 
-#### `to_dataframe` writes the columns its axes declare
+#### A published table writes the columns its axes declare
 
-`group.get_timestamps_at(...)` and `group.to_dataframe()` present the same
-positions, and they disagreed on dtype: the batch getter went through stamps
-and gave `int64` / `float64` / `object` per axis, while the frame gave
-`float64` for everything — `12473.0` pixels beside a stamp's `12473`.
+`group.get_timestamps_at(...)` and the group's frame present the same
+positions, and they disagreed on dtype: the stamp getter gave `int64` /
+`float64` / `object` per axis, while the frame gave `float64` for everything —
+`12473.0` pixels beside a stamp's `12473`.
 
-The cause is that a group's timestamp table is a `float64` store by design: it
-is the interpolation lane, and interpolation runs on doubles. Nothing was
-wrong with the table; what was missing is that `to_dataframe` is the
-presentation boundary and never applied the declared type. It does now, driven
-by a `number_type` entry added to each field's metadata blob (the unit's
-default is the fallback for older tables), so the raw `get_timestamp_table()`
-stays float and only the frame is re-expressed.
+The cause is that a group's stored timestamps are a `float64` store by design:
+it is the interpolation lane, and interpolation runs on doubles. Nothing was
+wrong with the store; what was missing is that publishing is the boundary
+where the declared type applies. It applies there now, driven by a
+`number_type` entry on each field's metadata blob (the unit's default is the
+fallback for older tables), so the store stays float and the published table
+carries coordinate structs.
 
-| Axis | `get_timestamps_at` | `to_dataframe` |
+| Axis | stamp getter | published frame |
 |---|---|---|
 | `dgt1` pixels (`int`) | `0`, `12473` | `0`, `12473` |
 | `cpt1` seconds (`float`) | `0.0`, `37.5` | `0.0`, `37.5` |
 | `clt1` quarters (`fraction`) | `Fraction(0, 1)`, `Fraction(19, 2)` | same |
-| `pixels_to_beats` C-Map column | `Fraction(12473, 4)` | same |
-| `quarters_to_seconds` C-Map column | `38.0` | same |
+| `pixels_to_beats` C-Map column | — | `Fraction(12473, 4)` |
+| `quarters_to_seconds` C-Map column | — | `38.0` |
 
 C-Map columns follow the same target-decides rule as C-Map rows: both read
 `cmap.output_number_type`, so `quarters_to_seconds` is `float64` even though
@@ -401,16 +401,121 @@ coordinates, not a conversion of anything. Maps whose answer is an ordinal
 
 Nullable `Int64` appears only where a column actually has gaps — a group
 member covering part of the span — so a dense integer axis reads `int64`,
-exactly like the batch getter.
+exactly like the stamp getter.
 
-**Validity Rationale:** the two methods are asserted side by side in one test
+**Validity Rationale:** the two lanes are asserted side by side in one test
 rather than separately, because the property is *agreement*, and two
 independently-pinned tables drift the moment one is updated. Both value and
 dtype are asserted: values alone pass on a float column holding `12473.0`,
-which is the defect. A fraction axis is included deliberately even though both
-lanes reconstruct the exact dyadic of a stored double rather than the ratio
-that was authored — that lossiness is the float table's, shared by both lanes,
-and pinning it here records that this fix did not change it.
+which is the defect. A group's fraction axis is included deliberately even
+though it reconstructs the exact dyadic of a stored double rather than the
+ratio that was authored — that lossiness is the interpolation store's, not the
+table's, and pinning it here records which of the two lanes it belongs to.
+
+### One stamp surface, one table surface
+
+`test_stamp_retrieval_surface.py` (top level) asserts that the stamp lane and
+the table lane are uniform across `Timeline`, `TimelineGroup` and
+`AlignmentBundle`. Its subject is the shape of the API, not the arithmetic
+behind it — every value it pins is one a reader can derive by hand from the
+tiny fixtures it builds.
+
+**The four precise questions, and one dispatcher over them.** Each receiver
+answers a position query with `get_<stamp>_at` / `get_<stamp>s_at` and an
+identity query with `get_<stamp>_for` / `get_<stamp>s_for`. The convenience
+dispatcher `get_<stamp>(at=...)` chooses among them from the runtime form of
+its argument alone. The matrix asserted per receiver is:
+
+| `at` | selected | asserted result |
+|---|---|---|
+| scalar coordinate | `_at` | equals the precise call's result |
+| coordinate collection | `_ats` | `list`, one entry per input, in order |
+| `str` | `_for` | equals the precise call's result |
+| key collection | `_fors` | `list`, one entry per input, in order |
+| mixed keys and coordinates | — | `TypeError` |
+| `bool` | — | `TypeError` |
+| empty collection | `_ats` | `[]` |
+
+The dispatcher result is compared against the precise getter's result rather
+than re-derived, because the property under test is *selection*: a dispatcher
+that computed the right numbers by a different route would still be wrong the
+moment the precise method changed. `bool` is rejected even though it
+subclasses `int`, matching the scalar layer; a mixed collection raises rather
+than splitting element by element, because there is no honest answer to "some
+of these are positions and some are names".
+
+**Deleted names are gone, not aliased.** `get_timestamp_of`,
+`get_timestamps_of` and `to_dataframe` are asserted absent on both `Timeline`
+and `TimelineGroup`, and `as_fractions` is asserted not to be an accepted
+keyword. Asserted rather than assumed because a re-export is invisible to
+anything else in the suite: every migrated call site would keep passing.
+
+**`get_timestamp` no longer shadows `get_timestamp_at`.** The two were once
+the same function object, so an override of one silently changed the other and
+a caller could not tell which name carried the behaviour. The test asserts
+they are distinct functions and that the implementation sits on
+`get_timestamp_at`.
+
+**The table format vocabulary is closed.** `format="table"` gives a
+`pa.Table`, `format="dataframe"` a `pd.DataFrame`, anything else a
+`ValueError` naming both accepted values. The DataFrame-shaping options
+(`fields`, `units`, `include_ids`) default to `None` rather than to their
+effective values, so "not passed" is distinguishable from "passed the
+default"; supplying any of them with `format="table"` raises a `ValueError`
+naming exactly the offending options. Silently ignoring them would be the
+alternative, and it hides a caller's mistaken belief that the Arrow result was
+shaped.
+
+**Cells are coordinate structs, and a frame cell is a scalar.** Every
+timestamp table — a timeline's, a group's, a bundle's match-stamp table —
+carries `IdCoordinateField` columns for timeline axes and `CoordinateField`
+columns for derived conversions, each cell holding the number twice (a
+float64 and an integer ratio) with `unit`, `number_type` and identity in field
+metadata. The frame rendering decodes that to one scalar per cell.
+
+The named regression is `test_authored_ratio_survives_the_frame`: a position
+authored as `Fraction(5, 3)` quarters must read back as `Fraction(5, 3)`, not
+as `7505999378950827/4503599627370496`. Both are the same number to sixteen
+digits and only one of them is what the user wrote; a `double` column cannot
+tell them apart, which is exactly why the column is a struct. The parquet
+round trip asserts the same value survives a write and a read, since storage
+is where the distinction would otherwise be lost for good.
+
+**Every route to an axis is covered, not just the convenient one.** The three
+ways a table's axis is sourced reach the column by different code, so each
+gets its own exactness assertion: positions the caller passes (`at=[...]`),
+positions collected from events (`at=None`, what a bare
+`get_timestamp_table()` gives), and positions collected from timeline
+boundaries (`include_boundaries=True`, where the ratio comes from an offset
+and a length rather than from any event). Asserting only the first is what
+let the event route ship reporting the dyadic while the stamp lane on the
+same timeline reported the ratio. The claim table is covered over both claim
+stores, because the columnar store reaches the table through a bulk
+four-column read that the per-claim list does not use.
+
+**Known limitation — a group's stored rows are a float lane.** A
+`TimelineGroup` keeps its timestamps as `float64` because interpolation
+between members runs on doubles, so a boundary authored as an exact ratio is
+rounded on the way into the store and reads back as that double's dyadic.
+This is a property of the store, not of the table encoding, and it is narrow:
+every *queried* position is exact — the stamp lane, the coordinate lane, and
+`at=`-queried table rows all answer `5/3`.
+`test_group_stored_boundary_rows_are_a_known_float_lane` pins both halves —
+the loss on stored rows and the exactness of every query — so the limitation
+cannot quietly widen, and so the day the store becomes typed the test fails
+and names what changed.
+
+**A batch answers completely or not at all — on both lanes.** A plural stamp
+getter raises on the first element it cannot resolve and returns nothing: no
+partial list, no NaN row, no silently dropped key. The table lane does the
+same. An earlier draft let the table swallow an unresolvable query into a
+null-filled row, which was wrong twice over: one input meant two things
+depending on which exit the caller took, and a null became ambiguous — a
+reader could not distinguish "this member does not reach this position" from
+"your query position was invalid". Making the table raise leaves a null with
+exactly one meaning, member not reachable, which is what makes nulls
+readable. Both halves are pinned: the raise on an invalid query, and the
+surviving null on a member that genuinely covers only part of the span.
 
 ### Stamp retrieval formats and canonical storage
 

@@ -45,7 +45,7 @@ Coordinate(7938048, samples)
 ```python
 >>> # The timeline has a SamplesToSeconds C-map attached
 >>> from timetoalign.core import TimeUnit
->>> timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
+>>> timeline.get_timestamp_at(44100).get_unit(TimeUnit.seconds)
 1.0
 ```
 
@@ -128,7 +128,7 @@ The timeline is created with:
 ```python
 >>> # Convert sample coordinates to seconds
 >>> from timetoalign.core import TimeUnit
->>> timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
+>>> timeline.get_timestamp_at(44100).get_unit(TimeUnit.seconds)
 1.0
 ```
 

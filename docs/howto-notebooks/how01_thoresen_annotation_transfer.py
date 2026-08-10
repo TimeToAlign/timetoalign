@@ -37,7 +37,7 @@
 # - Building a plain `DiscreteGraphicalTimeline` with children (DGT1: known layout)
 # - Attaching `ScalarMap` and `ConstantMap` to timeline segments
 # - Adding interval events to child timelines
-# - Querying `TimeIntervalStamp` via `get_timestamp_of()`
+# - Querying `TimeIntervalStamp` via `get_timestamp_for()`
 # - Creating `MatchClaim.from_projection()` for coordinate transfer
 # - Querying `MatchStamp` from both a single claim and an `AlignmentBundle`
 # - Transferring y-coordinates via per-segment `LinearMap`
@@ -221,7 +221,7 @@ for i, seg in enumerate(dgt2_segments):
 # - TSV ground truth: 43.5 s, duration 4.5 s
 
 # %%
-stamp_h = dgt2.get_timestamp_of("rect_h2")
+stamp_h = dgt2.get_timestamp_for("rect_h2")
 print(stamp_h)
 
 # %%
@@ -343,7 +343,7 @@ projection_data = []
 
 for event_id in event_ids:
     # Get the TimeIntervalStamp from DGT2
-    stamp = dgt2.get_timestamp_of(event_id)
+    stamp = dgt2.get_timestamp_for(event_id)
 
     # Extract global DGT2 coordinates (on the SegmentLine axis)
     dgt2_start = stamp.start.axis

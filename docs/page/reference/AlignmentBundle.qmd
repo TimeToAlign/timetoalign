@@ -97,9 +97,13 @@ The bundle translates between these two namespaces transparently.
 | [get_group](#timetoalign.alignment.AlignmentBundle.get_group) | Get a group by ID. |
 | [get_group_for_timeline](#timetoalign.alignment.AlignmentBundle.get_group_for_timeline) | Get the group containing a timeline. |
 | [get_match_claims](#timetoalign.alignment.AlignmentBundle.get_match_claims) | Query MatchClaims connecting timelines across groups. |
+| [get_matchstamp](#timetoalign.alignment.AlignmentBundle.get_matchstamp) | Dispatch a positional or event-key match-stamp query. |
 | [get_matchstamp_at](#timetoalign.alignment.AlignmentBundle.get_matchstamp_at) | Get a cross-group MatchStamp at a coordinate on a timeline. |
-| [get_matchstamp_table](#timetoalign.alignment.AlignmentBundle.get_matchstamp_table) | Get a PyArrow table of MatchStamps for alignment queries. |
-| [get_matchstamps](#timetoalign.alignment.AlignmentBundle.get_matchstamps) | Get MatchStamps for a list of MatchClaims or query coordinates. |
+| [get_matchstamp_for](#timetoalign.alignment.AlignmentBundle.get_matchstamp_for) | Get the cross-group MatchStamp at a uniquely owned event. |
+| [get_matchstamp_table](#timetoalign.alignment.AlignmentBundle.get_matchstamp_table) | Get a table of MatchStamps for alignment queries. |
+| [get_matchstamps](#timetoalign.alignment.AlignmentBundle.get_matchstamps) | Get MatchStamps for the bundle's claims. |
+| [get_matchstamps_at](#timetoalign.alignment.AlignmentBundle.get_matchstamps_at) | Get cross-group MatchStamps at a collection of coordinates. |
+| [get_matchstamps_for](#timetoalign.alignment.AlignmentBundle.get_matchstamps_for) | Get cross-group MatchStamps for a collection of event IDs. |
 | [get_timeline](#timetoalign.alignment.AlignmentBundle.get_timeline) | Get a timeline by ID. |
 | [get_timelines](#timetoalign.alignment.AlignmentBundle.get_timelines) | Get multiple timelines by their IDs. |
 | [summary](#timetoalign.alignment.AlignmentBundle.summary) | Get a summary of the bundle contents. |
@@ -776,11 +780,54 @@ Get NOMATCH claims for a specific pair::
     ...     nomatch_only=True,
     ... )
 
+### get_matchstamp { #timetoalign.alignment.AlignmentBundle.get_matchstamp }
+
+```python
+alignment.AlignmentBundle.get_matchstamp(
+    at,
+    timeline_id=None,
+    *,
+    support_policy=None,
+    conversion_maps=False,
+    timeline_ids=None,
+    id_pattern=None,
+    include_domains=None,
+    include_units=None,
+)
+```
+
+Dispatch a positional or event-key match-stamp query.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name            | Type                                                                                                                                                                                                                        | Description                                        | Default    |
+|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|------------|
+| at              | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) \| [str](`str`) \| [KeyCollection](`timetoalign.core.retrieval.KeyCollection`) | Scalar or plural coordinate position or event key. | _required_ |
+| timeline_id     | [str](`str`) \| None                                                                                                                                                                                                        | Bundle UID the query is expressed on.              | `None`     |
+| support_policy  | \'SupportPolicy \| str \| None\'                                                                                                                                                                                            | How to treat out-of-support timelines.             | `None`     |
+| conversion_maps | \'ConversionMapsSpec\'                                                                                                                                                                                                      | C-map conversions available through the stamps.    | `False`    |
+| timeline_ids    | [set](`set`)\[[str](`str`)\] \| None                                                                                                                                                                                        | Only include these bundle UIDs in each result.     | `None`     |
+| id_pattern      | [str](`str`) \| None                                                                                                                                                                                                        | Regex filter for bundle UIDs in each result.       | `None`     |
+| include_domains | [set](`set`)\[\'Domain\'\] \| None                                                                                                                                                                                          | Only these domains in each result.                 | `None`     |
+| include_units   | [set](`set`)\[\'TimeUnit\'\] \| None                                                                                                                                                                                        | Only these units in each result.                   | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                               | Description                         |
+|--------|------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
+|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | The selected precise-getter result. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                     | Description                                                             |
+|--------|--------------------------|-------------------------------------------------------------------------|
+|        | [TypeError](`TypeError`) | If ``at`` mixes keys and coordinates or is an unsupported runtime form. |
+
 ### get_matchstamp_at { #timetoalign.alignment.AlignmentBundle.get_matchstamp_at }
 
 ```python
 alignment.AlignmentBundle.get_matchstamp_at(
-    coordinate,
+    at,
     timeline_id=None,
     *,
     support_policy=None,
@@ -816,8 +863,8 @@ ever yields a negative coordinate or one beyond a timeline's length.
 
 | Name            | Type                                                | Description                                                                                                                                                                                                                                                                                                                        | Default    |
 |-----------------|-----------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| coordinate      | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | The query coordinate. Can be:  - int/float/Fraction: Raw value, ``timeline_id`` required. - Coordinate: Value with unit, ``timeline_id`` required. - IdCoordinate: Value with unit AND timeline_id   (``timeline_id`` param optional).                                                                                             | _required_ |
-| timeline_id     | [str](`str`) \| None                                | Bundle UID of the source timeline. Required unless ``coordinate`` is an ``IdCoordinate``, in which case the coordinate's own ``timeline_id`` is used.                                                                                                                                                                              | `None`     |
+| at              | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | The query coordinate. Can be:  - int/float/Fraction: Raw value, ``timeline_id`` required. - Coordinate: Value with unit, ``timeline_id`` required. - IdCoordinate: Value with unit AND timeline_id   (``timeline_id`` param optional).                                                                                             | _required_ |
+| timeline_id     | [str](`str`) \| None                                | Bundle UID of the source timeline. Required unless ``at`` is an ``IdCoordinate``, in which case the coordinate's own ``timeline_id`` is used.                                                                                                                                                                                      | `None`     |
 | support_policy  | \'SupportPolicy \| str \| None\'                    | How to treat out-of-support timelines (``omit`` / ``clamp`` / ``extrapolate``). Accepts a :class:`~timetoalign.core.SupportPolicy` or its string name. ``None`` (the default) uses the bundle's ``support_policy`` setting, itself ``omit`` by default. The query timeline's own coordinate is never dropped, clamped, or altered. | `None`     |
 | conversion_maps | \'ConversionMapsSpec\'                              | C-map conversions available through unit lookup and display. Opt-in: defaults to ``False``.                                                                                                                                                                                                                                        | `False`    |
 | timeline_ids    | [set](`set`)\[[str](`str`)\] \| None                | Only include these bundle UIDs in the result.                                                                                                                                                                                                                                                                                      | `None`     |
@@ -833,11 +880,11 @@ ever yields a negative coordinate or one beyond a timeline's length.
 
 #### Raises {.doc-section .doc-section-raises}
 
-| Name   | Type                       | Description                                                       |
-|--------|----------------------------|-------------------------------------------------------------------|
-|        | [TypeError](`TypeError`)   | If coordinate is not int/float/Fraction/Coordinate/ IdCoordinate. |
-|        | [ValueError](`ValueError`) | If timeline_id is None and coordinate is not an IdCoordinate.     |
-|        | [KeyError](`KeyError`)     | If timeline_id is not in the bundle.                              |
+| Name   | Type                       | Description                                                   |
+|--------|----------------------------|---------------------------------------------------------------|
+|        | [TypeError](`TypeError`)   | If ``at`` is not int/float/Fraction/Coordinate/ IdCoordinate. |
+|        | [ValueError](`ValueError`) | If timeline_id is None and ``at`` is not an IdCoordinate.     |
+|        | [KeyError](`KeyError`)     | If timeline_id is not in the bundle.                          |
 
 #### Examples {.doc-section .doc-section-examples}
 
@@ -847,21 +894,75 @@ ever yields a negative coordinate or one beyond a timeline's length.
 23  # score + 22 performers
 ```
 
+### get_matchstamp_for { #timetoalign.alignment.AlignmentBundle.get_matchstamp_for }
+
+```python
+alignment.AlignmentBundle.get_matchstamp_for(
+    key,
+    timeline_id=None,
+    *,
+    support_policy=None,
+    conversion_maps=False,
+    timeline_ids=None,
+    id_pattern=None,
+    include_domains=None,
+    include_units=None,
+)
+```
+
+Get the cross-group MatchStamp at a uniquely owned event.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name            | Type                                 | Description                                                        | Default    |
+|-----------------|--------------------------------------|--------------------------------------------------------------------|------------|
+| key             | [str](`str`)                         | Event ID with exactly one owning registered timeline.              | _required_ |
+| timeline_id     | [str](`str`) \| None                 | Bundle UID the stamp is anchored on; by default the event's owner. | `None`     |
+| support_policy  | \'SupportPolicy \| str \| None\'     | How to treat out-of-support timelines.                             | `None`     |
+| conversion_maps | \'ConversionMapsSpec\'               | C-map conversions available through the stamp.                     | `False`    |
+| timeline_ids    | [set](`set`)\[[str](`str`)\] \| None | Only include these bundle UIDs in the result.                      | `None`     |
+| id_pattern      | [str](`str`) \| None                 | Regex filter for bundle UIDs in the result.                        | `None`     |
+| include_domains | [set](`set`)\[\'Domain\'\] \| None   | Only these domains in the result.                                  | `None`     |
+| include_units   | [set](`set`)\[\'TimeUnit\'\] \| None | Only these units in the result.                                    | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                   | Description                                  |
+|--------|--------------------------------------------------------|----------------------------------------------|
+|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) | MatchStamp spanning all connected timelines. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                               |
+|--------|----------------------------|-------------------------------------------|
+|        | [KeyError](`KeyError`)     | If no registered timeline owns the event. |
+|        | [ValueError](`ValueError`) | If several registered timelines own it.   |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> ms = bundle.get_matchstamp_for("note:000001")
+>>> ms.get_coordinate_for(ms.source_id)  # the event's own owner axis
+```
+
 ### get_matchstamp_table { #timetoalign.alignment.AlignmentBundle.get_matchstamp_table }
 
 ```python
 alignment.AlignmentBundle.get_matchstamp_table(
-    claims=None,
-    *,
-    coordinates=None,
+    at=None,
     timeline_id=None,
+    *,
+    claims=None,
     timeline_filter=None,
     from_graph=False,
     conversion_maps=False,
+    format='table',
+    fields=None,
+    units=None,
 )
 ```
 
-Get a PyArrow table of MatchStamps for alignment queries.
+Get a table of MatchStamps for alignment queries.
 
 Analogous to ``get_timestamp_table()`` but for cross-group alignment.
 Fields are timeline IDs holding their coordinate values; what a *row*
@@ -881,35 +982,39 @@ stores are read four Arrow columns at a time — no ``MatchClaim`` is
 ever materialised — which is what keeps a hundreds-of-thousands-of-rows
 alignment tabulable.
 
-When ``coordinates`` is given instead of ``claims``, each coordinate is
-resolved through :meth:`get_matchstamp_at` and becomes exactly one
+When ``at`` is given instead of ``claims``, each position or event ID
+is resolved through :meth:`get_matchstamp_at` and becomes exactly one
 row — a full transitive cross-section, every reached timeline filled —
 in input order. ``from_graph`` does not apply on this path (the stamps
 are already collapsed cross-sections) and is ignored.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name            | Type                                                                                                  | Description                                                                                                                                                                                                                                                                                     | Default   |
-|-----------------|-------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
-| claims          | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] \| None                     | List of MatchClaims to tabulate.  If None, uses every cross-group claim in the bundle (both stores).  When given, only those claims are tabulated.  Mutually exclusive with ``coordinates``.                                                                                                    | `None`    |
-| coordinates     | [Iterable](`collections.abc.Iterable`)\[[CoordinateSpec](`timetoalign.core.CoordinateSpec`)\] \| None | Query coordinates to resolve through :meth:`get_matchstamp_at`, one row per coordinate in input order. Each element is a raw ``int``/``float``/``Fraction`` or ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate`` (carrying its own timeline). Mutually exclusive with ``claims``. | `None`    |
-| timeline_id     | [str](`str`) \| None                                                                                  | Source timeline for the ``coordinates`` batch; may be ``None`` when every element is an ``IdCoordinate``. Ignored on the ``claims`` path.                                                                                                                                                       | `None`    |
-| timeline_filter | [set](`set`)\[[str](`str`)\] \| None                                                                  | Only include these timeline fields.                                                                                                                                                                                                                                                             | `None`    |
-| from_graph      | [bool](`bool`)                                                                                        | Collapse claims into one row per connected component instead of one row per claim.  Ignored on the ``coordinates`` path.                                                                                                                                                                        | `False`   |
-| conversion_maps | \'ConversionMapsSpec\'                                                                                | C-map conversions to add as derived columns, one per (timeline, enabled unit-conversion map). Opt-in: defaults to ``False``. Only numeric unit-conversion maps (a ``target_unit`` set) become columns; label/structured maps appear in stamp display but never as table columns.                | `False`   |
+| Name            | Type                                                                                                                                                                                                                                | Description                                                                                                                                                                                                                                                                                      | Default   |
+|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| at              | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) \| [str](`str`) \| [KeyCollection](`timetoalign.core.retrieval.KeyCollection`) \| None | Query positions or event IDs to resolve through :meth:`get_matchstamp_at`, one row each in input order. Each element is a raw ``int``/``float``/``Fraction`` or ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate`` (carrying its own timeline). Mutually exclusive with ``claims``. | `None`    |
+| timeline_id     | [str](`str`) \| None                                                                                                                                                                                                                | Source timeline for the ``at`` batch; may be ``None`` when every element is an ``IdCoordinate`` or an event ID. Ignored on the ``claims`` path.                                                                                                                                                  | `None`    |
+| claims          | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] \| None                                                                                                                                                   | List of MatchClaims to tabulate.  If None, uses every cross-group claim in the bundle (both stores).  When given, only those claims are tabulated.  Mutually exclusive with ``at``.                                                                                                              | `None`    |
+| timeline_filter | [set](`set`)\[[str](`str`)\] \| None                                                                                                                                                                                                | Only include these timeline fields.                                                                                                                                                                                                                                                              | `None`    |
+| from_graph      | [bool](`bool`)                                                                                                                                                                                                                      | Collapse claims into one row per connected component instead of one row per claim.  Ignored on the ``at`` path.                                                                                                                                                                                  | `False`   |
+| conversion_maps | \'ConversionMapsSpec\'                                                                                                                                                                                                              | C-map conversions to add as derived columns, one per (timeline, enabled unit-conversion map). Opt-in: defaults to ``False``. Only numeric unit-conversion maps (a ``target_unit`` set) become columns; label/structured maps appear in stamp display but never as table columns.                 | `False`   |
+| format          | [TableFormat](`timetoalign.core.retrieval.TableFormat`)                                                                                                                                                                             | ``"table"`` (default) for a PyArrow table, ``"dataframe"`` for a pandas DataFrame.                                                                                                                                                                                                               | `'table'` |
+| fields          | \'ColumnNaming \| Callable\[\[str, dict\], str\] \| list\[str\] \| None\'                                                                                                                                                           | How to name the DataFrame fields (``format="dataframe"``).                                                                                                                                                                                                                                       | `None`    |
+| units           | [bool](`bool`) \| None                                                                                                                                                                                                              | If True (the DataFrame default), append units to field names like "name (unit)".                                                                                                                                                                                                                 | `None`    |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type         | Description                                                        |
-|--------|--------------|--------------------------------------------------------------------|
-|        | \'pa.Table\' | PyArrow Table with one field per timeline.  Non-synchronous claims |
-|        | \'pa.Table\' | are excluded.  Empty input yields an empty table.                  |
+| Name   | Type                         | Description                                                      |
+|--------|------------------------------|------------------------------------------------------------------|
+|        | \'pa.Table \| pd.DataFrame\' | One field per timeline, each a coordinate struct carrying its    |
+|        | \'pa.Table \| pd.DataFrame\' | number twice.  Non-synchronous claims are excluded.  Empty input |
+|        | \'pa.Table \| pd.DataFrame\' | yields an empty table.                                           |
 
 #### Raises {.doc-section .doc-section-raises}
 
-| Name   | Type                       | Description                                       |
-|--------|----------------------------|---------------------------------------------------|
-|        | [ValueError](`ValueError`) | If both ``claims`` and ``coordinates`` are given. |
+| Name   | Type                       | Description                                                                                                                            |
+|--------|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If both ``claims`` and ``at`` are given, on an unknown ``format``, or when a DataFrame-shaping option is supplied for an Arrow result. |
 
 #### Note {.doc-section .doc-section-note}
 
@@ -930,9 +1035,7 @@ well-formed alignment never does) keeps the smaller one.
 ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
 >>> bundle.get_matchstamp_table(from_graph=True).num_rows
 25
->>> bundle.get_matchstamp_table(
-...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
-... ).num_rows
+>>> bundle.get_matchstamp_table([0.0, 50.0], "score:clt1").num_rows
 2
 ```
 
@@ -942,33 +1045,28 @@ well-formed alignment never does) keeps the smaller one.
 alignment.AlignmentBundle.get_matchstamps(
     claims=None,
     *,
-    coordinates=None,
-    timeline_id=None,
     from_graph=True,
     conversion_maps=False,
 )
 ```
 
-Get MatchStamps for a list of MatchClaims or query coordinates.
+Get MatchStamps for the bundle's claims.
 
-Convenience method for retrieving MatchStamps for multiple claims
-at once. Uses the bundle's caching mechanism for efficient retrieval.
+The bare plural means "stamps for the claims this bundle holds" — it
+is the claim-driven listing, not the batch sibling of
+:meth:`get_matchstamps_at`. To resolve a batch of *positions*, use
+:meth:`get_matchstamps_at`; to resolve event IDs, use
+:meth:`get_matchstamps_for`.
 
-When ``coordinates`` is given instead of ``claims``, each coordinate is
-resolved through :meth:`get_matchstamp_at` — the coordinate-first entry
-point for callers who hold coordinates rather than ``MatchClaim``
-objects. Input order is preserved and every coordinate yields exactly
-one stamp (a full transitive cross-section).
+Uses the bundle's caching mechanism for efficient retrieval.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name            | Type                                                                                                  | Description                                                                                                                                                                                                                                                                                       | Default   |
-|-----------------|-------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
-| claims          | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] \| None                     | List of MatchClaims to get stamps for. If None, uses every cross-group claim in the bundle — the per-claim list and every columnar ``MatchClaimField`` (see :meth:`get_match_claims`, which materialises the columnar rows). Mutually exclusive with ``coordinates``.                             | `None`    |
-| coordinates     | [Iterable](`collections.abc.Iterable`)\[[CoordinateSpec](`timetoalign.core.CoordinateSpec`)\] \| None | Query coordinates to resolve through :meth:`get_matchstamp_at`, one stamp per coordinate in input order. Each element is a raw ``int``/``float``/``Fraction`` or ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate`` (carrying its own timeline). Mutually exclusive with ``claims``. | `None`    |
-| timeline_id     | [str](`str`) \| None                                                                                  | Source timeline for the ``coordinates`` batch; may be ``None`` when every element is an ``IdCoordinate``. Ignored on the ``claims`` path.                                                                                                                                                         | `None`    |
-| from_graph      | [bool](`bool`)                                                                                        | If True (default), return full MatchStamps from the MatchGraph (all connected timelines). If False, return reduced 2-timeline stamps. Ignored on the ``coordinates`` path, where each stamp is already a full cross-section.                                                                      | `True`    |
-| conversion_maps | \'ConversionMapsSpec\'                                                                                | C-map conversions available through unit lookup and display. Opt-in: defaults to ``False``.                                                                                                                                                                                                       | `False`   |
+| Name            | Type                                                                              | Description                                                                                                                                                                                                                  | Default   |
+|-----------------|-----------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| claims          | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] \| None | List of MatchClaims to get stamps for. If None, uses every cross-group claim in the bundle — the per-claim list and every columnar ``MatchClaimField`` (see :meth:`get_match_claims`, which materialises the columnar rows). | `None`    |
+| from_graph      | [bool](`bool`)                                                                    | If True (default), return full MatchStamps from the MatchGraph (all connected timelines). If False, return reduced 2-timeline stamps.                                                                                        | `True`    |
+| conversion_maps | \'ConversionMapsSpec\'                                                            | C-map conversions available through unit lookup and display. Opt-in: defaults to ``False``.                                                                                                                                  | `False`   |
 
 #### Returns {.doc-section .doc-section-returns}
 
@@ -976,12 +1074,6 @@ one stamp (a full transitive cross-section).
 |--------|--------------------------------------------------------------------------|---------------------------------------------------------------|
 |        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | List of MatchStamp objects. Non-synchronous claims yield None |
 |        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | entries (filtered out).                                       |
-
-#### Raises {.doc-section .doc-section-raises}
-
-| Name   | Type                       | Description                                       |
-|--------|----------------------------|---------------------------------------------------|
-|        | [ValueError](`ValueError`) | If both ``claims`` and ``coordinates`` are given. |
 
 #### Examples {.doc-section .doc-section-examples}
 
@@ -991,12 +1083,101 @@ one stamp (a full transitive cross-section).
 100
 >>> stamps[0].n_timelines
 23
->>> coord_stamps = bundle.get_matchstamps(
-...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
-... )
->>> coord_stamps[1].get_coordinate_for("score:clt1", format="float")
+```
+
+### get_matchstamps_at { #timetoalign.alignment.AlignmentBundle.get_matchstamps_at }
+
+```python
+alignment.AlignmentBundle.get_matchstamps_at(
+    at,
+    timeline_id=None,
+    *,
+    support_policy=None,
+    conversion_maps=False,
+    timeline_ids=None,
+    id_pattern=None,
+    include_domains=None,
+    include_units=None,
+)
+```
+
+Get cross-group MatchStamps at a collection of coordinates.
+
+Every element is resolved through :meth:`get_matchstamp_at`, so each
+one yields exactly one full transitive cross-section, and input order
+is preserved.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name            | Type                                                                      | Description                                                                                                                                                                  | Default    |
+|-----------------|---------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| at              | [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) | Coordinate positions to resolve. Each element is a raw ``int``/``float``/``Fraction`` or ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate`` (carrying its own). | _required_ |
+| timeline_id     | [str](`str`) \| None                                                      | Bundle UID of the source timeline.                                                                                                                                           | `None`     |
+| support_policy  | \'SupportPolicy \| str \| None\'                                          | How to treat out-of-support timelines.                                                                                                                                       | `None`     |
+| conversion_maps | \'ConversionMapsSpec\'                                                    | C-map conversions available through the stamps.                                                                                                                              | `False`    |
+| timeline_ids    | [set](`set`)\[[str](`str`)\] \| None                                      | Only include these bundle UIDs in each result.                                                                                                                               | `None`     |
+| id_pattern      | [str](`str`) \| None                                                      | Regex filter for bundle UIDs in each result.                                                                                                                                 | `None`     |
+| include_domains | [set](`set`)\[\'Domain\'\] \| None                                        | Only these domains in each result.                                                                                                                                           | `None`     |
+| include_units   | [set](`set`)\[\'TimeUnit\'\] \| None                                      | Only these units in each result.                                                                                                                                             | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                     | Description                                                       |
+|--------|--------------------------------------------------------------------------|-------------------------------------------------------------------|
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | One MatchStamp per input coordinate; an empty collection gives an |
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | empty list.                                                       |
+
+#### Examples {.doc-section .doc-section-examples}
+
+```python
+>>> stamps = bundle.get_matchstamps_at([0.0, 50.0], "score:clt1")
+>>> stamps[1].get_coordinate_for("score:clt1", format="float")
 50.0
 ```
+
+### get_matchstamps_for { #timetoalign.alignment.AlignmentBundle.get_matchstamps_for }
+
+```python
+alignment.AlignmentBundle.get_matchstamps_for(
+    keys,
+    timeline_id=None,
+    *,
+    support_policy=None,
+    conversion_maps=False,
+    timeline_ids=None,
+    id_pattern=None,
+    include_domains=None,
+    include_units=None,
+)
+```
+
+Get cross-group MatchStamps for a collection of event IDs.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name            | Type                                                        | Description                                                               | Default    |
+|-----------------|-------------------------------------------------------------|---------------------------------------------------------------------------|------------|
+| keys            | [KeyCollection](`timetoalign.core.retrieval.KeyCollection`) | Event IDs to resolve, each with exactly one owner.                        | _required_ |
+| timeline_id     | [str](`str`) \| None                                        | Bundle UID every stamp is anchored on; by default each event's own owner. | `None`     |
+| support_policy  | \'SupportPolicy \| str \| None\'                            | How to treat out-of-support timelines.                                    | `None`     |
+| conversion_maps | \'ConversionMapsSpec\'                                      | C-map conversions available through the stamps.                           | `False`    |
+| timeline_ids    | [set](`set`)\[[str](`str`)\] \| None                        | Only include these bundle UIDs in each result.                            | `None`     |
+| id_pattern      | [str](`str`) \| None                                        | Regex filter for bundle UIDs in each result.                              | `None`     |
+| include_domains | [set](`set`)\[\'Domain\'\] \| None                          | Only these domains in each result.                                        | `None`     |
+| include_units   | [set](`set`)\[\'TimeUnit\'\] \| None                        | Only these units in each result.                                          | `None`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                     | Description                                                       |
+|--------|--------------------------------------------------------------------------|-------------------------------------------------------------------|
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | One MatchStamp per key, in input order; an empty collection gives |
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | an empty list.                                                    |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                   | Description                                                        |
+|--------|------------------------|--------------------------------------------------------------------|
+|        | [KeyError](`KeyError`) | If any key is unknown. The batch answers completely or not at all. |
 
 ### get_timeline { #timetoalign.alignment.AlignmentBundle.get_timeline }
 

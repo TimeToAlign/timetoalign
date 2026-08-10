@@ -1117,10 +1117,10 @@ class TestTimestampTableEdgeCases:
         """No events still means a schema, so callers can read df.columns."""
         timeline = ContinuousLogicalTimeline(length=16, uid="clt_empty")
 
-        df = timeline.to_dataframe()
+        df = timeline.get_timestamp_table(format="dataframe")
 
         assert len(df) == 0
-        assert list(df.columns) == ["axis (quarters)", "clt_empty (quarters)"]
+        assert list(df.columns) == ["clt_empty (quarters)"]
 
     def test_structured_conversion_map_is_not_a_column(self):
         """A map answering {"mc": ..., "beat": ...} has no column type."""

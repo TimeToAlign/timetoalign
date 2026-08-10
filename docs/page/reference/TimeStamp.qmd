@@ -32,7 +32,7 @@ typed precise getters and dispatcher.
 ## Examples {.doc-section .doc-section-examples}
 
 ```python
->>> ts = timeline.get_timestamp(5.0)
+>>> ts = timeline.get_timestamp_at(5.0)
 >>> ts.axis  # The root coordinate with identity
 IdCoordinate(5.0, seconds, 'audio')
 >>> ts.get_coordinate_for("child:1", format="float")

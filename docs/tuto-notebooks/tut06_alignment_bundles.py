@@ -323,17 +323,14 @@ stamp_comparison
 # ## In batches
 #
 # Batch queries start from coordinates on the query timeline, not from claim
-# objects. The list form returns stamps; the table form places the same
+# objects. `get_matchstamps_at` is the plural of `get_matchstamp_at` and returns
+# stamps; `get_matchstamp_table` takes the same arguments and places those same
 # cross-sections into columns.
 
 # %%
 query_coordinates = score_cue_frame.loc[1:2, "start"].tolist()
-batch_stamps = bundle.get_matchstamps(
-    coordinates=query_coordinates, timeline_id=score.id
-)
-batch_table = bundle.get_matchstamp_table(
-    coordinates=query_coordinates, timeline_id=score.id
-)
+batch_stamps = bundle.get_matchstamps_at(query_coordinates, score.id)
+batch_table = bundle.get_matchstamp_table(query_coordinates, score.id)
 claim_table = bundle.get_matchstamp_table()
 batch_summary = {
     "query coordinates": query_coordinates,

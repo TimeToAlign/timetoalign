@@ -300,12 +300,16 @@ region_view
 # %% [markdown]
 # ## Timestamps
 #
-# `piece.get_timestamp(coord)` returns a {{< glossary TimeStamp >}}: a
+# `piece.get_timestamp_at(coord)` returns a {{< glossary TimeStamp >}}: a
 # cross-section answering, “given this position on the piece, which related
-# positions can I query?”
+# positions can I query?” The `_at` suffix says the query is a *position*; its
+# counterpart `get_timestamp_for(event_id)` answers the same question about a
+# *key*. There is also a bare `get_timestamp(...)` that dispatches to whichever
+# of the two fits what you pass it — a convenience when reading, but code is
+# clearer naming the precise method.
 
 # %%
-timestamp = piece.get_timestamp(root_position)
+timestamp = piece.get_timestamp_at(root_position)
 is_timestamp = isinstance(timestamp, TimeStamp)
 present_timeline_ids = timestamp.present_timelines
 movement_number = timestamp.get_coordinate_for("movement", format="float")

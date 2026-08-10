@@ -660,12 +660,13 @@ one coordinate per participating timeline and, with `conversion_maps=True`,
 the results of all {{< glossary ConversionMap >}}s associated with those
 timelines. Unlike a {{< glossary TimeStamp >}}, where C-Map results are
 visible by default, `conversion_maps` on every MatchStamp-producing getter
-(`bundle.get_matchstamp_at()`, `get_matchstamps()`, `get_matchstamp_table()`,
+(`bundle.get_matchstamp_at()`, `get_matchstamps_at()`, `get_matchstamp_table()`,
 `MatchClaim.get_matchstamp()`) is opt-in and defaults to `False`. This
 differing default is a per-context parameter setting, not a break in stamp
-uniformity: a MatchStamp exposes the identical `Stamp` interface --- `get()`,
-`get_unit()`, `get_coordinate()`, `present_timelines`, `is_interpolated`,
-`to_dict()`, subscript access --- as a `TimeStamp` or `GroupTimestamp`, so a
+uniformity: a MatchStamp exposes the identical `Stamp` interface ---
+`get_coordinate_for()`, `get_coordinates_for()`, the `get_coordinate()`
+dispatcher, `get_unit()`, `get_conversion_for()`, `present_timelines`,
+`is_interpolated`, `to_dict()` --- as a `TimeStamp` or `GroupTimestamp`, so a
 stamp from any source keeps the same structure and behaviour regardless of
 which keyword defaults were used to produce it.
 :::

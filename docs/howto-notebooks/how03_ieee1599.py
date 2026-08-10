@@ -282,7 +282,7 @@ field[len(field) // 2]
 # the spine:
 
 # %%
-cross_section = bundle.get_matchstamp_table(from_graph=True).to_pandas()
+cross_section = bundle.get_matchstamp_table(from_graph=True, format="dataframe")
 
 {"rows": len(cross_section), "columns": list(cross_section.columns)}
 

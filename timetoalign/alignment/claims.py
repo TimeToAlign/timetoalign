@@ -50,9 +50,11 @@ from timetoalign.core import (
     ClaimType,
     Coordinate,
     CoordinateSpec,
+    CoordinateValue,
     IdCoordinate,
     IdGenerator,
     Interval,
+    NumberType,
     TimeUnit,
 )
 from timetoalign.core.fields import (
@@ -86,6 +88,25 @@ module_logger = logging.getLogger(__name__)
 # Module-level ID generators
 _anchor_id_generator = IdGenerator(scope="anchor")
 _claim_id_generator = IdGenerator(scope="claim")
+
+
+def _column_declares_exact(units: pa.Array) -> bool:
+    """Whether any unit in a column declares an exact representation.
+
+    ``TimeUnit`` is the single source of number policy, so the units a
+    column stores are what say whether its ratio members are the value or a
+    mirror of it. Read once per column rather than per row.
+    """
+    for name in pc.unique(units).to_pylist():
+        if name is None:
+            continue
+        try:
+            unit = TimeUnit(name)
+        except ValueError:
+            continue
+        if unit.default_number_type is NumberType.fraction:
+            return True
+    return False
 
 
 def _reset_anchor_ids() -> None:
@@ -2231,7 +2252,7 @@ class MatchClaimField(SemanticField[MatchClaim]):
 
     def coordinate_pairs(
         self,
-    ) -> tuple[list[str], list[str], list[float], list[float]]:
+    ) -> tuple[list[str], list[str], list[CoordinateValue], list[CoordinateValue]]:
         """Read the four defining columns in bulk, materialising no claim.
 
         This is the read a tabular consumer wants: the two timeline ids and
@@ -2239,6 +2260,10 @@ class MatchClaimField(SemanticField[MatchClaim]):
         lists pulled straight off the Arrow columns.  Materialising the rows
         as :class:`MatchClaim` objects instead costs orders of magnitude more
         for the same information.
+
+        Each coordinate is read in the representation its own ``unit``
+        declares, so an anchor authored at ``5/3`` quarters comes back as
+        ``Fraction(5, 3)`` rather than as the double nearest to it.
 
         Returns:
             ``(timeline_a_ids, timeline_b_ids, coordinates_a, coordinates_b)``,
@@ -2250,9 +2275,36 @@ class MatchClaimField(SemanticField[MatchClaim]):
         return (
             data.field("timeline_a_id").to_pylist(),
             data.field("timeline_b_id").to_pylist(),
-            self._anchor_values("a").to_pylist(),
-            self._anchor_values("b").to_pylist(),
+            self._anchor_coordinates("a"),
+            self._anchor_coordinates("b"),
         )
+
+    def _anchor_coordinates(self, side: str) -> list[CoordinateValue]:
+        """Read one anchor column in the representation its unit declares.
+
+        A column whose units are all int- or float-canonical is handed over
+        as the float member, which is what those units store; a column
+        carrying an exact unit is read from its ``numerator``/``denominator``
+        members, because on such a unit the ratio IS the value and the double
+        beside it is only a mirror. The choice is made once per column from
+        the stored units, never guessed from a row's digits.
+        """
+        anchor = self._raw.data.field("start_anchor").field(f"coordinate_{side}")
+        values = anchor.field("value").to_pylist()
+        if not _column_declares_exact(anchor.field("unit")):
+            return values
+        numerators = anchor.field("numerator").to_pylist()
+        denominators = anchor.field("denominator").to_pylist()
+        return [
+            (
+                value
+                if numerator is None or denominator is None
+                else Fraction(numerator, denominator)
+            )
+            for value, numerator, denominator in zip(
+                values, numerators, denominators, strict=True
+            )
+        ]
 
     def to_claims(self) -> list[MatchClaim]:
         """Materialise every row into a list of :class:`MatchClaim` objects.

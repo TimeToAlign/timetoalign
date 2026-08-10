@@ -282,24 +282,37 @@ hierarchy_view
 # ## A timestamp for every event
 #
 # One {{< glossary TimeStamp >}} row can cross-section the entire hierarchy at
-# each event's starting coordinate. `get_timestamp_table` provides the
-# low-level PyArrow form of those rows.
+# each event's starting coordinate. `get_timestamp_table` asks exactly that for
+# a whole batch of positions: the coordinates are the query, and `format`
+# decides the shape of the answer.
 
 # %%
 event_positions = hierarchy_frame["start"].tolist()
-timestamp_table = tl.get_timestamp_table(
-    coordinates=event_positions,
-)
+timestamp_table = tl.get_timestamp_table(event_positions)
 timestamp_table
 
 # %% [markdown]
 # Rows come back in the same order as `event_positions`, including repeated
-# positions. `axis` is the queried position on the parent reference axis;
-# `movement`, `upper_voice`, and `lower_voice` are the simultaneous local
-# coordinates. The low-level Arrow table stores these columns as doubles, so it
-# does not return `Coordinate` or `Fraction` objects on this path. All four
-# columns are complete because both children span the parent's full eight
-# quarters.
+# positions. Every column names the timeline it belongs to: `movement` is the
+# parent reference axis, while `upper_voice` and `lower_voice` are the
+# simultaneous local coordinates. All three columns are complete because both
+# children span the parent's full eight quarters.
+#
+# The default `format="table"` is the low-level PyArrow form, and each of its
+# cells is a coordinate struct rather than a bare number. That is what lets an
+# authored ratio survive storage: a cell on this quarters axis carries its exact
+# `numerator` and `denominator`, so a coordinate written as `Fraction(5, 3)`
+# comes back as `Fraction(5, 3)` instead of being re-derived from a float.
+
+# %%
+timestamp_frame = tl.get_timestamp_table(event_positions, format="dataframe")
+timestamp_frame
+
+# %% [markdown]
+# `format="dataframe"` reads that same query as one scalar per cell, each in the
+# declared number type of the column's own axis. Quarters are exact, so these
+# cells are `Fraction` objects; every position queried here happens to fall on a
+# whole quarter, so they print without a denominator.
 
 # %% [markdown]
 # ## `EventType`
@@ -334,7 +347,7 @@ type_vocabulary
 # - You can retrieve one event by identity.
 # - You can preserve timeline grouping when finding events active at a coordinate.
 # - You can gather events from a parent and its children while reading provenance.
-# - You can read the axis and hierarchy coordinates in a timestamp table.
+# - You can read the parent and child coordinates in a timestamp table, in either format.
 # - You can distinguish the library's `EventType` vocabulary from project labels.
 #
 # ## Next

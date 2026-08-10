@@ -177,6 +177,10 @@ lists pulled straight off the Arrow columns.  Materialising the rows
 as :class:`MatchClaim` objects instead costs orders of magnitude more
 for the same information.
 
+Each coordinate is read in the representation its own ``unit``
+declares, so an anchor authored at ``5/3`` quarters comes back as
+``Fraction(5, 3)`` rather than as the double nearest to it.
+
 #### Returns {.doc-section .doc-section-returns}
 
 | Name   | Type                           | Description                                                         |

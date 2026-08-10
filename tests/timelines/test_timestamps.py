@@ -6,12 +6,15 @@ synchronous coordinates across timeline hierarchies.
 
 from __future__ import annotations
 
+from fractions import Fraction
+
 import numpy as np
 import pandas as pd
 import pyarrow as pa
 import pytest
 
-from timetoalign.core import TimeUnit
+from tests.helpers import coordinate_column, coordinate_values, table_column
+from timetoalign.core import NumberType, TimeUnit
 from timetoalign.maps import ScalarMap
 from timetoalign.timelines import Timeline
 
@@ -166,16 +169,16 @@ class TestExtractEventCoordinates:
 
     def test_extracts_instant_coordinates(self, simple_timeline: Timeline) -> None:
         """Instant event coordinates are extracted."""
-        coords = simple_timeline._extract_event_coordinates()
-        assert 0.0 in coords.to_pylist()
-        assert 2.5 in coords.to_pylist()
-        assert 5.0 in coords.to_pylist()
+        coords = coordinate_values(simple_timeline._extract_event_coordinates())
+        assert 0.0 in coords
+        assert 2.5 in coords
+        assert 5.0 in coords
 
     def test_extracts_interval_start_and_end(self, simple_timeline: Timeline) -> None:
         """Both start and end of intervals are extracted."""
-        coords = simple_timeline._extract_event_coordinates()
-        assert 1.0 in coords.to_pylist()  # interval start
-        assert 3.0 in coords.to_pylist()  # interval end
+        coords = coordinate_values(simple_timeline._extract_event_coordinates())
+        assert 1.0 in coords  # interval start
+        assert 3.0 in coords  # interval end
 
     def test_deduplicates_coordinates(self) -> None:
         """Duplicate coordinates are deduplicated."""
@@ -203,12 +206,12 @@ class TestExtractEventCoordinates:
                 },
             ]
         )
-        coords = tl._extract_event_coordinates()
-        assert coords.to_pylist().count(1.0) == 1
+        coords = coordinate_values(tl._extract_event_coordinates())
+        assert coords.count(1.0) == 1
 
     def test_returns_sorted_coordinates(self, simple_timeline: Timeline) -> None:
         """Coordinates are returned in ascending order."""
-        coords = simple_timeline._extract_event_coordinates().to_pylist()
+        coords = coordinate_values(simple_timeline._extract_event_coordinates())
         assert coords == sorted(coords)
 
     def test_empty_timeline_returns_empty_array(self, empty_timeline: Timeline) -> None:
@@ -233,9 +236,9 @@ class TestCollectAllCoordinates:
 
     def test_includes_own_coordinates(self, simple_timeline: Timeline) -> None:
         """Own event coordinates are included."""
-        coords = simple_timeline._collect_all_coordinates()
-        assert 0.0 in coords.to_pylist()
-        assert 2.5 in coords.to_pylist()
+        coords = coordinate_values(simple_timeline._collect_all_coordinates())
+        assert 0.0 in coords
+        assert 2.5 in coords
 
     def test_includes_child_coordinates_with_offset(
         self, nested_timeline: tuple[Timeline, Timeline, Timeline]
@@ -243,8 +246,7 @@ class TestCollectAllCoordinates:
         """Child coordinates are offset-adjusted to parent coordinates."""
         parent, child1, child2 = nested_timeline
 
-        coords = parent._collect_all_coordinates()
-        coord_list = coords.to_pylist()
+        coord_list = coordinate_values(parent._collect_all_coordinates())
 
         # child1 at offset 10: events at 0, 10 become 10, 20
         assert 10.0 in coord_list  # child1 event at local 0
@@ -259,8 +261,9 @@ class TestCollectAllCoordinates:
         """recursion_limit=0 excludes all children."""
         parent, _, _ = nested_timeline
 
-        coords = parent._collect_all_coordinates(recursion_limit=0)
-        coord_list = coords.to_pylist()
+        coord_list = coordinate_values(
+            parent._collect_all_coordinates(recursion_limit=0)
+        )
 
         # Should only have parent's own events (plus segment events)
         # Parent events: 0.0, 50.0, segment events at 10, 30, 60, 75
@@ -275,8 +278,9 @@ class TestCollectAllCoordinates:
         self, deeply_nested_timeline: Timeline
     ) -> None:
         """recursion_limit=1 includes direct children only."""
-        coords = deeply_nested_timeline._collect_all_coordinates(recursion_limit=1)
-        coord_list = coords.to_pylist()
+        coord_list = coordinate_values(
+            deeply_nested_timeline._collect_all_coordinates(recursion_limit=1)
+        )
 
         # level1's event at local 25 becomes root 35
         assert 35.0 in coord_list
@@ -304,11 +308,11 @@ class TestCollectAllCoordinates:
             allow_expansion=True,
         )
 
-        coords = parent._collect_all_coordinates()
+        coords = coordinate_values(parent._collect_all_coordinates())
         # child1's event at local 0 with offset 10 = root 10.0
         # parent's new event at 10.0
         # Should only appear once
-        assert coords.to_pylist().count(10.0) == 1
+        assert coords.count(10.0) == 1
 
 
 # endregion
@@ -324,39 +328,39 @@ class TestComputeLocalCoordinates:
         self, simple_timeline: Timeline
     ) -> None:
         """With offset=0, local coords equal root coords."""
-        root_coords = pa.array([0.0, 2.5, 5.0, 10.0])
+        root_coords = coordinate_column([0.0, 2.5, 5.0, 10.0])
         local = simple_timeline._compute_local_coordinates(root_coords, offset=0.0)
-        assert local.to_pylist() == [0.0, 2.5, 5.0, 10.0]
+        assert coordinate_values(local) == [0.0, 2.5, 5.0, 10.0]
 
     def test_positive_offset_subtracts(self, simple_timeline: Timeline) -> None:
         """Positive offset is subtracted from root coordinates."""
-        root_coords = pa.array([10.0, 15.0, 20.0])
+        root_coords = coordinate_column([10.0, 15.0, 20.0])
         local = simple_timeline._compute_local_coordinates(root_coords, offset=10.0)
-        assert local.to_pylist() == [0.0, 5.0, 10.0]
+        assert coordinate_values(local) == [0.0, 5.0, 10.0]
 
     def test_out_of_bounds_low_returns_null(self, simple_timeline: Timeline) -> None:
         """Coordinates below 0 (local) return null."""
-        root_coords = pa.array([0.0, 5.0, 10.0])
+        root_coords = coordinate_column([0.0, 5.0, 10.0])
         local = simple_timeline._compute_local_coordinates(root_coords, offset=5.0)
         # local = [0-5=-5, 5-5=0, 10-5=5]
         # -5 is out of bounds (< 0)
-        result = local.to_pylist()
+        result = coordinate_values(local)
         assert result[0] is None  # -5 is invalid
         assert result[1] == 0.0
         assert result[2] == 5.0
 
     def test_out_of_bounds_high_returns_null(self, simple_timeline: Timeline) -> None:
         """Coordinates above timeline length return null."""
-        root_coords = pa.array([0.0, 5.0, 15.0])  # timeline length is 10
+        root_coords = coordinate_column([0.0, 5.0, 15.0])  # timeline length is 10
         local = simple_timeline._compute_local_coordinates(root_coords, offset=0.0)
-        result = local.to_pylist()
+        result = coordinate_values(local)
         assert result[0] == 0.0
         assert result[1] == 5.0
         assert result[2] is None  # 15 > 10
 
     def test_empty_input_returns_empty(self, simple_timeline: Timeline) -> None:
         """Empty input returns empty array."""
-        root_coords = pa.array([], type=pa.float64())
+        root_coords = coordinate_column([])
         local = simple_timeline._compute_local_coordinates(root_coords, offset=0.0)
         assert len(local) == 0
 
@@ -375,10 +379,11 @@ class TestGetTimestampTable:
         table = simple_timeline.get_timestamp_table()
         assert isinstance(table, pa.Table)
 
-    def test_has_axis_column(self, simple_timeline: Timeline) -> None:
-        """Table has 'axis' field."""
+    def test_every_column_names_a_timeline(self, simple_timeline: Timeline) -> None:
+        """No `axis` field duplicating the receiver's own column."""
         table = simple_timeline.get_timestamp_table()
-        assert "axis" in table.column_names
+        assert table.column_names == ["simple"]
+        assert "axis" not in table.column_names
 
     def test_has_timeline_id_column(self, simple_timeline: Timeline) -> None:
         """Table has field for the timeline's ID."""
@@ -399,27 +404,26 @@ class TestGetTimestampTable:
     def test_explicit_coordinates(self, simple_timeline: Timeline) -> None:
         """Explicit coordinates are used when provided."""
         coords = [0.0, 2.5, 5.0, 7.5, 10.0]
-        table = simple_timeline.get_timestamp_table(coordinates=coords)
+        table = simple_timeline.get_timestamp_table(coords)
 
-        axis_values = table.column("axis").to_pylist()
-        assert axis_values == coords
+        assert table_column(table, "simple") == coords
 
     def test_explicit_coordinates_as_numpy(self, simple_timeline: Timeline) -> None:
         """Accepts numpy array for coordinates."""
         coords = np.array([0.0, 2.5, 5.0])
-        table = simple_timeline.get_timestamp_table(coordinates=coords)
+        table = simple_timeline.get_timestamp_table(coords)
         assert len(table) == 3
 
     def test_explicit_coordinates_as_pyarrow(self, simple_timeline: Timeline) -> None:
         """Accepts PyArrow array for coordinates."""
         coords = pa.array([0.0, 2.5, 5.0])
-        table = simple_timeline.get_timestamp_table(coordinates=coords)
+        table = simple_timeline.get_timestamp_table(coords)
         assert len(table) == 3
 
     def test_include_boundaries_adds_endpoints(self, simple_timeline: Timeline) -> None:
         """include_boundaries=True adds 0 and length."""
         table = simple_timeline.get_timestamp_table(include_boundaries=True)
-        axis = table.column("axis").to_pylist()
+        axis = table_column(table, "simple")
         assert 0.0 in axis
         assert 10.0 in axis  # timeline length
 
@@ -439,7 +443,7 @@ class TestGetTimestampTable:
         """Empty timeline returns table with 0 rows."""
         table = empty_timeline.get_timestamp_table()
         assert len(table) == 0
-        assert "axis" in table.column_names
+        assert table.column_names == [empty_timeline.id]
 
     def test_local_coordinates_are_correct(
         self, nested_timeline: tuple[Timeline, Timeline, Timeline]
@@ -448,43 +452,45 @@ class TestGetTimestampTable:
         parent, child1, child2 = nested_timeline
 
         # Use explicit coordinate that's in child1's range
-        table = parent.get_timestamp_table(coordinates=[15.0])
-        df = table.to_pandas()
+        table = parent.get_timestamp_table([15.0])
 
         # At root=15, child1 (offset=10) should show local=5
-        assert df.loc[0, "child1"] == 5.0
+        assert table_column(table, "child1") == [5.0]
 
-        # child2 (offset=60) is out of range, should be NaN
-        assert pd.isna(df.loc[0, "child2"])
+        # child2 (offset=60) is out of range, so its cell is absent
+        assert pd.isna(table_column(table, "child2")[0])
 
 
 # endregion
 
 
-# region Tests: to_dataframe
+# region Tests: DataFrame rendering
 
 
-class TestToDataFrame:
-    """Tests for Timeline.to_dataframe()."""
+class TestDataFrameFormat:
+    """Tests for ``Timeline.get_timestamp_table(format="dataframe")``."""
 
     def test_returns_dataframe(self, simple_timeline: Timeline) -> None:
         """Returns a pandas DataFrame."""
-        df = simple_timeline.to_dataframe()
+        df = simple_timeline.get_timestamp_table(format="dataframe")
         assert isinstance(df, pd.DataFrame)
 
-    def test_filtered_event_coordinates(self, simple_timeline: Timeline) -> None:
-        """Returns same data as get_timestamp_table().to_pandas()."""
-        # Use include_ids=False since get_timestamp_table() doesn't add ID index
-        df1 = simple_timeline.to_dataframe(units=False, include_ids=False)
-        df2 = simple_timeline.get_timestamp_table().to_pandas()
-        pd.testing.assert_frame_equal(df1, df2)
+    def test_matches_the_decoded_arrow_table(self, simple_timeline: Timeline) -> None:
+        """The frame carries the same values the Arrow table carries."""
+        df = simple_timeline.get_timestamp_table(
+            format="dataframe", units=False, include_ids=False
+        )
+        table = simple_timeline.get_timestamp_table()
+        assert df.columns.tolist() == table.column_names
+        for name in table.column_names:
+            assert df[name].tolist() == table_column(table, name)
 
     def test_passes_through_parameters(self, simple_timeline: Timeline) -> None:
-        """All parameters are passed to get_timestamp_table."""
-        coords = [0.0, 5.0, 10.0]
-        df = simple_timeline.to_dataframe(
-            coordinates=coords,
+        """All parameters reach the table builder."""
+        df = simple_timeline.get_timestamp_table(
+            [0.0, 5.0, 10.0],
             include_boundaries=True,
+            format="dataframe",
         )
         assert len(df) == 3
 
@@ -492,7 +498,9 @@ class TestToDataFrame:
         self, simple_timeline: Timeline
     ) -> None:
         """include_ids retains the absorbed event-index behavior."""
-        df = simple_timeline.to_dataframe(units=False, include_ids=True)
+        df = simple_timeline.get_timestamp_table(
+            format="dataframe", units=False, include_ids=True
+        )
         assert df.index.name == "id"
         assert df.index.tolist() == ["e1", "e3", "e2", "", "e4"]
 
@@ -509,7 +517,7 @@ class TestGetBoundaryTable:
     def test_includes_own_boundaries(self, simple_timeline: Timeline) -> None:
         """Includes this timeline's start (0) and end (length)."""
         table = simple_timeline.get_boundary_table()
-        axis = table.column("axis").to_pylist()
+        axis = table_column(table, "simple")
         assert 0.0 in axis
         assert 10.0 in axis
 
@@ -519,7 +527,7 @@ class TestGetBoundaryTable:
         """Includes boundaries of all children."""
         parent, child1, child2 = nested_timeline
         table = parent.get_boundary_table()
-        axis = table.column("axis").to_pylist()
+        axis = table_column(table, "parent")
 
         # child1 at offset 10, length 20: boundaries at 10, 30
         assert 10.0 in axis
@@ -532,7 +540,7 @@ class TestGetBoundaryTable:
     def test_does_not_include_events(self, simple_timeline: Timeline) -> None:
         """Only boundaries are included, not event coordinates."""
         table = simple_timeline.get_boundary_table()
-        axis = table.column("axis").to_pylist()
+        axis = table_column(table, "simple")
 
         # Event at 2.5 should not be in boundaries
         assert 2.5 not in axis
@@ -545,7 +553,7 @@ class TestGetBoundaryTable:
 
         # With limit=1, should have root and level1 boundaries
         table = root.get_boundary_table(recursion_limit=1)
-        axis = table.column("axis").to_pylist()
+        axis = table_column(table, root.id)
 
         # root: 0, 100
         assert 0.0 in axis
@@ -642,7 +650,7 @@ class TestTimestampEdgeCases:
         )
         table = tl.get_timestamp_table()
         assert len(table) == 1
-        assert table.column("axis").to_pylist() == [5.0]
+        assert table_column(table, "single") == [5.0]
 
     def test_overlapping_children(self) -> None:
         """Children with overlapping ranges work correctly."""
@@ -655,21 +663,22 @@ class TestTimestampEdgeCases:
         parent.add_child(child1, offset=10)
         parent.add_child(child2, offset=20)
 
-        table = parent.get_timestamp_table(coordinates=[25.0])
-        df = table.to_pandas()
+        table = parent.get_timestamp_table([25.0])
 
         # At root=25:
         # child1 (offset=10): local=15, within [0,30] -> valid
         # child2 (offset=20): local=5, within [0,30] -> valid
-        assert df.loc[0, "overlap1"] == 15.0
-        assert df.loc[0, "overlap2"] == 5.0
+        assert table_column(table, "overlap1") == [15.0]
+        assert table_column(table, "overlap2") == [5.0]
 
     def test_coordinate_at_exact_boundary(self) -> None:
         """Coordinate exactly at timeline boundary is included."""
         tl = Timeline(length=10, unit=TimeUnit.seconds, uid="boundary")
-        local = tl._compute_local_coordinates(pa.array([0.0, 10.0]), offset=0.0)
+        local = tl._compute_local_coordinates(
+            coordinate_column([0.0, 10.0]), offset=0.0
+        )
         # Exactly at 0 and length should be valid
-        assert local.to_pylist() == [0.0, 10.0]
+        assert coordinate_values(local) == [0.0, 10.0]
 
     def test_large_hierarchy_performance(self) -> None:
         """Reasonable performance with many children."""
@@ -692,7 +701,7 @@ class TestTimestampEdgeCases:
 
         # Should complete in reasonable time
         table = parent.get_timestamp_table()
-        assert len(table.column_names) == 102  # axis + big + 100 children
+        assert len(table.column_names) == 101  # big + 100 children
 
 
 class TestFractionLengthTimestamps:
@@ -709,23 +718,24 @@ class TestFractionLengthTimestamps:
 
     def test_compute_local_coordinates_with_fraction_length(self) -> None:
         """The bounds kernel accepts a Fraction-valued length."""
-        from fractions import Fraction
-
         from timetoalign.timelines.types import ContinuousLogicalTimeline
 
         tl = ContinuousLogicalTimeline(length=Fraction(9, 2))
         assert isinstance(tl._length.value, Fraction)
 
         local = tl._compute_local_coordinates(
-            pa.array([0.0, 2.0, 4.5, 5.0], type=pa.float64()), offset=0.0
+            coordinate_column([0.0, 2.0, 4.5, 5.0], NumberType.fraction), offset=0
         )
         # In bounds [0, 9/2]: 0.0, 2.0, 4.5 kept; 5.0 > 4.5 -> null.
-        assert local.to_pylist() == [0.0, 2.0, 4.5, None]
+        assert coordinate_values(local, NumberType.fraction) == [
+            Fraction(0),
+            Fraction(2),
+            Fraction(9, 2),
+            None,
+        ]
 
     def test_get_timestamp_table_with_fraction_length(self) -> None:
         """get_timestamp_table() runs on a Fraction-length quarters timeline."""
-        from fractions import Fraction
-
         from timetoalign.timelines.types import ContinuousLogicalTimeline
 
         tl = ContinuousLogicalTimeline(length=Fraction(9, 2))
@@ -739,14 +749,10 @@ class TestFractionLengthTimestamps:
 
         table = tl.get_timestamp_table()
         assert table.num_rows == 3
-        assert table.column("axis").to_pylist() == [0.0, 1.5, 3.0]
-        # Root timeline (offset 0): local coordinates equal the axis.
-        assert table.column(tl.id).to_pylist() == [0.0, 1.5, 3.0]
+        assert table_column(table, tl.id) == [Fraction(0), Fraction(3, 2), Fraction(3)]
 
-    def test_to_dataframe_with_fraction_length(self) -> None:
-        """to_dataframe() runs and returns exact Fraction coordinates."""
-        from fractions import Fraction
-
+    def test_dataframe_with_fraction_length(self) -> None:
+        """The frame runs and returns exact Fraction coordinates."""
         from timetoalign.timelines.types import ContinuousLogicalTimeline
 
         tl = ContinuousLogicalTimeline(length=Fraction(9, 2))
@@ -758,11 +764,10 @@ class TestFractionLengthTimestamps:
             ]
         )
 
-        df = tl.to_dataframe()
-        assert df.shape == (3, 2)
-        axis_name = df.columns[0]
+        df = tl.get_timestamp_table(format="dataframe")
+        assert df.shape == (3, 1)
         # Fraction number-type timeline -> coordinates auto-rendered as Fractions.
-        assert list(df[axis_name]) == [Fraction(0), Fraction(3, 2), Fraction(3)]
+        assert list(df[df.columns[0]]) == [Fraction(0), Fraction(3, 2), Fraction(3)]
 
 
 # endregion

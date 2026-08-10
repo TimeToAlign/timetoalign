@@ -176,10 +176,10 @@ def test_timeline_converts_scalar_child_value_before_native_offset() -> None:
     assert parent.get_coordinate_at(
         child_coordinate, format="coordinate"
     ) == Coordinate(12.0, TimeUnit.seconds)
-    dataframe = parent.to_dataframe(
-        coordinates=[child_coordinate], conversion_maps=False
+    dataframe = parent.get_timestamp_table(
+        [child_coordinate], conversion_maps=False, format="dataframe"
     )
-    assert dataframe["axis (seconds)"].tolist() == [12.0]
+    assert dataframe["audio (seconds)"].tolist() == [12.0]
 
 
 def test_timeline_converts_affine_child_value_before_native_offset() -> None:
@@ -301,13 +301,13 @@ def test_timeline_uses_intermediate_cmap_for_grandchild_coordinate() -> None:
     ) == Coordinate(17.0, TimeUnit.seconds)
 
 
-def test_to_dataframe_rejects_unknown_timeline_id() -> None:
-    """Timestamp dataframes reject coordinates qualified by an unknown timeline."""
+def test_timestamp_table_rejects_unknown_timeline_id() -> None:
+    """Timestamp tables reject coordinates qualified by an unknown timeline."""
     timeline = Timeline(length=10, unit=TimeUnit.seconds, uid="audio")
 
     with pytest.raises(ValueError) as exc_info:
-        timeline.to_dataframe(
-            coordinates=[IdCoordinate(2, TimeUnit.seconds, "missing")],
+        timeline.get_timestamp_table(
+            [IdCoordinate(2, TimeUnit.seconds, "missing")],
             conversion_maps=False,
         )
 

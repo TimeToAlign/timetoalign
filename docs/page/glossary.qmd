@@ -351,7 +351,7 @@ to the relevant section of the conceptual model.
     participating timeline. C-map conversion values are opt-in here: unlike
     {{< glossary TimeStamp >}}, where C-Maps are
     visible by default, `conversion_maps` on a MatchStamp getter
-    (`bundle.get_matchstamp_at()`, `get_matchstamps()`, `get_matchstamp_table()`,
+    (`bundle.get_matchstamp_at()`, `get_matchstamps_at()`, `get_matchstamp_table()`,
     `MatchClaim.get_matchstamp()`) defaults to `False` — across a large bundle
     they would bury the alignment answer.
     This is a per-context *default value* for a shared parameter, not a

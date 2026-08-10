@@ -31,21 +31,50 @@
 # 2. **Inspection**: `loader`, `loader.store`, `loader.store.<type_property>`
 # 3. **Timeline creation**: `create_timeline()`, `create_timelines()`
 # 4. **Event access**: `get_events()`, `get_event(id)`, `get_events_at(coord)`
-# 5. **Timestamps**: `get_timestamp()`, `get_timestamp_of(id)`, `get_timestamps_of(ids)`
+# 5. **Timestamps**: `get_timestamp_at(coord)`, `get_timestamp_for(id)`,
+#    `get_timestamps_for(ids)`, `get_timestamp_table()`
 # 6. **Groups** (where applicable): `create_group()`, group methods
 # 7. **Bundles** (where applicable): `create_bundle()`, `create_match_claims()`
+#
+# Retrieval names follow one grid, so the same four questions read the same way
+# on every object below. The suffix says what you are asking with: `_at` takes a
+# **position**, `_for` takes a **key** such as an event ID. The plural of the
+# noun takes many of them and gives back a list. The bare name
+# (`get_timestamp(...)`) is a convenience dispatcher that picks the precise
+# method from what you passed it. Tabulating is the same query with
+# `get_timestamp_table(...)`, which returns a PyArrow table by default and a
+# pandas frame with `format="dataframe"`.
 
 # %% [markdown]
 # ## Setup
 
 # %%
 from timetoalign.testdata import DATA_DIR, ensure_data
+from timetoalign.timelines import Timeline
 
 ensure_data("score", "midi", "vienna_1x22", "supra", "tabular", "thoresen")
 
 SCORE_DIR = DATA_DIR / "score"
 MIDI_DIR = DATA_DIR / "midi"
 VIENNA_DIR = DATA_DIR / "vienna_1x22"
+
+
+# %% [markdown]
+# Every loader section below needs an event key to demonstrate the `_for`
+# getters and a short list of keys to demonstrate their plurals. Deriving those
+# is the same two lines each time, so they live here once.
+
+
+# %%
+def first_id(timeline: Timeline) -> str:
+    """Return the ID of the timeline's first event."""
+    return next(iter(timeline.get_events()))["id"]
+
+
+def first_ids(timeline: Timeline, n: int = 5) -> list[str]:
+    """Return the IDs of the timeline's first ``n`` events."""
+    return [evt["id"] for evt in list(timeline.get_events())[:n]]
+
 
 # %%
 from timetoalign import Ms3Loader
@@ -91,15 +120,14 @@ tsv_tl.get_events(temporal_type="interval", min_coord=0, max_coord=10)
 tsv_tl.get_events(event_type="Note", min_coord=0, max_coord=10)
 
 # %%
-first_event = next(iter(tsv_tl.get_events()))
-first_event_id = first_event["id"]
+first_event_id = first_id(tsv_tl)
 first_event_id
 
 # %%
 tsv_tl.get_event(first_event_id)
 
 # %%
-tsv_tl.get_timestamp_of(first_event_id)
+tsv_tl.get_timestamp_for(first_event_id)
 
 # %%
 tsv_tl.get_timestamp_at(5)
@@ -109,11 +137,11 @@ tsv_events_at = tsv_tl.get_events_at(5)
 tsv_events_at
 
 # %%
-tsv_tl.to_dataframe()
+tsv_tl.get_timestamp_table(format="dataframe")
 
 # %%
-tsv_event_ids = [evt["id"] for evt in list(tsv_tl.get_events())[:5]]
-tsv_tl.get_timestamps_of(tsv_event_ids)
+tsv_event_ids = first_ids(tsv_tl)
+tsv_tl.get_timestamps_for(tsv_event_ids)
 
 # %%
 tsv_tl.get_timestamp_table()
@@ -134,7 +162,7 @@ partitura_file = (
 partitura_file.name
 
 # %%
-partitura_loader = PartituraLoader(silence_warnings=True)
+partitura_loader = PartituraLoader()
 partitura_loader.load(partitura_file)
 partitura_loader
 
@@ -167,12 +195,11 @@ partitura_tl.get_events().schema
 partitura_tl.get_events(temporal_type="interval", min_coord=0, max_coord=20)
 
 # %%
-part_first_event = next(iter(partitura_tl.get_events()))
-part_first_event_id = part_first_event["id"]
+part_first_event_id = first_id(partitura_tl)
 partitura_tl.get_event(part_first_event_id)
 
 # %%
-partitura_tl.get_timestamp_of(part_first_event_id)
+partitura_tl.get_timestamp_for(part_first_event_id)
 
 # %%
 partitura_tl.get_timestamp_at(10)
@@ -181,11 +208,11 @@ partitura_tl.get_timestamp_at(10)
 partitura_tl.get_events_at(0)
 
 # %%
-partitura_tl.to_dataframe()
+partitura_tl.get_timestamp_table(format="dataframe")
 
 # %%
-part_event_ids = [evt["id"] for evt in list(partitura_tl.get_events())[:5]]
-partitura_tl.get_timestamps_of(part_event_ids)
+part_event_ids = first_ids(partitura_tl)
+partitura_tl.get_timestamps_for(part_event_ids)
 
 # %%
 partitura_tl.get_timestamp_table()
@@ -240,12 +267,11 @@ music21_tl.get_events().schema
 music21_tl.get_events(temporal_type="interval", min_coord=0, max_coord=20)
 
 # %%
-m21_first_event = next(iter(music21_tl.get_events()))
-m21_first_event_id = m21_first_event["id"]
+m21_first_event_id = first_id(music21_tl)
 music21_tl.get_event(m21_first_event_id)
 
 # %%
-music21_tl.get_timestamp_of(m21_first_event_id)
+music21_tl.get_timestamp_for(m21_first_event_id)
 
 # %%
 music21_tl.get_timestamp_at(10)
@@ -254,11 +280,11 @@ music21_tl.get_timestamp_at(10)
 music21_tl.get_events_at(0)
 
 # %%
-music21_tl.to_dataframe()
+music21_tl.get_timestamp_table(format="dataframe")
 
 # %%
-m21_event_ids = [evt["id"] for evt in list(music21_tl.get_events())[:5]]
-music21_tl.get_timestamps_of(m21_event_ids)
+m21_event_ids = first_ids(music21_tl)
+music21_tl.get_timestamps_for(m21_event_ids)
 
 # %%
 music21_tl.get_timestamp_table()
@@ -354,12 +380,11 @@ perf_midi_tl.get_events().schema
 perf_midi_tl.get_events(temporal_type="interval")
 
 # %%
-perf_midi_first_event = next(iter(perf_midi_tl.get_events()))
-perf_midi_first_event_id = perf_midi_first_event["id"]
+perf_midi_first_event_id = first_id(perf_midi_tl)
 perf_midi_tl.get_event(perf_midi_first_event_id)
 
 # %%
-perf_midi_tl.get_timestamp_of(perf_midi_first_event_id)
+perf_midi_tl.get_timestamp_for(perf_midi_first_event_id)
 
 # %%
 perf_midi_tl.get_timestamp_at(0.5)
@@ -368,11 +393,11 @@ perf_midi_tl.get_timestamp_at(0.5)
 perf_midi_tl.get_events_at(0)
 
 # %%
-perf_midi_tl.to_dataframe()
+perf_midi_tl.get_timestamp_table(format="dataframe")
 
 # %%
-perf_midi_event_ids = [evt["id"] for evt in list(perf_midi_tl.get_events())[:5]]
-perf_midi_tl.get_timestamps_of(perf_midi_event_ids)
+perf_midi_event_ids = first_ids(perf_midi_tl)
+perf_midi_tl.get_timestamps_for(perf_midi_event_ids)
 
 # %%
 perf_midi_tl.get_timestamp_table()
@@ -422,12 +447,11 @@ score_midi_tl.get_events().schema
 score_midi_tl.get_events(temporal_type="interval", min_coord=0, max_coord=10)
 
 # %%
-score_midi_first_event = next(iter(score_midi_tl.get_events()))
-score_midi_first_event_id = score_midi_first_event["id"]
+score_midi_first_event_id = first_id(score_midi_tl)
 score_midi_tl.get_event(score_midi_first_event_id)
 
 # %%
-score_midi_tl.get_timestamp_of(score_midi_first_event_id)
+score_midi_tl.get_timestamp_for(score_midi_first_event_id)
 
 # %%
 score_midi_tl.get_timestamp_at(0)
@@ -436,11 +460,11 @@ score_midi_tl.get_timestamp_at(0)
 score_midi_tl.get_events_at(0)
 
 # %%
-score_midi_tl.to_dataframe()
+score_midi_tl.get_timestamp_table(format="dataframe")
 
 # %%
-score_midi_event_ids = [evt["id"] for evt in list(score_midi_tl.get_events())[:5]]
-score_midi_tl.get_timestamps_of(score_midi_event_ids)
+score_midi_event_ids = first_ids(score_midi_tl)
+score_midi_tl.get_timestamps_for(score_midi_event_ids)
 
 # %%
 score_midi_tl.get_timestamp_table()
@@ -498,22 +522,21 @@ ms3_tl.get_events()
 ms3_tl.get_events().schema
 
 # %%
-ms3_first_event = next(iter(ms3_tl.get_events()))
-ms3_first_event_id = ms3_first_event["id"]
+ms3_first_event_id = first_id(ms3_tl)
 ms3_tl.get_event(ms3_first_event_id)
 
 # %%
-ms3_tl.get_timestamp_of(ms3_first_event_id)
+ms3_tl.get_timestamp_for(ms3_first_event_id)
 
 # %%
 ms3_tl.get_timestamp_at(0)
 
 # %%
-ms3_tl.to_dataframe()
+ms3_tl.get_timestamp_table(format="dataframe")
 
 # %%
-ms3_event_ids = [evt["id"] for evt in list(ms3_tl.get_events())[:5]]
-ms3_tl.get_timestamps_of(ms3_event_ids)
+ms3_event_ids = first_ids(ms3_tl)
+ms3_tl.get_timestamps_for(ms3_event_ids)
 
 # %%
 ms3_tl.get_timestamp_table()
@@ -535,6 +558,13 @@ csv_loader
 # %%
 csv_loader.events.to_dataframe()
 
+# %% [markdown]
+# Reaching past `to_dataframe()` to the backing Arrow table shows how a
+# coordinate is actually stored: each cell is a struct carrying `value` together
+# with the exact `numerator` and `denominator`. That is what keeps an authored
+# ratio exact in storage, and it is why `to_dataframe()` — which resolves each
+# struct to one scalar — is the right call for reading and display.
+
 # %%
 csv_loader.events.table.to_pandas()
 
@@ -555,22 +585,21 @@ csv_tl.get_events()
 csv_tl.get_events().schema
 
 # %%
-csv_first_event = next(iter(csv_tl.get_events()))
-csv_first_event_id = csv_first_event["id"]
+csv_first_event_id = first_id(csv_tl)
 csv_tl.get_event(csv_first_event_id)
 
 # %%
-csv_tl.get_timestamp_of(csv_first_event_id)
+csv_tl.get_timestamp_for(csv_first_event_id)
 
 # %%
 csv_tl.get_timestamp_at(0)
 
 # %%
-csv_tl.to_dataframe()
+csv_tl.get_timestamp_table(format="dataframe")
 
 # %%
-csv_event_ids = [evt["id"] for evt in list(csv_tl.get_events())[:5]]
-csv_tl.get_timestamps_of(csv_event_ids)
+csv_event_ids = first_ids(csv_tl)
+csv_tl.get_timestamps_for(csv_event_ids)
 
 # %%
 csv_tl.get_timestamp_table()
@@ -670,12 +699,11 @@ eep_tl.get_events().schema
 eep_tl.get_events(temporal_type="interval")
 
 # %%
-eep_first_event = next(iter(eep_tl.get_events()))
-eep_first_event_id = eep_first_event["id"]
+eep_first_event_id = first_id(eep_tl)
 eep_tl.get_event(eep_first_event_id)
 
 # %%
-eep_tl.get_timestamp_of(eep_first_event_id)
+eep_tl.get_timestamp_for(eep_first_event_id)
 
 # %%
 eep_tl.get_timestamp_at(1.0)
@@ -684,11 +712,11 @@ eep_tl.get_timestamp_at(1.0)
 eep_tl.get_events_at(1.0)
 
 # %%
-eep_tl.to_dataframe()
+eep_tl.get_timestamp_table(format="dataframe")
 
 # %%
-eep_event_ids = [evt["id"] for evt in list(eep_tl.get_events())[:5]]
-eep_tl.get_timestamps_of(eep_event_ids)
+eep_event_ids = first_ids(eep_tl)
+eep_tl.get_timestamps_for(eep_event_ids)
 
 # %%
 eep_tl.get_timestamp_table()
@@ -893,12 +921,11 @@ tilia_tl0.get_events()
 tilia_tl0.get_events().schema
 
 # %%
-tilia_first_event = next(iter(tilia_tl0.get_events()))
-tilia_first_event_id = tilia_first_event["id"]
+tilia_first_event_id = first_id(tilia_tl0)
 tilia_tl0.get_event(tilia_first_event_id)
 
 # %%
-tilia_tl0.get_timestamp_of(tilia_first_event_id)
+tilia_tl0.get_timestamp_for(tilia_first_event_id)
 
 # %%
 tilia_tl0.get_timestamp_at(10)
@@ -907,8 +934,8 @@ tilia_tl0.get_timestamp_at(10)
 tilia_tl0.get_events_at(10)
 
 # %%
-tilia_event_ids = [evt["id"] for evt in list(tilia_tl0.get_events())[:5]]
-tilia_tl0.get_timestamps_of(tilia_event_ids)
+tilia_event_ids = first_ids(tilia_tl0)
+tilia_tl0.get_timestamps_for(tilia_event_ids)
 
 # %%
 tilia_tl0.get_timestamp_table()
@@ -936,10 +963,10 @@ tilia_group.get_timestamp_at(10, tilia_group.timeline_ids[0])
 tilia_group.get_events().to_dataframe()
 
 # %%
-tilia_group.get_timestamp_of(tilia_first_event_id)
+tilia_group.get_timestamp_for(tilia_first_event_id)
 
 # %%
-tilia_group.get_timestamps_of(tilia_event_ids)
+tilia_group.get_timestamps_for(tilia_event_ids)
 
 # %%
 tilia_group.get_timestamp_table()
@@ -994,25 +1021,21 @@ if len(tilia_bundle.timeline_ids) >= 2 and tilia_new_claims:
 # point.
 
 # %%
-# get_matchstamps(coordinates=..., timeline_id=...) - resolve THESE coordinates
-# into full MatchStamps, one per query coordinate (input order preserved). The
-# query coordinates are a few of the timeline's own event coordinates.
+# get_matchstamps_at(coords, timeline_id) - resolve THESE coordinates into full
+# MatchStamps, one per query coordinate (input order preserved). The query
+# coordinates are a few of the timeline's own event coordinates.
 tilia_query_tl_id = tilia_loader.timeline_ids[0]
 tilia_query_events = list(tilia_tl0.get_events())
 tilia_query_coords = [
     tilia_query_events[i]["start"]["value"]
     for i in (0, len(tilia_query_events) // 2, -1)
 ]
-tilia_bundle.get_matchstamps(
-    coordinates=tilia_query_coords, timeline_id=tilia_query_tl_id
-)
+tilia_bundle.get_matchstamps_at(tilia_query_coords, tilia_query_tl_id)
 
 # %%
-# get_matchstamp_table(coordinates=..., timeline_id=...) - the same batch as a
-# table: one row per query coordinate, every connected timeline filled.
-tilia_bundle.get_matchstamp_table(
-    coordinates=tilia_query_coords, timeline_id=tilia_query_tl_id
-)
+# get_matchstamp_table(coords, timeline_id) - the same batch as a table: one row
+# per query coordinate, every connected timeline filled.
+tilia_bundle.get_matchstamp_table(tilia_query_coords, tilia_query_tl_id)
 
 # %%
 # get_matchstamp_table() - no arguments tabulates the WHOLE alignment (one row
@@ -1053,12 +1076,11 @@ match_tl_score.get_events()
 match_tl_score.get_events().schema
 
 # %%
-match_first_event = next(iter(match_tl_score.get_events()))
-match_first_event_id = match_first_event["id"]
+match_first_event_id = first_id(match_tl_score)
 match_tl_score.get_event(match_first_event_id)
 
 # %%
-match_tl_score.get_timestamp_of(match_first_event_id)
+match_tl_score.get_timestamp_for(match_first_event_id)
 
 # %%
 match_tl_score.get_timestamp_at(10)
@@ -1067,8 +1089,8 @@ match_tl_score.get_timestamp_at(10)
 match_tl_score.get_events_at(0)
 
 # %%
-match_event_ids = [evt["id"] for evt in list(match_tl_score.get_events())[:5]]
-match_tl_score.get_timestamps_of(match_event_ids)
+match_event_ids = first_ids(match_tl_score)
+match_tl_score.get_timestamps_for(match_event_ids)
 
 # %%
 match_tl_score.get_timestamp_table()
@@ -1132,27 +1154,25 @@ if match_evts_a and match_evts_b:
 # coordinate-batch form is the recommended entry point.
 
 # %%
-# get_matchstamps(coordinates=..., timeline_id=...) - resolve THESE score
-# coordinates into full cross-group MatchStamps (raw numeric + timeline_id form).
+# get_matchstamps_at(coords, timeline_id) - resolve THESE score coordinates into
+# full cross-group MatchStamps (raw numeric + timeline_id form).
 match_query_events = list(match_tl_a.get_events())
 match_query_coords = [
     match_query_events[i]["start"]["value"]
     for i in (0, len(match_query_events) // 2, -1)
 ]
-match_bundle.get_matchstamps(
-    coordinates=match_query_coords, timeline_id=match_tl_ids[0]
-)
+match_bundle.get_matchstamps_at(match_query_coords, match_tl_ids[0])
 
 # %%
-# get_matchstamp_table(coordinates=...) - the same batch as a table. Here the
-# query coordinates are IdCoordinates, which carry their own timeline_id, so no
+# get_matchstamp_table(coords) - the same batch as a table. Here the query
+# coordinates are IdCoordinates, which carry their own timeline_id, so no
 # separate timeline_id argument is needed. One row per query coordinate.
 from timetoalign.core import IdCoordinate
 
 match_id_coords = [
     IdCoordinate(c, match_tl_a.unit, match_tl_ids[0]) for c in match_query_coords
 ]
-match_bundle.get_matchstamp_table(coordinates=match_id_coords)
+match_bundle.get_matchstamp_table(match_id_coords)
 
 # %%
 # get_matchstamp_table() - no arguments tabulates the WHOLE alignment (one row
@@ -1169,7 +1189,15 @@ match_bundle.get_matchstamp_table()
 # | API Layer | Key Methods |
 # |-----------|-------------|
 # | **Loader** | `load()`, `from_file()`, `store`, `create_timeline()`, `create_timelines()` |
-# | **Timeline** | `get_events()`, `get_event()`, `get_timestamp()`, `get_timestamp_of()`, `get_timestamps_of()` |
-# | **TimelineGroup** | `get_timeline()`, `get_events()`, `get_timestamp_at()`, `get_timestamp_of()` |
+# | **Timeline** | `get_events()`, `get_event()`, `get_timestamp_at()`, |
+# | | `get_timestamp_for()`, `get_timestamps_for()`, `get_timestamp_table()` |
+# | **TimelineGroup** | `get_timeline()`, `get_events()`, `get_timestamp_at()`, |
+# | | `get_timestamp_for()`, `get_timestamps_for()`, `get_timestamp_table()` |
 # | **AlignmentBundle** | `get_timelines()`, `get_match_claims()`, `create_match_claims()` |
-# | | `get_matchstamps()`, `get_matchstamp_table()` |
+# | | `get_matchstamp_at()`, `get_matchstamps_at()`, `get_matchstamp_table()` |
+#
+# The Timeline and TimelineGroup rows are the same four names because retrieval
+# is one grid: `_at` for a position, `_for` for a key, the plural for many of
+# them, and `get_*_table()` for the tabular form of the same query. The bundle
+# row is that grid again, spelled `matchstamp` because a row there crosses
+# timelines rather than staying inside one.

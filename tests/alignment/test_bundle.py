@@ -1728,9 +1728,7 @@ class TestGetMatchstampTableConversionColumns:
         """Enabling conversion_maps adds one column per numeric unit map."""
         bundle = _clock_bundle_with_maps()
 
-        table = bundle.get_matchstamp_table(
-            coordinates=[25.0], timeline_id="clock", conversion_maps=True
-        )
+        table = bundle.get_matchstamp_table([25.0], "clock", conversion_maps=True)
 
         assert set(table.column_names) == {"clock", "milliseconds", "frames"}
         assert table.num_rows == 1
@@ -1748,7 +1746,7 @@ class TestGetMatchstampTableConversionColumns:
         """Without conversion_maps, only the timeline column is present."""
         bundle = _clock_bundle_with_maps()
 
-        table = bundle.get_matchstamp_table(coordinates=[25.0], timeline_id="clock")
+        table = bundle.get_matchstamp_table([25.0], "clock")
 
         assert table.column_names == ["clock"]
 

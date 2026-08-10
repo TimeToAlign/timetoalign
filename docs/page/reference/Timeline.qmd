@@ -129,11 +129,12 @@ subclass, use :meth:`to_typed`.
 | [get_region](#timetoalign.timelines.Timeline.get_region) | Get a Region by name. |
 | [get_regions_at](#timetoalign.timelines.Timeline.get_regions_at) | Return all regions containing the given coordinate. |
 | [get_slice](#timetoalign.timelines.Timeline.get_slice) | Extract a portion of this timeline as a new, independent timeline. |
-| [get_timestamp](#timetoalign.timelines.Timeline.get_timestamp) | Get a timestamp whose axis is written in this timeline's own type. |
-| [get_timestamp_at](#timetoalign.timelines.Timeline.get_timestamp_at) | Alias for `get_timestamp()` for API consistency with TimelineGroup. |
-| [get_timestamp_of](#timetoalign.timelines.Timeline.get_timestamp_of) | Get the timestamp for a specific event by its ID. |
-| [get_timestamp_table](#timetoalign.timelines.Timeline.get_timestamp_table) | Generate a timestamp table as a PyArrow Table. |
-| [get_timestamps_of](#timetoalign.timelines.Timeline.get_timestamps_of) | Get timestamps for multiple events, returned as a DataFrame. |
+| [get_timestamp](#timetoalign.timelines.Timeline.get_timestamp) | Dispatch a positional or event-key timestamp query. |
+| [get_timestamp_at](#timetoalign.timelines.Timeline.get_timestamp_at) | Get a TimeStamp at one coordinate on this timeline. |
+| [get_timestamp_for](#timetoalign.timelines.Timeline.get_timestamp_for) | Get the timestamp for a specific event by its ID. |
+| [get_timestamp_table](#timetoalign.timelines.Timeline.get_timestamp_table) | Generate a timestamp table for this timeline hierarchy. |
+| [get_timestamps_at](#timetoalign.timelines.Timeline.get_timestamps_at) | Get TimeStamps at a collection of coordinates, in input order. |
+| [get_timestamps_for](#timetoalign.timelines.Timeline.get_timestamps_for) | Get timestamps for a collection of event IDs, in input order. |
 | [has_child](#timetoalign.timelines.Timeline.has_child) | Check if a child with the given ID exists. |
 | [has_flow_map](#timetoalign.timelines.Timeline.has_flow_map) | Check if a FlowMap with the given id is attached. |
 | [has_region](#timetoalign.timelines.Timeline.has_region) | Check if a region exists. |
@@ -146,7 +147,6 @@ subclass, use :meth:`to_typed`.
 | [make_coordinate](#timetoalign.timelines.Timeline.make_coordinate) | Create a Coordinate in this timeline's unit. |
 | [resolve_subclass](#timetoalign.timelines.Timeline.resolve_subclass) | Return the most specific Timeline subclass for a unit/number_type pair. |
 | [summary](#timetoalign.timelines.Timeline.summary) | Get a summary of the timeline. |
-| [to_dataframe](#timetoalign.timelines.Timeline.to_dataframe) | Generate timestamps as a pandas DataFrame with formatted field names. |
 | [to_dict](#timetoalign.timelines.Timeline.to_dict) | Convert timeline to a dictionary for serialization. |
 | [to_typed](#timetoalign.timelines.Timeline.to_typed) | Return this timeline re-instantiated as the appropriate typed subclass. |
 | [unfold_coordinate](#timetoalign.timelines.Timeline.unfold_coordinate) | Convert a folded coordinate to unfolded coordinates. |
@@ -1324,7 +1324,7 @@ Create an empty Timeline with length 0.
 ```python
 timelines.Timeline.export_to_csv(
     filepath,
-    coordinates=None,
+    at=None,
     conversion_maps=True,
     recursion_limit=None,
     include_events=True,
@@ -1342,23 +1342,23 @@ Export timeline data to a CSV file.
 
 This is a convenience method that generates a timestamp DataFrame and
 writes it to a CSV file. For more control over the output, use
-to_dataframe() and save manually.
+``get_timestamp_table(format="dataframe")`` and save manually.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name               | Type                                                                                                                                                         | Description                                                     | Default    |
-|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------|------------|
-| filepath           | [str](`str`)                                                                                                                                                 | Output CSV file path.                                           | _required_ |
-| coordinates        | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| [Sequence](`collections.abc.Sequence`)\[[CoordinateSpec](`timetoalign.core.CoordinateSpec`)\] \| None | Explicit coordinates to use as the axis.                        | `None`     |
-| conversion_maps    | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`)                                                                                        | C-Maps to include as additional fields. Defaults to True (all). | `True`     |
-| recursion_limit    | [int](`int`) \| None                                                                                                                                         | Maximum depth for child traversal.                              | `None`     |
-| include_events     | [bool](`bool`)                                                                                                                                               | If True and coordinates is None, extract from events.           | `True`     |
-| include_boundaries | [bool](`bool`)                                                                                                                                               | If True, include timeline boundary coordinates.                 | `False`    |
-| fields             | \'ColumnNaming \| Callable\[\[str, dict\], str\] \| list\[str\] \| None\'                                                                                    | How to name the DataFrame fields (see to_dataframe).            | `None`     |
-| units              | [bool](`bool`)                                                                                                                                               | If True (default), append units to field names.                 | `True`     |
-| sep                | [str](`str`)                                                                                                                                                 | Field separator. Default "," (comma).                           | `','`      |
-| header             | [bool](`bool`)                                                                                                                                               | If True (default), write field headers.                         | `True`     |
-| index              | [bool](`bool`)                                                                                                                                               | If True, write row indices. Default False.                      | `False`    |
+| Name               | Type                                                                                                                                                                                                                                | Description                                                     | Default    |
+|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------|------------|
+| filepath           | [str](`str`)                                                                                                                                                                                                                        | Output CSV file path.                                           | _required_ |
+| at                 | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) \| [str](`str`) \| [KeyCollection](`timetoalign.core.retrieval.KeyCollection`) \| None | Explicit positions or event IDs to use as the axis.             | `None`     |
+| conversion_maps    | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`)                                                                                                                                                               | C-Maps to include as additional fields. Defaults to True (all). | `True`     |
+| recursion_limit    | [int](`int`) \| None                                                                                                                                                                                                                | Maximum depth for child traversal.                              | `None`     |
+| include_events     | [bool](`bool`)                                                                                                                                                                                                                      | If True and ``at`` is None, extract from events.                | `True`     |
+| include_boundaries | [bool](`bool`)                                                                                                                                                                                                                      | If True, include timeline boundary coordinates.                 | `False`    |
+| fields             | \'ColumnNaming \| Callable\[\[str, dict\], str\] \| list\[str\] \| None\'                                                                                                                                                           | How to name the DataFrame fields (see get_timestamp_table).     | `None`     |
+| units              | [bool](`bool`)                                                                                                                                                                                                                      | If True (default), append units to field names.                 | `True`     |
+| sep                | [str](`str`)                                                                                                                                                                                                                        | Field separator. Default "," (comma).                           | `','`      |
+| header             | [bool](`bool`)                                                                                                                                                                                                                      | If True (default), write field headers.                         | `True`     |
+| index              | [bool](`bool`)                                                                                                                                                                                                                      | If True, write row indices. Default False.                      | `False`    |
 
 #### Returns {.doc-section .doc-section-returns}
 
@@ -1369,14 +1369,23 @@ to_dataframe() and save manually.
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
->>> timeline.export_to_csv("timestamps.csv")
-100
+>>> import tempfile
+>>> from pathlib import Path
+>>> from timetoalign.core import TimeUnit
+>>> from timetoalign.timelines import Timeline
+>>> timeline = Timeline(length=60, unit=TimeUnit.seconds, uid="tl:1")
+>>> timeline.add_events(
+...     [{"id": "beat:1", "instant": 0.0}, {"id": "beat:2", "instant": 55.0}]
+... )
+>>> out = Path(tempfile.mkdtemp())
+>>> timeline.export_to_csv(str(out / "timestamps.csv"))
+2
 ```
 
 ```python
 >>> # Tab-separated, no header
->>> timeline.export_to_csv("data.tsv", sep="\t", header=False)
-100
+>>> timeline.export_to_csv(str(out / "data.tsv"), sep="\t", header=False)
+2
 ```
 
 ### fold { #timetoalign.timelines.Timeline.fold }
@@ -1517,13 +1526,30 @@ coordinates for this timeline and all children.
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
->>> table = timeline.get_boundary_table()
->>> table.to_pandas()
-   axis  tl:1  child:1
-0   0.0   0.0      NaN
-1  10.0  10.0     10.0
-2  50.0   NaN      0.0
-3  60.0   NaN     10.0
+>>> from timetoalign.core import TimeUnit
+>>> from timetoalign.timelines import Timeline
+>>> parent = Timeline(length=60, unit=TimeUnit.seconds, uid="tl:1")
+>>> child = Timeline(length=10, unit=TimeUnit.seconds, uid="child:1")
+>>> parent.add_child(child, offset=50)
+>>> parent.get_boundary_table().column_names
+['tl:1', 'child:1']
+```
+
+Cells are coordinate structs, so read them through the frame lane
+rather than ``to_pandas()`` — the latter hands back one dict per
+cell:
+
+```python
+>>> parent.get_timestamp_table(
+...     parent._collect_boundary_coordinates(),
+...     include_events=False,
+...     format="dataframe",
+...     units=False,
+... )
+   tl:1  child:1
+0   0.0      NaN
+1  50.0      0.0
+2  60.0     10.0
 ```
 
 ### get_child { #timetoalign.timelines.Timeline.get_child }
@@ -2109,49 +2135,68 @@ Fraction(20, 1)
 ### get_timestamp { #timetoalign.timelines.Timeline.get_timestamp }
 
 ```python
-timelines.Timeline.get_timestamp(coord, unit=None, *, conversion_maps=True)
+timelines.Timeline.get_timestamp(
+    at,
+    timeline_id=None,
+    *,
+    unit=None,
+    conversion_maps=True,
+)
 ```
 
-Get a timestamp whose axis is written in this timeline's own type.
-
-The caller may pass a coordinate in any numeric form; the axis is
-expressed in the timeline's declared ``number_type``, so a query of
-``9.5`` on a fraction-canonical timeline gives an axis of
-``Fraction(19, 2)``.
+Dispatch a positional or event-key timestamp query.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name            | Type                                                                  | Description                                    | Default    |
-|-----------------|-----------------------------------------------------------------------|------------------------------------------------|------------|
-| coord           | [CoordinateSpec](`timetoalign.core.CoordinateSpec`)                   | Coordinate to resolve on this timeline.        | _required_ |
-| unit            | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`) \| None       | Optional unit in which ``coord`` is expressed. | `None`     |
-| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | C-Maps available through the returned stamp.   | `True`     |
+| Name            | Type                                                                                                                                                                                                                        | Description                                        | Default    |
+|-----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|------------|
+| at              | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) \| [str](`str`) \| [KeyCollection](`timetoalign.core.retrieval.KeyCollection`) | Scalar or plural coordinate position or event key. | _required_ |
+| timeline_id     | [str](`str`) \| None                                                                                                                                                                                                        | Result-axis validator.                             | `None`     |
+| unit            | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`) \| None                                                                                                                                                             | Optional unit for a positional query.              | `None`     |
+| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`)                                                                                                                                                       | C-Maps available through the returned stamps.      | `True`     |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                | Description                                               |
-|--------|-----------------------------------------------------|-----------------------------------------------------------|
-|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | A timestamp with exact scalar provenance when one exists. |
+| Name   | Type                                                                                                                                                                                                                                                                                                                                                | Description                         |
+|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
+|        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) \| [TimeIntervalStamp](`timetoalign.core.timestamp.TimeIntervalStamp`) \| [list](`list`)\[[TimeStamp](`timetoalign.core.timestamp.TimeStamp`)\] \| [list](`list`)\[[TimeStamp](`timetoalign.core.timestamp.TimeStamp`) \| [TimeIntervalStamp](`timetoalign.core.timestamp.TimeIntervalStamp`)\] | The selected precise-getter result. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                     | Description                                                             |
+|--------|--------------------------|-------------------------------------------------------------------------|
+|        | [TypeError](`TypeError`) | If ``at`` mixes keys and coordinates or is an unsupported runtime form. |
 
 ### get_timestamp_at { #timetoalign.timelines.Timeline.get_timestamp_at }
 
 ```python
-timelines.Timeline.get_timestamp_at(coord, unit=None, *, conversion_maps=True)
+timelines.Timeline.get_timestamp_at(
+    at,
+    timeline_id=None,
+    *,
+    unit=None,
+    conversion_maps=True,
+)
 ```
 
-Alias for `get_timestamp()` for API consistency with TimelineGroup.
+Get a TimeStamp at one coordinate on this timeline.
 
-TimelineGroup uses `get_timestamp_at(coord, tl_id)` with an additional
-timeline_id parameter. This alias provides a consistent verb across
-the hierarchy.
+This is the primary coordinate resolution API. The TimeStamp provides
+access to all equivalent coordinates across children and C-Map units.
+The axis is written in this timeline's declared ``number_type``, so a
+query of ``9.5`` on a fraction-canonical timeline gives an axis of
+``Fraction(19, 2)``.
+
+Uses InterpolationMaps for O(log n) coordinate conversion.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name            | Type                                                                  | Description                                           | Default    |
-|-----------------|-----------------------------------------------------------------------|-------------------------------------------------------|------------|
-| coord           | [CoordinateSpec](`timetoalign.core.CoordinateSpec`)                   | Coordinate value (see `get_timestamp()` for details). | _required_ |
-| unit            | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`) \| None       | Optional unit for coordinate interpretation.          | `None`     |
-| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | C-Maps available through the returned stamp.          | `True`     |
+| Name            | Type                                                                  | Description                                                                                                                                                                                      | Default    |
+|-----------------|-----------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
+| at              | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`)       | Coordinate value. Can be: - int/float/Fraction: Value in timeline's native unit - Coordinate: Must match unit or specify via `unit` param - IdCoordinate: May name this timeline or a descendant | _required_ |
+| timeline_id     | [str](`str`) \| None                                                  | Result-axis validator. ``None`` or this timeline's own ID; any other ID raises.                                                                                                                  | `None`     |
+| unit            | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`) \| None       | If provided, interpret ``at`` as being in this unit. The coordinate is first converted via inverse C-Map.                                                                                        | `None`     |
+| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | C-Maps available through the returned stamp.                                                                                                                                                     | `True`     |
 
 #### Returns {.doc-section .doc-section-returns}
 
@@ -2159,15 +2204,47 @@ the hierarchy.
 |--------|-----------------------------------------------------|-----------------------------------------------|
 |        | [TimeStamp](`timetoalign.core.timestamp.TimeStamp`) | TimeStamp object for the resolved coordinate. |
 
-#### See Also {.doc-section .doc-section-see-also}
+#### Raises {.doc-section .doc-section-raises}
 
-get_timestamp: The primary coordinate resolution method.
-timetoalign.TimelineGroup.get_timestamp_at: Group-level version.
+| Name   | Type                       | Description                                       |
+|--------|----------------------------|---------------------------------------------------|
+|        | [KeyError](`KeyError`)     | If ``timeline_id`` names another timeline.        |
+|        | [ValueError](`ValueError`) | If unit specified but no inverse C-Map available. |
 
-### get_timestamp_of { #timetoalign.timelines.Timeline.get_timestamp_of }
+#### Examples {.doc-section .doc-section-examples}
 
 ```python
-timelines.Timeline.get_timestamp_of(event_id, *, conversion_maps=True)
+>>> from timetoalign.maps import TableMap
+>>> from timetoalign.timelines import Timeline
+>>> parent = Timeline(length=960, unit=TimeUnit.ticks, uid="timeline:1")
+>>> child_a = Timeline(length=200, unit=TimeUnit.ticks, uid="child_a")
+>>> parent.add_child(child_a, offset=100)
+>>> tempo_map = TableMap(
+...     x_values=[0, 960], y_values=[0.0, 2.0],
+...     source_unit=TimeUnit.ticks, target_unit=TimeUnit.seconds,
+... )
+>>> parent.add_conversion_map(tempo_map)
+>>> ts = parent.get_timestamp_at(250)
+>>> ts.get_coordinate_for("child_a", format="float")
+150.0
+```
+
+```python
+>>> # Query with unit conversion
+>>> ts = parent.get_timestamp_at(1.5, unit=TimeUnit.seconds)
+>>> ts.axis  # Converted from seconds to timeline's native unit (ticks)
+IdCoordinate(720, ticks, 'timeline:1')
+```
+
+### get_timestamp_for { #timetoalign.timelines.Timeline.get_timestamp_for }
+
+```python
+timelines.Timeline.get_timestamp_for(
+    key,
+    timeline_id=None,
+    *,
+    conversion_maps=True,
+)
 ```
 
 Get the timestamp for a specific event by its ID.
@@ -2180,7 +2257,8 @@ is not found on this timeline directly.
 
 | Name            | Type                                                                  | Description                                            | Default    |
 |-----------------|-----------------------------------------------------------------------|--------------------------------------------------------|------------|
-| event_id        | [str](`str`)                                                          | The event identifier to look up.                       | _required_ |
+| key             | [str](`str`)                                                          | The event identifier to look up.                       | _required_ |
+| timeline_id     | [str](`str`) \| None                                                  | Result-axis validator.                                 | `None`     |
 | conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | C-Maps available through the returned stamp or stamps. | `True`     |
 
 #### Returns {.doc-section .doc-section-returns}
@@ -2191,9 +2269,9 @@ is not found on this timeline directly.
 
 #### Raises {.doc-section .doc-section-raises}
 
-| Name   | Type                   | Description                           |
-|--------|------------------------|---------------------------------------|
-|        | [KeyError](`KeyError`) | If no event with the given ID exists. |
+| Name   | Type                   | Description                                                                         |
+|--------|------------------------|-------------------------------------------------------------------------------------|
+|        | [KeyError](`KeyError`) | If no event with the given ID exists, or if ``timeline_id`` names another timeline. |
 
 #### Examples {.doc-section .doc-section-examples}
 
@@ -2206,13 +2284,13 @@ is not found on this timeline directly.
 >>> child.add_events(
 ...     [{"id": "clt1:note:000001", "event_type": "Note", "start": 0.0, "end": 2.5}]
 ... )
->>> ts = parent.get_timestamp_of("note:000001")
+>>> ts = parent.get_timestamp_for("note:000001")
 >>> ts.axis  # For instant events
 IdCoordinate(5.0, seconds, 'timeline:1')
 ```
 
 ```python
->>> ts = parent.get_timestamp_of("clt1:note:000001")
+>>> ts = parent.get_timestamp_for("clt1:note:000001")
 >>> ts.start.axis  # For interval events
 IdCoordinate(5.0, seconds, 'timeline:1')
 >>> ts.end.axis
@@ -2221,101 +2299,168 @@ IdCoordinate(7.5, seconds, 'timeline:1')
 
 #### See Also {.doc-section .doc-section-see-also}
 
-get_timestamp: Get timestamp by coordinate.
+get_timestamp_at: Get timestamp by coordinate.
 get_event: Get the raw event dict by ID.
 
 ### get_timestamp_table { #timetoalign.timelines.Timeline.get_timestamp_table }
 
 ```python
 timelines.Timeline.get_timestamp_table(
-    coordinates=None,
+    at=None,
+    *,
     conversion_maps=True,
     recursion_limit=None,
     include_events=True,
     include_boundaries=False,
+    format='table',
+    fields=None,
+    units=None,
+    include_ids=None,
 )
 ```
 
-Generate a timestamp table as a PyArrow Table.
+Generate a timestamp table for this timeline hierarchy.
 
 A Timestamp is a cross-section through the timeline hierarchy showing
 synchronous coordinates. This method computes local coordinates for
 each timeline in the hierarchy at each axis coordinate.
 
-Supports IdCoordinate for automatic child offset resolution:
-
-    >>> # IdCoordinates from child timeline - offsets auto-applied!
-    >>> child_coords = [IdCoordinate(v, unit, "child_id") for v in values]
-    >>> df = parent.to_dataframe(coordinates=child_coords)
+Supports IdCoordinate for automatic child offset resolution: naming a
+child in the query places the position on the parent axis for you.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name               | Type                                                                                                                                                         | Description                                                                                                                                                                                                                                                                                          | Default   |
-|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
-| coordinates        | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| [Sequence](`collections.abc.Sequence`)\[[CoordinateSpec](`timetoalign.core.CoordinateSpec`)\] \| None | Explicit coordinates to use as the axis. If None, coordinates are extracted from events (and optionally boundaries). Accepts IdCoordinate objects - if timeline_id matches a child, the offset is automatically applied.                                                                             | `None`    |
-| conversion_maps    | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`)                                                                                        | C-Maps to include as fields. Flexible input: - True: Include all attached conversion maps - str: Map ID or target unit name (e.g., "inches", "seconds") - TimeUnit: Find map by target unit enum - ConversionMap: Include the specific map - list: Mix of the above - None/False: No conversion maps | `True`    |
-| recursion_limit    | [int](`int`) \| None                                                                                                                                         | Maximum depth for child traversal. None = unlimited.                                                                                                                                                                                                                                                 | `None`    |
-| include_events     | [bool](`bool`)                                                                                                                                               | If True and coordinates is None, extract from events.                                                                                                                                                                                                                                                | `True`    |
-| include_boundaries | [bool](`bool`)                                                                                                                                               | If True, include timeline boundary coordinates.                                                                                                                                                                                                                                                      | `False`   |
+| Name               | Type                                                                                                                                                                                                                                | Description                                                                                                                                                                                                                                                                                          | Default   |
+|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|
+| at                 | [CoordinateInput](`timetoalign.core.retrieval.CoordinateInput`) \| [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) \| [str](`str`) \| [KeyCollection](`timetoalign.core.retrieval.KeyCollection`) \| None | Explicit positions to use as the axis, or event IDs (one row per event, in the order given). If None, coordinates are extracted from events (and optionally boundaries). Accepts IdCoordinate objects - if timeline_id matches a child, the offset is automatically applied.                         | `None`    |
+| conversion_maps    | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`)                                                                                                                                                               | C-Maps to include as fields. Flexible input: - True: Include all attached conversion maps - str: Map ID or target unit name (e.g., "inches", "seconds") - TimeUnit: Find map by target unit enum - ConversionMap: Include the specific map - list: Mix of the above - None/False: No conversion maps | `True`    |
+| recursion_limit    | [int](`int`) \| None                                                                                                                                                                                                                | Maximum depth for child traversal. None = unlimited.                                                                                                                                                                                                                                                 | `None`    |
+| include_events     | [bool](`bool`)                                                                                                                                                                                                                      | If True and ``at`` is None, extract from events.                                                                                                                                                                                                                                                     | `True`    |
+| include_boundaries | [bool](`bool`)                                                                                                                                                                                                                      | If True, include timeline boundary coordinates.                                                                                                                                                                                                                                                      | `False`   |
+| format             | [TableFormat](`timetoalign.core.retrieval.TableFormat`)                                                                                                                                                                             | ``"table"`` (default) for a PyArrow table, ``"dataframe"`` for a pandas DataFrame.                                                                                                                                                                                                                   | `'table'` |
+| fields             | \'ColumnNaming \| Callable\[\[str, dict\], str\] \| list\[str\] \| None\'                                                                                                                                                           | How to name the DataFrame fields (``format="dataframe"``): - None or ColumnNaming.name (default): Use timeline/cmap name - ColumnNaming.id: Use timeline/cmap id - Callable: Function taking (name, metadata_dict) -> new_name - list[str]: Explicit field names                                     | `None`    |
+| units              | [bool](`bool`) \| None                                                                                                                                                                                                              | If True (the DataFrame default), append units to field names like "name (unit)".                                                                                                                                                                                                                     | `None`    |
+| include_ids        | [bool](`bool`) \| None                                                                                                                                                                                                              | If True (the DataFrame default), add event IDs as the DataFrame index when coordinates are collected from events.                                                                                                                                                                                    | `None`    |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                     | Description                                                                                                                                                                     |
-|--------|------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) | PyArrow Table with schema: - axis: float64 (root coordinate) - {timeline_id}: float64 (nullable, local coordinate per timeline) - {cmap_id}: varies (converted value per C-Map) |
-|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) | Each field includes metadata: - unit: TimeUnit.value string (e.g., "seconds", "pixels") - timeline_id: Timeline ID (for timeline fields) - cmap_id: C-Map ID (for C-Map fields) |
-|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) | Access metadata via: ``table.schema.field(col_name).metadata``                                                                                                                  |
+| Name   | Type                                                                                       | Description                                                                                                                                                                                                                                                                       |
+|--------|--------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | With ``format="table"``, a PyArrow Table whose fields are                                                                                                                                                                                                                         |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | coordinate structs, one per timeline plus one per C-Map: - {timeline_id}: local coordinate per timeline, this one   first (carrying the queried positions themselves), then   each child; nullable where a timeline does not reach a row - {cmap_name}: converted value per C-Map |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | There is no separate ``axis`` field: this timeline's own column                                                                                                                                                                                                                   |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | already holds those positions, and a duplicate of it would be a                                                                                                                                                                                                                   |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | second name for one thing. (Unrelated to ``Stamp.axis``, which is                                                                                                                                                                                                                 |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | a stamp's typed source coordinate and keeps its name.)                                                                                                                                                                                                                            |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | Each field includes metadata: - unit: TimeUnit.value string (e.g., "seconds", "pixels") - number_type: the representation the column declares - timeline_id: Timeline ID (for timeline fields) - cmap_id: C-Map ID (for C-Map fields)                                             |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | Metadata lives in the versioned blob, so read it through                                                                                                                                                                                                                          |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | ``field_metadata(table.schema.field(col_name))`` rather than by                                                                                                                                                                                                                   |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | indexing ``.metadata`` with a bare key.                                                                                                                                                                                                                                           |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | With ``format="dataframe"``, the same data as a pandas DataFrame                                                                                                                                                                                                                  |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | with one scalar per cell, written in the representation each                                                                                                                                                                                                                      |
+|        | [pa](`pyarrow`).[Table](`pyarrow.Table`) \| [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | column declares.                                                                                                                                                                                                                                                                  |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                                                                   |
+|--------|----------------------------|-----------------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | On an unknown ``format``, or when a DataFrame-shaping option is supplied for an Arrow result. |
 
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
->>> table = timeline.get_timestamp_table()
->>> table.column_names
-['axis', 'tl:1', 'notes', 'measures']
+>>> from timetoalign.core import IdCoordinate, TimeUnit
+>>> from timetoalign.timelines import Timeline
+>>> parent = Timeline(length=60, unit=TimeUnit.seconds, uid="tl:1")
+>>> child = Timeline(length=10, unit=TimeUnit.seconds, uid="child:1")
+>>> parent.add_child(child, offset=50)
+>>> parent.add_events([{"id": "beat:1", "instant": 0.0}])
+>>> parent.get_timestamp_table().column_names
+['tl:1', 'child:1']
 ```
+
+Every column names the timeline it belongs to; metadata lives in
+the versioned blob:
 
 ```python
->>> # Include all attached C-Maps
->>> table = timeline.get_timestamp_table(conversion_maps=True)
+>>> from timetoalign.core.fields import field_metadata
+>>> field_metadata(parent.get_timestamp_table().schema.field("tl:1"))["unit"]
+'seconds'
 ```
+
+A child position is placed on the parent axis automatically:
 
 ```python
->>> # Include specific C-Maps by target unit
->>> table = timeline.get_timestamp_table(conversion_maps=["inches", "cm"])
+>>> coords = [IdCoordinate(v, TimeUnit.seconds, "child:1") for v in (0.0, 5.0)]
+>>> parent.get_timestamp_table(coords, format="dataframe", units=False)
+   tl:1  child:1
+0  50.0      0.0
+1  55.0      5.0
 ```
+
+### get_timestamps_at { #timetoalign.timelines.Timeline.get_timestamps_at }
 
 ```python
->>> # Access unit metadata
->>> table.schema.field('axis').metadata[b'unit']
-b'seconds'
+timelines.Timeline.get_timestamps_at(
+    at,
+    timeline_id=None,
+    *,
+    unit=None,
+    conversion_maps=True,
+)
 ```
 
-### get_timestamps_of { #timetoalign.timelines.Timeline.get_timestamps_of }
-
-```python
-timelines.Timeline.get_timestamps_of(event_ids)
-```
-
-Get timestamps for multiple events, returned as a DataFrame.
-
-For each event, includes fields for start coordinate, end coordinate
-(if interval), event type, and temporal type.
+Get TimeStamps at a collection of coordinates, in input order.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name      | Type                                                   | Description                               | Default    |
-|-----------|--------------------------------------------------------|-------------------------------------------|------------|
-| event_ids | [Sequence](`collections.abc.Sequence`)\[[str](`str`)\] | Sequence of event identifiers to look up. | _required_ |
+| Name            | Type                                                                      | Description                                         | Default    |
+|-----------------|---------------------------------------------------------------------------|-----------------------------------------------------|------------|
+| at              | [CoordinateCollection](`timetoalign.core.retrieval.CoordinateCollection`) | Coordinate positions to resolve.                    | _required_ |
+| timeline_id     | [str](`str`) \| None                                                      | Result-axis validator.                              | `None`     |
+| unit            | [TimeUnit](`timetoalign.core.TimeUnit`) \| [str](`str`) \| None           | Optional unit in which every position is expressed. | `None`     |
+| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`)     | C-Maps available through the returned stamps.       | `True`     |
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                           | Description                                              |
-|--------|------------------------------------------------|----------------------------------------------------------|
-|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | DataFrame indexed by event_id with fields:               |
-|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | - ``start``: Start coordinate value                      |
-|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | - ``end``: End coordinate value (NaN for instant events) |
-|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | - ``event_type``: The event type name                    |
-|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | - ``temporal_type``: "instant" or "interval"             |
+| Name   | Type                                                                  | Description                                                   |
+|--------|-----------------------------------------------------------------------|---------------------------------------------------------------|
+|        | [list](`list`)\[[TimeStamp](`timetoalign.core.timestamp.TimeStamp`)\] | One TimeStamp per input coordinate; an empty collection gives |
+|        | [list](`list`)\[[TimeStamp](`timetoalign.core.timestamp.TimeStamp`)\] | an empty list.                                                |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                     | Description                                         |
+|--------|--------------------------|-----------------------------------------------------|
+|        | [TypeError](`TypeError`) | If ``at`` is not an accepted coordinate collection. |
+
+### get_timestamps_for { #timetoalign.timelines.Timeline.get_timestamps_for }
+
+```python
+timelines.Timeline.get_timestamps_for(
+    keys,
+    timeline_id=None,
+    *,
+    conversion_maps=True,
+)
+```
+
+Get timestamps for a collection of event IDs, in input order.
+
+#### Parameters {.doc-section .doc-section-parameters}
+
+| Name            | Type                                                                  | Description                                   | Default    |
+|-----------------|-----------------------------------------------------------------------|-----------------------------------------------|------------|
+| keys            | [KeyCollection](`timetoalign.core.retrieval.KeyCollection`)           | Event identifiers to look up.                 | _required_ |
+| timeline_id     | [str](`str`) \| None                                                  | Result-axis validator.                        | `None`     |
+| conversion_maps | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`) | C-Maps available through the returned stamps. | `True`     |
+
+#### Returns {.doc-section .doc-section-returns}
+
+| Name   | Type                                                                                                                                         | Description                                                      |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------|
+|        | [list](`list`)\[[TimeStamp](`timetoalign.core.timestamp.TimeStamp`) \| [TimeIntervalStamp](`timetoalign.core.timestamp.TimeIntervalStamp`)\] | One stamp per key — a TimeIntervalStamp wherever the event is an |
+|        | [list](`list`)\[[TimeStamp](`timetoalign.core.timestamp.TimeStamp`) \| [TimeIntervalStamp](`timetoalign.core.timestamp.TimeIntervalStamp`)\] | interval — and an empty list for an empty collection.            |
 
 #### Raises {.doc-section .doc-section-raises}
 
@@ -2326,15 +2471,21 @@ For each event, includes fields for start coordinate, end coordinate
 #### Examples {.doc-section .doc-section-examples}
 
 ```python
->>> df = timeline.get_timestamps_of(["note:000001", "note:000002"])
->>> df.loc["note:000001", "start"]
-0.0
+>>> from timetoalign.core import TimeUnit
+>>> from timetoalign.timelines import Timeline
+>>> timeline = Timeline(length=60, unit=TimeUnit.seconds, uid="tl:1")
+>>> timeline.add_events(
+...     [{"id": "beat:1", "instant": 0.0}, {"id": "beat:2", "instant": 55.0}]
+... )
+>>> stamps = timeline.get_timestamps_for(["beat:1", "beat:2"])
+>>> [stamp.get_coordinate_for("tl:1", format="float") for stamp in stamps]
+[0.0, 55.0]
 ```
 
 #### See Also {.doc-section .doc-section-see-also}
 
-get_timestamp_of: Get a single event's timestamp.
-get_events: Filter events by type or coordinate range.
+get_timestamp_for: Get a single event's timestamp.
+get_timestamp_table: Tabulate many events at once.
 
 ### has_child { #timetoalign.timelines.Timeline.has_child }
 
@@ -2565,68 +2716,6 @@ Get a summary of the timeline.
 | Name   | Type                                                | Description                     |
 |--------|-----------------------------------------------------|---------------------------------|
 |        | [dict](`dict`)\[[str](`str`), [Any](`typing.Any`)\] | Dict with timeline information. |
-
-### to_dataframe { #timetoalign.timelines.Timeline.to_dataframe }
-
-```python
-timelines.Timeline.to_dataframe(
-    coordinates=None,
-    conversion_maps=True,
-    recursion_limit=None,
-    include_events=True,
-    include_boundaries=False,
-    *,
-    fields=None,
-    units=True,
-    format='pandas',
-    include_ids=True,
-    as_fractions=None,
-)
-```
-
-Generate timestamps as a pandas DataFrame with formatted field names.
-
-This is the recommended high-level method for getting timestamp data.
-It builds on get_timestamp_table() and applies field formatting.
-
-#### Parameters {.doc-section .doc-section-parameters}
-
-| Name               | Type                                                                                                                                                         | Description                                                                                                                                                                                                                                      | Default    |
-|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------|
-| coordinates        | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) \| [Sequence](`collections.abc.Sequence`)\[[CoordinateSpec](`timetoalign.core.CoordinateSpec`)\] \| None | Explicit coordinates to use as the axis.                                                                                                                                                                                                         | `None`     |
-| conversion_maps    | [ConversionMapsSpec](`timetoalign.core.timestamp.ConversionMapsSpec`)                                                                                        | C-Maps to include as additional fields. Defaults to True (all).                                                                                                                                                                                  | `True`     |
-| recursion_limit    | [int](`int`) \| None                                                                                                                                         | Maximum depth for child traversal.                                                                                                                                                                                                               | `None`     |
-| include_events     | [bool](`bool`)                                                                                                                                               | If True and coordinates is None, extract from events.                                                                                                                                                                                            | `True`     |
-| include_boundaries | [bool](`bool`)                                                                                                                                               | If True, include timeline boundary coordinates.                                                                                                                                                                                                  | `False`    |
-| fields             | \'ColumnNaming \| Callable\[\[str, dict\], str\] \| list\[str\] \| None\'                                                                                    | How to name the DataFrame fields. Options: - None or ColumnNaming.name (default): Use timeline/cmap name - ColumnNaming.id: Use timeline/cmap id - Callable: Function taking (name, metadata_dict) -> new_name - list[str]: Explicit field names | `None`     |
-| units              | [bool](`bool`)                                                                                                                                               | If True (default), append units to field names like "name (unit)".                                                                                                                                                                               | `True`     |
-| format             | [str](`str`)                                                                                                                                                 | Output format. Currently only "pandas" is supported.                                                                                                                                                                                             | `'pandas'` |
-| include_ids        | [bool](`bool`)                                                                                                                                               | If True (default), add event IDs as the DataFrame index when coordinates are collected from events.                                                                                                                                              | `True`     |
-| as_fractions       | [bool](`bool`) \| None                                                                                                                                       | If True, render float coordinate fields as Fraction objects. If None, enable this for fraction-based timelines.                                                                                                                                  | `None`     |
-
-#### Returns {.doc-section .doc-section-returns}
-
-| Name   | Type                                           | Description                                          |
-|--------|------------------------------------------------|------------------------------------------------------|
-|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | pandas DataFrame with:                               |
-|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | - Fields named according to the ``fields`` parameter |
-|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | - Units appended if ``units=True``                   |
-|        | [pd](`pandas`).[DataFrame](`pandas.DataFrame`) | - Integer fields using pandas nullable Int64 dtype   |
-
-#### Examples {.doc-section .doc-section-examples}
-
-```python
->>> df = timeline.to_dataframe()
->>> df.columns
-Index(['axis (pixels)', 'dgt1 (pixels)', 'pixels_to_inches (inches)'])
-```
-
-```python
->>> # Without units in field names
->>> df = timeline.to_dataframe(units=False)
->>> df.columns
-Index(['axis', 'dgt1', 'pixels_to_inches'])
-```
 
 ### to_dict { #timetoalign.timelines.Timeline.to_dict }
 

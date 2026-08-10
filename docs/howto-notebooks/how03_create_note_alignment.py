@@ -301,9 +301,7 @@ bundle.get_matchstamp_at(78.0, "clt1", conversion_maps=True)
 # but never as a table column.
 
 # %%
-bundle.get_matchstamp_table(
-    coordinates=[78.0], timeline_id="clt1", conversion_maps=True
-).column_names
+bundle.get_matchstamp_table([78.0], "clt1", conversion_maps=True).column_names
 
 # %% [markdown]
 # ## Summary

@@ -61,9 +61,9 @@ class TestEventIdTimestampLookup:
         score = ContinuousPhysicalTimeline(length=20.0, unit="seconds", uid="score")
         return TimelineGroup(id="paired", timelines=[audio, score])
 
-    def test_get_timestamp_of_returns_source_coordinate_fields(self) -> None:
+    def test_get_timestamp_for_returns_source_coordinate_fields(self) -> None:
         """The event coordinate identifies its source and mapped member coordinates."""
-        timestamp = self._group().get_timestamp_of("event:one")
+        timestamp = self._group().get_timestamp_for("event:one")
 
         assert type(timestamp) is TimeStamp
         assert timestamp.axis.value == 2.0
@@ -72,21 +72,28 @@ class TestEventIdTimestampLookup:
         assert timestamp.get_coordinate_for("audio", format="float") == 2.0
         assert timestamp.get_coordinate_for("score", format="float") == 4.0
 
-    def test_get_timestamp_of_missing_event_raises_key_error(self) -> None:
+    def test_get_timestamp_for_missing_event_raises_key_error(self) -> None:
         """Absent IDs retain the lookup API's KeyError contract."""
         with pytest.raises(KeyError):
-            self._group().get_timestamp_of("missing")
+            self._group().get_timestamp_for("missing")
 
-    def test_get_timestamps_of_preserves_requested_order(self) -> None:
-        """Bulk lookup creates one row per requested ID in the original order."""
-        timestamps = self._group().get_timestamps_of(["event:two", "event:one"])
+    def test_get_timestamps_for_preserves_requested_order(self) -> None:
+        """Bulk lookup yields one stamp per requested ID in the original order."""
+        timestamps = self._group().get_timestamps_for(["event:two", "event:one"])
 
         assert len(timestamps) == 2
-        assert list(timestamps.index) == ["event:two", "event:one"]
-        assert timestamps.to_dict(orient="list") == {
-            "audio": [6.0, 2.0],
-            "score": [12.0, 4.0],
-        }
+        assert [stamp.source_id for stamp in timestamps] == ["audio", "audio"]
+        assert [
+            stamp.get_coordinate_for("audio", format="float") for stamp in timestamps
+        ] == [6.0, 2.0]
+        assert [
+            stamp.get_coordinate_for("score", format="float") for stamp in timestamps
+        ] == [12.0, 4.0]
+
+    def test_get_timestamps_for_missing_event_raises_atomically(self) -> None:
+        """One unknown ID aborts the batch instead of emitting an empty row."""
+        with pytest.raises(KeyError):
+            self._group().get_timestamps_for(["event:one", "missing"])
 
 
 # endregion
@@ -522,14 +529,25 @@ class TestTimestampAccess:
             "audio", format="float"
         )
 
-    def test_old_timestamp_accessor_is_absent(
+    def test_index_and_coordinate_accessors_are_named_apart(
         self, dgt_timeline: DiscreteGraphicalTimeline
     ) -> None:
-        """The index accessor has an unambiguous name."""
+        """Two operations, two unambiguous names.
+
+        Addressing a stored row by its number and resolving a position on a
+        member axis are different questions, so they may never share a
+        spelling: ``get_timestamp_at_index(0)`` answers the first,
+        ``get_timestamp(0, "dgt1")`` the second.
+        """
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline])
 
-        with pytest.raises(AttributeError):
-            group.get_timestamp(0)  # type: ignore[attr-defined]
+        row = group.get_timestamp_at_index(0)
+        resolved = group.get_timestamp(0, "dgt1")
+
+        assert isinstance(row, GroupTimestamp)
+        assert isinstance(resolved, TimeStamp)
+        assert resolved.source_id == "dgt1"
+        assert resolved.get_coordinate_for("dgt1", format="int") == 0
 
     def test_group_timestamp_is_exported_at_top_level(self) -> None:
         """The row timestamp type is available from the package root."""
@@ -577,15 +595,15 @@ class TestTimestampAccess:
         assert "dgt1" in table.column_names
         assert "audio" not in table.column_names
 
-    def test_to_dataframe(
+    def test_dataframe_format(
         self,
         dgt_timeline: DiscreteGraphicalTimeline,
         audio_timeline: ContinuousPhysicalTimeline,
     ) -> None:
-        """Test to_dataframe() returns pandas DataFrame with units in column names."""
+        """format="dataframe" returns a pandas frame with units in column names."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        df = group.to_dataframe()
+        df = group.get_timestamp_table(format="dataframe")
 
         assert len(df) == 2
         # Column names now include units like "dgt1 (pixels)"
@@ -593,7 +611,7 @@ class TestTimestampAccess:
         assert "audio (seconds)" in df.columns
 
         # Test units=False returns raw column names
-        df_no_units = group.to_dataframe(units=False)
+        df_no_units = group.get_timestamp_table(format="dataframe", units=False)
         assert "dgt1" in df_no_units.columns
         assert "audio" in df_no_units.columns
 
@@ -615,16 +633,20 @@ class TestGetTimestampAt:
         """Batch lookup accepts independently qualified coordinate rows."""
         group = TimelineGroup(id="test_group", timelines=[dgt_timeline, audio_timeline])
 
-        result = group.get_timestamps_at(
+        stamps = group.get_timestamps_at(
             [
                 IdCoordinate(75.0, TimeUnit.seconds, "audio"),
                 IdCoordinate(2437.5, TimeUnit.pixels, "dgt1"),
-            ],
-            units=False,
+            ]
         )
 
-        assert result["audio"].tolist() == [75.0, 75.01538461538462]
-        assert result["dgt1"].tolist() == [2438, 2438]
+        assert [
+            stamp.get_coordinate_for("audio", format="float") for stamp in stamps
+        ] == [75.0, 75.01538461538462]
+        assert [stamp.get_coordinate_for("dgt1", format="int") for stamp in stamps] == [
+            2438,
+            2438,
+        ]
 
     def test_get_timestamps_at_requires_id_for_plain_values(
         self,

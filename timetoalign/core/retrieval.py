@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping, Sequence, Set
+from collections.abc import Callable, Iterator, Mapping, Sequence, Set
 from fractions import Fraction
-from typing import Literal, TypeAlias
+from typing import Any, Literal, TypeAlias, TypeVar
 
 import numpy as np
 import pandas as pd
@@ -22,6 +22,7 @@ CoordinateFormat: TypeAlias = Literal[
     "id_coordinate", "coordinate", "float", "int", "fraction", "series"
 ]
 Rounding: TypeAlias = Literal["round", "floor", "ceil", "truncate"]
+TableFormat: TypeAlias = Literal["table", "dataframe"]
 
 COORDINATE_FORMATS: tuple[str, ...] = (
     "id_coordinate",
@@ -32,6 +33,9 @@ COORDINATE_FORMATS: tuple[str, ...] = (
     "series",
 )
 ROUNDING_MODES: tuple[str, ...] = ("round", "floor", "ceil", "truncate")
+TABLE_FORMATS: tuple[str, ...] = ("table", "dataframe")
+
+ResultT = TypeVar("ResultT")
 
 
 def number_type_for_converted_unit(preferred: NumberType, unit: TimeUnit) -> NumberType:
@@ -69,6 +73,48 @@ def validate_retrieval_options(format: str, rounding: str) -> None:
         raise ValueError(
             f"Unknown rounding mode {rounding!r}. Use one of "
             f"{', '.join(ROUNDING_MODES)}."
+        )
+
+
+def validate_table_format(format: str) -> None:
+    """Validate the closed table-output-format vocabulary.
+
+    Args:
+        format: Requested table output format.
+
+    Raises:
+        ValueError: If the value is outside the closed vocabulary.
+    """
+    if format not in TABLE_FORMATS:
+        raise ValueError(
+            f"Unknown table format {format!r}. Use one of {', '.join(TABLE_FORMATS)}."
+        )
+
+
+def reject_dataframe_options(format: str, **options: object) -> None:
+    """Raise when a dataframe-shaping option is supplied for an Arrow result.
+
+    The shaping options (field naming, unit suffixes, an event-ID index) only
+    describe a pandas rendering; an Arrow table carries its names and units in
+    field metadata instead. Passing one alongside ``format="table"`` therefore
+    asks for something the result cannot express, and silently ignoring it
+    would hide that.
+
+    Args:
+        format: Requested table output format.
+        **options: Shaping options, ``None`` where the caller left them unset.
+
+    Raises:
+        ValueError: If any option is set while *format* is not
+            ``"dataframe"``.
+    """
+    if format == "dataframe":
+        return
+    offending = [name for name, value in options.items() if value is not None]
+    if offending:
+        raise ValueError(
+            f"{', '.join(sorted(offending))} only shape a DataFrame result; "
+            f'pass format="dataframe" to use them.'
         )
 
 
@@ -199,6 +245,108 @@ def classify_dispatch_input(value: object, *, empty_is_keys: bool = False) -> st
     raise TypeError(
         "Dispatcher collections must contain only string keys or only coordinate inputs"
     )
+
+
+def dispatch_retrieval(
+    receiver: object,
+    singular: str,
+    plural: str,
+    at: object,
+    timeline_id: str | None = None,
+    *,
+    empty_is_keys: bool = False,
+    position_options: Mapping[str, Any] | None = None,
+    positions_only: str | None = None,
+    **options: Any,
+) -> Any:
+    """Route one query to the precise getter its input form names.
+
+    Every ``get_<thing>(at=...)`` convenience method on every receiver selects
+    among the same four precise getters by the same rule, so the rule lives
+    here once: a position goes to ``_at``, an identity to ``_for``, and a
+    collection to the plural spelling of whichever it is.
+
+    Args:
+        receiver: Object exposing the four precise getters.
+        singular: Scalar method stem, e.g. ``"get_timestamp"``.
+        plural: Plural method stem, e.g. ``"get_timestamps"``.
+        at: Scalar or plural position or key input.
+        timeline_id: Second positional argument of every precise getter.
+        empty_is_keys: Route an empty collection to the key branch.
+        position_options: Keyword options the positional getters accept and
+            the key getters do not — a query unit, for instance.
+        positions_only: Message for a receiver whose dispatcher has no key
+            branch; a key input then raises instead of falling through.
+        **options: Keyword options every precise getter accepts.
+
+    Returns:
+        Whatever the selected precise getter returns.
+
+    Raises:
+        TypeError: If the runtime form is unsupported, mixes key and
+            coordinate elements, or names a branch the receiver omits.
+    """
+    branch = classify_dispatch_input(at, empty_is_keys=empty_is_keys)
+    stem = singular if branch in ("coordinate", "key") else plural
+    positional = branch in ("coordinate", "coordinates")
+    if not positional and positions_only is not None:
+        raise TypeError(positions_only)
+    suffix = "_at" if positional else "_for"
+    if positional and position_options:
+        options = {**options, **position_options}
+    return getattr(receiver, f"{stem}{suffix}")(at, timeline_id, **options)
+
+
+def resolve_coordinate_collection(
+    at: object, resolve: Callable[[CoordinateInput], ResultT]
+) -> tuple[list[ResultT], pd.Index | None]:
+    """Validate a coordinate collection and resolve every element in order.
+
+    Validation runs over the whole collection before the first lookup, and a
+    failing lookup propagates immediately, so a plural query either answers
+    completely or raises — it never returns a partial result.
+
+    Args:
+        at: Candidate coordinate collection.
+        resolve: Scalar resolver applied to each element.
+
+    Returns:
+        Resolved results in input order and any preserved pandas index.
+    """
+    values, index = validate_coordinate_collection(at)
+    return [resolve(value) for value in values], index
+
+
+def resolve_key_collection(
+    keys: object, resolve: Callable[[str], ResultT]
+) -> tuple[list[ResultT], pd.Index | None]:
+    """Validate a key collection and resolve every element in order.
+
+    Args:
+        keys: Candidate key collection.
+        resolve: Scalar resolver applied to each key.
+
+    Returns:
+        Resolved results in input order and any preserved pandas index.
+    """
+    values, index = validate_key_collection(keys)
+    return [resolve(key) for key in values], index
+
+
+def is_key_input(value: object) -> bool:
+    """Return whether a query input names identities rather than positions.
+
+    Args:
+        value: Scalar or plural query input.
+
+    Returns:
+        ``True`` for a key or key collection, ``False`` for coordinates.
+
+    Raises:
+        TypeError: If the runtime form is unsupported or mixes key and
+            coordinate elements.
+    """
+    return classify_dispatch_input(value) in ("key", "keys")
 
 
 def _series_from_coordinates(

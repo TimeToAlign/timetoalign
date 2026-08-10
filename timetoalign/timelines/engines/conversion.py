@@ -25,7 +25,7 @@ from timetoalign.core.retrieval import (
     CoordinateResult,
     KeyCollection,
     Rounding,
-    classify_dispatch_input,
+    dispatch_retrieval,
     format_coordinates,
     validate_coordinate_collection,
     validate_key_collection,
@@ -34,8 +34,6 @@ from timetoalign.core.time import coordinate_numeric_value, exact_coordinate_val
 from timetoalign.maps import ConversionMap, InterpolationMap
 
 if TYPE_CHECKING:
-    from timetoalign.core.timestamp import ConversionMapsSpec, TimeStamp
-
     from ..base import Timeline
 
 SEGMENT_EVENT_TYPE = "Segment"
@@ -43,30 +41,6 @@ SEGMENT_EVENT_TYPE = "Segment"
 
 class ConversionMapsMixin:
     """Provide coordinate conversion operations for timeline instances."""
-
-    def get_timestamp(
-        self,
-        coord: CoordinateSpec,
-        unit: TimeUnit | str | None = None,
-        *,
-        conversion_maps: ConversionMapsSpec = True,
-    ) -> TimeStamp:
-        """Get a timestamp whose axis is written in this timeline's own type.
-
-        The caller may pass a coordinate in any numeric form; the axis is
-        expressed in the timeline's declared ``number_type``, so a query of
-        ``9.5`` on a fraction-canonical timeline gives an axis of
-        ``Fraction(19, 2)``.
-
-        Args:
-            coord: Coordinate to resolve on this timeline.
-            unit: Optional unit in which ``coord`` is expressed.
-            conversion_maps: C-Maps available through the returned stamp.
-
-        Returns:
-            A timestamp with exact scalar provenance when one exists.
-        """
-        return super().get_timestamp(coord, unit=unit, conversion_maps=conversion_maps)
 
     @property
     def n_conversion_maps(self) -> int:
@@ -767,7 +741,7 @@ class ConversionMapsMixin:
             raise KeyError(
                 f"Unknown result timeline ID {timeline_id!r} on timeline {self._id!r}"
             )
-        stamp = self.get_timestamp_of(key)
+        stamp = self.get_timestamp_for(key)
         if hasattr(stamp, "get_interval"):
             coordinate = stamp.get_interval(self._id).start
         else:
@@ -843,21 +817,14 @@ class ConversionMapsMixin:
         Returns:
             The selected precise-getter result.
         """
-        branch = classify_dispatch_input(at)
-        if branch == "coordinate":
-            return self.get_coordinate_at(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        if branch == "coordinates":
-            return self.get_coordinates_at(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        if branch == "key":
-            return self.get_coordinate_for(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        return self.get_coordinates_for(
-            at, timeline_id=timeline_id, format=format, rounding=rounding
+        return dispatch_retrieval(
+            self,
+            "get_coordinate",
+            "get_coordinates",
+            at,
+            timeline_id,
+            format=format,
+            rounding=rounding,
         )
 
     def _resolve_axis_value(self, coord: CoordinateSpec) -> int | float | Fraction:

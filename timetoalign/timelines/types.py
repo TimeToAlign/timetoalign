@@ -899,7 +899,7 @@ class SegmentLineMixin:
         coord: CoordinateSpec,
     ) -> tuple[int, Timeline, Any]:
         """Return the index, segment, and local timestamp at a coordinate."""
-        ts = self.get_timestamp(coord)
+        ts = self.get_timestamp_at(coord)
         coord_val = float(self._resolve_axis_value(coord))
 
         for i, seg_id in enumerate(self._segment_order):
@@ -910,7 +910,7 @@ class SegmentLineMixin:
             if seg_coord.value >= 0:
                 segment = self._children[seg_id]
                 if seg_coord.value <= segment.length.value:
-                    seg_ts = segment.get_timestamp(seg_coord.value)
+                    seg_ts = segment.get_timestamp_at(seg_coord.value)
                     return (i, segment, seg_ts)
 
         raise ValueError(f"No segment contains coordinate {coord_val}")
@@ -1179,10 +1179,10 @@ class SegmentLine(SegmentLineMixin, Timeline):
                     for coord_col in ("instant", "start", "end"):
                         val = adjusted.get(coord_col)
                         if val is not None:
-                            if isinstance(val, dict) and "value" in val:
-                                adjusted[coord_col] = val["value"] - start
-                            else:
-                                adjusted[coord_col] = float(val) - start
+                            # Read the cell's exact side: taking the "value"
+                            # member alone would re-slice an exact event
+                            # position as the double nearest to it.
+                            adjusted[coord_col] = cls._coord_to_value(val) - start
                     adjusted_events.append(adjusted)
 
                 if adjusted_events:

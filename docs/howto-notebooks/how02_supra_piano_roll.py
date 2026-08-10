@@ -68,7 +68,6 @@
 # %%
 
 from timetoalign import IdCoordinate, Ms3Loader, TimelineGroup, TimeUnit
-from timetoalign.core import timestamp_table_to_dataframe
 from timetoalign.loader.graphical.aton import ATONLoader
 from timetoalign.loader.midi import PerformanceMidiLoader
 from timetoalign.loader.physical import AudioLoader
@@ -205,12 +204,13 @@ dgt1
 # that show coordinates in both the parent (full image) and child (holes region)
 # coordinate systems simultaneously.
 #
-# **Note:** The `to_dataframe()` method provides column names with units appended
-# (e.g., "pixels_to_inches (inches)") and proper integer types. This is the
-# recommended way to get timestamp data for display.
+# **Note:** `get_timestamp_table(format="dataframe")` gives column names with
+# units appended (e.g., "pixels_to_inches (inches)") and one scalar per cell in
+# each axis's declared number type. This is the recommended way to get timestamp
+# data for display.
 
 # %%
-timestamps_df = dgt1.to_dataframe()
+timestamps_df = dgt1.get_timestamp_table(format="dataframe")
 
 {"Total timestamps": len(timestamps_df), "Columns": list(timestamps_df.columns)}
 
@@ -222,11 +222,15 @@ timestamps_df = dgt1.to_dataframe()
 # - But many holes share the same pixel row (multiple notes at one time position)
 # - After de-duplication: ~20,676 unique coordinates plus 4 boundary coordinates
 #
-# Each row shows the coordinate in **all** coordinate systems simultaneously:
-# - `axis (pixels)`: The root (parent) coordinate in pixels
-# - `dgt1 (pixels)`: Same as axis (this IS the root timeline)
+# Each row shows the coordinate in **all** coordinate systems simultaneously,
+# and every column is named for the timeline or C-Map it belongs to:
+# - `dgt1 (pixels)`: The root (parent) coordinate in pixels
 # - `dgt_holes (pixels)`: **Relative** coordinate in child timeline (first hole = 0, NaN if outside)
 # - C-Map columns: Physical units with names like "pixels_to_inches (inches)"
+#
+# There is no separate `axis` column. The coordinate the query was made on is
+# already the `dgt1` column, so a second column repeating it under a generic
+# name carried no information the row did not already hold.
 
 # %%
 timestamps_df.head(10)
@@ -245,12 +249,17 @@ ts = dgt1.get_timestamp(100000.0)
 }
 
 # %% [markdown]
-# Boundary table shows where child timelines start and end (with C-Maps).
-# Use `timestamp_table_to_dataframe()` for column names with units.
+# The boundary rows show where child timelines start and end (with C-Maps).
+# They come from the same table builder, asked for boundaries instead of events,
+# so `format="dataframe"` names the columns with their units here too.
 
 # %%
-boundary_table = dgt1.get_boundary_table(conversion_maps=True)
-boundary_df = timestamp_table_to_dataframe(boundary_table)
+boundary_df = dgt1.get_timestamp_table(
+    include_events=False,
+    include_boundaries=True,
+    conversion_maps=True,
+    format="dataframe",
+)
 boundary_df
 
 # %% [markdown]
@@ -454,7 +463,7 @@ group
 
 # %%
 # Get the full timestamp table
-group_timestamps = group.to_dataframe()
+group_timestamps = group.get_timestamp_table(format="dataframe")
 group_timestamps
 
 # %% [markdown]
@@ -518,15 +527,16 @@ if "dgt_holes" in harmony_ts.present_timelines:
     # The getter already returns an IdCoordinate carrying the child's timeline_id
     child_coord = harmony_ts.get_coordinate_for("dgt_holes")
 
-    # Parent's to_dataframe() recognizes the child_id and applies offset
-    image_ts = dgt1.to_dataframe(coordinates=[child_coord])
+    # The parent recognizes the child_id and applies the offset
+    image_ts = dgt1.get_timestamp_table([child_coord], format="dataframe")
     image_ts
 
 # %% [markdown]
 # ### H.3: Multiple Harmony Labels - Batch Transfer
 #
-# For batch transfers, use `group.get_timestamps_at()` - the DEAD-SIMPLE API:
-# pass coordinates, get a DataFrame with all timelines and units in column names.
+# For batch transfers, ask `group.get_timestamp_table()` the same question with
+# a list of coordinates: one row per query coordinate, every member timeline in
+# its own column, units in the column names.
 
 # %%
 # Get first 10 harmonies
@@ -534,9 +544,9 @@ first_10_harmonies = (
     score_loader.store.annotations.filter(subtype="Harmony").to_dataframe().head(10)
 )
 
-# DEAD-SIMPLE: Get timestamps for all harmony coordinates in ONE CALL
+# Get timestamps for all harmony coordinates in one call
 harmony_coords = first_10_harmonies["start"].tolist()
-group_df = group.get_timestamps_at(harmony_coords, "clt1_score")
+group_df = group.get_timestamp_table(harmony_coords, "clt1_score", format="dataframe")
 group_df
 
 # %% [markdown]
@@ -553,7 +563,7 @@ child_coords = [
 ]
 
 # Parent timeline auto-applies offset and returns timestamps with C-Maps
-parent_df = dgt1.to_dataframe(coordinates=child_coords)
+parent_df = dgt1.get_timestamp_table(child_coords, format="dataframe")
 parent_df
 
 # %% [markdown]

@@ -10,7 +10,7 @@ Design rationale (from unified_timestamp_architecture.md):
 - Every attached C-Map (whatever its concrete type) is called directly via
   the shared ConversionMap interface, so unit-based conversions honor each
   map's own interpolation kind and extrapolation policy
-- Works identically for Timeline.get_timestamp() and TimelineGroup.get_timestamp()
+- Works identically for Timeline.get_timestamp_at() and TimelineGroup.get_timestamp_at()
 
 Key insight: parent<->child coordinates use exact offset arithmetic;
 timeline<->group and unit-based conversions are resolved through whichever
@@ -29,6 +29,7 @@ from typing import (
     Callable,
     Iterator,
     Protocol,
+    Sequence,
     runtime_checkable,
 )
 
@@ -584,7 +585,7 @@ class TimeStamp(Stamp):
             ``None`` for a direct query on the source axis.
 
     Examples:
-        >>> ts = timeline.get_timestamp(5.0)
+        >>> ts = timeline.get_timestamp_at(5.0)
         >>> ts.axis  # The root coordinate with identity
         IdCoordinate(5.0, seconds, 'audio')
         >>> ts.get_coordinate_for("child:1", format="float")
@@ -849,7 +850,7 @@ class TimeStamp(Stamp):
         """Readable cross-section showing all reachable coordinates and units.
 
         Examples:
-            >>> print(timeline.get_timestamp(25.0))
+            >>> print(timeline.get_timestamp_at(25.0))
             TimeStamp @25 seconds
               audio      25 seconds
               intro      25 seconds
@@ -1153,16 +1154,135 @@ class TimeIntervalStamp:
 # region Timestamp Table Conversion Utilities
 
 
+@dataclass(frozen=True)
+class TimestampColumn:
+    """One column of a timestamp table, described before it is encoded.
+
+    Attributes:
+        name: Column header.
+        values: Cell values — ``Coordinate`` objects, plain numbers, an Arrow
+            array, or a NumPy array — with ``None``/null for absent cells.
+        unit: The unit the column's numbers are in.
+        number_type: The representation the column declares.
+        timeline_id: Owning timeline when the column IS a timeline's axis;
+            ``None`` for a derived conversion column, which belongs to no
+            single axis.
+        metadata: Extra field-metadata entries (a conversion map's ID, the
+            timeline a derived column was computed from).
+    """
+
+    name: str
+    values: Any
+    unit: TimeUnit
+    number_type: NumberType
+    timeline_id: str | None = None
+    metadata: dict[str, str] | None = None
+
+
+def build_timestamp_table(columns: Sequence[TimestampColumn]) -> "pa.Table":
+    """Encode timestamp columns as semantic coordinate structs.
+
+    Every timestamp table in the library — a timeline's, a group's, a
+    bundle's match-stamp table — is assembled here, so all three carry the
+    same cell shape: an ``IdCoordinateField`` for a timeline's own axis and a
+    ``CoordinateField`` for a derived conversion column, both storing the
+    number twice (a float64 and its integer ratio).
+
+    Storing the ratio is what makes the table lossless. A plain ``double``
+    column forces every reader to re-derive ``Fraction(value)``, which yields
+    the exact dyadic of the double rather than the ratio that was authored —
+    so a value written as ``5/3`` quarters comes back as
+    ``7505999378950827/4503599627370496``. The struct keeps the authored
+    numerator and denominator, and a parquet round trip returns them
+    untouched.
+
+    Args:
+        columns: Column descriptions in output order.
+
+    Returns:
+        A PyArrow table whose fields carry unit, number-type and identity
+        metadata in the versioned blob.
+    """
+    import pyarrow as pa
+
+    from .fields import blob_metadata
+    from .time import (
+        RATIONAL_STRUCT_TYPE,
+        CoordinateField,
+        IdCoordinateField,
+        build_number_struct_array,
+    )
+
+    arrays: list[pa.Array] = []
+    fields: list[pa.Field] = []
+    for column in columns:
+        values = _table_cell_values(column.values)
+        if (
+            isinstance(values, (pa.Array, pa.ChunkedArray))
+            and values.type == RATIONAL_STRUCT_TYPE
+        ):
+            # Already in storage shape: re-encoding it would mean decoding to
+            # a number first, and a decode-encode round trip is exactly where
+            # an authored ratio turns into the dyadic of its double.
+            array = (
+                values.combine_chunks()
+                if isinstance(values, pa.ChunkedArray)
+                else values
+            )
+        else:
+            array = build_number_struct_array(
+                values,
+                number_type=column.number_type,
+                rounding="round",
+                on_error="raise",
+            )
+        if column.timeline_id is not None:
+            semantic: Any = IdCoordinateField.from_field(
+                array,
+                unit=column.unit,
+                number_type=column.number_type,
+                timeline_id=column.timeline_id,
+                name=column.name,
+            )
+        else:
+            semantic = CoordinateField.from_field(
+                array,
+                unit=column.unit,
+                number_type=column.number_type,
+                name=column.name,
+            )
+        pa_field = semantic.to_field()
+        if column.metadata:
+            payload = field_metadata(pa_field)
+            payload.update(column.metadata)
+            pa_field = pa_field.with_metadata(blob_metadata(**payload))
+        arrays.append(semantic.to_pyarrow())
+        fields.append(pa_field)
+    return pa.Table.from_arrays(arrays, schema=pa.schema(fields))
+
+
+def _table_cell_values(values: Any) -> Any:
+    """Unwrap ``Coordinate`` cells so the column builder sees plain numbers."""
+    if isinstance(values, (list, tuple)):
+        return [
+            value.value if isinstance(value, Coordinate) else value for value in values
+        ]
+    return values
+
+
 def timestamp_table_to_dataframe(
     table: "pa.Table",
     fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
     units: bool = True,
-    format: str = "pandas",
 ) -> "pd.DataFrame":
     """Convert a PyArrow timestamp table to a pandas DataFrame with proper formatting.
 
     This utility function processes timestamp tables (from Timeline.get_timestamp_table()
     or TimelineGroup.get_timestamp_table()) and applies field naming and type conversions.
+
+    The table's cells are coordinate structs carrying the number twice, so
+    each column is decoded to **one scalar per cell** in the representation
+    the column declares — never the raw struct dictionary.
 
     Args:
         table: PyArrow table with field-level metadata including 'unit' and
@@ -1175,7 +1295,6 @@ def timestamp_table_to_dataframe(
               and returning the new field name.
             - list[str]: Explicit list of field names (must match table length).
         units: If True (default), append units to field names like "name (unit)".
-        format: Output format. Currently only "pandas" is supported.
 
     Returns:
         pandas DataFrame with:
@@ -1204,15 +1323,11 @@ def timestamp_table_to_dataframe(
     """
     from .enums import ColumnNaming
 
-    if format != "pandas":
-        raise ValueError(f"Unsupported format: {format!r}. Only 'pandas' is supported.")
-
     # A table with no rows still has a schema, and the naming below is driven
     # entirely by that schema -- so an empty timeline yields an empty frame
     # with the right columns and dtypes rather than a structureless one.
     # Returning a bare DataFrame() here used to strand every caller that reads
     # df.columns, which is how an event-less timeline could not be exported.
-
     # Build field name mapping
     new_field_names: list[str] = []
 
@@ -1250,25 +1365,22 @@ def timestamp_table_to_dataframe(
 
         new_field_names.append(str(final_name))
 
-    # Convert to pandas, then write every column the way its axis writes
-    # numbers -- the table itself is the float64 lookup lane, so an axis's
-    # declared representation is applied here, at the presentation boundary.
-    df = table.to_pandas()
-    df.columns = new_field_names
-
+    # Decode each struct column into one scalar per cell, written the way its
+    # axis writes numbers -- the struct is the storage shape, a scalar is what
+    # a frame reader expects.
+    data: dict[str, pd.Series] = {}
     for i, data_field in enumerate(table.schema):
-        field_name = new_field_names[i]
-        df[field_name] = _column_on_declared_axis(
-            df[field_name], field_metadata(data_field)
+        data[new_field_names[i]] = _column_on_declared_axis(
+            table.column(data_field.name), field_metadata(data_field)
         )
-
+    df = pd.DataFrame(data, columns=new_field_names)
     return df
 
 
 def _column_on_declared_axis(
-    column: "pd.Series", metadata: dict[str, Any]
+    column: "pa.ChunkedArray | pa.Array", metadata: dict[str, Any]
 ) -> "pd.Series":
-    """Re-express one timestamp column in the representation its axis declares.
+    """Decode one timestamp column into the representation its axis declares.
 
     The axis-level counterpart of :meth:`Stamp._on_axis`, applied to a whole
     column: an int-locked axis yields whole numbers, a fraction-canonical one
@@ -1277,10 +1389,15 @@ def _column_on_declared_axis(
     group reported ``12473`` -- one position with two spellings, which is the
     thing the declared type exists to prevent.
 
-    The integer lane rounds vectorized (half-to-even, matching the scalar
-    boundary); the exact lane reads rows in Python, because a column of
-    ratios is a column of Python objects however it is built.
+    The exact lane reads the stored ``numerator``/``denominator`` members, so
+    a ratio that was authored as ``5/3`` comes back as ``5/3`` and not as the
+    exact dyadic of its double. It falls back to ``Fraction(value)`` only for
+    a cell that carries no ratio at all. The integer lane reads the integer
+    side rather than the float mirror, so magnitudes past ``2**53`` survive,
+    and uses nullable ``Int64`` only where the column actually has gaps.
     """
+    import pyarrow as pa
+
     declared = metadata.get("number_type")
     unit = metadata.get("unit")
     if declared is None and unit:
@@ -1288,17 +1405,53 @@ def _column_on_declared_axis(
             declared = TimeUnit(unit).default_number_type.name
         except ValueError:
             declared = None
-    if declared is None:
-        return column
-    number_type = NumberType(declared)
+    number_type = None if declared is None else NumberType(declared)
+
+    if isinstance(column, pa.ChunkedArray):
+        column = column.combine_chunks()
+    valid = column.is_valid().to_pylist()
+    doubles = column.field("value").to_pylist()
+
+    if number_type is NumberType.fraction:
+        numerators = column.field("numerator").to_pylist()
+        denominators = column.field("denominator").to_pylist()
+        cells: list[Any] = []
+        for position, is_valid in enumerate(valid):
+            numerator = numerators[position]
+            denominator = denominators[position]
+            if not is_valid or (numerator is None and doubles[position] is None):
+                cells.append(None)
+            elif numerator is None or denominator is None:
+                cells.append(Fraction(float(doubles[position])))
+            else:
+                cells.append(Fraction(numerator, denominator))
+        return pd.Series(cells, dtype=object)
+
     if number_type is NumberType.int:
-        rounded = column.round()
-        return rounded.astype("Int64" if rounded.isna().any() else "int64")
-    if number_type is NumberType.float:
-        return column.astype("float64")
-    return column.map(lambda value: None if pd.isna(value) else Fraction(value)).astype(
-        object
-    )
+        # The integer side is stored exactly; reading it back through the
+        # float mirror would round away magnitudes past 2**53.
+        numerators = column.field("numerator").to_pylist()
+        denominators = column.field("denominator").to_pylist()
+        integers = [
+            (
+                None
+                if not is_valid or numerators[position] is None
+                else (
+                    numerators[position]
+                    if denominators[position] in (None, 1)
+                    else round(Fraction(numerators[position], denominators[position]))
+                )
+            )
+            for position, is_valid in enumerate(valid)
+        ]
+        series = pd.Series(integers, dtype=object)
+        return series.astype("Int64" if series.isna().any() else "int64")
+
+    values = [
+        doubles[position] if is_valid else None
+        for position, is_valid in enumerate(valid)
+    ]
+    return pd.Series(values, dtype="float64")
 
 
 # endregion

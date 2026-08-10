@@ -111,6 +111,12 @@ from .fields import (
     resolve_source_fields,
 )
 from .ids import IdGenerator, ScopedId, TimelineIdGenerator, resolve_id, resolve_ids
+from .retrieval import (
+    TABLE_FORMATS,
+    TableFormat,
+    reject_dataframe_options,
+    validate_table_format,
+)
 from .time import (
     RATIONAL_STRUCT_TYPE,
     ROUNDING_MODES,
@@ -298,6 +304,11 @@ __all__ = [
     "TimeIntervalStamp",
     "TimeStampSource",
     "timestamp_table_to_dataframe",
+    # Retrieval vocabularies
+    "TableFormat",
+    "TABLE_FORMATS",
+    "validate_table_format",
+    "reject_dataframe_options",
     # IDs
     "ScopedId",
     "IdGenerator",

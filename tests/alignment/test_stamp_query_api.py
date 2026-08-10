@@ -5,15 +5,15 @@ Covers:
 - MatchClaim.get_matchstamp() (reduced and graph-expanded)
 - AlignmentBundle MatchGraph cache
 - AlignmentBundle.get_matchstamp_at() cross-group coordinate resolution
-- AlignmentBundle.get_matchstamps() / get_matchstamp_table() coordinate-batch
-  input: a keyword-only ``coordinates`` collection (+ ``timeline_id``) is a
-  thin, order-preserving fan-out that delegates element-by-element to
+- AlignmentBundle.get_matchstamps_at() / get_matchstamp_table() position
+  batches: an ``at`` collection (+ ``timeline_id``) is a thin,
+  order-preserving fan-out that delegates element-by-element to
   ``get_matchstamp_at``. The cases below pin that raw values and IdCoordinates
   coerce identically to the singular resolver, that each query coordinate
   yields exactly one full transitive cross-section (one list entry / one table
   row), that ``timeline_filter`` narrows the table's columns, that empty input
-  yields empty output, and that supplying both ``claims`` and ``coordinates``
-  is rejected.
+  yields empty output, and that supplying both ``claims`` and ``at`` is
+  rejected.
 - MatchGraph.get_matchstamp() + split_components()
 - MatchStamp __str__ and _repr_html_ display methods
 - MatchClaim __str__ and _repr_html_ display methods
@@ -631,11 +631,11 @@ class TestGetMatchstampAt:
 
 
 class TestCoordinateBatch:
-    """Coordinate-batch input on get_matchstamps() / get_matchstamp_table().
+    """Position batches on get_matchstamps_at() / get_matchstamp_table().
 
     Validation rationale: users hold coordinates, not ``MatchClaim`` objects.
-    Both plural matchstamp methods accept a keyword-only ``coordinates``
-    collection (plus ``timeline_id``) that fans out element-by-element to
+    The plural positional getter and the table both take an ``at`` collection
+    (plus ``timeline_id``) that fans out element-by-element to
     ``get_matchstamp_at`` — the singular resolver already validated above. The
     batch adds no new resolution semantics, so these cases pin only the fan-out
     contract: input order is preserved, each query coordinate yields exactly
@@ -643,7 +643,7 @@ class TestCoordinateBatch:
     exactly as they do on the singular path, the table lays one row per
     coordinate through the same assembly the claims path uses, ``timeline_filter``
     narrows columns, empty input yields empty output, and combining ``claims``
-    with ``coordinates`` is rejected.
+    with ``at`` is rejected.
     """
 
     # Full cross-section at score coordinate 50 (score length 100; performer
@@ -658,9 +658,7 @@ class TestCoordinateBatch:
     def test_matchstamps_raw_values_ordered(self):
         """Raw-value batch: one ordered stamp per coordinate, exact cross-sections."""
         bundle, _ = _make_star_bundle()
-        stamps = bundle.get_matchstamps(
-            coordinates=[0.0, 50.0, 100.0], timeline_id="score:clt1"
-        )
+        stamps = bundle.get_matchstamps_at([0.0, 50.0, 100.0], "score:clt1")
         assert len(stamps) == 3
         assert {
             timeline_id: stamps[1].get_coordinate_for(timeline_id, format="float")
@@ -674,8 +672,8 @@ class TestCoordinateBatch:
     def test_matchstamps_idcoordinate_carries_timeline(self):
         """An IdCoordinate carries its own timeline, so timeline_id is optional."""
         bundle, _ = _make_star_bundle()
-        stamps = bundle.get_matchstamps(
-            coordinates=[IdCoordinate(50.0, TimeUnit.number, "score:clt1")]
+        stamps = bundle.get_matchstamps_at(
+            [IdCoordinate(50.0, TimeUnit.number, "score:clt1")]
         )
         assert len(stamps) == 1
         assert {
@@ -688,10 +686,7 @@ class TestCoordinateBatch:
         bundle, _ = _make_star_bundle()
         coords = [0.0, 25.0, 50.0, 75.0, 100.0]
         batched = [
-            s.coordinates
-            for s in bundle.get_matchstamps(
-                coordinates=coords, timeline_id="score:clt1"
-            )
+            s.coordinates for s in bundle.get_matchstamps_at(coords, "score:clt1")
         ]
         singular = [
             bundle.get_matchstamp_at(c, "score:clt1").coordinates for c in coords
@@ -701,9 +696,7 @@ class TestCoordinateBatch:
     def test_table_one_row_per_coordinate(self):
         """Table batch: one row per coordinate, full cross-section columns."""
         bundle, _ = _make_star_bundle()
-        table = bundle.get_matchstamp_table(
-            coordinates=[0.0, 50.0, 100.0], timeline_id="score:clt1"
-        )
+        table = bundle.get_matchstamp_table([0.0, 50.0, 100.0], "score:clt1")
         assert table.num_rows == 3
         assert set(table.column_names) == {
             "score:clt1",
@@ -720,8 +713,8 @@ class TestCoordinateBatch:
         """timeline_filter narrows the coordinate table to the named fields."""
         bundle, _ = _make_star_bundle()
         table = bundle.get_matchstamp_table(
-            coordinates=[0.0, 50.0, 100.0],
-            timeline_id="score:clt1",
+            [0.0, 50.0, 100.0],
+            "score:clt1",
             timeline_filter={"score:clt1", "perf:dlt1"},
         )
         assert set(table.column_names) == {"score:clt1", "perf:dlt1"}
@@ -733,25 +726,14 @@ class TestCoordinateBatch:
     def test_empty_coordinates_yield_empty_output(self):
         """Empty coordinates yield an empty table and an empty stamp list."""
         bundle, _ = _make_star_bundle()
-        assert (
-            bundle.get_matchstamp_table(
-                coordinates=[], timeline_id="score:clt1"
-            ).num_rows
-            == 0
-        )
-        assert bundle.get_matchstamps(coordinates=[], timeline_id="score:clt1") == []
+        assert bundle.get_matchstamp_table([], "score:clt1").num_rows == 0
+        assert bundle.get_matchstamps_at([], "score:clt1") == []
 
-    def test_claims_and_coordinates_mutually_exclusive(self):
-        """Supplying both claims and coordinates raises on either method."""
+    def test_claims_and_positions_mutually_exclusive(self):
+        """Supplying both claims and positions raises on the table."""
         bundle, claims = _make_star_bundle()
         with pytest.raises(ValueError, match="not both"):
-            bundle.get_matchstamps(
-                claims=claims, coordinates=[0.0], timeline_id="score:clt1"
-            )
-        with pytest.raises(ValueError, match="not both"):
-            bundle.get_matchstamp_table(
-                claims=claims, coordinates=[0.0], timeline_id="score:clt1"
-            )
+            bundle.get_matchstamp_table([0.0], "score:clt1", claims=claims)
 
 
 # endregion

@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any, Iterator, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Iterator, Literal
 
 import numpy as np
 import pandas as pd
@@ -50,18 +50,27 @@ from timetoalign.core.retrieval import (
     CoordinateResult,
     KeyCollection,
     Rounding,
-    classify_dispatch_input,
+    TableFormat,
+    dispatch_retrieval,
     format_coordinates,
+    is_key_input,
     number_type_for_converted_unit,
+    reject_dataframe_options,
+    resolve_coordinate_collection,
+    resolve_key_collection,
     validate_coordinate_collection,
     validate_key_collection,
+    validate_table_format,
 )
 from timetoalign.core.time import express_as, struct_to_coordinate
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
     Stamp,
     TimeStamp,
+    TimestampColumn,
     _format_coordinate_value,
+    build_timestamp_table,
+    timestamp_table_to_dataframe,
 )
 from timetoalign.maps.base import ConversionMap
 from timetoalign.maps.interpolation import InterpolationMap
@@ -745,7 +754,7 @@ class TimelineGroup:
 
     def get_timestamp_at(
         self,
-        coordinate: CoordinateSpec,
+        at: CoordinateSpec,
         timeline_id: str | None = None,
         *,
         relative_to: Literal["group", "original"] = "group",
@@ -754,10 +763,10 @@ class TimelineGroup:
         """Get a TimeStamp at a specific coordinate.
 
         This is the primary coordinate resolution API for TimelineGroup.
-        Returns a proper TimeStamp object (same as Timeline.get_timestamp).
+        Returns a proper TimeStamp object (same as Timeline.get_timestamp_at).
 
         Args:
-            coordinate: The query coordinate. Can be:
+            at: The query coordinate. Can be:
                 - int/float/Fraction: Raw value, timeline_id required
                 - Coordinate: Value with unit, timeline_id required
                 - IdCoordinate: Value with unit AND timeline_id (timeline_id param optional)
@@ -807,7 +816,7 @@ class TimelineGroup:
             >>> ts.axis
             IdCoordinate(75.0, seconds, 'audio:1')
         """
-        resolved = resolve_coordinate_spec(coordinate, timeline_id=timeline_id)
+        resolved = resolve_coordinate_spec(at, timeline_id=timeline_id)
         timeline_id = resolved.timeline_id
 
         if timeline_id is None:
@@ -915,7 +924,7 @@ class TimelineGroup:
             member_coordinate = stored.get(member_id)
             if member_coordinate is None:
                 continue
-            member_stamp = member.get_timestamp(member_coordinate)
+            member_stamp = member.get_timestamp_at(member_coordinate)
             for (
                 descendant_id,
                 descendant_coordinate,
@@ -932,248 +941,326 @@ class TimelineGroup:
 
     def get_timestamps_at(
         self,
-        coordinates: Sequence[CoordinateSpec],
+        at: CoordinateCollection,
         timeline_id: str | None = None,
         *,
         conversion_maps: ConversionMapsSpec = True,
-        units: bool = True,
-    ) -> pd.DataFrame:
-        """Get timestamps at multiple coordinates - the batch version of get_timestamp_at.
-
-        This is the DEAD-SIMPLE API for batch coordinate transfer: pass a sequence of
-        coordinates and get back a DataFrame with one field per timeline and per C-Map.
+    ) -> list[TimeStamp]:
+        """Get TimeStamps at a collection of coordinates, in input order.
 
         Args:
-            coordinates: Sequence of CoordinateSpec to query.
+            at: Coordinate positions to query.
             timeline_id: Which timeline the coordinates refer to. Required for
                 entries without an embedded timeline ID.
-            conversion_maps: Whether to include C-Map fields from member timelines.
-                - True (default): Include all attached C-Maps
-                - False/None: Only timeline coordinates
-            units: If True (default), append units to field names.
+            conversion_maps: Whether C-Maps are reachable through the stamps.
+                - True (default): all attached C-Maps
+                - False/None: only timeline coordinates
 
         Returns:
-            DataFrame with one row per coordinate, one field per timeline and C-Map.
+            One TimeStamp per input coordinate; an empty collection gives an
+            empty list.
+
+        Raises:
+            KeyError: If a named timeline is not in the group.
+            ValueError: If a position lies outside its timeline's range, or a
+                raw value arrives without a ``timeline_id``. A plural query
+                answers completely or not at all — one unresolvable position
+                raises rather than yielding a partial row.
 
         Examples:
-            >>> # Get timestamps at multiple score positions
-            >>> coords = [0.0, 100.0, 200.0, 400.0]
-            >>> df = group.get_timestamps_at(coords, "clt1_score")
-            >>> df.columns
-            Index(['clt1_score (quarterbeats)', 'dgt_holes (pixels)', ...])
+            >>> from timetoalign.timelines import TimelineGroup
+            >>> from timetoalign.timelines.types import (
+            ...     ContinuousPhysicalTimeline,
+            ...     DiscreteGraphicalTimeline,
+            ... )
+            >>> pixels = DiscreteGraphicalTimeline(length=4000, unit="pixels", uid="dgt1")
+            >>> audio = ContinuousPhysicalTimeline(length=10.0, unit="seconds", uid="cpt1")
+            >>> group = TimelineGroup(id="pair", timelines=[pixels, audio])
+            >>> stamps = group.get_timestamps_at([0.0, 2.5], "cpt1")
+            >>> [stamp.get_coordinate_for("dgt1", format="int") for stamp in stamps]
+            [0, 1000]
+
+        See Also:
+            get_timestamp_table: The same batch as one table or DataFrame.
         """
-        import pandas as pd
-
-        # Get individual timestamps and convert to dicts
-        timestamp_dicts: list[dict[str, object]] = []
-        for coord in coordinates:
-            resolved = resolve_coordinate_spec(coord, timeline_id=timeline_id)
-            resolved_timeline_id = resolved.timeline_id
-            if resolved_timeline_id is None:
-                raise ValueError(
-                    "timeline_id is required unless coordinate is an IdCoordinate"
-                )
-            coord_float = float(
-                self.get_timeline(resolved_timeline_id)
-                .get_coordinate_at(
-                    Coordinate(resolved.value, resolved.unit), format="coordinate"
-                )
-                .value
-                if resolved.unit is not None
-                else resolved.value
-            )
-            try:
-                ts = self.get_timestamp_at(
-                    coord_float,
-                    resolved_timeline_id,
-                    conversion_maps=conversion_maps,
-                )
-                ts_dict: dict[str, object] = {
-                    member_id: coordinate.value
-                    for member_id, coordinate in ts.coordinates.items()
-                }
-                if conversion_maps:
-                    ts_dict.update(
-                        {
-                            label: value
-                            for label, value, _suffix in ts._conversion_rows()
-                        }
-                    )
-                timestamp_dicts.append(ts_dict)
-            except (KeyError, ValueError):
-                # Coordinate out of range - add row with just the input coordinate
-                timestamp_dicts.append({resolved_timeline_id: coord_float})
-
-        if not timestamp_dicts:
-            return pd.DataFrame()
-
-        # Build DataFrame
-        df = pd.DataFrame(timestamp_dicts)
-
-        # Add units to field names if requested
-        if units:
-            new_names = {}
-            for name in df.columns:
-                # Try to get unit for this field (timeline ID or C-map unit)
-                unit = self._get_unit_for_timeline(name)
-                if unit is not None:
-                    new_names[name] = f"{name} ({unit.value})"
-                else:
-                    new_names[name] = name
-            df = df.rename(columns=new_names)
-
-        return df
+        stamps, _ = resolve_coordinate_collection(
+            at,
+            lambda value: self.get_timestamp_at(
+                value, timeline_id, conversion_maps=conversion_maps
+            ),
+        )
+        return stamps
 
     def get_timestamp_table(
         self,
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection | None = None,
+        timeline_id: str | None = None,
+        *,
         timeline_filter: set[str] | None = None,
         conversion_maps: ConversionMapsSpec = True,
-    ) -> pa.Table:
-        """Get the timestamp table (or a filtered subset).
+        format: TableFormat = "table",
+        fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+        units: bool | None = None,
+    ) -> pa.Table | pd.DataFrame:
+        """Get the group's timestamps as a table, one row per cross-section.
 
         Args:
+            at: Positions or event IDs to tabulate, one row each in input
+                order. If None, the group's stored boundary timestamps are
+                the rows.
+            timeline_id: Which timeline the positions refer to. Required for
+                entries without an embedded timeline ID.
             timeline_filter: Only include these timeline fields.
             conversion_maps: Whether to include C-Map fields from member timelines.
                 - True (default): Include all attached C-Maps from all timelines
                 - False/None: No C-Map fields
+            format: ``"table"`` (default) for a PyArrow table, ``"dataframe"``
+                for a pandas DataFrame.
+            fields: How to name the DataFrame fields (``format="dataframe"``):
+                - None or ColumnNaming.name (default): Use timeline/cmap name
+                - ColumnNaming.id: Use timeline/cmap id
+                - Callable: Function taking (name, metadata_dict) -> new_name
+                - list[str]: Explicit field names
+            units: If True (the DataFrame default), append units to field
+                names like "name (unit)".
 
         Returns:
-            pa.Table with one row per timestamp, one field per timeline,
-            plus C-Map fields if conversion_maps=True.
-            Returns empty table if group has no timestamps.
+            One row per timestamp and one field per timeline — coordinate
+            structs carrying each number twice — plus C-Map fields when
+            ``conversion_maps`` is enabled. A group with no timestamps gives
+            an empty table.
+
+            A null cell means one thing only: that member does not reach that
+            position. An unresolvable *query* position is an error, not a
+            null, so the two can never be confused.
+
+        Note:
+            **Known limitation — stored rows are a float lane.** With
+            ``at=None`` the rows come from the group's stored timestamps,
+            which are ``float64`` because interpolation between members runs
+            on doubles. A boundary authored as an exact ratio is therefore
+            recorded as the nearest double and reads back as that double's
+            exact dyadic: a member whose length is ``5/3`` quarters shows
+            ``7505999378950827/4503599627370496`` in a stored row.
+
+            **The way out is to ask for the position instead of reading the
+            stored row.** Every queried lane is exact, so pass the positions
+            you want through ``at=``::
+
+                group.get_timestamp_table([Fraction(5, 3)], "clt1")  # 5/3
+                group.get_timestamp_at(Fraction(5, 3), "clt1")       # 5/3
+                group.get_coordinate_at(Fraction(5, 3), "clt1")      # 5/3
+
+            against the stored-row reading::
+
+                group.get_timestamp_table()  # 7505999378950827/4503599627370496
+
+            Only the rows the store already holds are affected; a queried
+            position never is.
+
+        Raises:
+            KeyError: If a named timeline is not in the group.
+            ValueError: On an unknown ``format``, when a DataFrame-shaping
+                option is supplied for an Arrow result, or when a queried
+                position lies outside its timeline's range. A batch answers
+                completely or not at all, on this lane as on the stamp lane.
+
+        Examples:
+            >>> from timetoalign.timelines import TimelineGroup
+            >>> from timetoalign.timelines.types import (
+            ...     ContinuousPhysicalTimeline,
+            ...     DiscreteGraphicalTimeline,
+            ... )
+            >>> pixels = DiscreteGraphicalTimeline(length=4000, unit="pixels", uid="dgt1")
+            >>> audio = ContinuousPhysicalTimeline(length=10.0, unit="seconds", uid="cpt1")
+            >>> group = TimelineGroup(id="pair", timelines=[pixels, audio])
+            >>> group.get_timestamp_table().column_names
+            ['dgt1', 'cpt1']
+            >>> group.get_timestamp_table([0.0, 2.5], "cpt1", format="dataframe")
+               dgt1 (pixels)  cpt1 (seconds)
+            0              0             0.0
+            1           1000             2.5
+        """
+        validate_table_format(format)
+        reject_dataframe_options(format, fields=fields, units=units)
+
+        if at is None:
+            table = self._stored_timestamp_table(timeline_filter, conversion_maps)
+        else:
+            table = self._queried_timestamp_table(
+                at, timeline_id, timeline_filter, conversion_maps
+            )
+        if format == "table":
+            return table
+        return timestamp_table_to_dataframe(
+            table=table,
+            fields=fields,
+            units=True if units is None else units,
+        )
+
+    def _stored_timestamp_table(
+        self,
+        timeline_filter: set[str] | None,
+        conversion_maps: ConversionMapsSpec,
+    ) -> pa.Table:
+        """Encode the stored boundary timestamps as coordinate-struct columns.
+
+        The stored table is float64 on purpose — interpolation runs on
+        doubles — so this is where each column is written in the
+        representation its member declares.
+
+        That re-expression cannot recover what the store never held: on a
+        fraction-canonical member an exact boundary was already rounded to a
+        double on the way in, so the cell here carries that double's exact
+        dyadic. It is a limitation of the store, not of this encoding, and it
+        applies to stored rows only — a queried position reaches
+        :meth:`_queried_timestamp_table` with its exact value intact.
         """
         if self._timestamp_table is None:
             return pa.table({})
 
         table = self._timestamp_table
+        names = [
+            name
+            for name in table.column_names
+            if timeline_filter is None or name in timeline_filter
+        ]
+        values = {
+            name: table.column(name).to_numpy(zero_copy_only=False) for name in names
+        }
+        return build_timestamp_table(
+            self._member_columns(names, values)
+            + self._cmap_columns(names, values, conversion_maps)
+        )
 
-        # Filter timeline fields if requested
-        if timeline_filter is not None:
-            keep = [c for c in table.column_names if c in timeline_filter]
-            table = table.select(keep)
+    def _member_columns(
+        self, names: list[str], values: dict[str, Any]
+    ) -> list[TimestampColumn]:
+        """Describe one coordinate column per named timeline."""
+        columns: list[TimestampColumn] = []
+        for name in names:
+            timeline = self._resolve_member(name)
+            columns.append(
+                TimestampColumn(
+                    name=name,
+                    values=values[name],
+                    unit=timeline.unit,
+                    number_type=timeline.number_type,
+                    timeline_id=name,
+                )
+            )
+        return columns
 
-        # Add C-Map fields from member timelines
-        if conversion_maps:
-            table = self._add_cmap_fields(table)
+    def _resolve_member(self, timeline_id: str) -> "Timeline":
+        """Return a member or one of its descendants by ID."""
+        member = self._timelines.get(timeline_id)
+        if member is not None:
+            return member
+        for candidate in self._timelines.values():
+            for _offset, descendant in candidate.iter_children(include_self=False):
+                if descendant.id == timeline_id:
+                    return descendant
+        raise KeyError(
+            f"Timeline '{timeline_id}' not in group. "
+            f"Available timelines: {self.timeline_ids}"
+        )
 
-        return table
-
-    def _add_cmap_fields(self, table: pa.Table) -> pa.Table:
-        """Add C-Map fields from member timelines to a timestamp table.
-
-        For each timeline in the group that has attached C-Maps, applies
-        those C-Maps to the timeline's coordinate field and adds the
-        results as new fields.
-
-        Args:
-            table: The timestamp table to augment.
-
-        Returns:
-            Table with additional C-Map fields.
-        """
-        if table.num_rows == 0:
-            return table
-
-        # Collect all C-Maps from member timelines
-        for timeline_id, timeline in self._timelines.items():
-            if timeline_id not in table.column_names:
+    def _cmap_columns(
+        self,
+        timeline_names: list[str],
+        values: dict[str, Any],
+        conversion_maps: ConversionMapsSpec,
+    ) -> list[TimestampColumn]:
+        """Derive one column per (member, numeric C-Map) from member columns."""
+        if not conversion_maps:
+            return []
+        columns: list[TimestampColumn] = []
+        for timeline_id in timeline_names:
+            timeline = self._timelines.get(timeline_id)
+            if timeline is None:
                 continue
-
-            # Get coordinate values for this timeline
-            coord_arr = table.column(timeline_id)
-            coord_np = coord_arr.to_numpy(zero_copy_only=False)
-
-            # Apply each of the timeline's C-Maps
             for cmap in timeline._conversion_maps.values():
-                # Compute converted values (handle NaN from nulls)
+                target_unit = getattr(cmap, "target_unit", None)
+                if target_unit is None:
+                    # Numeric unit conversions only; a structured map has no
+                    # column type here.
+                    continue
                 try:
-                    converted = cmap.convert_array(coord_np)
+                    converted = cmap.convert_array(values[timeline_id])
                 except Exception:
                     # Skip C-Maps that fail (e.g., out of bounds)
                     continue
-
-                # Field name uses C-Map's name property
-                field_name = cmap.name
-                column_number_type = cmap.output_number_type
-
-                # Add field with metadata
-                target_unit = getattr(cmap, "target_unit", None)
-                unit_value = target_unit.value if target_unit else "unknown"
-
-                new_field = pa.field(
-                    field_name,
-                    pa.float64(),
-                    metadata=blob_metadata(
-                        unit=unit_value,
-                        cmap_id=cmap.id,
-                        source_timeline=timeline_id,
-                        **(
-                            {"number_type": column_number_type.name}
-                            if column_number_type is not None
-                            else {}
-                        ),
-                    ),
+                columns.append(
+                    TimestampColumn(
+                        name=cmap.name,
+                        values=pa.array(converted),
+                        unit=target_unit,
+                        number_type=cmap.output_number_type,
+                        metadata={"cmap_id": cmap.id, "source_timeline": timeline_id},
+                    )
                 )
-                table = table.append_column(new_field, pa.array(converted))
+        return columns
 
-        return table
-
-    def to_dataframe(
+    def _queried_timestamp_table(
         self,
-        timeline_filter: set[str] | None = None,
-        conversion_maps: ConversionMapsSpec = True,
-        *,
-        fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
-        units: bool = True,
-        format: str = "pandas",
-    ) -> pd.DataFrame:
-        """Generate timestamps as a pandas DataFrame with formatted field names.
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection,
+        timeline_id: str | None,
+        timeline_filter: set[str] | None,
+        conversion_maps: ConversionMapsSpec,
+    ) -> pa.Table:
+        """Tabulate one row per queried position or event key.
 
-        This is the recommended high-level method for getting timestamp data.
-        It builds on get_timestamp_table() and applies field formatting.
-
-        Args:
-            timeline_filter: Only include these timelines as fields.
-            conversion_maps: Whether to include C-Map fields from member timelines.
-                - True (default): Include all attached C-Maps
-                - False/None: No C-Map fields
-            fields: How to name the DataFrame fields. Options:
-                - None or ColumnNaming.name (default): Use timeline/cmap name
-                - ColumnNaming.id: Use timeline/cmap id
-                - Callable: Function taking (name, metadata_dict) -> new_name
-                - list[str]: Explicit field names
-            units: If True (default), append units to field names like "name (unit)".
-            format: Output format. Currently only "pandas" is supported.
-
-        Returns:
-            pandas DataFrame with:
-            - Fields named according to the ``fields`` parameter
-            - Units appended if ``units=True``
-            - Each column in the representation its axis declares:
-              whole numbers on an integer-locked axis, exact ratios on a
-              fraction-canonical axis, doubles on a float-canonical one
-
-        Examples:
-            >>> df = group.to_dataframe()
-            >>> df.columns
-            Index(['audio (seconds)', 'dgt1 (pixels)', 'pixels_to_beats (beats)'])
-
-            >>> # Without units in field names
-            >>> df = group.to_dataframe(units=False)
-            >>> df.columns
-            Index(['audio', 'dgt1', 'pixels_to_beats'])
+        A position no member can resolve raises, exactly as it does on the
+        plural stamp getter. One input may not mean two things depending on
+        which exit the caller took, and swallowing it into a null-filled row
+        would make a null ambiguous: a reader could no longer tell "this
+        member does not reach this position" from "your query was invalid".
+        A null in the result therefore means exactly one thing — member not
+        reachable — which is what makes it readable.
         """
-        from timetoalign.core.timestamp import timestamp_table_to_dataframe
+        rows: list[dict[str, Coordinate]] = []
+        if is_key_input(at):
+            keys = [at] if isinstance(at, str) else list(at)
+            rows = [dict(self.get_timestamp_for(key).coordinates) for key in keys]
+        else:
+            queried, _ = validate_coordinate_collection(
+                at
+                if isinstance(at, (list, tuple, np.ndarray, pd.Index, pd.Series))
+                else [at]
+            )
+            rows = [
+                dict(
+                    self.get_timestamp_at(
+                        value, timeline_id, conversion_maps=conversion_maps
+                    ).coordinates
+                )
+                for value in queried
+            ]
 
-        table = self.get_timestamp_table(
-            timeline_filter=timeline_filter,
-            conversion_maps=conversion_maps,
-        )
-        return timestamp_table_to_dataframe(
-            table=table,
-            fields=fields,
-            units=units,
-            format=format,
+        names = list(self._timelines)
+        for row in rows:
+            names.extend(name for name in row if name not in names)
+        if timeline_filter is not None:
+            names = [name for name in names if name in timeline_filter]
+
+        cells: dict[str, Any] = {
+            name: [row.get(name) for row in rows] for name in names
+        }
+        # The C-Map lane converts whole arrays, so it takes the float mirror of
+        # the same cells rather than a second lookup.
+        floats: dict[str, Any] = {
+            name: np.array(
+                [
+                    float("nan") if cell is None else float(cell.value)
+                    for cell in cells[name]
+                ],
+                dtype=np.float64,
+            )
+            for name in names
+        }
+        return build_timestamp_table(
+            self._member_columns(names, cells)
+            + self._cmap_columns(names, floats, conversion_maps)
         )
 
     def _row_to_timestamp(self, index: int) -> GroupTimestamp:
@@ -1448,21 +1535,14 @@ class TimelineGroup:
         Returns:
             The selected precise-getter result.
         """
-        branch = classify_dispatch_input(at)
-        if branch == "coordinate":
-            return self.get_coordinate_at(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        if branch == "coordinates":
-            return self.get_coordinates_at(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        if branch == "key":
-            return self.get_coordinate_for(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        return self.get_coordinates_for(
-            at, timeline_id=timeline_id, format=format, rounding=rounding
+        return dispatch_retrieval(
+            self,
+            "get_coordinate",
+            "get_coordinates",
+            at,
+            timeline_id,
+            format=format,
+            rounding=rounding,
         )
 
     # endregion
@@ -1513,14 +1593,24 @@ class TimelineGroup:
 
     # region Unified Timestamp API (TimeStampSource Protocol)
 
-    def get_timestamp_of(self, event_id: str) -> TimeStamp:
+    def get_timestamp_for(
+        self,
+        key: str,
+        timeline_id: str | None = None,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
+    ) -> TimeStamp:
         """Get the TimeStamp for a specific event by its ID.
 
         Searches all timelines in the group for the event and returns
-        the corresponding TimeStamp (same structure as Timeline.get_timestamp).
+        the corresponding TimeStamp (same structure as
+        Timeline.get_timestamp_at).
 
         Args:
-            event_id: The event's unique identifier.
+            key: The event's unique identifier.
+            timeline_id: Member whose axis the stamp is anchored on; by
+                default the member owning the event.
+            conversion_maps: Whether C-Maps are reachable through the stamp.
 
         Returns:
             TimeStamp at the event's coordinate, with access to all
@@ -1536,64 +1626,115 @@ class TimelineGroup:
             >>> audio.add_events([{"event_type": "Note", "instant": 45.5}])
             >>> group = TimelineGroup(id="my_group", timelines=[audio])
 
-            >>> ts = group.get_timestamp_of("note:000001")
+            >>> ts = group.get_timestamp_for("note:000001")
             >>> ts.get_coordinate_for("audio", format="float")
             45.5
             >>> ts.get_unit(TimeUnit.seconds)  # C-Map conversion
             IdCoordinate(45.5, seconds, 'audio')
         """
+        if not isinstance(key, str):
+            raise TypeError("get_timestamp_for requires an event-ID string")
         for tl_id, tl in self._timelines.items():
-            event = tl.get_event(event_id)
+            event = tl.get_event(key)
             if event is not None:
-                # Found the event - get its coordinate and return TimeStamp
-                coord = event["start"]["value"]
-                return self.get_timestamp_at(coord, tl_id)
+                # Read the cell in the representation the member declares --
+                # the "value" member alone is the float mirror, and taking it
+                # turned an event authored at 5/3 quarters into the dyadic of
+                # its double.
+                coord = struct_to_coordinate(event["start"], tl.number_type)
+                owned = self.get_timestamp_at(
+                    coord, tl_id, conversion_maps=conversion_maps
+                )
+                if timeline_id is None or timeline_id == tl_id:
+                    return owned
+                # The event's coordinate is a position on ITS OWN axis, so
+                # anchoring elsewhere means transferring first -- reading the
+                # requested member out of the owner's cross-section -- rather
+                # than reinterpreting the same number on another axis.
+                return self.get_timestamp_at(
+                    owned.get_coordinate_for(timeline_id, format="coordinate"),
+                    timeline_id,
+                    conversion_maps=conversion_maps,
+                )
 
         raise KeyError(
-            f"Event {event_id!r} not found in any timeline in group. "
+            f"Event {key!r} not found in any timeline in group. "
             f"Searched timelines: {self.timeline_ids}"
         )
 
-    def get_timestamps_of(self, event_ids: Sequence[str]) -> pd.DataFrame:
-        """Get timestamps for multiple events.
-
-        Searches all timelines in the group for each event and returns
-        a DataFrame with coordinates on all timelines.
+    def get_timestamps_for(
+        self,
+        keys: KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
+    ) -> list[TimeStamp]:
+        """Get timestamps for a collection of event IDs, in input order.
 
         Args:
-            event_ids: List of event IDs to look up.
+            keys: Event IDs to look up.
+            timeline_id: Member whose axis every stamp is anchored on; by
+                default each event's own owner.
+            conversion_maps: Whether C-Maps are reachable through the stamps.
 
         Returns:
-            DataFrame with one row per event, indexed by event_id.
-            Fields are timeline IDs with their coordinates.
-            Events not found have NaN values.
+            One TimeStamp per key; an empty collection gives an empty list.
+
+        Raises:
+            KeyError: If any event is not found in the group. The batch
+                answers completely or not at all.
 
         Examples:
-            >>> df = group.get_timestamps_of(["note:000001", "note:000002"])
-            >>> df.columns
-            Index(['clt1', 'audio', 'dgt1'])
+            >>> from timetoalign.timelines import TimelineGroup
+            >>> from timetoalign.timelines.types import ContinuousPhysicalTimeline
+            >>> audio = ContinuousPhysicalTimeline(length=150.0, unit="seconds", uid="audio")
+            >>> audio.add_events([{"id": "beat:1", "instant": 45.5}])
+            >>> group = TimelineGroup(id="my_group", timelines=[audio])
+            >>> stamps = group.get_timestamps_for(["beat:1"])
+            >>> stamps[0].get_coordinate_for("audio", format="float")
+            45.5
         """
-        rows: list[dict[str, Any]] = []
-        for event_id in event_ids:
-            try:
-                ts = self.get_timestamp_of(event_id)
-                row: dict[str, Any] = {
-                    timeline_id: ts.get_coordinate_for(timeline_id, format="float")
-                    for timeline_id in ts.present_timelines
-                }
-                row["event_id"] = event_id
-                rows.append(row)
-            except KeyError:
-                # Event not found - add row with NaN
-                row = {"event_id": event_id}
-                rows.append(row)
+        stamps, _ = resolve_key_collection(
+            keys,
+            lambda key: self.get_timestamp_for(
+                key, timeline_id, conversion_maps=conversion_maps
+            ),
+        )
+        return stamps
 
-        if not rows:
-            return pd.DataFrame()
+    def get_timestamp(
+        self,
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
+    ) -> TimeStamp | list[TimeStamp]:
+        """Dispatch a positional or event-key timestamp query.
 
-        df = pd.DataFrame(rows)
-        df = df.set_index("event_id")
-        return df
+        Args:
+            at: Scalar or plural coordinate position or event key.
+            timeline_id: Member axis the query is expressed on.
+            conversion_maps: Whether C-Maps are reachable through the stamps.
+
+        Returns:
+            The selected precise-getter result.
+
+        Raises:
+            TypeError: If ``at`` mixes keys and coordinates or is an
+                unsupported runtime form.
+
+        See Also:
+            get_timestamp_at_index: The row view of a stored timestamp, which
+                is a different operation addressed by row number.
+        """
+        return dispatch_retrieval(
+            self,
+            "get_timestamp",
+            "get_timestamps",
+            at,
+            timeline_id,
+            conversion_maps=conversion_maps,
+        )
 
     def _get_interpolation_map(
         self, target_id: str, source_id: str | None = None

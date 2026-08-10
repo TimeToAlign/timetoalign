@@ -12,19 +12,36 @@ import pyarrow as pa
 import pyarrow.compute as pc
 
 from timetoalign.core import (
+    RATIONAL_STRUCT_TYPE,
     Coordinate,
     CoordinateSpec,
     IdCoordinate,
     Interval,
     NumberType,
     TimeUnit,
+    build_number_struct_array,
+    combine_number_columns,
     resolve_coordinate_spec,
 )
-from timetoalign.core.fields import blob_metadata
+from timetoalign.core.retrieval import (
+    CoordinateCollection,
+    CoordinateInput,
+    KeyCollection,
+    TableFormat,
+    dispatch_retrieval,
+    is_key_input,
+    reject_dataframe_options,
+    resolve_coordinate_collection,
+    resolve_key_collection,
+    validate_table_format,
+)
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
     TimeIntervalStamp,
     TimeStamp,
+    TimestampColumn,
+    build_timestamp_table,
+    timestamp_table_to_dataframe,
 )
 from timetoalign.maps import ConversionMap
 
@@ -32,28 +49,100 @@ if TYPE_CHECKING:
     from timetoalign.core.enums import ColumnNaming
 
 
+def _empty_coordinates() -> pa.StructArray:
+    """Return an empty coordinate column of the canonical storage shape."""
+    return pa.array([], type=RATIONAL_STRUCT_TYPE)
+
+
+def _coordinate_column(values: Any, number_type: NumberType) -> pa.StructArray:
+    """Encode positions as coordinate structs under one declared type."""
+    return build_number_struct_array(
+        values, number_type=number_type, rounding="round", on_error="raise"
+    )
+
+
+def _unique_sorted_coordinates(arrays: Sequence[pa.Array]) -> pa.StructArray:
+    """Concatenate coordinate columns, drop repeats, and sort ascending.
+
+    Ordering and deduplication read the float member, so they stay a single
+    vectorized sort with no Python loop over the axis; the cells that survive
+    are carried whole, which is what keeps an authored ratio out of the
+    round trip through its own double.
+
+    Args:
+        arrays: Coordinate-struct columns to merge.
+
+    Returns:
+        One sorted column holding each distinct position once.
+    """
+    non_empty = [array for array in arrays if len(array) > 0]
+    if not non_empty:
+        return _empty_coordinates()
+    combined = pa.concat_arrays(non_empty)
+    values = combined.field("value")
+    order = pc.sort_indices(values)
+    if len(order) < 2:
+        return pc.take(combined, order)
+    ordered = pc.take(values, order)
+    distinct = pc.not_equal(ordered.slice(1), ordered.slice(0, len(ordered) - 1))
+    keep = pa.concat_arrays([pa.array([True]), distinct])
+    return pc.take(combined, pc.filter(order, keep))
+
+
+def _positions_within(within: pa.Array) -> pa.Array:
+    """Index each kept row into the filtered column, null where it was dropped.
+
+    The companion of ``filter``: taking with these indices scatters a
+    computed-on-the-kept-rows column back to full length, nulls and all.
+    """
+    kept = within.to_numpy(zero_copy_only=False).astype(bool)
+    return pa.array(np.cumsum(kept) - 1, type=pa.int64(), mask=~kept)
+
+
+def _null_where(column: pa.StructArray, mask: pa.Array) -> pa.StructArray:
+    """Null out whole coordinate cells wherever *mask* is true."""
+    nulled = pc.fill_null(mask, True)
+    return pa.StructArray.from_arrays(
+        [
+            pc.if_else(nulled, pa.scalar(None, type=member.type), column.field(name))
+            for name, member in (
+                (member.name, member) for member in RATIONAL_STRUCT_TYPE
+            )
+        ],
+        fields=list(RATIONAL_STRUCT_TYPE),
+        mask=nulled,
+    )
+
+
 class TabularExportMixin:
     """Provide timestamp and tabular export operations for timeline instances."""
 
-    def get_timestamp(
+    def get_timestamp_at(
         self,
-        coord: CoordinateSpec,
-        unit: TimeUnit | str | None = None,
+        at: CoordinateInput,
+        timeline_id: str | None = None,
         *,
+        unit: TimeUnit | str | None = None,
         conversion_maps: ConversionMapsSpec = True,
     ) -> TimeStamp:
-        """Get a TimeStamp at a specific coordinate.
+        """Get a TimeStamp at one coordinate on this timeline.
 
         This is the primary coordinate resolution API. The TimeStamp provides
         access to all equivalent coordinates across children and C-Map units.
+        The axis is written in this timeline's declared ``number_type``, so a
+        query of ``9.5`` on a fraction-canonical timeline gives an axis of
+        ``Fraction(19, 2)``.
 
         Uses InterpolationMaps for O(log n) coordinate conversion.
 
         Args:
-            coord: Coordinate value. Can be:
+            at: Coordinate value. Can be:
                 - int/float/Fraction: Value in timeline's native unit
                 - Coordinate: Must match unit or specify via `unit` param
-            unit: If provided, interpret coord as being in this unit.
+                - IdCoordinate: May name this timeline or a descendant
+            timeline_id: Result-axis validator. ``None`` or this timeline's
+                own ID; any other ID raises.
+            unit: If provided, interpret ``at`` as being in this unit.
                 The coordinate is first converted via inverse C-Map.
             conversion_maps: C-Maps available through the returned stamp.
 
@@ -61,6 +150,7 @@ class TabularExportMixin:
             TimeStamp object for the resolved coordinate.
 
         Raises:
+            KeyError: If ``timeline_id`` names another timeline.
             ValueError: If unit specified but no inverse C-Map available.
 
         Examples:
@@ -74,15 +164,20 @@ class TabularExportMixin:
             ...     source_unit=TimeUnit.ticks, target_unit=TimeUnit.seconds,
             ... )
             >>> parent.add_conversion_map(tempo_map)
-            >>> ts = parent.get_timestamp(250)
+            >>> ts = parent.get_timestamp_at(250)
             >>> ts.get_coordinate_for("child_a", format="float")
             150.0
 
             >>> # Query with unit conversion
-            >>> ts = parent.get_timestamp(1.5, unit=TimeUnit.seconds)
+            >>> ts = parent.get_timestamp_at(1.5, unit=TimeUnit.seconds)
             >>> ts.axis  # Converted from seconds to timeline's native unit (ticks)
             IdCoordinate(720, ticks, 'timeline:1')
         """
+        if timeline_id is not None and timeline_id != self._id:
+            raise KeyError(
+                f"Unknown result timeline ID {timeline_id!r} on timeline {self._id!r}"
+            )
+        coord = at
         if unit is None:
             native_coord = self.get_coordinate_at(coord, format="coordinate")
         else:
@@ -125,36 +220,39 @@ class TabularExportMixin:
             conversion_maps=conversion_maps,
         )
 
-    def get_timestamp_at(
+    def get_timestamps_at(
         self,
-        coord: CoordinateSpec,
-        unit: TimeUnit | str | None = None,
+        at: CoordinateCollection,
+        timeline_id: str | None = None,
         *,
+        unit: TimeUnit | str | None = None,
         conversion_maps: ConversionMapsSpec = True,
-    ) -> TimeStamp:
-        """Alias for `get_timestamp()` for API consistency with TimelineGroup.
-
-        TimelineGroup uses `get_timestamp_at(coord, tl_id)` with an additional
-        timeline_id parameter. This alias provides a consistent verb across
-        the hierarchy.
+    ) -> list[TimeStamp]:
+        """Get TimeStamps at a collection of coordinates, in input order.
 
         Args:
-            coord: Coordinate value (see `get_timestamp()` for details).
-            unit: Optional unit for coordinate interpretation.
-            conversion_maps: C-Maps available through the returned stamp.
+            at: Coordinate positions to resolve.
+            timeline_id: Result-axis validator.
+            unit: Optional unit in which every position is expressed.
+            conversion_maps: C-Maps available through the returned stamps.
 
         Returns:
-            TimeStamp object for the resolved coordinate.
+            One TimeStamp per input coordinate; an empty collection gives
+            an empty list.
 
-        See Also:
-            get_timestamp: The primary coordinate resolution method.
-            timetoalign.TimelineGroup.get_timestamp_at: Group-level version.
+        Raises:
+            TypeError: If ``at`` is not an accepted coordinate collection.
         """
-        return self.get_timestamp(
-            coord,
-            unit=unit,
-            conversion_maps=conversion_maps,
+        stamps, _ = resolve_coordinate_collection(
+            at,
+            lambda value: self.get_timestamp_at(
+                value,
+                timeline_id,
+                unit=unit,
+                conversion_maps=conversion_maps,
+            ),
         )
+        return stamps
 
     def get_interval_stamp(
         self,
@@ -186,10 +284,12 @@ class TabularExportMixin:
             >>> interval.get_interval("child:1")
             Interval(start=Coordinate(0.0, seconds), end=Coordinate(10.0, seconds))
         """
-        start_stamp = self.get_timestamp(
+        start_stamp = self.get_timestamp_at(
             start, unit=unit, conversion_maps=conversion_maps
         )
-        end_stamp = self.get_timestamp(end, unit=unit, conversion_maps=conversion_maps)
+        end_stamp = self.get_timestamp_at(
+            end, unit=unit, conversion_maps=conversion_maps
+        )
         common = [
             timeline_id
             for timeline_id in start_stamp.coordinates
@@ -209,9 +309,10 @@ class TabularExportMixin:
             is_interpolated=(start_stamp.is_interpolated or end_stamp.is_interpolated),
         )
 
-    def get_timestamp_of(
+    def get_timestamp_for(
         self,
-        event_id: str,
+        key: str,
+        timeline_id: str | None = None,
         *,
         conversion_maps: ConversionMapsSpec = True,
     ) -> TimeStamp | TimeIntervalStamp:
@@ -222,14 +323,16 @@ class TabularExportMixin:
         is not found on this timeline directly.
 
         Args:
-            event_id: The event identifier to look up.
+            key: The event identifier to look up.
+            timeline_id: Result-axis validator.
             conversion_maps: C-Maps available through the returned stamp or stamps.
 
         Returns:
             TimeStamp for instant events, TimeIntervalStamp for interval events.
 
         Raises:
-            KeyError: If no event with the given ID exists.
+            KeyError: If no event with the given ID exists, or if
+                ``timeline_id`` names another timeline.
 
         Examples:
             >>> from timetoalign.timelines import Timeline
@@ -240,140 +343,162 @@ class TabularExportMixin:
             >>> child.add_events(
             ...     [{"id": "clt1:note:000001", "event_type": "Note", "start": 0.0, "end": 2.5}]
             ... )
-            >>> ts = parent.get_timestamp_of("note:000001")
+            >>> ts = parent.get_timestamp_for("note:000001")
             >>> ts.axis  # For instant events
             IdCoordinate(5.0, seconds, 'timeline:1')
 
-            >>> ts = parent.get_timestamp_of("clt1:note:000001")
+            >>> ts = parent.get_timestamp_for("clt1:note:000001")
             >>> ts.start.axis  # For interval events
             IdCoordinate(5.0, seconds, 'timeline:1')
             >>> ts.end.axis
             IdCoordinate(7.5, seconds, 'timeline:1')
 
         See Also:
-            get_timestamp: Get timestamp by coordinate.
+            get_timestamp_at: Get timestamp by coordinate.
             get_event: Get the raw event dict by ID.
         """
-        events = self.get_events(include_children=True, id=event_id)
+        if not isinstance(key, str):
+            raise TypeError("get_timestamp_for requires an event-ID string")
+        if timeline_id is not None and timeline_id != self._id:
+            raise KeyError(
+                f"Unknown result timeline ID {timeline_id!r} on timeline {self._id!r}"
+            )
+        events = self.get_events(include_children=True, id=key)
         if len(events) == 0:
             raise KeyError(
-                f"Event {event_id!r} not found on timeline {self._id!r} "
+                f"Event {key!r} not found on timeline {self._id!r} "
                 f"({self.n_events} events)"
             )
 
-        start_val = events.column_values("start")[0]
-        if start_val is None:
-            raise ValueError(f"Event {event_id!r} has no 'start' coordinate")
-        start_coord = float(start_val)
+        # The stored cell already carries the event's position in the
+        # representation its field declares; taking float() of it here threw
+        # away an exact ratio the store had kept, so an event authored at
+        # 5/3 quarters came back as the dyadic of 1.6666666666666667.
+        start_coord = events.column_values("start")[0]
+        if start_coord is None:
+            raise ValueError(f"Event {key!r} has no 'start' coordinate")
 
         # Check if this is an interval event
-        end_val = events.column_values("end")[0]
-        if end_val is not None:
-            end_coord = float(end_val)
+        end_coord = events.column_values("end")[0]
+        if end_coord is not None:
             return self.get_interval_stamp(
                 start_coord,
                 end_coord,
                 conversion_maps=conversion_maps,
             )
 
-        return self.get_timestamp(start_coord, conversion_maps=conversion_maps)
+        return self.get_timestamp_at(start_coord, conversion_maps=conversion_maps)
 
-    def get_timestamps_of(
+    def get_timestamps_for(
         self,
-        event_ids: Sequence[str],
-    ) -> pd.DataFrame:
-        """Get timestamps for multiple events, returned as a DataFrame.
-
-        For each event, includes fields for start coordinate, end coordinate
-        (if interval), event type, and temporal type.
+        keys: KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        conversion_maps: ConversionMapsSpec = True,
+    ) -> list[TimeStamp | TimeIntervalStamp]:
+        """Get timestamps for a collection of event IDs, in input order.
 
         Args:
-            event_ids: Sequence of event identifiers to look up.
+            keys: Event identifiers to look up.
+            timeline_id: Result-axis validator.
+            conversion_maps: C-Maps available through the returned stamps.
 
         Returns:
-            DataFrame indexed by event_id with fields:
-            - ``start``: Start coordinate value
-            - ``end``: End coordinate value (NaN for instant events)
-            - ``event_type``: The event type name
-            - ``temporal_type``: "instant" or "interval"
+            One stamp per key — a TimeIntervalStamp wherever the event is an
+            interval — and an empty list for an empty collection.
 
         Raises:
             KeyError: If any event ID is not found.
 
         Examples:
-            >>> df = timeline.get_timestamps_of(["note:000001", "note:000002"])
-            >>> df.loc["note:000001", "start"]
-            0.0
+            >>> from timetoalign.core import TimeUnit
+            >>> from timetoalign.timelines import Timeline
+            >>> timeline = Timeline(length=60, unit=TimeUnit.seconds, uid="tl:1")
+            >>> timeline.add_events(
+            ...     [{"id": "beat:1", "instant": 0.0}, {"id": "beat:2", "instant": 55.0}]
+            ... )
+            >>> stamps = timeline.get_timestamps_for(["beat:1", "beat:2"])
+            >>> [stamp.get_coordinate_for("tl:1", format="float") for stamp in stamps]
+            [0.0, 55.0]
 
         See Also:
-            get_timestamp_of: Get a single event's timestamp.
-            get_events: Filter events by type or coordinate range.
+            get_timestamp_for: Get a single event's timestamp.
+            get_timestamp_table: Tabulate many events at once.
         """
-        events = self.get_events(include_children=True)
-        ids = events.column_values("id")
-        indices = {event_id: index for index, event_id in enumerate(ids)}
-        starts = events.column_values("start")
-        ends = events.column_values("end")
-        event_types = events.column_values("event_type")
-        rows = []
-        for event_id in event_ids:
-            if event_id not in indices:
-                raise KeyError(
-                    f"Event {event_id!r} not found on timeline {self._id!r} "
-                    f"({self.n_events} events)"
-                )
+        stamps, _ = resolve_key_collection(
+            keys,
+            lambda key: self.get_timestamp_for(
+                key, timeline_id, conversion_maps=conversion_maps
+            ),
+        )
+        return stamps
 
-            index = indices[event_id]
-            start_val = starts[index]
-            if start_val is None:
-                raise ValueError(f"Event {event_id!r} has no 'start' coordinate")
-            start = float(start_val)
+    def get_timestamp(
+        self,
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        unit: TimeUnit | str | None = None,
+        conversion_maps: ConversionMapsSpec = True,
+    ) -> (
+        TimeStamp
+        | TimeIntervalStamp
+        | list[TimeStamp]
+        | list[TimeStamp | TimeIntervalStamp]
+    ):
+        """Dispatch a positional or event-key timestamp query.
 
-            end_val = ends[index]
-            if end_val is not None:
-                end = float(end_val)
-                temporal_type = "interval"
-            else:
-                end = float("nan")
-                temporal_type = "instant"
+        Args:
+            at: Scalar or plural coordinate position or event key.
+            timeline_id: Result-axis validator.
+            unit: Optional unit for a positional query.
+            conversion_maps: C-Maps available through the returned stamps.
 
-            rows.append(
-                {
-                    "event_id": event_id,
-                    "start": start,
-                    "end": end,
-                    "event_type": event_types[index] or "",
-                    "temporal_type": temporal_type,
-                }
-            )
+        Returns:
+            The selected precise-getter result.
 
-        df = pd.DataFrame(rows)
-        if len(df) > 0:
-            df = df.set_index("event_id")
-        return df
+        Raises:
+            TypeError: If ``at`` mixes keys and coordinates or is an
+                unsupported runtime form.
+        """
+        return dispatch_retrieval(
+            self,
+            "get_timestamp",
+            "get_timestamps",
+            at,
+            timeline_id,
+            position_options={"unit": unit},
+            conversion_maps=conversion_maps,
+        )
 
     def _extract_event_coordinates(
         self,
         event_filter: dict[str, Any] | pc.Expression | None = None,
-    ) -> pa.ChunkedArray:
-        """Extract all unique event coordinates as a sorted PyArrow array.
+    ) -> pa.StructArray:
+        """Extract all unique event coordinates as a sorted coordinate column.
 
-                Uses PyArrow compute to efficiently extract coordinates from the
-                EventData table without Python iteration.
+        Uses PyArrow compute to efficiently extract coordinates from the
+        EventData table without Python iteration.
 
-                Args:
-                    event_filter: Optional filter to apply before extracting coordinates.
-        Can be a dict (passed to EventData.filter()) or a pc.Expression
-                        (passed to EventData.where()).
+        The stored cells are carried whole rather than reduced to their float
+        member. A cell keeps its number twice, and the exact side is the only
+        record that a position was authored as ``5/3`` rather than as the
+        double nearest to it; re-deriving a ratio from that double afterwards
+        answers with its exact dyadic, which is a different number.
 
-                Returns:
-                    Sorted PyArrow ChunkedArray of unique coordinate values (float64).
-                    Returns empty array if no events.
+        Args:
+            event_filter: Optional filter to apply before extracting
+                coordinates. Can be a dict (passed to ``EventData.filter()``)
+                or a ``pc.Expression`` (passed to ``EventData.where()``).
 
-                Notes:
-                    - Extracts start.value from all events
-                    - Extracts end.value from interval events (drops nulls)
-                    - Deduplicates and sorts the result
+        Returns:
+            Sorted, deduplicated coordinate structs. Empty when there are no
+            events.
+
+        Notes:
+            - Takes ``start`` from all events
+            - Takes ``end`` from interval events (drops nulls)
+            - Deduplicates and sorts the result
         """
         # Apply filter if provided
         if event_filter is not None:
@@ -386,40 +511,19 @@ class TabularExportMixin:
             table = self._events.table
 
         if table.num_rows == 0:
-            return pa.chunked_array([], type=pa.float64())
+            return _empty_coordinates()
 
-        # Extract start coordinates (all events have start)
-        # struct_field returns ChunkedArray
-        start_arr = table.column("start")
-        start_vals = pc.struct_field(start_arr, "value")
-
-        # Extract end coordinates (intervals only, filter nulls)
-        end_arr = table.column("end")
-        end_vals = pc.struct_field(end_arr, "value")
-        end_vals = pc.drop_null(end_vals)
-
-        # Combine chunks from both ChunkedArrays
-        all_chunks = start_vals.chunks + end_vals.chunks
-        if not all_chunks:
-            return pa.chunked_array([], type=pa.float64())
-
-        combined = pa.chunked_array(all_chunks, type=pa.float64())
-
-        # Deduplicate
-        unique_coords = pc.unique(combined)
-
-        # Sort ascending
-        sort_indices = pc.sort_indices(unique_coords)
-        sorted_coords = pc.take(unique_coords, sort_indices)
-
-        return sorted_coords
+        starts = table.column("start").combine_chunks()
+        ends = table.column("end").combine_chunks()
+        return _unique_sorted_coordinates([starts, ends.filter(ends.is_valid())])
 
     def _collect_all_coordinates(
         self,
         recursion_limit: int | None = None,
-        offset: float = 0.0,
+        offset: int | float | Fraction = 0,
         event_filter: dict[str, Any] | pc.Expression | None = None,
-    ) -> pa.Array:
+        number_type: NumberType | None = None,
+    ) -> pa.StructArray:
         """Collect coordinates from this timeline and all children.
 
         Recursively collects event coordinates, applying cumulative offset
@@ -432,16 +536,21 @@ class TabularExportMixin:
                 Can be a dict (passed to EventData.filter()) or a pc.Expression
                 (passed to EventData.where()). The same filter is applied to
                 all timelines in the hierarchy.
+            number_type: Representation of the axis being built (internal
+                use); defaults to this timeline's own.
 
         Returns:
-            PyArrow array of unique, sorted, root-relative coordinates (float64).
+            Unique, sorted, root-relative coordinate structs.
         """
+        declared = self._number_type if number_type is None else number_type
+
         # Get this timeline's coordinates (with optional filter)
         local_coords = self._extract_event_coordinates(event_filter)
 
-        # Apply offset to make root-relative
-        if offset != 0.0 and len(local_coords) > 0:
-            local_coords = pc.add(local_coords, offset)
+        # Shift onto the root axis. The offset is added in the axis's declared
+        # representation, so an exact child position lands on an exact parent.
+        if offset != 0 and len(local_coords) > 0:
+            local_coords = combine_number_columns(local_coords, offset, "add", declared)
 
         arrays = [local_coords]
 
@@ -454,31 +563,21 @@ class TabularExportMixin:
                     recursion_limit=next_limit,
                     offset=offset + child_offset,
                     event_filter=event_filter,
+                    number_type=declared,
                 )
                 if len(child_coords) > 0:
                     arrays.append(child_coords)
 
-        # Combine all and deduplicate
         if len(arrays) == 1:
             return arrays[0]
-
-        # Filter out empty arrays before concatenation
-        non_empty = [a for a in arrays if len(a) > 0]
-        if not non_empty:
-            return pa.array([], type=pa.float64())
-
-        combined = pa.concat_arrays(non_empty)
-        unique = pc.unique(combined)
-
-        # Sort ascending
-        sort_indices = pc.sort_indices(unique)
-        return pc.take(unique, sort_indices)
+        return _unique_sorted_coordinates(arrays)
 
     def _collect_boundary_coordinates(
         self,
         recursion_limit: int | None = None,
-        offset: float = 0.0,
-    ) -> pa.Array:
+        offset: int | float | Fraction = 0,
+        number_type: NumberType | None = None,
+    ) -> pa.StructArray:
         """Collect timeline boundary coordinates (start=0, end=length).
 
         Recursively collects boundary coordinates from this timeline
@@ -487,13 +586,17 @@ class TabularExportMixin:
         Args:
             recursion_limit: Maximum depth for child traversal. None = unlimited.
             offset: Cumulative offset from root timeline (internal use).
+            number_type: Representation of the axis being built (internal
+                use); defaults to this timeline's own.
 
         Returns:
-            PyArrow array of unique, sorted, root-relative boundary coordinates.
+            Unique, sorted, root-relative boundary coordinate structs.
         """
-        # This timeline's boundaries
-        boundaries = [offset, offset + self._length.value]
-        arrays = [pa.array(boundaries, type=pa.float64())]
+        declared = self._number_type if number_type is None else number_type
+
+        # This timeline's boundaries, computed in Python so an exact length on
+        # an exact offset stays exact.
+        arrays = [_coordinate_column([offset, offset + self._length.value], declared)]
 
         # Recurse into children
         if recursion_limit is None or recursion_limit > 0:
@@ -503,52 +606,60 @@ class TabularExportMixin:
                 child_bounds = child._collect_boundary_coordinates(
                     recursion_limit=next_limit,
                     offset=offset + child_offset,
+                    number_type=declared,
                 )
                 if len(child_bounds) > 0:
                     arrays.append(child_bounds)
 
-        # Combine and deduplicate
         if len(arrays) == 1:
             return arrays[0]
-
-        combined = pa.concat_arrays(arrays)
-        unique = pc.unique(combined)
-        sort_indices = pc.sort_indices(unique)
-        return pc.take(unique, sort_indices)
+        return _unique_sorted_coordinates(arrays)
 
     def _compute_local_coordinates(
         self,
-        root_coords: pa.Array,
-        offset: float = 0.0,
-    ) -> pa.Array:
+        root_coords: pa.StructArray,
+        offset: int | float | Fraction = 0,
+    ) -> pa.StructArray:
         """Compute local coordinates from root coordinates.
 
-        Vectorized offset subtraction with bounds checking. Coordinates
-        outside [0, length] are replaced with null.
+        Offset subtraction with bounds checking. Coordinates outside
+        ``[0, length]`` are replaced with null.
+
+        The subtraction runs in this timeline's declared representation, so a
+        child of an exact parent reports exact local positions; only the
+        bounds comparison drops to the float member, where a comparison is all
+        that is asked of it.
 
         Args:
-            root_coords: Array of root-relative coordinates.
+            root_coords: Root-relative coordinate structs.
             offset: This timeline's offset from root.
 
         Returns:
-            PyArrow array with local coordinates, null for out-of-bounds.
+            Local coordinate structs, null for out-of-bounds.
         """
         if len(root_coords) == 0:
-            return pa.array([], type=pa.float64())
+            return _empty_coordinates()
 
-        # Subtract offset: local = root - offset
-        local = pc.subtract(root_coords, offset)
+        # Bound first, on the float member. The length scalar must reach the
+        # kernel as a float: on a quarters/beats axis its value is a Fraction,
+        # which the PyArrow compute kernel rejects.
+        shifted = pc.subtract(root_coords.field("value"), float(offset))
+        within = pc.and_(
+            pc.greater_equal(shifted, 0.0),
+            pc.less_equal(shifted, float(self._length.value)),
+        )
 
-        # Create mask for out-of-bounds coordinates. The length scalar must
-        # reach the kernel as a float: on a quarters/beats axis its value is a
-        # Fraction, which the PyArrow compute kernel rejects.
-        too_low = pc.less(local, 0.0)
-        too_high = pc.greater(local, float(self._length.value))
-        out_of_bounds = pc.or_(too_low, too_high)
+        # At offset zero the local coordinate IS the root coordinate, so the
+        # cells are reused rather than recomputed.
+        if offset == 0:
+            return _null_where(root_coords, pc.invert(within))
 
-        # Replace out-of-bounds with null
-        null_scalar = pa.scalar(None, type=pa.float64())
-        return pc.if_else(out_of_bounds, null_scalar, local)
+        # Only the rows this timeline actually covers are shifted. The exact
+        # lane of the arithmetic reads rows in Python, so a child spanning a
+        # tenth of the axis must not pay for the whole of it.
+        kept = pc.filter(root_coords, within)
+        local = combine_number_columns(kept, offset, "subtract", self._number_type)
+        return pc.take(local, _positions_within(within))
 
     def _resolve_conversion_maps(
         self, spec: ConversionMapsSpec
@@ -626,134 +737,94 @@ class TabularExportMixin:
 
     def _build_timestamp_table(
         self,
-        axis: pa.Array,
+        axis: pa.StructArray,
         conversion_maps: list[ConversionMap[Any]] | None = None,
         recursion_limit: int | None = None,
     ) -> pa.Table:
         """Build a timestamp table from axis coordinates.
 
         Constructs a PyArrow table with:
-        - axis: Root coordinate values
-        - One field per timeline (root + children) with local coordinates
+        - One field per timeline (this one and its children) with local
+          coordinates
         - One field per C-Map with converted values
 
-        Each field includes metadata:
-        - unit: The TimeUnit for this field's coordinates
-        - timeline_id: The timeline ID (for timeline fields)
-        - cmap_id: The C-Map ID (for C-Map fields)
+        Every column names the timeline or C-Map it belongs to and nothing
+        else. This timeline's own column carries the axis positions, so there
+        is no separate ``axis`` field duplicating them.
+
+        Every column is a coordinate struct carrying the number twice, so a
+        column's exact ratio survives the table and a parquet round trip; each
+        field's metadata names its unit, its declared number type, and either
+        the timeline it belongs to or the C-Map that produced it.
 
         Args:
-            axis: Array of root-relative coordinates (the timestamp axis).
+            axis: Root-relative coordinate structs (the positions to tabulate).
             conversion_maps: Optional list of C-Maps to include as fields.
             recursion_limit: Maximum depth for child traversal. None = unlimited.
 
         Returns:
             PyArrow table with timestamp data and field-level unit metadata.
         """
-        field_arrs: dict[str, pa.Array] = {}
-        fields: list[pa.Field] = []
+        columns: list[TimestampColumn] = [
+            TimestampColumn(
+                name=self._id,
+                values=self._compute_local_coordinates(axis, offset=0),
+                unit=self._unit,
+                number_type=self._number_type,
+                timeline_id=self._id,
+            ),
+        ]
 
-        # Helper to get PyArrow type from NumberType
-        def _get_pa_type(number_type: NumberType) -> pa.DataType:
-            """Map NumberType to PyArrow type: int -> int64, else float64."""
-            return pa.int64() if number_type == NumberType.int else pa.float64()
-
-        # Add axis field (root timeline coordinate)
-        axis_pa_type = _get_pa_type(self._number_type)
-        field_arrs["axis"] = axis
-        fields.append(
-            pa.field(
-                "axis",
-                axis_pa_type,
-                metadata=blob_metadata(
-                    unit=self._unit.value,
-                    timeline_id=self._id,
-                    number_type=self._number_type.name,
-                ),
-            )
-        )
-
-        # Add root timeline field (offset=0)
-        field_arrs[self._id] = self._compute_local_coordinates(axis, offset=0.0)
-        fields.append(
-            pa.field(
-                self._id,
-                axis_pa_type,
-                metadata=blob_metadata(
-                    unit=self._unit.value,
-                    timeline_id=self._id,
-                    number_type=self._number_type.name,
-                ),
-            )
-        )
-
-        # Add child fields recursively
         for child_offset, child in self.iter_children(
             recursion_limit=recursion_limit,
             include_self=False,
         ):
-            child_pa_type = _get_pa_type(child.number_type)
-            field_arrs[child.id] = child._compute_local_coordinates(
-                axis, offset=float(child_offset.value)
-            )
-            fields.append(
-                pa.field(
-                    child.id,
-                    child_pa_type,
-                    metadata=blob_metadata(
-                        unit=child.unit.value,
-                        timeline_id=child.id,
-                        number_type=child.number_type.name,
+            columns.append(
+                TimestampColumn(
+                    name=child.id,
+                    values=child._compute_local_coordinates(
+                        axis, offset=child_offset.value
                     ),
+                    unit=child.unit,
+                    number_type=child.number_type,
+                    timeline_id=child.id,
                 )
             )
 
-        # Add C-Map fields
         # C-Maps work on NumPy arrays; we convert PyArrow <-> NumPy at the boundary.
         if conversion_maps:
             # Allow copy for arrays with nulls (zero_copy_only=False)
-            axis_np = axis.to_numpy(zero_copy_only=False)
+            axis_np = axis.field("value").to_numpy(zero_copy_only=False)
             for cmap in conversion_maps:
-                if getattr(cmap, "target_unit", None) is None:
+                target_unit = getattr(cmap, "target_unit", None)
+                if target_unit is None:
                     # Numeric unit conversions only. A structured map such as
                     # MetricalPositionMap answers {"mc": ..., "beat": ...},
-                    # which has no column type here -- forcing it into the
-                    # float64 schema below fails on the field name itself.
+                    # which has no column type here.
                     continue
-                converted = cmap.convert_array(axis_np)
-                # Use map's name property for human-readable field header
-                col_name = cmap.name
-                field_arrs[col_name] = pa.array(converted)
-                # C-Map fields include target unit from the C-Map
-                target_unit = getattr(cmap, "target_unit", None)
-                unit_value = target_unit.value if target_unit else "unknown"
-                fields.append(
-                    pa.field(
-                        col_name,
-                        pa.float64(),
-                        metadata=blob_metadata(
-                            unit=unit_value,
-                            cmap_id=cmap.id,
-                            number_type=cmap.output_number_type.name,
-                        ),
+                columns.append(
+                    TimestampColumn(
+                        name=cmap.name,
+                        values=pa.array(cmap.convert_array(axis_np)),
+                        unit=target_unit,
+                        number_type=cmap.output_number_type,
+                        metadata={"cmap_id": cmap.id},
                     )
                 )
 
-        # Build table with explicit schema to preserve metadata
-        schema = pa.schema(fields)
-        return pa.table(field_arrs, schema=schema)
+        return build_timestamp_table(columns)
 
     def _resolve_coordinate_spec(
         self,
         coordinates: CoordinateSpec | Sequence[CoordinateSpec],
-    ) -> pa.Array:
+    ) -> pa.StructArray:
         """Resolve CoordinateSpec to axis coordinates.
 
         Handles IdCoordinate objects by automatically applying child offsets.
         This enables the dead-simple pattern:
 
             child_coords = [IdCoordinate(v, unit, "child_id") for v in values]
-            df = parent.to_dataframe(coordinates=child_coords)
+            table = parent.get_timestamp_table(child_coords)
 
         When an IdCoordinate's timeline_id matches a child of this timeline,
         the coordinate is automatically converted to parent coordinates by
@@ -767,58 +838,72 @@ class TabularExportMixin:
                 - Sequence of the above: Each element processed individually
 
         Returns:
-            PyArrow array of float64 axis coordinates.
+            The positions as coordinate structs on this timeline's axis, in
+            the representation it declares.
 
         Examples:
-            >>> # IdCoordinate from child timeline - offset auto-applied
-            >>> child_coord = IdCoordinate(1000.0, TimeUnit.pixels, "dgt_holes")
+            >>> from timetoalign.core import IdCoordinate, TimeUnit
+            >>> from timetoalign.timelines import Timeline
+            >>> parent = Timeline(length=5000, unit=TimeUnit.pixels, uid="dgt:1")
+            >>> holes = Timeline(length=2000, unit=TimeUnit.pixels, uid="dgt_holes")
+            >>> parent.add_child(holes, offset=500)
+            >>> child_coord = IdCoordinate(1000, TimeUnit.pixels, "dgt_holes")
             >>> axis = parent._resolve_coordinate_spec([child_coord])
-            >>> # axis[0] == 1000.0 + child_offset
+            >>> axis.field("numerator").to_pylist()  # 1000 + the child's offset
+            [1500]
         """
 
-        # Fast path: PyArrow array or numpy array of plain floats
-        if isinstance(coordinates, pa.Array):
-            return coordinates.cast(pa.float64())
+        # A column already in storage shape is the axis; anything else is
+        # encoded into it under this timeline's declared representation.
+        if isinstance(coordinates, (pa.Array, pa.ChunkedArray)):
+            if isinstance(coordinates, pa.ChunkedArray):
+                coordinates = coordinates.combine_chunks()
+            if coordinates.type == RATIONAL_STRUCT_TYPE:
+                return coordinates
+            return _coordinate_column(coordinates, self._number_type)
         if isinstance(coordinates, np.ndarray):
-            return pa.array(coordinates.astype(np.float64))
+            return _coordinate_column(coordinates, self._number_type)
 
         # Single coordinate specification
         if isinstance(coordinates, (int, float, Fraction, Coordinate, IdCoordinate)):
             coordinates = [coordinates]
 
         # Process list of coordinates
-        resolved: list[float] = []
+        resolved: list[int | float | Fraction] = []
         for coord in coordinates:
             resolve_coordinate_spec(coord)
-            resolved.append(float(self._resolve_axis_value(coord)))
+            resolved.append(self._resolve_axis_value(coord))
 
-        return pa.array(resolved, type=pa.float64())
+        return _coordinate_column(resolved, self._number_type)
 
     def get_timestamp_table(
         self,
-        coordinates: CoordinateSpec | Sequence[CoordinateSpec] | None = None,
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection | None = None,
+        *,
         conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_events: bool = True,
         include_boundaries: bool = False,
-    ) -> pa.Table:
-        """Generate a timestamp table as a PyArrow Table.
+        format: TableFormat = "table",
+        fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+        units: bool | None = None,
+        include_ids: bool | None = None,
+    ) -> pa.Table | pd.DataFrame:
+        """Generate a timestamp table for this timeline hierarchy.
 
         A Timestamp is a cross-section through the timeline hierarchy showing
         synchronous coordinates. This method computes local coordinates for
         each timeline in the hierarchy at each axis coordinate.
 
-        Supports IdCoordinate for automatic child offset resolution:
-
-            >>> # IdCoordinates from child timeline - offsets auto-applied!
-            >>> child_coords = [IdCoordinate(v, unit, "child_id") for v in values]
-            >>> df = parent.to_dataframe(coordinates=child_coords)
+        Supports IdCoordinate for automatic child offset resolution: naming a
+        child in the query places the position on the parent axis for you.
 
         Args:
-            coordinates: Explicit coordinates to use as the axis. If None,
-                coordinates are extracted from events (and optionally boundaries).
-                Accepts IdCoordinate objects - if timeline_id matches a child,
-                the offset is automatically applied.
+            at: Explicit positions to use as the axis, or event IDs (one row
+                per event, in the order given). If None, coordinates are
+                extracted from events (and optionally boundaries). Accepts
+                IdCoordinate objects - if timeline_id matches a child, the
+                offset is automatically applied.
             conversion_maps: C-Maps to include as fields. Flexible input:
                 - True: Include all attached conversion maps
                 - str: Map ID or target unit name (e.g., "inches", "seconds")
@@ -827,37 +912,95 @@ class TabularExportMixin:
                 - list: Mix of the above
                 - None/False: No conversion maps
             recursion_limit: Maximum depth for child traversal. None = unlimited.
-            include_events: If True and coordinates is None, extract from events.
+            include_events: If True and ``at`` is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
+            format: ``"table"`` (default) for a PyArrow table, ``"dataframe"``
+                for a pandas DataFrame.
+            fields: How to name the DataFrame fields (``format="dataframe"``):
+                - None or ColumnNaming.name (default): Use timeline/cmap name
+                - ColumnNaming.id: Use timeline/cmap id
+                - Callable: Function taking (name, metadata_dict) -> new_name
+                - list[str]: Explicit field names
+            units: If True (the DataFrame default), append units to field
+                names like "name (unit)".
+            include_ids: If True (the DataFrame default), add event IDs as the
+                DataFrame index when coordinates are collected from events.
 
         Returns:
-            PyArrow Table with schema:
-                - axis: float64 (root coordinate)
-                - {timeline_id}: float64 (nullable, local coordinate per timeline)
-                - {cmap_id}: varies (converted value per C-Map)
+            With ``format="table"``, a PyArrow Table whose fields are
+            coordinate structs, one per timeline plus one per C-Map:
+                - {timeline_id}: local coordinate per timeline, this one
+                  first (carrying the queried positions themselves), then
+                  each child; nullable where a timeline does not reach a row
+                - {cmap_name}: converted value per C-Map
+
+            There is no separate ``axis`` field: this timeline's own column
+            already holds those positions, and a duplicate of it would be a
+            second name for one thing. (Unrelated to ``Stamp.axis``, which is
+            a stamp's typed source coordinate and keeps its name.)
 
             Each field includes metadata:
                 - unit: TimeUnit.value string (e.g., "seconds", "pixels")
+                - number_type: the representation the column declares
                 - timeline_id: Timeline ID (for timeline fields)
                 - cmap_id: C-Map ID (for C-Map fields)
 
-            Access metadata via: ``table.schema.field(col_name).metadata``
+            Metadata lives in the versioned blob, so read it through
+            ``field_metadata(table.schema.field(col_name))`` rather than by
+            indexing ``.metadata`` with a bare key.
+
+            With ``format="dataframe"``, the same data as a pandas DataFrame
+            with one scalar per cell, written in the representation each
+            column declares.
+
+        Raises:
+            ValueError: On an unknown ``format``, or when a DataFrame-shaping
+                option is supplied for an Arrow result.
 
         Examples:
-            >>> table = timeline.get_timestamp_table()
-            >>> table.column_names
-            ['axis', 'tl:1', 'notes', 'measures']
+            >>> from timetoalign.core import IdCoordinate, TimeUnit
+            >>> from timetoalign.timelines import Timeline
+            >>> parent = Timeline(length=60, unit=TimeUnit.seconds, uid="tl:1")
+            >>> child = Timeline(length=10, unit=TimeUnit.seconds, uid="child:1")
+            >>> parent.add_child(child, offset=50)
+            >>> parent.add_events([{"id": "beat:1", "instant": 0.0}])
+            >>> parent.get_timestamp_table().column_names
+            ['tl:1', 'child:1']
 
-            >>> # Include all attached C-Maps
-            >>> table = timeline.get_timestamp_table(conversion_maps=True)
+            Every column names the timeline it belongs to; metadata lives in
+            the versioned blob:
 
-            >>> # Include specific C-Maps by target unit
-            >>> table = timeline.get_timestamp_table(conversion_maps=["inches", "cm"])
+            >>> from timetoalign.core.fields import field_metadata
+            >>> field_metadata(parent.get_timestamp_table().schema.field("tl:1"))["unit"]
+            'seconds'
 
-            >>> # Access unit metadata
-            >>> table.schema.field('axis').metadata[b'unit']
-            b'seconds'
+            A child position is placed on the parent axis automatically:
+
+            >>> coords = [IdCoordinate(v, TimeUnit.seconds, "child:1") for v in (0.0, 5.0)]
+            >>> parent.get_timestamp_table(coords, format="dataframe", units=False)
+               tl:1  child:1
+            0  50.0      0.0
+            1  55.0      5.0
         """
+        validate_table_format(format)
+        reject_dataframe_options(
+            format, fields=fields, units=units, include_ids=include_ids
+        )
+
+        coordinates: CoordinateSpec | Sequence[CoordinateSpec] | None = at
+        event_keys: list[str] | None = None
+        # An Arrow array is the ready-made numeric lane and never names keys;
+        # it is also not one of the accepted public collection forms.
+        if (
+            at is not None
+            and not isinstance(at, (pa.Array, pa.ChunkedArray))
+            and is_key_input(at)
+        ):
+            event_keys = [at] if isinstance(at, str) else list(at)
+            coordinates = [
+                self.get_coordinate_for(key, format="coordinate") for key in event_keys
+            ]
+
         # Resolve coordinates (handles IdCoordinate with auto child offset)
         if coordinates is not None:
             axis = self._resolve_coordinate_spec(coordinates)
@@ -870,15 +1013,7 @@ class TabularExportMixin:
                 boundary_coords = self._collect_boundary_coordinates(
                     recursion_limit=recursion_limit
                 )
-                if len(event_coords) > 0 and len(boundary_coords) > 0:
-                    combined = pa.concat_arrays([event_coords, boundary_coords])
-                    unique = pc.unique(combined)
-                    sort_indices = pc.sort_indices(unique)
-                    axis = pc.take(unique, sort_indices)
-                elif len(boundary_coords) > 0:
-                    axis = boundary_coords
-                else:
-                    axis = event_coords
+                axis = _unique_sorted_coordinates([event_coords, boundary_coords])
             else:
                 axis = event_coords
         else:
@@ -888,100 +1023,23 @@ class TabularExportMixin:
         # Resolve C-Map references using flexible helper
         resolved_maps = self._resolve_conversion_maps(conversion_maps)
 
-        return self._build_timestamp_table(
+        table = self._build_timestamp_table(
             axis=axis,
             conversion_maps=resolved_maps if resolved_maps else None,
             recursion_limit=recursion_limit,
         )
+        if format == "table":
+            return table
 
-    def to_dataframe(
-        self,
-        coordinates: CoordinateSpec | Sequence[CoordinateSpec] | None = None,
-        conversion_maps: ConversionMapsSpec = True,
-        recursion_limit: int | None = None,
-        include_events: bool = True,
-        include_boundaries: bool = False,
-        *,
-        fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
-        units: bool = True,
-        format: str = "pandas",
-        include_ids: bool = True,
-        as_fractions: bool | None = None,
-    ) -> pd.DataFrame:
-        """Generate timestamps as a pandas DataFrame with formatted field names.
-
-        This is the recommended high-level method for getting timestamp data.
-        It builds on get_timestamp_table() and applies field formatting.
-
-        Args:
-            coordinates: Explicit coordinates to use as the axis.
-            conversion_maps: C-Maps to include as additional fields. Defaults to True (all).
-            recursion_limit: Maximum depth for child traversal.
-            include_events: If True and coordinates is None, extract from events.
-            include_boundaries: If True, include timeline boundary coordinates.
-            fields: How to name the DataFrame fields. Options:
-                - None or ColumnNaming.name (default): Use timeline/cmap name
-                - ColumnNaming.id: Use timeline/cmap id
-                - Callable: Function taking (name, metadata_dict) -> new_name
-                - list[str]: Explicit field names
-            units: If True (default), append units to field names like "name (unit)".
-            format: Output format. Currently only "pandas" is supported.
-            include_ids: If True (default), add event IDs as the DataFrame index
-                when coordinates are collected from events.
-            as_fractions: If True, render float coordinate fields as Fraction
-                objects. If None, enable this for fraction-based timelines.
-
-        Returns:
-            pandas DataFrame with:
-            - Fields named according to the ``fields`` parameter
-            - Units appended if ``units=True``
-            - Each column in the representation its axis declares:
-              whole numbers on an integer-locked axis, exact ratios on a
-              fraction-canonical axis, doubles on a float-canonical one
-
-        Examples:
-            >>> df = timeline.to_dataframe()
-            >>> df.columns
-            Index(['axis (pixels)', 'dgt1 (pixels)', 'pixels_to_inches (inches)'])
-
-            >>> # Without units in field names
-            >>> df = timeline.to_dataframe(units=False)
-            >>> df.columns
-            Index(['axis', 'dgt1', 'pixels_to_inches'])
-        """
-        from timetoalign.core.timestamp import timestamp_table_to_dataframe
-
-        table = self.get_timestamp_table(
-            coordinates=coordinates,
-            conversion_maps=conversion_maps,
-            recursion_limit=recursion_limit,
-            include_events=include_events,
-            include_boundaries=include_boundaries,
-        )
         df = timestamp_table_to_dataframe(
             table=table,
             fields=fields,
-            units=units,
-            format=format,
+            units=True if units is None else units,
         )
-
-        use_fractions = as_fractions
-        if use_fractions is None:
-            use_fractions = self._number_type == NumberType.fraction
-        if use_fractions:
-            for name in df.columns:
-                if df[name].dtype not in (float, "float64", "Float64"):
-                    continue
-                # A column that reached here as float has already lost
-                # whatever exactness it had; converting it back gives the
-                # ratio the double actually is, not a tidier one nearby.
-                # Columns that kept their exact values never enter this
-                # branch -- they are not float-typed.
-                df[name] = df[name].apply(
-                    lambda x: Fraction(x) if pd.notna(x) else None
-                )
-
-        if include_ids and include_events and coordinates is None:
+        if event_keys is not None:
+            df.index = pd.Index(event_keys, name="id")
+            return df
+        if (include_ids is not False) and include_events and at is None:
             all_events = self.get_events(include_children=True)
             coord_to_ids: dict[float, str] = {}
             for event_id, start in zip(
@@ -995,14 +1053,22 @@ class TabularExportMixin:
                 if coord_val not in coord_to_ids:
                     coord_to_ids[coord_val] = event_id or ""
 
-            axis_name = df.columns[0]
+            # The positions to match against are this timeline's own column,
+            # found by name rather than by ordinal. If it is missing the table
+            # is malformed and that is an error -- never a reason to fall back
+            # to another column, which would silently index the frame by some
+            # other timeline's coordinates.
+            if self._id not in table.column_names:
+                raise KeyError(
+                    f"Timestamp table has no column for timeline {self._id!r}. "
+                    f"Available columns: {table.column_names}"
+                )
+            own_column = df.columns[table.column_names.index(self._id)]
             ids = []
-            for value in df[axis_name]:
-                float_value = float(value) if value is not None else None
+            for value in df[own_column]:
+                float_value = float(value) if pd.notna(value) else None
                 ids.append(coord_to_ids.get(float_value, ""))
-            df.index = ids
-            df.index.name = "id"
-
+            df.index = pd.Index(ids, name="id")
         return df
 
     def get_boundary_table(
@@ -1023,28 +1089,43 @@ class TabularExportMixin:
             PyArrow Table with boundary timestamps.
 
         Examples:
-            >>> table = timeline.get_boundary_table()
-            >>> table.to_pandas()
-               axis  tl:1  child:1
-            0   0.0   0.0      NaN
-            1  10.0  10.0     10.0
-            2  50.0   NaN      0.0
-            3  60.0   NaN     10.0
+            >>> from timetoalign.core import TimeUnit
+            >>> from timetoalign.timelines import Timeline
+            >>> parent = Timeline(length=60, unit=TimeUnit.seconds, uid="tl:1")
+            >>> child = Timeline(length=10, unit=TimeUnit.seconds, uid="child:1")
+            >>> parent.add_child(child, offset=50)
+            >>> parent.get_boundary_table().column_names
+            ['tl:1', 'child:1']
+
+            Cells are coordinate structs, so read them through the frame lane
+            rather than ``to_pandas()`` — the latter hands back one dict per
+            cell:
+
+            >>> parent.get_timestamp_table(
+            ...     parent._collect_boundary_coordinates(),
+            ...     include_events=False,
+            ...     format="dataframe",
+            ...     units=False,
+            ... )
+               tl:1  child:1
+            0   0.0      NaN
+            1  50.0      0.0
+            2  60.0     10.0
         """
-        return self.get_timestamp_table(
-            coordinates=self._collect_boundary_coordinates(
-                recursion_limit=recursion_limit
-            ),
+        table = self.get_timestamp_table(
+            self._collect_boundary_coordinates(recursion_limit=recursion_limit),
             conversion_maps=conversion_maps,
             recursion_limit=recursion_limit,
             include_events=False,
-            include_boundaries=False,  # Already included in coordinates
+            include_boundaries=False,  # Already included in the positions
         )
+        assert isinstance(table, pa.Table)
+        return table
 
     def export_to_csv(
         self,
         filepath: str,
-        coordinates: CoordinateSpec | Sequence[CoordinateSpec] | None = None,
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection | None = None,
         conversion_maps: ConversionMapsSpec = True,
         recursion_limit: int | None = None,
         include_events: bool = True,
@@ -1060,16 +1141,16 @@ class TabularExportMixin:
 
         This is a convenience method that generates a timestamp DataFrame and
         writes it to a CSV file. For more control over the output, use
-        to_dataframe() and save manually.
+        ``get_timestamp_table(format="dataframe")`` and save manually.
 
         Args:
             filepath: Output CSV file path.
-            coordinates: Explicit coordinates to use as the axis.
+            at: Explicit positions or event IDs to use as the axis.
             conversion_maps: C-Maps to include as additional fields. Defaults to True (all).
             recursion_limit: Maximum depth for child traversal.
-            include_events: If True and coordinates is None, extract from events.
+            include_events: If True and ``at`` is None, extract from events.
             include_boundaries: If True, include timeline boundary coordinates.
-            fields: How to name the DataFrame fields (see to_dataframe).
+            fields: How to name the DataFrame fields (see get_timestamp_table).
             units: If True (default), append units to field names.
             sep: Field separator. Default "," (comma).
             header: If True (default), write field headers.
@@ -1079,21 +1160,32 @@ class TabularExportMixin:
             Number of rows written.
 
         Examples:
-            >>> timeline.export_to_csv("timestamps.csv")
-            100
+            >>> import tempfile
+            >>> from pathlib import Path
+            >>> from timetoalign.core import TimeUnit
+            >>> from timetoalign.timelines import Timeline
+            >>> timeline = Timeline(length=60, unit=TimeUnit.seconds, uid="tl:1")
+            >>> timeline.add_events(
+            ...     [{"id": "beat:1", "instant": 0.0}, {"id": "beat:2", "instant": 55.0}]
+            ... )
+            >>> out = Path(tempfile.mkdtemp())
+            >>> timeline.export_to_csv(str(out / "timestamps.csv"))
+            2
 
             >>> # Tab-separated, no header
-            >>> timeline.export_to_csv("data.tsv", sep="\\t", header=False)
-            100
+            >>> timeline.export_to_csv(str(out / "data.tsv"), sep="\\t", header=False)
+            2
         """
-        df = self.to_dataframe(
-            coordinates=coordinates,
+        df = self.get_timestamp_table(
+            at,
             conversion_maps=conversion_maps,
             recursion_limit=recursion_limit,
             include_events=include_events,
             include_boundaries=include_boundaries,
+            format="dataframe",
             fields=fields,
             units=units,
         )
+        assert isinstance(df, pd.DataFrame)
         df.to_csv(filepath, sep=sep, header=header, index=index)
         return len(df)

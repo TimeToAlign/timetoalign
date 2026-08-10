@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Iterable
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any
@@ -26,10 +25,9 @@ import pandas as pd
 
 from timetoalign.core import (
     Coordinate,
-    CoordinateField,
     CoordinateSpec,
+    CoordinateValue,
     IdCoordinate,
-    IdCoordinateField,
     IdGenerator,
     SupportPolicy,
     TimeUnit,
@@ -46,11 +44,19 @@ from timetoalign.core.retrieval import (
     CoordinateResult,
     KeyCollection,
     Rounding,
-    classify_dispatch_input,
+    TableFormat,
+    dispatch_retrieval,
     format_coordinates,
+    is_coordinate_input,
+    is_key_input,
+    reject_dataframe_options,
+    resolve_coordinate_collection,
+    resolve_key_collection,
     validate_coordinate_collection,
     validate_key_collection,
+    validate_table_format,
 )
+from timetoalign.core.timestamp import TimestampColumn, build_timestamp_table
 from timetoalign.timelines import TimelineGroup
 
 from .claims import MatchClaim, MatchClaimField
@@ -60,9 +66,11 @@ from .matchline import MatchLine
 from .warpmap import AmbiguousWarpMapError, WarpMap
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     import pyarrow as pa
 
-    from timetoalign.core.enums import Domain
+    from timetoalign.core.enums import ColumnNaming, Domain
     from timetoalign.core.timestamp import ConversionMapsSpec
     from timetoalign.display.ascii import Diagram
     from timetoalign.maps.base import ConversionMap
@@ -1717,26 +1725,19 @@ class AlignmentBundle:
         Returns:
             The selected precise-getter result.
         """
-        branch = classify_dispatch_input(at)
-        if branch == "coordinate":
-            return self.get_coordinate_at(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        if branch == "coordinates":
-            return self.get_coordinates_at(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        if branch == "key":
-            return self.get_coordinate_for(
-                at, timeline_id=timeline_id, format=format, rounding=rounding
-            )
-        return self.get_coordinates_for(
-            at, timeline_id=timeline_id, format=format, rounding=rounding
+        return dispatch_retrieval(
+            self,
+            "get_coordinate",
+            "get_coordinates",
+            at,
+            timeline_id,
+            format=format,
+            rounding=rounding,
         )
 
     def get_matchstamp_at(
         self,
-        coordinate: CoordinateSpec,
+        at: CoordinateSpec,
         timeline_id: str | None = None,
         *,
         support_policy: "SupportPolicy | str | None" = None,
@@ -1767,14 +1768,14 @@ class AlignmentBundle:
         ever yields a negative coordinate or one beyond a timeline's length.
 
         Args:
-            coordinate: The query coordinate. Can be:
+            at: The query coordinate. Can be:
 
                 - int/float/Fraction: Raw value, ``timeline_id`` required.
                 - Coordinate: Value with unit, ``timeline_id`` required.
                 - IdCoordinate: Value with unit AND timeline_id
                   (``timeline_id`` param optional).
             timeline_id: Bundle UID of the source timeline. Required unless
-                ``coordinate`` is an ``IdCoordinate``, in which case the
+                ``at`` is an ``IdCoordinate``, in which case the
                 coordinate's own ``timeline_id`` is used.
             support_policy: How to treat out-of-support timelines
                 (``omit`` / ``clamp`` / ``extrapolate``). Accepts a
@@ -1793,9 +1794,9 @@ class AlignmentBundle:
             MatchStamp spanning all connected timelines.
 
         Raises:
-            TypeError: If coordinate is not int/float/Fraction/Coordinate/
+            TypeError: If ``at`` is not int/float/Fraction/Coordinate/
                 IdCoordinate.
-            ValueError: If timeline_id is None and coordinate is not an
+            ValueError: If timeline_id is None and ``at`` is not an
                 IdCoordinate.
             KeyError: If timeline_id is not in the bundle.
 
@@ -1805,7 +1806,7 @@ class AlignmentBundle:
             23  # score + 22 performers
         """
         coordinate_value, timeline_id, unit = _resolve_coordinate_and_timeline(
-            coordinate, timeline_id
+            at, timeline_id
         )
         if timeline_id is None:
             raise ValueError(
@@ -1823,13 +1824,19 @@ class AlignmentBundle:
 
         bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
         actual_timeline_id = self._uid_to_timeline_id.get(bundle_uid, timeline_id)
-        coordinate = float(
+        # The query's own position is known exactly; only the graph and warp
+        # lanes below need it as a double. Keeping the exact value here is
+        # what lets the source timeline's own cell report the ratio that was
+        # asked for instead of the dyadic of its double -- the transferred
+        # cells are genuinely interpolated and stay re-expressed from float.
+        queried: CoordinateValue = (
             self.get_timeline(bundle_uid)
             .get_coordinate_at(Coordinate(coordinate_value, unit), format="coordinate")
             .value
             if unit is not None
             else coordinate_value
         )
+        coordinate = float(queried)
 
         policy = (
             self.support_policy
@@ -1858,7 +1865,7 @@ class AlignmentBundle:
         ordered_ids.extend(sorted(set(public_values).difference(ordered_ids)))
         typed_coordinates: dict[str, Coordinate] = {}
         for public_uid in ordered_ids:
-            value = public_values[public_uid]
+            value = queried if public_uid == source_uid else public_values[public_uid]
             timeline = self.get_timeline(public_uid)
             typed_coordinates[public_uid] = Coordinate(
                 value,
@@ -1950,6 +1957,210 @@ class AlignmentBundle:
     ) -> SupportPolicy:
         """Coerce a policy argument to a :class:`SupportPolicy` member."""
         return policy if isinstance(policy, SupportPolicy) else SupportPolicy(policy)
+
+    def get_matchstamps_at(
+        self,
+        at: CoordinateCollection,
+        timeline_id: str | None = None,
+        *,
+        support_policy: "SupportPolicy | str | None" = None,
+        conversion_maps: "ConversionMapsSpec" = False,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        include_domains: set["Domain"] | None = None,
+        include_units: set["TimeUnit"] | None = None,
+    ) -> list[MatchStamp]:
+        """Get cross-group MatchStamps at a collection of coordinates.
+
+        Every element is resolved through :meth:`get_matchstamp_at`, so each
+        one yields exactly one full transitive cross-section, and input order
+        is preserved.
+
+        Args:
+            at: Coordinate positions to resolve. Each element is a raw
+                ``int``/``float``/``Fraction`` or ``Coordinate`` (needing
+                ``timeline_id``) or an ``IdCoordinate`` (carrying its own).
+            timeline_id: Bundle UID of the source timeline.
+            support_policy: How to treat out-of-support timelines.
+            conversion_maps: C-map conversions available through the stamps.
+            timeline_ids: Only include these bundle UIDs in each result.
+            id_pattern: Regex filter for bundle UIDs in each result.
+            include_domains: Only these domains in each result.
+            include_units: Only these units in each result.
+
+        Returns:
+            One MatchStamp per input coordinate; an empty collection gives an
+            empty list.
+
+        Examples:
+            >>> stamps = bundle.get_matchstamps_at([0.0, 50.0], "score:clt1")
+            >>> stamps[1].get_coordinate_for("score:clt1", format="float")
+            50.0
+        """
+        stamps, _ = resolve_coordinate_collection(
+            at,
+            lambda value: self.get_matchstamp_at(
+                value,
+                timeline_id,
+                support_policy=support_policy,
+                conversion_maps=conversion_maps,
+                timeline_ids=timeline_ids,
+                id_pattern=id_pattern,
+                include_domains=include_domains,
+                include_units=include_units,
+            ),
+        )
+        return stamps
+
+    def get_matchstamp_for(
+        self,
+        key: str,
+        timeline_id: str | None = None,
+        *,
+        support_policy: "SupportPolicy | str | None" = None,
+        conversion_maps: "ConversionMapsSpec" = False,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        include_domains: set["Domain"] | None = None,
+        include_units: set["TimeUnit"] | None = None,
+    ) -> MatchStamp:
+        """Get the cross-group MatchStamp at a uniquely owned event.
+
+        Args:
+            key: Event ID with exactly one owning registered timeline.
+            timeline_id: Bundle UID the stamp is anchored on; by default the
+                event's owner.
+            support_policy: How to treat out-of-support timelines.
+            conversion_maps: C-map conversions available through the stamp.
+            timeline_ids: Only include these bundle UIDs in the result.
+            id_pattern: Regex filter for bundle UIDs in the result.
+            include_domains: Only these domains in the result.
+            include_units: Only these units in the result.
+
+        Returns:
+            MatchStamp spanning all connected timelines.
+
+        Raises:
+            KeyError: If no registered timeline owns the event.
+            ValueError: If several registered timelines own it.
+
+        Examples:
+            >>> ms = bundle.get_matchstamp_for("note:000001")
+            >>> ms.get_coordinate_for(ms.source_id)  # the event's own owner axis
+        """
+        if not isinstance(key, str):
+            raise TypeError("get_matchstamp_for requires an event-ID string")
+        owners = self._event_owners(key)
+        if not owners:
+            raise KeyError(f"Event {key!r} not found in bundle {self.id!r}")
+        if len(owners) != 1:
+            raise ValueError(f"Event {key!r} has competing owners {owners}")
+        owner = owners[0]
+        source = self.get_timeline(owner).get_coordinate_for(key, format="coordinate")
+        assert isinstance(source, Coordinate)
+        return self.get_matchstamp_at(
+            IdCoordinate.from_coordinate(source, owner),
+            timeline_id or owner,
+            support_policy=support_policy,
+            conversion_maps=conversion_maps,
+            timeline_ids=timeline_ids,
+            id_pattern=id_pattern,
+            include_domains=include_domains,
+            include_units=include_units,
+        )
+
+    def get_matchstamps_for(
+        self,
+        keys: KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        support_policy: "SupportPolicy | str | None" = None,
+        conversion_maps: "ConversionMapsSpec" = False,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        include_domains: set["Domain"] | None = None,
+        include_units: set["TimeUnit"] | None = None,
+    ) -> list[MatchStamp]:
+        """Get cross-group MatchStamps for a collection of event IDs.
+
+        Args:
+            keys: Event IDs to resolve, each with exactly one owner.
+            timeline_id: Bundle UID every stamp is anchored on; by default
+                each event's own owner.
+            support_policy: How to treat out-of-support timelines.
+            conversion_maps: C-map conversions available through the stamps.
+            timeline_ids: Only include these bundle UIDs in each result.
+            id_pattern: Regex filter for bundle UIDs in each result.
+            include_domains: Only these domains in each result.
+            include_units: Only these units in each result.
+
+        Returns:
+            One MatchStamp per key, in input order; an empty collection gives
+            an empty list.
+
+        Raises:
+            KeyError: If any key is unknown. The batch answers completely or
+                not at all.
+        """
+        stamps, _ = resolve_key_collection(
+            keys,
+            lambda key: self.get_matchstamp_for(
+                key,
+                timeline_id,
+                support_policy=support_policy,
+                conversion_maps=conversion_maps,
+                timeline_ids=timeline_ids,
+                id_pattern=id_pattern,
+                include_domains=include_domains,
+                include_units=include_units,
+            ),
+        )
+        return stamps
+
+    def get_matchstamp(
+        self,
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection,
+        timeline_id: str | None = None,
+        *,
+        support_policy: "SupportPolicy | str | None" = None,
+        conversion_maps: "ConversionMapsSpec" = False,
+        timeline_ids: set[str] | None = None,
+        id_pattern: str | None = None,
+        include_domains: set["Domain"] | None = None,
+        include_units: set["TimeUnit"] | None = None,
+    ) -> MatchStamp | list[MatchStamp]:
+        """Dispatch a positional or event-key match-stamp query.
+
+        Args:
+            at: Scalar or plural coordinate position or event key.
+            timeline_id: Bundle UID the query is expressed on.
+            support_policy: How to treat out-of-support timelines.
+            conversion_maps: C-map conversions available through the stamps.
+            timeline_ids: Only include these bundle UIDs in each result.
+            id_pattern: Regex filter for bundle UIDs in each result.
+            include_domains: Only these domains in each result.
+            include_units: Only these units in each result.
+
+        Returns:
+            The selected precise-getter result.
+
+        Raises:
+            TypeError: If ``at`` mixes keys and coordinates or is an
+                unsupported runtime form.
+        """
+        return dispatch_retrieval(
+            self,
+            "get_matchstamp",
+            "get_matchstamps",
+            at,
+            timeline_id,
+            support_policy=support_policy,
+            conversion_maps=conversion_maps,
+            timeline_ids=timeline_ids,
+            id_pattern=id_pattern,
+            include_domains=include_domains,
+            include_units=include_units,
+        )
 
     def _assemble_matchstamp(
         self,
@@ -2090,40 +2301,28 @@ class AlignmentBundle:
         self,
         claims: list[MatchClaim] | None = None,
         *,
-        coordinates: Iterable[CoordinateSpec] | None = None,
-        timeline_id: str | None = None,
         from_graph: bool = True,
         conversion_maps: "ConversionMapsSpec" = False,
     ) -> list[MatchStamp]:
-        """Get MatchStamps for a list of MatchClaims or query coordinates.
+        """Get MatchStamps for the bundle's claims.
 
-        Convenience method for retrieving MatchStamps for multiple claims
-        at once. Uses the bundle's caching mechanism for efficient retrieval.
+        The bare plural means "stamps for the claims this bundle holds" — it
+        is the claim-driven listing, not the batch sibling of
+        :meth:`get_matchstamps_at`. To resolve a batch of *positions*, use
+        :meth:`get_matchstamps_at`; to resolve event IDs, use
+        :meth:`get_matchstamps_for`.
 
-        When ``coordinates`` is given instead of ``claims``, each coordinate is
-        resolved through :meth:`get_matchstamp_at` — the coordinate-first entry
-        point for callers who hold coordinates rather than ``MatchClaim``
-        objects. Input order is preserved and every coordinate yields exactly
-        one stamp (a full transitive cross-section).
+        Uses the bundle's caching mechanism for efficient retrieval.
 
         Args:
             claims: List of MatchClaims to get stamps for. If None, uses
                 every cross-group claim in the bundle — the per-claim list
                 and every columnar ``MatchClaimField`` (see
                 :meth:`get_match_claims`, which materialises the columnar
-                rows). Mutually exclusive with ``coordinates``.
-            coordinates: Query coordinates to resolve through
-                :meth:`get_matchstamp_at`, one stamp per coordinate in input
-                order. Each element is a raw ``int``/``float``/``Fraction`` or
-                ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
-                (carrying its own timeline). Mutually exclusive with ``claims``.
-            timeline_id: Source timeline for the ``coordinates`` batch; may be
-                ``None`` when every element is an ``IdCoordinate``. Ignored on
-                the ``claims`` path.
+                rows).
             from_graph: If True (default), return full MatchStamps from the
                 MatchGraph (all connected timelines). If False, return
-                reduced 2-timeline stamps. Ignored on the ``coordinates``
-                path, where each stamp is already a full cross-section.
+                reduced 2-timeline stamps.
             conversion_maps: C-map conversions available through unit lookup
                 and display. Opt-in: defaults to ``False``.
 
@@ -2131,29 +2330,13 @@ class AlignmentBundle:
             List of MatchStamp objects. Non-synchronous claims yield None
             entries (filtered out).
 
-        Raises:
-            ValueError: If both ``claims`` and ``coordinates`` are given.
-
         Examples:
             >>> stamps = bundle.get_matchstamps()
             >>> len(stamps)
             100
             >>> stamps[0].n_timelines
             23
-            >>> coord_stamps = bundle.get_matchstamps(
-            ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
-            ... )
-            >>> coord_stamps[1].get_coordinate_for("score:clt1", format="float")
-            50.0
         """
-        if coordinates is not None:
-            if claims is not None:
-                raise ValueError("Pass either claims or coordinates, not both")
-            return [
-                self.get_matchstamp_at(c, timeline_id, conversion_maps=conversion_maps)
-                for c in coordinates
-            ]
-
         if claims is None:
             claims = self.get_match_claims()
 
@@ -2169,15 +2352,18 @@ class AlignmentBundle:
 
     def get_matchstamp_table(
         self,
-        claims: list[MatchClaim] | None = None,
-        *,
-        coordinates: Iterable[CoordinateSpec] | None = None,
+        at: CoordinateInput | CoordinateCollection | str | KeyCollection | None = None,
         timeline_id: str | None = None,
+        *,
+        claims: list[MatchClaim] | None = None,
         timeline_filter: set[str] | None = None,
         from_graph: bool = False,
         conversion_maps: "ConversionMapsSpec" = False,
-    ) -> "pa.Table":
-        """Get a PyArrow table of MatchStamps for alignment queries.
+        format: TableFormat = "table",
+        fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None" = None,
+        units: bool | None = None,
+    ) -> "pa.Table | pd.DataFrame":
+        """Get a table of MatchStamps for alignment queries.
 
         Analogous to ``get_timestamp_table()`` but for cross-group alignment.
         Fields are timeline IDs holding their coordinate values; what a *row*
@@ -2197,41 +2383,48 @@ class AlignmentBundle:
         ever materialised — which is what keeps a hundreds-of-thousands-of-rows
         alignment tabulable.
 
-        When ``coordinates`` is given instead of ``claims``, each coordinate is
-        resolved through :meth:`get_matchstamp_at` and becomes exactly one
+        When ``at`` is given instead of ``claims``, each position or event ID
+        is resolved through :meth:`get_matchstamp_at` and becomes exactly one
         row — a full transitive cross-section, every reached timeline filled —
         in input order. ``from_graph`` does not apply on this path (the stamps
         are already collapsed cross-sections) and is ignored.
 
         Args:
+            at: Query positions or event IDs to resolve through
+                :meth:`get_matchstamp_at`, one row each in input order. Each
+                element is a raw ``int``/``float``/``Fraction`` or
+                ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
+                (carrying its own timeline). Mutually exclusive with ``claims``.
+            timeline_id: Source timeline for the ``at`` batch; may be
+                ``None`` when every element is an ``IdCoordinate`` or an event
+                ID. Ignored on the ``claims`` path.
             claims: List of MatchClaims to tabulate.  If None, uses every
                 cross-group claim in the bundle (both stores).  When given,
                 only those claims are tabulated.  Mutually exclusive with
-                ``coordinates``.
-            coordinates: Query coordinates to resolve through
-                :meth:`get_matchstamp_at`, one row per coordinate in input
-                order. Each element is a raw ``int``/``float``/``Fraction`` or
-                ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
-                (carrying its own timeline). Mutually exclusive with ``claims``.
-            timeline_id: Source timeline for the ``coordinates`` batch; may be
-                ``None`` when every element is an ``IdCoordinate``. Ignored on
-                the ``claims`` path.
+                ``at``.
             timeline_filter: Only include these timeline fields.
             from_graph: Collapse claims into one row per connected component
-                instead of one row per claim.  Ignored on the ``coordinates``
-                path.
+                instead of one row per claim.  Ignored on the ``at`` path.
             conversion_maps: C-map conversions to add as derived columns, one
                 per (timeline, enabled unit-conversion map). Opt-in: defaults
                 to ``False``. Only numeric unit-conversion maps (a
                 ``target_unit`` set) become columns; label/structured maps
                 appear in stamp display but never as table columns.
+            format: ``"table"`` (default) for a PyArrow table, ``"dataframe"``
+                for a pandas DataFrame.
+            fields: How to name the DataFrame fields (``format="dataframe"``).
+            units: If True (the DataFrame default), append units to field
+                names like "name (unit)".
 
         Returns:
-            PyArrow Table with one field per timeline.  Non-synchronous claims
-            are excluded.  Empty input yields an empty table.
+            One field per timeline, each a coordinate struct carrying its
+            number twice.  Non-synchronous claims are excluded.  Empty input
+            yields an empty table.
 
         Raises:
-            ValueError: If both ``claims`` and ``coordinates`` are given.
+            ValueError: If both ``claims`` and ``at`` are given, on an unknown
+                ``format``, or when a DataFrame-shaping option is supplied for
+                an Arrow result.
 
         Note:
             Collapsed rows are ordered by the coordinate on the
@@ -2249,24 +2442,42 @@ class AlignmentBundle:
             ['score:clt1', 'perf:dlt1', 'perf:dlt2', ...]
             >>> bundle.get_matchstamp_table(from_graph=True).num_rows
             25
-            >>> bundle.get_matchstamp_table(
-            ...     coordinates=[0.0, 50.0], timeline_id="score:clt1"
-            ... ).num_rows
+            >>> bundle.get_matchstamp_table([0.0, 50.0], "score:clt1").num_rows
             2
         """
-        if coordinates is not None:
+        validate_table_format(format)
+        reject_dataframe_options(format, fields=fields, units=units)
+        if at is not None:
             if claims is not None:
-                raise ValueError("Pass either claims or coordinates, not both")
-            stamps = [
-                self.get_matchstamp_at(c, timeline_id, conversion_maps=conversion_maps)
-                for c in coordinates
-            ]
+                raise ValueError("Pass either claims or at, not both")
+            stamps = (
+                self.get_matchstamps_for(
+                    [at] if isinstance(at, str) else at,
+                    timeline_id,
+                    conversion_maps=conversion_maps,
+                )
+                if is_key_input(at)
+                else self.get_matchstamps_at(
+                    [at] if is_coordinate_input(at) else at,
+                    timeline_id,
+                    conversion_maps=conversion_maps,
+                )
+            )
             rows = [dict(stamp.coordinates) for stamp in stamps]
             all_tl_ids: set[str] = set()
             for row in rows:
                 all_tl_ids.update(row)
-            return self._assemble_matchstamp_table(
-                rows, [], all_tl_ids, timeline_filter, conversion_maps=conversion_maps
+            return self._render_matchstamp_table(
+                self._assemble_matchstamp_table(
+                    rows,
+                    [],
+                    all_tl_ids,
+                    timeline_filter,
+                    conversion_maps=conversion_maps,
+                ),
+                format=format,
+                fields=fields,
+                units=units,
             )
 
         list_claims = self.cross_group_claims if claims is None else claims
@@ -2304,12 +2515,36 @@ class AlignmentBundle:
                 all_tl_ids.update(ids_b)
             all_tl_ids.discard(None)
 
-        return self._assemble_matchstamp_table(
-            rows,
-            bulk_columns,
-            all_tl_ids,
-            timeline_filter,
-            conversion_maps=conversion_maps,
+        return self._render_matchstamp_table(
+            self._assemble_matchstamp_table(
+                rows,
+                bulk_columns,
+                all_tl_ids,
+                timeline_filter,
+                conversion_maps=conversion_maps,
+            ),
+            format=format,
+            fields=fields,
+            units=units,
+        )
+
+    @staticmethod
+    def _render_matchstamp_table(
+        table: "pa.Table",
+        *,
+        format: TableFormat,
+        fields: "ColumnNaming | Callable[[str, dict], str] | list[str] | None",
+        units: bool | None,
+    ) -> "pa.Table | pd.DataFrame":
+        """Return the assembled table in the requested output shape."""
+        if format == "table":
+            return table
+        from timetoalign.core.timestamp import timestamp_table_to_dataframe
+
+        return timestamp_table_to_dataframe(
+            table=table,
+            fields=fields,
+            units=True if units is None else units,
         )
 
     def _assemble_matchstamp_table(
@@ -2422,8 +2657,7 @@ class AlignmentBundle:
                         derived.append(None)
                 field_lists[col_name] = derived
 
-        arrays: list[pa.Array] = []
-        fields: list[pa.Field] = []
+        columns: list[TimestampColumn] = []
         for name, coordinates in field_lists.items():
             exemplar = next(
                 (coordinate for coordinate in coordinates if coordinate is not None),
@@ -2440,33 +2674,16 @@ class AlignmentBundle:
             else:
                 unit = exemplar.unit
                 number_type = exemplar.number_type
-            values = [
-                None if coordinate is None else coordinate.value
-                for coordinate in coordinates
-            ]
-            from timetoalign.core.time import build_number_struct_array
-
-            array = build_number_struct_array(
-                values, number_type=number_type, rounding="round", on_error="raise"
+            columns.append(
+                TimestampColumn(
+                    name=name,
+                    values=coordinates,
+                    unit=unit,
+                    number_type=number_type,
+                    timeline_id=name if name in self.timelines else None,
+                )
             )
-            if name in self.timelines:
-                semantic = IdCoordinateField.from_field(
-                    array,
-                    unit=unit,
-                    number_type=number_type,
-                    timeline_id=name,
-                    name=name,
-                )
-            else:
-                semantic = CoordinateField.from_field(
-                    array,
-                    unit=unit,
-                    number_type=number_type,
-                    name=name,
-                )
-            arrays.append(semantic.to_pyarrow())
-            fields.append(semantic.to_field())
-        return pa.Table.from_arrays(arrays, schema=pa.schema(fields))
+        return build_timestamp_table(columns)
 
     def _canonical_table_coordinate(
         self, timeline_id: str, value: Coordinate | float | None
@@ -2497,7 +2714,7 @@ class AlignmentBundle:
         self,
         claims: list[MatchClaim],
         claim_fields: list[MatchClaimField],
-    ) -> list[dict[str, float | None]]:
+    ) -> list[dict[str, CoordinateValue | None]]:
         """Collapse pairwise claims into one row per aligned instant.
 
         Each synchronous claim is an edge between the nodes
@@ -2532,31 +2749,46 @@ class AlignmentBundle:
             if root_a != root_b:
                 parent[root_b] = root_a
 
+        # The union runs on float keys, because two claims meet at a node only
+        # when they name the same position and a float is the one spelling both
+        # sides always have. What the row REPORTS is the exact coordinate
+        # recorded for that node, so an anchor authored at 5/3 is emitted as
+        # 5/3 rather than as the double it was joined on.
+        exact: dict[tuple[str, float], CoordinateValue] = {}
+
+        def record(timeline_id: str, coordinate: CoordinateValue) -> tuple[str, float]:
+            node = (timeline_id, float(coordinate))
+            exact.setdefault(node, coordinate)
+            return node
+
         for claim in claims:
             if not claim.is_synchronous or claim.start_anchor is None:
                 continue
             anchor = claim.start_anchor
             union(
-                (claim.timeline_a_id, float(anchor.coordinate_a.value)),
-                (claim.timeline_b_id, float(anchor.coordinate_b.value)),
+                record(claim.timeline_a_id, anchor.coordinate_a.value),
+                record(claim.timeline_b_id, anchor.coordinate_b.value),
             )
         for claim_field in claim_fields:
             ids_a, ids_b, coordinates_a, coordinates_b = claim_field.coordinate_pairs()
             for position in range(len(ids_a)):
                 union(
-                    (ids_a[position], coordinates_a[position]),
-                    (ids_b[position], coordinates_b[position]),
+                    record(ids_a[position], coordinates_a[position]),
+                    record(ids_b[position], coordinates_b[position]),
                 )
 
-        components: dict[tuple[str, float], dict[str, float | None]] = {}
+        components: dict[tuple[str, float], dict[str, CoordinateValue | None]] = {}
         for node in parent:
             timeline_id, coordinate = node
             row = components.setdefault(find(node), {})
             carried = row.get(timeline_id)
             if carried is None or coordinate < carried:
-                row[timeline_id] = coordinate
+                row[timeline_id] = exact[node]
 
-        return sorted(components.values(), key=lambda row: (row[min(row)], min(row)))
+        return sorted(
+            components.values(),
+            key=lambda row: (float(row[min(row)]), min(row)),
+        )
 
     def _invalidate_warp_cache(self) -> None:
         """Clear the WarpMap, MatchLine, and MatchGraph caches, forcing rebuild on next access."""

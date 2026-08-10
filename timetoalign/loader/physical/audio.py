@@ -158,7 +158,7 @@ class AudioLoader(Loader[AudioInfo]):
 
         >>> # The timeline has a SamplesToSeconds C-map attached
         >>> from timetoalign.core import TimeUnit
-        >>> timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
+        >>> timeline.get_timestamp_at(44100).get_unit(TimeUnit.seconds)
         1.0
 
     Attributes:
@@ -544,7 +544,7 @@ class AudioLoader(Loader[AudioInfo]):
 
             >>> # Convert sample coordinates to seconds
             >>> from timetoalign.core import TimeUnit
-            >>> timeline.get_timestamp(44100).get_unit(TimeUnit.seconds)
+            >>> timeline.get_timestamp_at(44100).get_unit(TimeUnit.seconds)
             1.0
         """
         from timetoalign.core import NumberType, TimeUnit
