@@ -374,9 +374,9 @@ class Timeline(
 
         Examples:
             >>> Timeline.resolve_subclass(TimeUnit.quarters, NumberType.fraction)
-            <class '...ContinuousLogicalTimeline'>
+            <class 'timetoalign.timelines.types.ContinuousLogicalTimeline'>
             >>> Timeline.resolve_subclass(TimeUnit.pixels)
-            <class '...DiscreteGraphicalTimeline'>
+            <class 'timetoalign.timelines.types.DiscreteGraphicalTimeline'>
         """
         if isinstance(unit, str):
             unit = TimeUnit(unit)

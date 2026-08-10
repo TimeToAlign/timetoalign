@@ -24,13 +24,18 @@ class TicksToQuarters(ScalarMap):
         ppq: Pulses (ticks) per quarter note.
 
     Examples:
+        An exact input converts exactly — the map divides by a ``Fraction``,
+        so a tick position never picks up a rounding error on the way to
+        quarters:
+
         >>> t2q = TicksToQuarters(ppq=480)
         >>> t2q(480)
-        1.0
+        Fraction(1, 1)
         >>> t2q(960)
-        2.0
+        Fraction(2, 1)
 
-        >>> # Get inverse map
+        A float input is taken at face value and answers in float:
+
         >>> q2t = t2q.inverse()
         >>> q2t(2.0)
         960.0
@@ -94,10 +99,11 @@ class QuartersToTicks(ScalarMap):
         >>> q2t(2.5)
         1200.0
 
-        >>> # Get inverse map
+        The inverse takes an exact tick position back to an exact quarter:
+
         >>> t2q = q2t.inverse()
         >>> t2q(960)
-        2.0
+        Fraction(2, 1)
     """
 
     _default_source_unit = TimeUnit.quarters
@@ -157,13 +163,16 @@ class SamplesToSeconds(ScalarMap):
         sample_rate: Audio sample rate in Hz.
 
     Examples:
+        A sample index is exact, so the elapsed time comes back exact too:
+
         >>> s2s = SamplesToSeconds(sample_rate=44100)
         >>> s2s(44100)
-        1.0
+        Fraction(1, 1)
         >>> s2s(88200)
-        2.0
+        Fraction(2, 1)
 
-        >>> # Get inverse map
+        A float input answers in float:
+
         >>> sec2samp = s2s.inverse()
         >>> sec2samp(1.0)
         44100.0
@@ -227,10 +236,11 @@ class SecondsToSamples(ScalarMap):
         >>> s2s(2.5)
         110250.0
 
-        >>> # Get inverse map
+        The inverse takes an exact sample index back to an exact time:
+
         >>> samp2sec = s2s.inverse()
         >>> samp2sec(44100)
-        1.0
+        Fraction(1, 1)
     """
 
     _default_source_unit = TimeUnit.seconds

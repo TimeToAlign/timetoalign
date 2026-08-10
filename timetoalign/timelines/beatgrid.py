@@ -66,23 +66,26 @@ class BeatGrid(ContinuousLogicalTimeline):
 
     Examples:
         >>> from fractions import Fraction
-        >>> from timetoalign import ContinuousPhysicalTimeline, TimeUnit
-        >>>
-        >>> # Create a beat grid for 4/4 time, 222 measures
+        >>> # A beat grid for 4/4 time, 222 measures of 888 quarter notes
         >>> grid = BeatGrid(
-        ...     length=Fraction(888, 1),  # 888 quarter notes
+        ...     length=Fraction(888, 1),
         ...     beats_per_measure=4,
         ... )
-        >>>
-        >>> # Query measure and beat at quarter 100
-        >>> grid.measure_at(100)  # -> 26 (integer!)
-        >>> grid.beat_at(100)     # -> Fraction(1, 1) (proper Fraction!)
-        >>> grid.metrical_position(100)  # -> {"mc": 26, "beat": Fraction(1, 1)}
-        >>>
-        >>> # Attach to audio timeline
-        >>> audio = ContinuousPhysicalTimeline(length=300.0, unit=TimeUnit.seconds)
-        >>> audio.add_child(grid, offset=1.3)  # First beat at 1.3 seconds
-        >>>
+
+        Measure count comes back as an integer and beat position as an exact
+        Fraction:
+
+        >>> grid.measure_at(100)
+        26
+        >>> grid.beat_at(100)
+        Fraction(1, 1)
+        >>> grid.metrical_position(100)
+        {'mc': 26, 'beat': Fraction(1, 1), 'mn': '26'}
+
+        A grid measures in quarters, so it cannot be a child of a timeline
+        measuring in seconds — that relationship is a TimelineGroup, which
+        ``ContinuousPhysicalTimeline.create_metrical_grid`` builds for you.
+
         >>> # Create from tempo
         >>> grid2 = BeatGrid.from_tempo(
         ...     tempo_bpm=120.0,
@@ -480,7 +483,8 @@ class BeatGrid(ContinuousLogicalTimeline):
         Examples:
             >>> grid = BeatGrid(length=16, beats_per_measure=4)
             >>> grid.beat_quarters()
-            array([ 0.,  1.,  2.,  3.,  4.,  5., ...])
+            array([ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.,  8.,  9., 10., 11., 12.,
+                   13., 14., 15.])
         """
         return np.arange(self.n_beats, dtype=np.float64) * float(
             self._quarters_per_beat
@@ -516,7 +520,7 @@ class BeatGrid(ContinuousLogicalTimeline):
         Examples:
             >>> grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60, start_seconds=0.5)
             >>> grid.beat_seconds()[:4]
-            array([0.5 , 1.0 , 1.5 , 2.0 ])
+            array([0.5, 1. , 1.5, 2. ])
         """
         if not hasattr(self, "_tempo_bpm") or self._tempo_bpm is None:
             raise RuntimeError(
@@ -542,7 +546,7 @@ class BeatGrid(ContinuousLogicalTimeline):
             >>> grid = BeatGrid.from_tempo(tempo_bpm=120, beats_per_measure=4,
             ...                            length_seconds=60, start_seconds=0.5)
             >>> grid.measure_seconds()[:4]
-            array([0.5 , 2.5 , 4.5 , 6.5 ])
+            array([0.5, 2.5, 4.5, 6.5])
         """
         if not hasattr(self, "_tempo_bpm") or self._tempo_bpm is None:
             raise RuntimeError(
@@ -739,8 +743,8 @@ class BeatGrid(ContinuousLogicalTimeline):
             ...     length_seconds=279.0,
             ...     start_seconds=0.092,
             ... )
-            >>> grid.n_measures
-            186
+            >>> grid.n_measures  # complete measures only; the 186th is partial
+            185
             >>> grid.beat_seconds()[:4]
             array([0.092, 0.467, 0.842, 1.217])
             >>> grid.measure_seconds()[:4]
@@ -852,19 +856,24 @@ class BeatGrid(ContinuousLogicalTimeline):
             ValueError: If format is not recognized.
 
         Examples:
+            >>> import tempfile
+            >>> from pathlib import Path
+            >>> out = Path(tempfile.mkdtemp())
             >>> grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60)
 
-            >>> # Export for Sonic Visualiser
-            >>> grid.export_to_csv("beats.csv", format="sonic_visualiser")
+            The beat-oriented formats write one row per beat:
+
+            >>> grid.export_to_csv(out / "beats.csv", format="sonic_visualiser")
+            120
+            >>> grid.export_to_csv(out / "beats.csv", format="tilia")
             120
 
-            >>> # Export for Tilia
-            >>> grid.export_to_csv("beats.csv", format="tilia")
-            120
+            The default format writes the timestamp table instead, which holds
+            one row per event -- this grid was built without materialised beats,
+            so it has none:
 
-            >>> # Standard timestamp table
-            >>> grid.export_to_csv("data.csv", format="default")
-            120
+            >>> grid.export_to_csv(out / "data.csv", format="default")
+            0
         """
         if format == "default":
             return super().export_to_csv(filepath, **kwargs)

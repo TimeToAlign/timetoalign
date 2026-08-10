@@ -852,10 +852,43 @@ checks in `test_extend_creates_correct_coordinates` (50.0) and
 `test_two_groups_five_implicit_claims` (250.0, 100.0, 200.0) are linear
 group conversions at exactly representable ratios and carry no `pytest.approx`.
 
+### A stamp renders the same in every process
+
+`nx.connected_components` returns **sets**, and the stamp builder used to start
+from whichever node came out of one first. Everything after the source was
+already sorted, so the visible symptom was narrow and easy to dismiss: the
+first entry of `present_timelines` moved between runs while the tail stayed
+put, and two runs of the same notebook produced a four-line diff of swapped
+stamp columns.
+
+Per-process hash randomisation is the trigger, which is exactly why this
+survived a green suite — a single pytest process picks one seed and every
+assertion inside it agrees with itself. Determinism cannot be observed from
+one run, so the tests are built around comparison:
+
+| Test | Compares |
+|---|---|
+| `test_stamp_order_survives_claim_insertion_order` | The same claims added in several shuffled orders, asserting byte-identical `repr` and `present_timelines` |
+| `test_stamp_order_is_the_source_then_lexical_order` | The concrete order against the retrieval spec: source first, then lexical |
+| `test_stamp_order_survives_a_changed_hash_seed` (slow) | Byte-identical output from subprocesses run under different `PYTHONHASHSEED` values |
+
+The hash-seed test is the only one that reproduces the original defect, since
+shuffling insertion order does not by itself change set iteration for the same
+seed. It is slow-marked because it spawns interpreters, and it asserts equality
+between runs rather than against a stored string, so it cannot rot into a
+snapshot test of whatever the ordering happens to be.
+
+**Validity Rationale:** asserting that the first element equals one particular
+timeline id would pass under the broken code for whichever seed the suite drew
+that day. The property is that two runs agree, so the assertion has to be
+between two runs. The spec-order test is the companion that pins *which*
+deterministic order was chosen, so "stable but wrong" also fails.
+
 ### Key Test Classes
 
 | Class | Tests | Purpose |
 |-------|-------|---------|
+| `TestMatchStampDeterminism` | 3 | Stamp source and entry order are the same in every process |
 | `TestMatchGraphNonSynchronousClaims` | 4 | Non-synchronous claims stored as metadata, no edges created |
 | `TestMatchGraphGetStamps` | 4 | `get_stamps()` returns one stamp per connected component |
 | `TestMatchGraphExtendToGroupsImplicitClaims` | 5 | Implicit claims created with correct coordinates and traceability |

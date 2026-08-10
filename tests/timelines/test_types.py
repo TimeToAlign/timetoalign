@@ -22,7 +22,7 @@ from typing import cast
 
 import pytest
 
-from timetoalign.core import Domain, NumberType, TimeUnit
+from timetoalign.core import Domain, IdCoordinate, NumberType, TimeUnit
 from timetoalign.maps.linear import ScalarMap
 from timetoalign.timelines import (
     ContinuousGraphicalTimeline,
@@ -1061,6 +1061,81 @@ class TestCrossDomainCompatibility:
 
         with pytest.raises(ValueError, match="does not match"):
             graphical.add_child(logical, offset=0.0)
+
+
+class TestMetricalGridPlacement:
+    """The grid spans from the first beat forward at the declared tempo."""
+
+    @staticmethod
+    def _grid():
+        # 120 BPM in 4/4 is exactly 2 quarters per second; the first beat is
+        # half a second into a 180-second recording.
+        audio = ContinuousPhysicalTimeline(length=180.0)
+        return audio, audio.create_metrical_grid(
+            first_beat_at=0.5,
+            tempo_bpm=120.0,
+            beats_per_measure=4,
+        )
+
+    def test_first_beat_is_the_grid_origin(self):
+        """Second 0.5 is quarter 0 -- the offset is not discarded."""
+        audio, result = self._grid()
+
+        assert result.group.get_coordinate_at(
+            IdCoordinate(0.5, audio.unit, audio.id),
+            timeline_id=result.grid.id,
+            format="float",
+        ) == pytest.approx(0.0)
+
+    def test_seconds_to_quarters_runs_at_the_declared_tempo(self):
+        """Second 60.0 is (60.0 - 0.5) * 2 = 119 quarters."""
+        _audio, result = self._grid()
+
+        assert result.timestamp_at_seconds(60.0)["quarters"] == pytest.approx(119.0)
+
+    def test_metrical_reverse_lookup_matches_the_tempo(self):
+        """Measure 10 beat 1 is quarter 36, so second 0.5 + 18 = 18.5."""
+        _audio, result = self._grid()
+
+        assert result.seconds_at(mc=10, beat=Fraction(1, 1)) == pytest.approx(18.5)
+
+    def test_group_transfers_quarters_back_to_seconds(self):
+        """Quarter 100 is second 0.5 + 50 = 50.5."""
+        audio, result = self._grid()
+
+        assert result.group.get_coordinate_at(
+            IdCoordinate(100.0, result.grid.unit, result.grid.id),
+            timeline_id=audio.id,
+            format="float",
+        ) == pytest.approx(50.5)
+
+
+class TestTimestampTableEdgeCases:
+    """Empty timelines and structured conversion maps stay exportable."""
+
+    def test_empty_timeline_dataframe_keeps_its_columns(self):
+        """No events still means a schema, so callers can read df.columns."""
+        timeline = ContinuousLogicalTimeline(length=16, uid="clt_empty")
+
+        df = timeline.to_dataframe()
+
+        assert len(df) == 0
+        assert list(df.columns) == ["axis (quarters)", "clt_empty (quarters)"]
+
+    def test_structured_conversion_map_is_not_a_column(self):
+        """A map answering {"mc": ..., "beat": ...} has no column type."""
+        from timetoalign.timelines.beatgrid import BeatGrid
+
+        grid = BeatGrid.from_tempo(tempo_bpm=120, length_seconds=60)
+
+        names = grid.get_timestamp_table().column_names
+
+        # The three numeric unit conversions become columns; the structured
+        # MetricalPositionMap does not.
+        assert "quarters_to_beats" in names
+        assert "quarters_to_seconds" in names
+        assert "quarters_to_floating_measures" in names
+        assert not any(name.endswith("_metrical_map") for name in names)
 
 
 # endregion

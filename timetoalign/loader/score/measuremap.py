@@ -70,14 +70,21 @@ class MeasureMapLoader(ScoreLoader):
         expanded_data: The fully expanded measure list after loading.
 
     Examples:
-        >>> loader = MeasureMapLoader()
-        >>> loader.load("WoO71.measures.mm.json")
-        >>> print(len(loader.store.measures))  # Number of measures
-        240
+        >>> from timetoalign.testdata import ensure_data
+        >>> path = (
+        ...     ensure_data("score")
+        ...     / "couperin_concerts"
+        ...     / "c05n05_musete.measures.mm.json"
+        ... )
+        >>> loader = MeasureMapLoader().load(path)
+        >>> len(loader.store.measures)
+        58
 
-        >>> # Access flow control summary
+        The measure data also summarises the flow control it carries:
+
         >>> summary = loader.store.measures.get_flow_control_summary()
-        >>> print(f"Repeats: {summary['repeat_starts']} starts, {summary['repeat_ends']} ends")
+        >>> summary['repeat_starts'], summary['repeat_ends']
+        (2, 3)
     """
 
     _default_unit = TimeUnit.quarters

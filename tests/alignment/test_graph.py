@@ -1489,3 +1489,135 @@ class TestMatchStampGroupRetrieval:
 
 
 # endregion
+
+
+# region MatchStamp determinism
+
+
+class TestMatchStampDeterminism:
+    """A stamp renders the same in every process.
+
+    Validation logic is documented in ``tests/alignment/README.md`` under
+    "A stamp renders the same in every process".
+    """
+
+    @staticmethod
+    def _claims() -> list[MatchClaim]:
+        """One instant shared by five timelines, named out of lexical order."""
+        names = [
+            "score:clt1",
+            "Chopin_op10_no3_p20",
+            "perf:dlt1",
+            "Chopin_op10_no3_p04",
+            "audio:dpt1",
+        ]
+        return [
+            MatchClaim(
+                timeline_a_id=names[0],
+                timeline_b_id=other,
+                start_anchor=AlignmentAnchor(
+                    timeline_a_id=names[0],
+                    coordinate_a=Coordinate(Fraction(1, 2), TimeUnit.quarters),
+                    timeline_b_id=other,
+                    coordinate_b=Coordinate(261, TimeUnit.ticks),
+                ),
+            )
+            for other in names[1:]
+        ]
+
+    def test_stamp_order_survives_claim_insertion_order(self) -> None:
+        """Shuffled insertion gives one stamp, byte for byte."""
+        claims = self._claims()
+        orders = [
+            claims,
+            list(reversed(claims)),
+            [claims[2], claims[0], claims[3], claims[1]],
+            [claims[3], claims[2], claims[1], claims[0]],
+        ]
+
+        renderings = set()
+        orderings = set()
+        for order in orders:
+            stamp = MatchGraph(claims=list(order)).get_stamps()[0]
+            renderings.add(repr(stamp))
+            orderings.add(tuple(stamp.present_timelines))
+
+        assert len(renderings) == 1
+        assert len(orderings) == 1
+
+    def test_stamp_order_is_the_source_then_lexical_order(self) -> None:
+        """Which deterministic order: the one the retrieval order names.
+
+        Pinned alongside the agreement tests so an implementation that is
+        stable but stable on the wrong thing fails too.
+        """
+        stamp = MatchGraph(claims=self._claims()).get_stamps()[0]
+
+        assert stamp.present_timelines == [
+            "Chopin_op10_no3_p04",
+            "Chopin_op10_no3_p20",
+            "audio:dpt1",
+            "perf:dlt1",
+            "score:clt1",
+        ]
+        assert stamp.source_id == "Chopin_op10_no3_p04"
+
+    @pytest.mark.slow
+    def test_stamp_order_survives_a_changed_hash_seed(self) -> None:
+        """The seed is the trigger, so the seed is what the test varies.
+
+        Set iteration order is per-process, so one pytest run agrees with
+        itself however wrong it is. Only separate interpreters under
+        different seeds can show the property.
+        """
+        import subprocess
+        import sys
+        import textwrap
+
+        program = textwrap.dedent("""
+            from fractions import Fraction
+
+            from timetoalign.alignment import AlignmentAnchor, MatchClaim
+            from timetoalign.alignment.graph import MatchGraph
+            from timetoalign.core import Coordinate, TimeUnit
+
+            names = [
+                "score:clt1",
+                "Chopin_op10_no3_p20",
+                "perf:dlt1",
+                "Chopin_op10_no3_p04",
+                "audio:dpt1",
+            ]
+            claims = [
+                MatchClaim(
+                    timeline_a_id=names[0],
+                    timeline_b_id=other,
+                    start_anchor=AlignmentAnchor(
+                        timeline_a_id=names[0],
+                        coordinate_a=Coordinate(Fraction(1, 2), TimeUnit.quarters),
+                        timeline_b_id=other,
+                        coordinate_b=Coordinate(261, TimeUnit.ticks),
+                    ),
+                )
+                for other in names[1:]
+            ]
+            stamp = MatchGraph(claims=claims).get_stamps()[0]
+            print(repr(stamp))
+            print(stamp.present_timelines)
+            """)
+
+        outputs = set()
+        for seed in ("0", "1", "12345", "99991"):
+            completed = subprocess.run(
+                [sys.executable, "-c", program],
+                capture_output=True,
+                text=True,
+                check=True,
+                env={"PYTHONHASHSEED": seed, "PATH": "/usr/bin:/bin"},
+            )
+            outputs.add(completed.stdout)
+
+        assert len(outputs) == 1
+
+
+# endregion

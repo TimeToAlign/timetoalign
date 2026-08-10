@@ -423,6 +423,42 @@ that share the same coordinate type. These tests verify:
 **Purpose:** Validates the 6 timeline types (3 domains x 2 modalities), the
 dynamic `SegmentLine[T]` class family, and timeline serialization dispatch.
 
+#### The metrical grid sits where the tempo says it sits
+
+`create_metrical_grid` connects a seconds timeline to a quarters grid through
+a group, because a logical timeline cannot be a child of a physical one. The
+placement has two independent parts and both were wrong: the group's first
+member defines the group's own coordinate space, so passing `start`/`end`
+alongside it does nothing, and the meter map holds **whole measures only** —
+stretching that shortened grid across the full audio window silently alters
+the tempo. The grid must therefore be the member that is placed, spanning
+from `first_beat_at` forward by exactly `length_quarters / quarters_per_second`.
+
+**Validity Rationale:** the tests assert positions that are derivable by hand
+from the tempo, which is the only way to catch this class of error — a wrong
+linear placement still returns plausible monotonic numbers, and every
+internal-consistency check passes on it. At 120 BPM in 4/4 with the first
+beat at 0.5 s, second 60.0 is `(60.0 - 0.5) * 2 = 119` quarters, measure 10
+beat 1 is quarter 36 and therefore second `0.5 + 18 = 18.5`, and quarter 100
+is second `0.5 + 50 = 50.5`. Each pins a different direction of the mapping
+(forward, metrical reverse, and group transfer) so a fix to one lane cannot
+mask a break in another. The previously shipped behaviour mapped 0 s to 0
+quarters and reported 118.67, 18.20 and 50.56.
+
+#### An empty timeline still has columns
+
+`to_dataframe()` on a timeline with no events returns an empty frame **with
+the schema's columns and dtypes**, not a structureless `DataFrame()`. The
+latter stranded every caller that reads `df.columns` — which is what made
+`export_to_csv(format="default")` unusable on any event-less timeline.
+
+Relatedly, only conversion maps with a numeric `target_unit` become timestamp
+columns. A structured map such as `MetricalPositionMap` answers
+`{"mc": ..., "beat": ...}` and has no column type; it used to be forced into
+the float64 schema, where the cast failed on the field name `'beat'` itself.
+This matches the rule the matchstamp table already applies, so the two table
+builders cannot disagree about which maps are columnar.
+
 **Timeline Types:**
 
 | Type | Domain | Modality | Default Unit | Default Number Type |

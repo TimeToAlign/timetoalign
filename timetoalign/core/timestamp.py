@@ -54,8 +54,8 @@ from .time import (
     IdCoordinate,
     IdDuration,
     Interval,
+    express_as,
     format_number,
-    quantize_to_unit,
 )
 
 if TYPE_CHECKING:
@@ -466,10 +466,36 @@ class Stamp(ABC):
         whether a position was estimated is a separate question, answered by
         ``is_interpolated`` rather than by a number's type.
         """
-        from ..core.time import Coordinate, express_as
-
         unit = self._unit_for(timeline_id)
         declared = self._number_type_enum_for(timeline_id)
+        if declared is None:
+            declared = unit.default_number_type
+        return Coordinate(express_as(value, declared), unit, number_type=declared)
+
+    @staticmethod
+    def _on_unit(
+        value: Any, unit: TimeUnit, cmap: "ConversionMap[Any] | None" = None
+    ) -> Coordinate:
+        """Express a conversion result on the axis *unit* names.
+
+        The sibling of :meth:`_on_axis` for a value crossing into a unit
+        rather than onto a named timeline. **The target decides alone**: the
+        map's own declared output representation where it has one, else the
+        target unit's default. Where the value came from does not enter into
+        it -- carrying the source axis's representation across a conversion
+        is the provenance-in-the-type pattern the boundary rule exists to
+        remove, and it showed up as a float-canonical reading rendered as a
+        forty-digit exact ratio because the quarters axis feeding it was
+        exact. Every lane that evaluates a C-Map comes through here -- the
+        typed getters and the display rows alike -- because two readings of
+        one map that disagree about the number they carry are
+        indistinguishable from a wrong answer.
+
+        Re-expression, not construction: a ratio landing on an integer-valued
+        unit is rounded here, where quantizing is what the conversion means,
+        rather than refused as a hand-written value would be.
+        """
+        declared = None if cmap is None else cmap.output_number_type
         if declared is None:
             declared = unit.default_number_type
         return Coordinate(express_as(value, declared), unit, number_type=declared)
@@ -635,14 +661,13 @@ class TimeStamp(Stamp):
                     )
                 continue
             coordinate = self.coordinates[candidate]
-            converted_number_type = number_type_for_converted_unit(
-                coordinate.number_type, unit
-            )
             if coordinate.unit == unit:
                 converted = Coordinate(
                     coordinate.value,
                     unit,
-                    number_type=converted_number_type,
+                    number_type=number_type_for_converted_unit(
+                        coordinate.number_type, unit
+                    ),
                 )
             else:
                 if self.source is None or not self._unit_resolution_enabled(unit):
@@ -650,11 +675,7 @@ class TimeStamp(Stamp):
                 umap = self.source._get_unit_map_for_timeline(candidate, unit)
                 if umap is None:
                     continue
-                converted = Coordinate(
-                    quantize_to_unit(umap(coordinate.value), unit),
-                    unit,
-                    number_type=converted_number_type,
-                )
+                converted = self._on_unit(umap._evaluate(coordinate.value), unit, umap)
             identified = IdCoordinate.from_coordinate(converted, candidate)
             return format_coordinates(
                 [identified],
@@ -702,23 +723,22 @@ class TimeStamp(Stamp):
 
         collected: list[tuple[str, Any, str, str]] = []  # (label, value, suffix, owner)
         for timeline_id in self._surfaceable_ids():
-            coord = self._coordinate_on(timeline_id)
-            if coord is None:
+            coordinate = self.coordinates.get(timeline_id)
+            if coordinate is None:
                 continue
             for cmap in getter(timeline_id):
                 if not self._conversion_map_enabled(cmap):
                     continue
                 try:
-                    value = cmap(coord)
+                    value = cmap._evaluate(coordinate.value)
+                    if cmap.target_unit is not None:
+                        value = self._on_unit(value, cmap.target_unit, cmap).value
                 except Exception:
                     # A display cross-section never propagates a single map's
                     # evaluation failure (e.g. a coordinate outside a map's
                     # domain): that map is simply omitted from the row set.
                     continue
                 if cmap.target_unit is not None:
-                    from ..core.time import Coordinate
-
-                    value = Coordinate(value, cmap.target_unit).value
                     label = cmap.target_unit.value
                     suffix = cmap.target_unit.value
                 else:
@@ -748,8 +768,8 @@ class TimeStamp(Stamp):
         if getter is None:
             raise KeyError(f"Unknown conversion selector {key!r}")
         for timeline_id in self._surfaceable_ids():
-            coord = self._coordinate_on(timeline_id)
-            if coord is None:
+            coordinate = self.coordinates.get(timeline_id)
+            if coordinate is None:
                 continue
             for cmap in getter(timeline_id):
                 if not self._conversion_map_enabled(cmap):
@@ -758,7 +778,10 @@ class TimeStamp(Stamp):
                 if not matches and cmap.target_unit is not None:
                     matches = cmap.target_unit.value == key
                 if matches:
-                    return cmap(coord)
+                    value = cmap._evaluate(coordinate.value)
+                    if cmap.target_unit is None:
+                        return value
+                    return self._on_unit(value, cmap.target_unit, cmap).value
         raise KeyError(f"Unknown conversion selector {key!r}")
 
     def _unit_for(self, timeline_id: str) -> "TimeUnit | None":
@@ -1112,16 +1135,14 @@ class TimeIntervalStamp:
 
     def __str__(self) -> str:
         """Return a readable typed interval cross-section."""
-        axis = self.axis
-        lines = [
-            "TimeIntervalStamp "
-            f"[{format_number(axis.start.value)}, {format_number(axis.end.value)}) "
-            f"{axis.unit.value}"
-        ]
+        lines = [f"TimeIntervalStamp {self.axis}"]
         for timeline_id, interval in self.intervals.items():
+            discrete = interval.unit.is_discrete
             lines.append(
-                f"  {timeline_id}  {format_number(interval.start.value)}  "
-                f"{format_number(interval.end.value)} {interval.unit.value}"
+                f"  {timeline_id}  "
+                f"{format_number(interval.start.value, discrete=discrete)}  "
+                f"{format_number(interval.end.value, discrete=discrete)} "
+                f"{interval.unit.value}"
             )
         return "\n".join(lines)
 
@@ -1160,8 +1181,10 @@ def timestamp_table_to_dataframe(
         pandas DataFrame with:
         - Fields named according to the ``fields`` parameter
         - Units appended if ``units=True``
-        - Integer fields using pandas nullable Int64 dtype
-        - Float fields as float64
+        - Each column written in the representation its axis declares:
+          whole numbers on an integer-locked axis (nullable ``Int64`` only
+          where the column has gaps), exact ratios on a fraction-canonical
+          axis, doubles on a float-canonical one
 
     Examples:
         >>> table = timeline.get_timestamp_table()
@@ -1179,16 +1202,16 @@ def timestamp_table_to_dataframe(
         ...     fields=lambda name, meta: meta.get('timeline_id', name)
         ... )
     """
-    import pandas as pd
-    import pyarrow as pa
-
     from .enums import ColumnNaming
 
     if format != "pandas":
         raise ValueError(f"Unsupported format: {format!r}. Only 'pandas' is supported.")
 
-    if table.num_rows == 0:
-        return pd.DataFrame()
+    # A table with no rows still has a schema, and the naming below is driven
+    # entirely by that schema -- so an empty timeline yields an empty frame
+    # with the right columns and dtypes rather than a structureless one.
+    # Returning a bare DataFrame() here used to strand every caller that reads
+    # df.columns, which is how an event-less timeline could not be exported.
 
     # Build field name mapping
     new_field_names: list[str] = []
@@ -1227,20 +1250,55 @@ def timestamp_table_to_dataframe(
 
         new_field_names.append(str(final_name))
 
-    # Convert to pandas with appropriate dtypes
+    # Convert to pandas, then write every column the way its axis writes
+    # numbers -- the table itself is the float64 lookup lane, so an axis's
+    # declared representation is applied here, at the presentation boundary.
     df = table.to_pandas()
     df.columns = new_field_names
 
-    # Convert integer fields to nullable Int64
     for i, data_field in enumerate(table.schema):
         field_name = new_field_names[i]
-        if pa.types.is_integer(data_field.type):
-            # Convert to nullable integer
-            df[field_name] = df[field_name].astype("Int64")
-        elif pa.types.is_int64(data_field.type):
-            df[field_name] = df[field_name].astype("Int64")
+        df[field_name] = _column_on_declared_axis(
+            df[field_name], field_metadata(data_field)
+        )
 
     return df
+
+
+def _column_on_declared_axis(
+    column: "pd.Series", metadata: dict[str, Any]
+) -> "pd.Series":
+    """Re-express one timestamp column in the representation its axis declares.
+
+    The axis-level counterpart of :meth:`Stamp._on_axis`, applied to a whole
+    column: an int-locked axis yields whole numbers, a fraction-canonical one
+    yields exact ratios, a float-canonical one yields doubles. Without it a
+    group's frame reported ``12473.0`` pixels where a stamp from the same
+    group reported ``12473`` -- one position with two spellings, which is the
+    thing the declared type exists to prevent.
+
+    The integer lane rounds vectorized (half-to-even, matching the scalar
+    boundary); the exact lane reads rows in Python, because a column of
+    ratios is a column of Python objects however it is built.
+    """
+    declared = metadata.get("number_type")
+    unit = metadata.get("unit")
+    if declared is None and unit:
+        try:
+            declared = TimeUnit(unit).default_number_type.name
+        except ValueError:
+            declared = None
+    if declared is None:
+        return column
+    number_type = NumberType(declared)
+    if number_type is NumberType.int:
+        rounded = column.round()
+        return rounded.astype("Int64" if rounded.isna().any() else "int64")
+    if number_type is NumberType.float:
+        return column.astype("float64")
+    return column.map(lambda value: None if pd.isna(value) else Fraction(value)).astype(
+        object
+    )
 
 
 # endregion

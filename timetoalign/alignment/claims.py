@@ -70,6 +70,7 @@ from timetoalign.core.retrieval import (
     validate_key_collection,
 )
 from timetoalign.core.time import (
+    express_scalar_as,
     rational_to_wire,
     wire_to_rational,
 )
@@ -359,6 +360,25 @@ class AlignmentAnchor(BaseModel):
         if isinstance(value, dict) and "unit" in value:
             return _coordinate_from_dict(value)
         return value
+
+    @field_validator("coordinate_a", "coordinate_b", mode="after")
+    @classmethod
+    def _express_on_declared_axis(cls, coordinate: Coordinate) -> Coordinate:
+        """Write each anchored coordinate the way its axis writes numbers.
+
+        An anchor coordinate is not a free-standing number: it is a position
+        on a named timeline, so the axis decides its representation rather
+        than whatever the caller happened to hand over. An event value read
+        off storage arrives as the cell's exact side, and keeping that on a
+        float-canonical axis is how the claim lane came to disagree with the
+        matchstamp lane about one and the same position.
+
+        An anchor knows its timelines only by id, so the declaration it can
+        reach is the unit's own default. A bundle, which holds the timeline
+        objects, refines this to each timeline's declared representation when
+        the claim is read in its context.
+        """
+        return express_scalar_as(coordinate, coordinate.unit.default_number_type)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for storage."""
@@ -1153,6 +1173,25 @@ class MatchClaim(BaseModel):
         if isinstance(value, dict) and "unit" in value:
             return _coordinate_from_dict(value)
         return value
+
+    @field_validator("source_coordinate", mode="after")
+    @classmethod
+    def _express_source_on_declared_axis(
+        cls, coordinate: Coordinate | None
+    ) -> Coordinate | None:
+        """Write the unmatched coordinate the way its axis writes numbers.
+
+        A NOMATCH claim carries its position outside an anchor, so it needs
+        the axis rule stated separately -- and it was missed. An event value
+        read off storage arrives as the cell's exact side, which on a
+        float-canonical axis turns a plain ``164.3`` seconds into a
+        sixteen-digit ratio in the claim's own repr. Same rule, same reason
+        as :class:`AlignmentAnchor`: with only timeline ids in hand the
+        reachable declaration is the unit's default.
+        """
+        if coordinate is None:
+            return None
+        return express_scalar_as(coordinate, coordinate.unit.default_number_type)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for storage.

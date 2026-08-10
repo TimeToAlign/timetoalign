@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.core.time import Duration, Interval
 
 # region Region
 
@@ -43,11 +44,21 @@ class Region:
         >>> end = Coordinate(32.0, TimeUnit.quarters)
         >>> region = Region("Chorus", start=start, end=end)
         >>> region.duration
-        16.0
+        Duration(Fraction(16, 1), quarters)
+        >>> region.as_interval
+        Interval(start=Coordinate(Fraction(16, 1), quarters), \
+end=Coordinate(Fraction(32, 1), quarters))
 
-        >>> # Create a Child from the region via timeline
+        A region names part of a timeline; turning it into a Child timeline
+        goes through the timeline that owns it:
+
+        >>> from timetoalign import ContinuousLogicalTimeline
+        >>> tl = ContinuousLogicalTimeline(length=64)
         >>> tl.create_region("Chorus", start=16, end=32)
+        Region('Chorus', 16-32 quarters)
         >>> chorus_child = tl.create_child_from_region("Chorus")
+        >>> chorus_child.length
+        Coordinate(Fraction(16, 1), quarters)
     """
 
     name: str
@@ -74,14 +85,14 @@ class Region:
         return self.start.unit
 
     @property
-    def duration(self) -> float:
-        """Duration of the region (end - start)."""
-        return float(self.end.value - self.start.value)
+    def duration(self) -> Duration:
+        """Exact duration of the region (end - start)."""
+        return self.as_interval.duration
 
     @property
-    def as_interval(self) -> tuple[float, float]:
-        """The region as a (start, end) tuple."""
-        return (float(self.start.value), float(self.end.value))
+    def as_interval(self) -> Interval:
+        """The region's extent as a typed :class:`Interval`."""
+        return Interval(start=self.start, end=self.end)
 
     def contains(self, coord: float) -> bool:
         """Check if a coordinate is within this region (left-inclusive).

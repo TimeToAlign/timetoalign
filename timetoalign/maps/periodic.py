@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from numpy.typing import NDArray
 
-from ..core.enums import TimeUnit
+from ..core.enums import NumberType, TimeUnit
 from ..core.time import CoordinateValue
 from .base import ConversionMap
 
@@ -231,6 +231,10 @@ class FloorMap(ConversionMap[int]):
         >>> section_map(25.0)
         2
     """
+
+    # Counting which bucket a value falls into gives a whole number by
+    # definition, whatever unit is nominally attached to the buckets.
+    _declared_output_number_type = NumberType.int
 
     def __init__(
         self,

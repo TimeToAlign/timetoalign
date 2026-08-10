@@ -587,7 +587,7 @@ class ChildrenMixin:
         self._check_not_locked("create child from region")
 
         child = self._spawn_class()(
-            length=region.duration,
+            length=region.duration.value,
             unit=self._unit,
             number_type=self._number_type,
             uid=uid or region_name,

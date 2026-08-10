@@ -34,6 +34,7 @@ from timetoalign.core import (
     SupportPolicy,
     TimeUnit,
     express_as,
+    express_scalar_as,
     resolve_coordinate_spec,
     resolve_id,
 )
@@ -2565,18 +2566,28 @@ class AlignmentBundle:
         self._cache_claims_hash = 0
 
     def _claim_in_native_units(self, claim: MatchClaim) -> MatchClaim:
-        """Return a claim whose anchors use each timeline's native unit."""
+        """Return a claim whose anchors use each timeline's native axis.
+
+        Native means both halves of what an axis declares: its unit and the
+        representation it writes numbers in. An anchor on its own can only
+        reach the unit's default, so the bundle is the first place a timeline
+        declaring something other than that default can be honoured, and
+        every reader downstream -- MatchGraph, MatchLine, WarpMap inference --
+        sees the timeline's own answer rather than the claim author's.
+        """
 
         def _native(timeline_id: str, coordinate: Coordinate) -> Coordinate:
             bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
             timeline = self.timelines.get(bundle_uid)
-            if timeline is None or coordinate.unit == timeline.unit:
+            if timeline is None:
                 return coordinate
             if coordinate.unit == TimeUnit.number:
-                return Coordinate(coordinate.value, timeline.unit)
-            result = timeline.get_coordinate_at(coordinate, format="coordinate")
-            assert isinstance(result, Coordinate)
-            return result
+                coordinate = Coordinate(coordinate.value, timeline.unit)
+            elif coordinate.unit != timeline.unit:
+                result = timeline.get_coordinate_at(coordinate, format="coordinate")
+                assert isinstance(result, Coordinate)
+                coordinate = result
+            return express_scalar_as(coordinate, timeline.number_type)
 
         updates: dict[str, Any] = {}
         for name in ("start_anchor", "end_anchor"):
@@ -2595,6 +2606,13 @@ class AlignmentBundle:
                         "coordinate_b": coordinate_b,
                     }
                 )
+        # A NOMATCH claim keeps its position outside an anchor; it is on a
+        # named axis all the same, so it gets the same treatment rather than
+        # a second, quieter set of rules.
+        if claim.source_coordinate is not None:
+            source_coordinate = _native(claim.timeline_a_id, claim.source_coordinate)
+            if source_coordinate is not claim.source_coordinate:
+                updates["source_coordinate"] = source_coordinate
         return claim.model_copy(update=updates) if updates else claim
 
     def _get_or_build_match_line(self, source_tl_id: str) -> MatchLine | None:

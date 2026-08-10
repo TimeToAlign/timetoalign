@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-from timetoalign.core.enums import TimeUnit
+from timetoalign.core.enums import NumberType, TimeUnit
 from timetoalign.core.time import (
     CoordinateValue,
     rational_to_wire,
@@ -55,8 +55,8 @@ class MetricMap(ConversionMap[int]):
     The map stores (quarterbeat_start, mc, mn, quarters_per_measure) tuples.
 
     Attributes:
-        boundaries: List of measure boundary tuples.
-        mc_to_mn: Dict mapping MC (int) to MN (str label).
+        n_measures: Number of measure boundaries the map holds.
+        total_length: Quarter-beat length of the whole span.
 
     Examples:
         >>> # Standard 4/4, 10 measures starting at MC=1, MN=1
@@ -81,7 +81,7 @@ class MetricMap(ConversionMap[int]):
         ... )
         >>> meter(0)    # Quarter 0 → MC 1 (the anacrusis)
         1
-        >>> meter.mc_to_mn(1)  # MC 1 → MN "0"
+        >>> meter.get_mn(1)  # MC 1 carries the label "0"
         '0'
 
         >>> # From explicit boundaries (loaded from TSV)
@@ -93,6 +93,11 @@ class MetricMap(ConversionMap[int]):
         ...     ]
         ... )
     """
+
+    # An MC is which measure you are in, not how far into the piece you are:
+    # a whole number that indexes the map's own boundaries, whatever
+    # representation the measures axis writes positions in.
+    _declared_output_number_type = NumberType.int
 
     def __init__(
         self,
@@ -651,12 +656,16 @@ class MetricalPositionMap(CombinationMap):
     Examples:
         >>> meter = MetricMap.from_uniform(10, Fraction(4, 1))
         >>> pos_map = MetricalPositionMap(meter)
-        >>> pos_map(7.5)
-        {'mc': 2, 'beat': Fraction(9, 2)}  # M2, beat 4.5
 
-        >>> # Reverse lookup
+        Quarter 7.5 is beat 4.5 of the second measure:
+
+        >>> pos_map(7.5)
+        {'mc': 2, 'beat': Fraction(9, 2)}
+
+        The reverse lookup returns the position exactly:
+
         >>> pos_map.quarters_at(mc=2, beat=Fraction(9, 2))
-        Fraction(15, 2)  # = 7.5
+        Fraction(15, 2)
     """
 
     def __init__(

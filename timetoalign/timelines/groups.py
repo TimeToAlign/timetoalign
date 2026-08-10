@@ -177,12 +177,13 @@ class GroupTimestamp(Stamp):
                 if timeline_id is not None:
                     raise KeyError(f"Unknown timeline ID {candidate!r} on group stamp")
                 continue
-            converted_number_type = number_type_for_converted_unit(
-                coordinate.number_type, unit
-            )
             if coordinate.unit == unit:
                 converted = Coordinate(
-                    coordinate.value, unit, number_type=converted_number_type
+                    coordinate.value,
+                    unit,
+                    number_type=number_type_for_converted_unit(
+                        coordinate.number_type, unit
+                    ),
                 )
             else:
                 if self.source is None or not self._unit_resolution_enabled(unit):
@@ -190,11 +191,7 @@ class GroupTimestamp(Stamp):
                 umap = self.source._get_unit_map_for_timeline(candidate, unit)
                 if umap is None:
                     continue
-                converted = Coordinate(
-                    umap(coordinate.value),
-                    unit,
-                    number_type=converted_number_type,
-                )
+                converted = self._on_unit(umap._evaluate(coordinate.value), unit, umap)
             return format_coordinates(
                 [IdCoordinate.from_coordinate(converted, candidate)],
                 format=format,
@@ -1097,6 +1094,7 @@ class TimelineGroup:
 
                 # Field name uses C-Map's name property
                 field_name = cmap.name
+                column_number_type = cmap.output_number_type
 
                 # Add field with metadata
                 target_unit = getattr(cmap, "target_unit", None)
@@ -1109,6 +1107,11 @@ class TimelineGroup:
                         unit=unit_value,
                         cmap_id=cmap.id,
                         source_timeline=timeline_id,
+                        **(
+                            {"number_type": column_number_type.name}
+                            if column_number_type is not None
+                            else {}
+                        ),
                     ),
                 )
                 table = table.append_column(new_field, pa.array(converted))
@@ -1146,7 +1149,9 @@ class TimelineGroup:
             pandas DataFrame with:
             - Fields named according to the ``fields`` parameter
             - Units appended if ``units=True``
-            - Integer fields using pandas nullable Int64 dtype
+            - Each column in the representation its axis declares:
+              whole numbers on an integer-locked axis, exact ratios on a
+              fraction-canonical axis, doubles on a float-canonical one
 
         Examples:
             >>> df = group.to_dataframe()
@@ -2185,6 +2190,7 @@ class TimelineGroup:
                         metadata=blob_metadata(
                             unit=timeline.unit.value,
                             timeline_id=timeline.id,
+                            number_type=timeline.number_type.name,
                         ),
                     )
                 ]
@@ -2256,6 +2262,7 @@ class TimelineGroup:
             metadata=blob_metadata(
                 unit=timeline.unit.value,
                 timeline_id=timeline.id,
+                number_type=timeline.number_type.name,
             ),
         )
         self._timestamp_table = self._timestamp_table.append_column(

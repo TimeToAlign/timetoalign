@@ -102,16 +102,20 @@ class ATONLoader(Loader[list[ATONHole]]):
     to both individual hole data and aggregate statistics.
 
     Examples:
-        >>> loader = ATONLoader()
-        >>> loader.load("fd660zf8362_analysis.txt")
+        >>> from timetoalign.testdata import ensure_data
+        >>> roll = ensure_data("supra") / "image" / "fd660zf8362_analysis.txt"
+        >>> loader = ATONLoader().load(roll)
         >>> loader.rollinfo['MUSICAL_HOLES']
         30092
-        >>> len(loader.holes)  # Number of hole blocks parsed
-        30094
+        >>> len(loader.holes)
+        30092
+
+        Hole positions are pixel coordinates on the scanned roll:
+
         >>> loader.first_hole
-        15343
+        Coordinate(15343, pixels)
         >>> loader.last_hole
-        293119
+        Coordinate(293119, pixels)
 
     Attributes:
         rollinfo: Dictionary of ROLLINFO metadata.

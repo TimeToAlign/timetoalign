@@ -131,15 +131,18 @@ class HorizontalLinePath(TimeAxisPath):
         tolerance: Distance tolerance for from_2d conversion.
 
     Examples:
+        Pixel coordinates stay integral, so the geometry answers in whole
+        pixels rather than widening to float:
+
         >>> path = HorizontalLinePath(x0=10, x1=500, y=100)
         >>> path.length
-        490.0
+        490
         >>> path.to_2d(0)
-        (10.0, 100.0)
+        (10, 100)
         >>> path.to_2d(245)
-        (255.0, 100.0)
+        (255, 100)
         >>> path.from_2d(255, 100)
-        245.0
+        245
     """
 
     x0: float

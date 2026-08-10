@@ -1052,7 +1052,15 @@ class TestMatchClaim:
         )
 
     def test_exact_rational_rendering(self) -> None:
-        """Claims and anchors render rational coordinates exactly with units."""
+        """Claims render each coordinate the way its own axis writes numbers.
+
+        Both halves are handed an exact ratio, and the two axes answer
+        differently because they declare different representations: quarters
+        keep ``415/24``, seconds -- which are float-canonical -- report
+        ``12.5``. An anchor coordinate is a position on a named timeline, so
+        the axis decides, not the caller; this is the same rule that makes a
+        claim and its matchstamp agree about one position.
+        """
         anchor = AlignmentAnchor(
             timeline_a_id="audio",
             coordinate_a=Coordinate(Fraction(25, 2), TimeUnit.seconds),
@@ -1066,12 +1074,12 @@ class TestMatchClaim:
         )
 
         assert repr(claim) == (
-            "MatchClaim(instant: audio@25/2 seconds <-> "
+            "MatchClaim(instant: audio@12.5 seconds <-> "
             "score@415/24 quarters [ANCHOR])"
         )
         assert str(claim) == (
             "MatchClaim (synchronous, instant)\n"
-            "  Timeline A:  audio  @25/2 seconds\n"
+            "  Timeline A:  audio  @12.5 seconds\n"
             "  Timeline B:  score  @415/24 quarters"
         )
         assert claim._repr_html_() == (
@@ -1079,18 +1087,18 @@ class TestMatchClaim:
             "<span style='background: #fff3e0; padding: 0 4px; border-radius: 3px; "
             "font-size: 0.8em;'>ANCHOR</span><table style='border-collapse: collapse; "
             "margin-top: 4px;'><tbody><tr><td>Timeline A</td><td><strong>audio"
-            "</strong></td><td>@25/2 seconds</td></tr><tr><td>Timeline B</td><td>"
+            "</strong></td><td>@12.5 seconds</td></tr><tr><td>Timeline B</td><td>"
             "<strong>score</strong></td><td>@415/24 quarters</td></tr></tbody></table>"
             "<div style='margin-top: 4px; color: #666; font-size: 0.85em;'>Try: "
             "<code>claim.get_matchstamp()</code></div></div>"
         )
         assert repr(anchor) == (
-            "AlignmentAnchor(audio@25/2 seconds <-> score@415/24 quarters)"
+            "AlignmentAnchor(audio@12.5 seconds <-> score@415/24 quarters)"
         )
         assert str(anchor) == repr(anchor)
         assert anchor._repr_html_() == (
             "<div style='font-family: monospace;'><strong>AlignmentAnchor</strong>("
-            "audio@25/2 seconds &lt;-&gt; score@415/24 quarters)</div>"
+            "audio@12.5 seconds &lt;-&gt; score@415/24 quarters)</div>"
         )
 
     @pytest.mark.parametrize(

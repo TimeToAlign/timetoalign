@@ -668,6 +668,7 @@ class TabularExportMixin:
                 metadata=blob_metadata(
                     unit=self._unit.value,
                     timeline_id=self._id,
+                    number_type=self._number_type.name,
                 ),
             )
         )
@@ -681,6 +682,7 @@ class TabularExportMixin:
                 metadata=blob_metadata(
                     unit=self._unit.value,
                     timeline_id=self._id,
+                    number_type=self._number_type.name,
                 ),
             )
         )
@@ -701,6 +703,7 @@ class TabularExportMixin:
                     metadata=blob_metadata(
                         unit=child.unit.value,
                         timeline_id=child.id,
+                        number_type=child.number_type.name,
                     ),
                 )
             )
@@ -711,6 +714,12 @@ class TabularExportMixin:
             # Allow copy for arrays with nulls (zero_copy_only=False)
             axis_np = axis.to_numpy(zero_copy_only=False)
             for cmap in conversion_maps:
+                if getattr(cmap, "target_unit", None) is None:
+                    # Numeric unit conversions only. A structured map such as
+                    # MetricalPositionMap answers {"mc": ..., "beat": ...},
+                    # which has no column type here -- forcing it into the
+                    # float64 schema below fails on the field name itself.
+                    continue
                 converted = cmap.convert_array(axis_np)
                 # Use map's name property for human-readable field header
                 col_name = cmap.name
@@ -725,6 +734,7 @@ class TabularExportMixin:
                         metadata=blob_metadata(
                             unit=unit_value,
                             cmap_id=cmap.id,
+                            number_type=cmap.output_number_type.name,
                         ),
                     )
                 )
@@ -925,7 +935,9 @@ class TabularExportMixin:
             pandas DataFrame with:
             - Fields named according to the ``fields`` parameter
             - Units appended if ``units=True``
-            - Integer fields using pandas nullable Int64 dtype
+            - Each column in the representation its axis declares:
+              whole numbers on an integer-locked axis, exact ratios on a
+              fraction-canonical axis, doubles on a float-canonical one
 
         Examples:
             >>> df = timeline.to_dataframe()

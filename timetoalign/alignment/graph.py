@@ -191,18 +191,21 @@ class MatchStamp(Stamp):
                 if timeline_id is not None:
                     raise KeyError(f"Unknown timeline ID {candidate!r} on MatchStamp")
                 continue
-            result_type = number_type_for_converted_unit(coordinate.number_type, unit)
             if coordinate.unit == unit:
-                converted = Coordinate(coordinate.value, unit, number_type=result_type)
+                converted = Coordinate(
+                    coordinate.value,
+                    unit,
+                    number_type=number_type_for_converted_unit(
+                        coordinate.number_type, unit
+                    ),
+                )
             else:
                 if self.source is None:
                     continue
                 cmap = self.source.get_timeline(candidate)._get_unit_map(unit)
                 if cmap is None or not self._conversion_map_enabled(cmap):
                     continue
-                converted = Coordinate(
-                    cmap(coordinate.value), unit, number_type=result_type
-                )
+                converted = self._on_unit(cmap._evaluate(coordinate.value), unit, cmap)
             identified = IdCoordinate.from_coordinate(converted, candidate)
             return format_coordinates(
                 [identified],
@@ -238,7 +241,9 @@ class MatchStamp(Stamp):
                 if not self._conversion_map_enabled(cmap):
                     continue
                 try:
-                    value = cmap(coordinate.value)
+                    value = cmap._evaluate(coordinate.value)
+                    if cmap.target_unit is not None:
+                        value = self._on_unit(value, cmap.target_unit, cmap).value
                 except Exception:
                     continue
                 if cmap.target_unit is not None:
@@ -279,7 +284,10 @@ class MatchStamp(Stamp):
                 if not matches and cmap.target_unit is not None:
                     matches = cmap.target_unit.value == key
                 if matches:
-                    return cmap(coordinate.value)
+                    value = cmap._evaluate(coordinate.value)
+                    if cmap.target_unit is None:
+                        return value
+                    return self._on_unit(value, cmap.target_unit, cmap).value
         raise KeyError(f"Unknown conversion selector {key!r}")
 
     def filter_by_timelines(
@@ -1332,10 +1340,28 @@ class MatchGraph:
         """
         stamps = []
         for component in nx.connected_components(self._graph):
-            node = next(iter(component))
-            stamp = self._build_stamp_from_node(node)
+            stamp = self._build_stamp_from_node(self._component_start_node(component))
             stamps.append(stamp)
         return stamps
+
+    def _component_start_node(self, component: "set[_GraphNode]") -> _GraphNode:
+        """Choose a component's starting node so the stamp is the same every run.
+
+        ``connected_components`` hands back sets, and taking whichever node
+        came out of one first made the stamp's ``source_id`` -- and therefore
+        the position of every entry ordered relative to it -- depend on the
+        process's hash seed. Two runs of the same notebook rendered the same
+        cross-section with its columns swapped.
+
+        The choice is the one the retrieval order already names: the graph's
+        own source timeline where the component contains it, else the
+        lexically first node. Everything after the source was already sorted,
+        which is why only the first entry moved and the tail looked stable.
+        """
+        return min(
+            component,
+            key=lambda node: (node[0] != self._source_id, node[0], node[1]),
+        )
 
     def get_matchstamp(self) -> "MatchStamp":
         """Get the single MatchStamp for this graph.
@@ -1372,8 +1398,7 @@ class MatchGraph:
                 f"One graph = one MatchStamp. Use split_components() first, "
                 f"or use get_stamps() for the multi-component API."
             )
-        node = next(iter(components[0]))
-        return self._build_stamp_from_node(node)
+        return self._build_stamp_from_node(self._component_start_node(components[0]))
 
     def split_components(self) -> list["MatchGraph"]:
         """Split this graph into one MatchGraph per connected component.

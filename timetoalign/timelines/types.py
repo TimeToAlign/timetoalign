@@ -456,19 +456,21 @@ class ContinuousPhysicalTimeline(PhysicalTimeline):
         # Per TTA: Cross-domain relationships use groups, not parent-child
         group = TimelineGroup()
 
-        # Add this physical timeline as reference (defines initial group extent)
-        # Group boundaries: [first_beat_at, end_at] in seconds
-        group.add_timeline(
-            self,
-            start=first_beat_at,
-            end=end_at,
-        )
+        # The physical timeline joins first and so defines the group's own
+        # coordinate space; start/end on that first member would be inert.
+        group.add_timeline(self)
 
-        # Add the logical grid, aligned with the physical timeline
-        # The grid's [0, length_quarters] maps to physical [first_beat_at, end_at]
-        # Since the group already has the physical timeline, the grid is automatically
-        # aligned to map 0 -> first_beat_at and length_quarters -> end_at
-        group.add_timeline(grid)
+        # The grid is what needs placing: its [0, length_quarters] spans from
+        # the first beat forward at exactly the declared tempo. Deriving the
+        # end from length_quarters rather than reusing end_at matters because
+        # the meter map holds whole measures only -- stretching that shortened
+        # grid across the full window would silently alter the tempo.
+        grid_end_seconds = first_beat_at + float(length_quarters) / quarters_per_second
+        group.add_timeline(
+            grid,
+            start=first_beat_at,
+            end=grid_end_seconds,
+        )
 
         return MetricalResult(
             grid=grid,
@@ -702,6 +704,7 @@ class ContinuousPhysicalTimeline(PhysicalTimeline):
         Examples:
             >>> audio = ContinuousPhysicalTimeline(length=300.0)
             >>> audio.add_region("verse", start=10.0, end=50.0)
+            Region('verse', 10.0-50.0 seconds)
             >>> result = audio.create_metrical_region(
             ...     region_name="verse",
             ...     tempo_bpm=100.0,
@@ -1214,9 +1217,9 @@ def get_timeline_class(
 
     Examples:
         >>> get_timeline_class("logical", discrete=False)
-        <class 'ContinuousLogicalTimeline'>
+        <class 'timetoalign.timelines.types.ContinuousLogicalTimeline'>
         >>> get_timeline_class("physical", discrete=True)
-        <class 'DiscretePhysicalTimeline'>
+        <class 'timetoalign.timelines.types.DiscretePhysicalTimeline'>
     """
     classes = {
         ("logical", False): ContinuousLogicalTimeline,

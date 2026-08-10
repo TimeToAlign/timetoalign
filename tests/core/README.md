@@ -96,6 +96,124 @@ the scalar and stamp paths produce identical strings for the same value, so
 they cannot drift apart again. `repr()` is the other lane and was already
 exact — it is left alone.
 
+`Interval` is the third rendering path and joins the same formatter.
+`str(Interval(...))` shows the half-open span with the shared unit named
+once, because the endpoints are validated to carry the same unit and
+repeating it would only add noise:
+
+| Endpoints | Renders |
+|---|---|
+| `Fraction(1, 2)` → `Fraction(3, 2)` quarters | `[1/2, 3/2) quarters` |
+| `Fraction(10, 1)` → `Fraction(12, 1)` quarters | `[10, 12) quarters` — integral, so no denominator |
+| `0.1` → `2.0` seconds | `[0.1, 2) seconds` |
+| `160` → `480` ticks | `[160, 480) ticks` |
+
+**Validity Rationale:** an interval is exactly the place a second formatter
+would go unnoticed. Its endpoints are ordinary coordinates, so a hand-rolled
+`f"[{start.value}, {end.value})"` renders plausibly for the common cases and
+silently drops to `0.5` on a value the scalar path shows as `1/2` — the same
+defect class the single formatter exists to remove, reintroduced one level up.
+The tests therefore pin each endpoint kind rather than one representative
+interval, and assert that each endpoint renders byte-identically to the bare
+`Coordinate` carrying that value. `TimeIntervalStamp` heads its display with
+the interval's own rendering rather than assembling brackets a second time,
+so there is one bracket form in the library, not two.
+
+#### A C-Map row shows what `get_unit` returns
+
+A stamp renders each attached C-Map as a row, and a caller can ask the same
+stamp for the same conversion through `get_unit`. These are two readings of
+one number, so they must agree; when they did not, the display was the one
+that was wrong, and wrong in two different ways at once.
+
+The display built its row with `Coordinate(value, target_unit)` — the
+*construction* path. Construction refuses an exact non-integral value on an
+integer-valued unit (a deliberate ratio is not a rounding candidate), so a
+conversion into pixels whose result was a ratio made `repr()` of an ordinary
+stamp **raise**. A display raising is the worst available outcome: the object
+becomes uninspectable exactly when a reader most wants to look at it. And
+construction keeps an exact input on a float-canonical unit (the
+never-degrade rule), so a seconds row printed `Fraction(3278347, 7350)` where
+`get_unit("seconds")` returned `37.79265306122449`.
+
+Both symptoms are one cause — a conversion result crossing into a unit is a
+re-expression, not a construction — and the fix is one shared boundary
+(`Stamp._on_unit`) that both lanes call. Pinned on a stamp whose maps cover
+all three target classes, each with a non-integral exact reading:
+
+| Target unit | Declares | Row and `get_unit` both give |
+|---|---|---|
+| `pixels` (from a `fraction` axis) | `int`, locked | `2` — rounded, because there is no fractional pixel |
+| `seconds` (from an `int` axis) | `float` | `446.03360544217685` |
+| `seconds` (from a `fraction` axis) | `float` | `446.03360544217685` — the same |
+| `quarters` (from an `int` axis) | `fraction` | `Fraction(1, 3)` |
+| `beats` (from an `int` axis) | `fraction` | `Fraction(3, 4)` |
+
+**The target decides alone.** The two `seconds` rows are the pair worth
+reading together: one conversion read off an exact axis and off an
+integer-locked axis, reporting the same number. An earlier attempt let the
+*source* axis's representation ride along wherever the target admitted it,
+which looks reasonable — seconds do accept exact values — and is wrong twice
+over. It makes one map answer differently depending on where it is read from,
+so a caller comparing a score position against a scan position is comparing
+two spellings; and on `floating_measures` it rendered ordinary readings as
+forty-digit dyadics, because the exact quarters axis feeding them propagated
+its own kind onto a float-canonical result. Carrying the source's
+representation across a conversion is the provenance-in-the-type pattern the
+boundary rule exists to remove. The last two rows are the reverse case, kept
+so the rule cannot be mistaken for a preference for floats: a
+fraction-canonical target stays exact from an integer-locked source.
+
+**Validity Rationale:** asserting only that `repr()` no longer raises would
+pass on a display that silently omitted the offending row — the existing
+`except Exception: continue` guard would happily swallow it. The tests
+therefore assert the rendered row's exact value against the `get_unit` value
+for the same stamp and unit, so a skipped row fails as loudly as a wrong one.
+Both `repr()` and `_repr_html_()` are exercised, since they are separate
+callers of the same row set.
+
+`get_conversion_for(key)` is the third reader of the same maps — it addresses
+one by name rather than surfacing all of them — and it goes through the same
+boundary, so naming a map cannot get a different number from displaying it.
+Its contractual job stays label and structured maps (unit-valued conversions
+belong to `get_unit`); it accepts a unit name as a convenience, and that
+convenience is exactly where a fourth spelling of one value would have
+appeared.
+
+#### A map's own answer is written on its target axis
+
+The same rule one level down: `ConversionMap.__call__` is public output, so
+its result is written the way the target unit writes numbers — the map's
+internal arithmetic representation is not the caller's business. A
+`seconds`-target map answers `1.0`, not `Fraction(1, 1)`; a `quarters`-target
+map answers `Fraction(3, 2)`, not `1.5`; a `ticks`-target map answers a whole
+tick. Maps with no target unit (label and structured maps) pass through
+untouched, and so does the array lane, which stays float64 by contract.
+
+This has a consequence worth stating plainly rather than hiding in a
+tolerance: **a float that is finer than a discrete axis does not survive a
+round trip through it.** 1.234375 quarters at 96 ppq is 118.5 ticks; there is
+no such tick, half-to-even names 118, and reading back gives `59/48`
+quarters. The old property test asserted the original float came back within
+1e-9 and passed only because the tick leg used to carry a fraction of a tick.
+It is replaced by two exact assertions — tick-aligned values round-trip
+exactly, off-tick values name the tick they land on — rather than by a wider
+tolerance.
+
+A map whose answer is an *ordinal* rather than a position on the target axis
+declares that itself: `MetricMap` returns a measure count and `FloorMap` a
+bucket index, both whole numbers however the nominal target unit writes
+coordinates. They set `_declared_output_number_type`, which is the same
+channel the rule already reserves for "the map carries one".
+
+`ConversionMap.output_number_type` is the single expression of this rule —
+declared output type, else the target unit's default, and nothing about the
+source. Every reader consults it: `_conversion_rows`, `get_unit`,
+`get_conversion_for`, timestamp-table C-Map column metadata, and
+`__call__` itself. The preservation suite asserts all five together on one
+map rather than each in isolation, because the property under test is that
+they cannot disagree.
+
 ### Scalar construction: the unit chooses the representation
 
 A scalar holds exactly one value, so something has to decide how it is
@@ -202,6 +320,97 @@ The bundle rows pin the same literal arriving as an exact ratio and as a
 float: one answer per axis, not one per entry point. Each producer is asserted
 on the value *and* its Python type, since `Fraction(10, 1) == 10.0` compares
 equal and an equality-only check would pass on a wrong-typed axis.
+
+**The claims lane is a producer too.** A `MatchClaim` answers coordinate
+queries, and so does the `MatchStamp` built from it — the same position, twice.
+They disagreed. An event value read out of storage arrives as the cell's exact
+side (`{value: 2.5, numerator: 5, denominator: 2}`), the scalar
+never-degrade rule kept `Fraction(5, 2)` on a float-canonical seconds axis, and
+so `claim.get_coordinate_for("audio")` said `Fraction(5, 2)` while
+`claim.get_matchstamp().get_coordinate_for("audio")` said `2.5`. It travelled:
+anchor reprs read `@5/2 seconds` and `@23/4 seconds`, and
+`WarpMap.from_match_line` inferred `target_number_type=fraction` for an axis
+that declares float.
+
+An anchor coordinate is not a free-standing number; it is a position on a named
+timeline, so the axis decides. An anchor reaches its timelines only by id, so
+what it can consult is the unit's own default (R3); a bundle holds the timeline
+objects and refines that to each timeline's declared representation as the
+claim is read in its context. Both directions are asserted, for the reason
+given above:
+
+| Reader | Axis declares | Asserted |
+|---|---|---|
+| `claim.get_coordinate_for` | `float` (seconds) | `2.5` |
+| `claim.get_coordinate_for` | `fraction` (quarters) | `Fraction(4, 1)` |
+| `claim.get_coordinates_for` / `get_coordinate` | both | same as above |
+| `claim.get_matchstamp(from_graph=False)` | `float` (seconds) | `2.5` |
+| `anchor.get_coordinate_for` / `repr(anchor)` | `float` (seconds) | `2.5` / `@2.5 seconds` |
+| `MatchLine.get_alignment_anchors` | `float` (seconds) | `2.5`, `5.75` |
+| `MatchLine.source_coordinates` | `fraction` (quarters) | `Fraction(4, 1)` |
+| `WarpMap.from_match_line` | quarters → seconds | `fraction` → `float` |
+
+**Validity Rationale:** the storage cell is the specimen that matters. Feeding
+`from_events` a plain Python `2.5` never reproduced the defect, because the
+never-degrade rule has nothing to keep; the exact side of a real event cell is
+what turns a float axis rational. A test built from hand-written literals would
+have gone green against the broken code, which is why the fixture reads its
+values out of an actual `EventData` table.
+
+**A NOMATCH claim keeps its position outside an anchor, and it counts.** The
+anchored and interval lanes were brought onto their axes first and this one was
+missed, because its coordinate lives in a different field (`source_coordinate`)
+— which is exactly how one defect reappears in an area already believed fixed.
+A section marker at `164.3` seconds rendered as
+`@2890396167097549/17592186044416 seconds`. It gets the same rule for the same
+reason, applied where the value is stored so that storage, `repr`, `__str__`
+and `_repr_html_` cannot disagree. The test asserts the model field and all
+three renderings, because an anchorless claim has no getter to go through:
+`get_coordinate_for` raises on it, correctly, and is left alone.
+
+#### `to_dataframe` writes the columns its axes declare
+
+`group.get_timestamps_at(...)` and `group.to_dataframe()` present the same
+positions, and they disagreed on dtype: the batch getter went through stamps
+and gave `int64` / `float64` / `object` per axis, while the frame gave
+`float64` for everything — `12473.0` pixels beside a stamp's `12473`.
+
+The cause is that a group's timestamp table is a `float64` store by design: it
+is the interpolation lane, and interpolation runs on doubles. Nothing was
+wrong with the table; what was missing is that `to_dataframe` is the
+presentation boundary and never applied the declared type. It does now, driven
+by a `number_type` entry added to each field's metadata blob (the unit's
+default is the fallback for older tables), so the raw `get_timestamp_table()`
+stays float and only the frame is re-expressed.
+
+| Axis | `get_timestamps_at` | `to_dataframe` |
+|---|---|---|
+| `dgt1` pixels (`int`) | `0`, `12473` | `0`, `12473` |
+| `cpt1` seconds (`float`) | `0.0`, `37.5` | `0.0`, `37.5` |
+| `clt1` quarters (`fraction`) | `Fraction(0, 1)`, `Fraction(19, 2)` | same |
+| `pixels_to_beats` C-Map column | `Fraction(12473, 4)` | same |
+| `quarters_to_seconds` C-Map column | `38.0` | same |
+
+C-Map columns follow the same target-decides rule as C-Map rows: both read
+`cmap.output_number_type`, so `quarters_to_seconds` is `float64` even though
+the axis feeding it is exact, while `pixels_to_beats` stays exact because
+beats are fraction-canonical. Timeline columns are a different question and
+keep following their own axis — a `quarters` column is the timeline's own
+coordinates, not a conversion of anything. Maps whose answer is an ordinal
+(`MetricMap`, `FloorMap`) declare `int` and stay whole from every reader.
+
+Nullable `Int64` appears only where a column actually has gaps — a group
+member covering part of the span — so a dense integer axis reads `int64`,
+exactly like the batch getter.
+
+**Validity Rationale:** the two methods are asserted side by side in one test
+rather than separately, because the property is *agreement*, and two
+independently-pinned tables drift the moment one is updated. Both value and
+dtype are asserted: values alone pass on a float column holding `12473.0`,
+which is the defect. A fraction axis is included deliberately even though both
+lanes reconstruct the exact dyadic of a stored double rather than the ratio
+that was authored — that lossiness is the float table's, shared by both lanes,
+and pinning it here records that this fix did not change it.
 
 ### Stamp retrieval formats and canonical storage
 

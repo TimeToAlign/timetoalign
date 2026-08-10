@@ -48,9 +48,9 @@ class GraphicalSegment:
         ...     name="system_1",
         ... )
         >>> segment.length
-        490.0
+        490
         >>> segment.to_image(245.0)
-        (0, (255.0, 100.0))
+        (0, (255.0, 100))
     """
 
     source_index: int

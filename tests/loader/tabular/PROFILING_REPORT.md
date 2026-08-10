@@ -90,7 +90,7 @@ The vectorized TabularLoader achieves its performance through:
 
 1. **Single file read:** `pd.read_csv()` for efficient I/O
 2. **Vectorized column extraction:** NumPy array operations
-3. **Vectorized coordinate parsing:** `CoordinateParser.parse()` using pandas string operations
+3. **Vectorized coordinate parsing:** `build_number_struct_array()` using pandas string operations
 4. **Vectorized validation:** `ArrayValidator.validate_column_dict()`
 5. **Single table construction:** `pa.table()` from column arrays
 

@@ -67,7 +67,7 @@ import re
 from collections.abc import Iterable, Sequence
 from decimal import Decimal
 from fractions import Fraction
-from typing import Any, ClassVar, NamedTuple, Union
+from typing import Any, ClassVar, NamedTuple, TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -98,6 +98,8 @@ from .fields import (
 TimeScalarValue = Union[int, float, Fraction]
 CoordinateValue = TimeScalarValue
 DurationValue = TimeScalarValue
+
+TimeScalarT = TypeVar("TimeScalarT", bound="TimeScalar")
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -926,6 +928,26 @@ def express_as(
     ):
         return _round_to_int(value, rounding)
     return to_canonical(value, number_type, rounding=rounding)
+
+
+def express_scalar_as(
+    scalar: TimeScalarT,
+    number_type: NumberType,
+    *,
+    rounding: str = "round",
+) -> TimeScalarT:
+    """Rewrite a typed scalar in a declared representation.
+
+    :func:`express_as` for callers holding a ``Coordinate`` or ``Duration``
+    rather than a bare number. The scalar's identity survives -- an
+    ``IdCoordinate`` stays bound to its timeline -- because the only thing
+    the axis gets to decide is how the number is written.
+    """
+    if scalar.number_type is number_type:
+        return scalar
+    return scalar.model_copy(
+        update={"value": express_as(scalar.value, number_type, rounding=rounding)}
+    )
 
 
 def combine_number_columns(
@@ -3495,6 +3517,19 @@ class Interval(BaseModel):
             self.unit,
             number_type=self.number_type,
         )
+
+    # -- formatting ---------------------------------------------------------
+
+    def __str__(self) -> str:
+        """Render the half-open span, naming the shared unit once.
+
+        Both endpoints go through the same formatter the scalars use, so an
+        interval can never show less of a value than a bare
+        :class:`Coordinate` would: ``[1/2, 3/2) quarters``, not
+        ``[0.5, 1.5)``. The unit is stated once because the endpoints are
+        validated to share it.
+        """
+        return f"[{self.start._format_value()}, {self.end._format_value()}) {self.unit}"
 
 
 class IntervalField(SemanticField[Interval]):

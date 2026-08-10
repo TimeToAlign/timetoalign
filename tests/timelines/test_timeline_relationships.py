@@ -32,6 +32,7 @@ from fractions import Fraction
 import pytest
 
 from timetoalign.core import Coordinate, NumberType, TimeUnit
+from timetoalign.core.time import Duration, Interval
 from timetoalign.maps import LinearMap
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
@@ -62,20 +63,33 @@ class TestRegionDataclass:
         assert region.unit == TimeUnit.seconds
 
     def test_region_duration(self):
-        """Region.duration computes end - start."""
+        """Region.duration is a typed Duration of end - start."""
         start = Coordinate(10.0, TimeUnit.seconds)
         end = Coordinate(30.0, TimeUnit.seconds)
         region = Region(name="Test", start=start, end=end)
 
-        assert region.duration == 20.0
+        assert region.duration == Duration(20.0, TimeUnit.seconds)
+
+    def test_region_duration_keeps_an_exact_extent_exact(self):
+        """A fraction-canonical region reports its exact length, not a decimal."""
+        region = Region(
+            name="Test",
+            start=Coordinate(Fraction(1, 3), TimeUnit.quarters),
+            end=Coordinate(Fraction(2, 3), TimeUnit.quarters),
+        )
+
+        assert region.duration == Duration(Fraction(1, 3), TimeUnit.quarters)
+        assert region.duration.value == Fraction(1, 3)
 
     def test_region_as_interval(self):
-        """Region.as_interval returns (start, end) tuple."""
+        """Region.as_interval returns a typed Interval over the endpoints."""
         start = Coordinate(5.0, TimeUnit.seconds)
         end = Coordinate(15.0, TimeUnit.seconds)
         region = Region(name="Test", start=start, end=end)
 
-        assert region.as_interval == (5.0, 15.0)
+        assert region.as_interval == Interval(start=start, end=end)
+        assert region.as_interval.start == start
+        assert region.as_interval.end == end
 
     def test_region_contains_left_inclusive(self):
         """Region.contains follows [start, end) convention."""
@@ -183,7 +197,7 @@ class TestTimelineRegionManagement:
 
         assert isinstance(region, Region)
         assert region.name == "Chorus"
-        assert region.duration == 30.0
+        assert region.duration == Duration(30.0, TimeUnit.seconds)
 
     def test_add_region_stores_region(self):
         """Added regions are stored and retrievable."""

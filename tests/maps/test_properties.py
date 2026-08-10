@@ -211,21 +211,27 @@ class TestTicksToQuartersProperties:
         quarters = t2q(ticks)
         back = q2t(quarters)
 
-        # Integer ticks should round-trip exactly
-        assert back == pytest.approx(ticks, abs=1e-9)
+        # Integer ticks round-trip exactly: the quarters leg is an exact
+        # ratio and the tick leg is whole, so nothing is left to lose.
+        assert back == ticks
+        assert isinstance(back, int)
 
-    @given(ppq=ppq_values, quarters=st.floats(min_value=0, max_value=10000))
-    def test_inverse_roundtrip_float(self, ppq: int, quarters: float):
-        """Round-trip for float quarter values."""
-        assume(not np.isnan(quarters) and not np.isinf(quarters))
+    def test_off_tick_quarters_name_the_tick_they_land_on(self) -> None:
+        """A quarter position between ticks resolves to one whole tick.
 
-        t2q = TicksToQuarters(ppq)
-        q2t = QuartersToTicks(ppq)
+        The tick axis holds whole numbers, so the outward leg quantizes --
+        1.234375 quarters at 96 ppq is 118.5 ticks, which is not a tick.
+        Half-to-even names 118, and the return leg reads that tick exactly.
+        The original float does not come back, and saying so is the point:
+        a position stated finer than the axis can hold is a position the
+        axis has to choose for.
+        """
+        t2q = TicksToQuarters(96)
+        q2t = QuartersToTicks(96)
 
-        ticks = q2t(quarters)
-        back = t2q(ticks)
-
-        assert back == pytest.approx(quarters, rel=1e-9, abs=1e-9)
+        assert q2t(1.234375) == 118
+        assert t2q(118) == Fraction(59, 48)
+        assert t2q(119) == Fraction(119, 96)
 
     @given(ppq=ppq_values)
     def test_one_quarter_equals_ppq_ticks(self, ppq: int):
@@ -251,18 +257,20 @@ class TestSamplesToSecondsProperties:
 
         assert back == pytest.approx(samples, abs=1e-6)
 
-    @given(sr=sample_rates, seconds=st.floats(min_value=0, max_value=3600))
-    def test_inverse_roundtrip_float(self, sr: int, seconds: float):
-        """Round-trip for float second values."""
-        assume(not np.isnan(seconds) and not np.isinf(seconds))
+    def test_sub_sample_seconds_name_the_sample_they_land_on(self) -> None:
+        """A second position finer than one sample resolves to one sample.
 
-        s2s = SamplesToSeconds(sr)
-        s2samp = SecondsToSamples(sr)
+        The samples axis holds whole numbers, so a time between two of them
+        names one; 0.0200005 s at 48 kHz falls inside sample 960, and the
+        seconds read back off that sample are the sample's own time, not the
+        time that was asked for.
+        """
+        s2s = SamplesToSeconds(48000)
+        s2samp = SecondsToSamples(48000)
 
-        samples = s2samp(seconds)
-        back = s2s(samples)
-
-        assert back == pytest.approx(seconds, rel=1e-9, abs=1e-9)
+        assert s2samp(0.0200005) == 960
+        assert s2s(960) == 0.02
+        assert s2s(961) == 0.020020833333333335
 
     @given(sr=sample_rates)
     def test_one_second_equals_sample_rate(self, sr: int):

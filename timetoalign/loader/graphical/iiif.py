@@ -68,14 +68,17 @@ class IIIFManifestLoader(Loader[IIIFManifestInfo]):
     Supports both IIIF Presentation API 2.x and 3.x formats.
 
     Examples:
-        >>> loader = IIIFManifestLoader()
-        >>> loader.load("manifest.json")
+        >>> from timetoalign.testdata import ensure_data
+        >>> manifest = ensure_data("supra") / "image" / "ifff_manifest.json"
+        >>> loader = IIIFManifestLoader().load(manifest)
         >>> loader.dimensions
         {'width': 4096, 'height': 299400}
 
-        >>> # Access individual canvases
+        Individual canvases carry their own label and dimensions:
+
         >>> for canvas in loader.manifest_info.canvases:
         ...     print(f"{canvas.label}: {canvas.width}x{canvas.height}")
+        display image: 4096x299400
 
     Attributes:
         manifest_info: Parsed manifest information (after loading).

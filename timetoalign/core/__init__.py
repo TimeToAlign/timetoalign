@@ -145,6 +145,7 @@ from .time import (
     coordinate_to_struct,
     exact_coordinate_value,
     express_as,
+    express_scalar_as,
     infer_number_type,
     is_rational_wire,
     number_cell,
@@ -318,4 +319,5 @@ __all__ = [
     "to_canonical",
     "parse_number",
     "express_as",
+    "express_scalar_as",
 ]

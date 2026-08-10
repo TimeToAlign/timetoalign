@@ -22,6 +22,7 @@ from timetoalign.core.time import (
     CoordinateField,
     Duration,
     DurationField,
+    Interval,
     _pair_from_float,
     build_number_struct_array,
     number_cell,
@@ -514,11 +515,261 @@ class TestDisplayShowsWhatIsCarried:
             scalar = str(Coordinate(value, unit, number_type=number_type))
             assert _format_coordinate_value(value, unit.value) == scalar
 
+    @pytest.mark.parametrize(
+        ("start", "end", "unit", "number_type", "expected"),
+        [
+            # Exact endpoints stay exact; the unit is named once.
+            (
+                Fraction(1, 2),
+                Fraction(3, 2),
+                TimeUnit.quarters,
+                "fraction",
+                "[1/2, 3/2) quarters",
+            ),
+            (
+                Fraction(1, 3),
+                Fraction(2, 3),
+                TimeUnit.quarters,
+                "fraction",
+                "[1/3, 2/3) quarters",
+            ),
+            # Integral endpoints drop the denominator.
+            (
+                Fraction(10, 1),
+                Fraction(12, 1),
+                TimeUnit.quarters,
+                "fraction",
+                "[10, 12) quarters",
+            ),
+            # Float endpoints render as floats, integral ones without a point.
+            (0.1, 2.0, TimeUnit.seconds, "float", "[0.1, 2) seconds"),
+            (
+                1e-7,
+                1234567.5,
+                TimeUnit.seconds,
+                "float",
+                "[0.0000001, 1234567.5) seconds",
+            ),
+            # Discrete units render as integers.
+            (160, 480, TimeUnit.ticks, None, "[160, 480) ticks"),
+            # A zero-length span is valid and renders both endpoints.
+            (
+                Fraction(5, 4),
+                Fraction(5, 4),
+                TimeUnit.quarters,
+                "fraction",
+                "[5/4, 5/4) quarters",
+            ),
+        ],
+    )
+    def test_interval_str_renders_both_endpoints_whole(
+        self,
+        start: object,
+        end: object,
+        unit: TimeUnit,
+        number_type: str | None,
+        expected: str,
+    ) -> None:
+        interval = Interval(
+            start=Coordinate(start, unit, number_type=number_type),
+            end=Coordinate(end, unit, number_type=number_type),
+        )
+        assert str(interval) == expected
+
+    def test_interval_endpoints_render_like_bare_coordinates(self) -> None:
+        """The interval reuses the scalar formatter, so it cannot show less."""
+        for value, unit, number_type in (
+            (Fraction(1, 3), TimeUnit.quarters, "fraction"),
+            (Fraction(19, 2), TimeUnit.quarters, "fraction"),
+            (0.1, TimeUnit.seconds, "float"),
+            (1e-7, TimeUnit.seconds, "float"),
+            (160, TimeUnit.ticks, None),
+        ):
+            coordinate = Coordinate(value, unit, number_type=number_type)
+            interval = Interval(start=coordinate, end=coordinate)
+            endpoint = str(coordinate).removesuffix(f" {unit}")
+            assert str(interval) == f"[{endpoint}, {endpoint}) {unit}"
+
     def test_repr_stays_exact_and_typed(self) -> None:
         """repr is the other lane and already showed the whole value."""
         assert repr(Coordinate(Fraction(1, 3), TimeUnit.quarters)) == (
             "Coordinate(Fraction(1, 3), quarters)"
         )
+        assert repr(
+            Interval(
+                start=Coordinate(Fraction(1, 2), TimeUnit.quarters),
+                end=Coordinate(Fraction(3, 2), TimeUnit.quarters),
+            )
+        ) == (
+            "Interval(start=Coordinate(Fraction(1, 2), quarters), "
+            "end=Coordinate(Fraction(3, 2), quarters))"
+        )
+
+
+class TestConversionRowsAgreeWithGetUnit:
+    """A C-Map row and ``get_unit`` are two readings of one number."""
+
+    @staticmethod
+    def _stamp() -> tuple[object, object]:
+        """A fraction axis and an int axis, each mapped to all three classes.
+
+        Every map is chosen to give a non-integral exact reading at the probe
+        coordinate, because that is the value the construction path refused
+        (into pixels) and the value it kept undegraded (into seconds).
+        """
+        from timetoalign.maps import LinearMap
+        from timetoalign.timelines import (
+            ContinuousLogicalTimeline,
+            DiscreteGraphicalTimeline,
+        )
+
+        quarters_axis = ContinuousLogicalTimeline(length=Fraction(100), uid="clt1")
+        for scalar, target in (
+            (Fraction(7104000, 3278347), TimeUnit.pixels),
+            (Fraction(3278347, 7350), TimeUnit.seconds),
+            (Fraction(1, 3), TimeUnit.beats),
+        ):
+            quarters_axis.add_conversion_map(
+                LinearMap(
+                    scalar=scalar,
+                    offset=0,
+                    source_unit=TimeUnit.quarters,
+                    target_unit=target,
+                )
+            )
+
+        pixels_axis = DiscreteGraphicalTimeline(length=20000, uid="dgt_holes")
+        for scalar, target in (
+            (Fraction(3278347, 7350), TimeUnit.seconds),
+            (Fraction(1, 3), TimeUnit.quarters),
+        ):
+            pixels_axis.add_conversion_map(
+                LinearMap(
+                    scalar=scalar,
+                    offset=0,
+                    source_unit=TimeUnit.pixels,
+                    target_unit=target,
+                )
+            )
+
+        return quarters_axis.get_timestamp(Fraction(1)), pixels_axis.get_timestamp(1)
+
+    def test_display_never_raises_on_an_int_locked_target(self) -> None:
+        """An exact ratio converted into pixels used to break ``repr``."""
+        from_fraction_axis, _ = self._stamp()
+
+        assert "pixels=2" in repr(from_fraction_axis)
+        assert "2 pixels" in str(from_fraction_axis)
+        assert "pixels" in from_fraction_axis._repr_html_()
+
+    def test_rows_carry_the_target_representation(self) -> None:
+        """The target decides alone, so the source axis leaves no trace.
+
+        The two ``seconds`` rows come off different axes -- one exact, one
+        integer-locked -- through the same conversion, and report the same
+        number. Letting the source axis's representation ride along produced
+        a forty-digit ratio on a float-canonical reading and made one map
+        answer two ways depending on where it was read from.
+        """
+        from_fraction_axis, from_int_axis = self._stamp()
+
+        assert from_fraction_axis._conversion_rows() == [
+            ("pixels", 2, "pixels"),
+            ("seconds", 446.03360544217685, "seconds"),
+            ("beats", Fraction(1, 3), "beats"),
+        ]
+        assert from_int_axis._conversion_rows() == [
+            ("seconds", 446.03360544217685, "seconds"),
+            ("quarters", Fraction(1, 3), "quarters"),
+        ]
+
+    def test_every_row_equals_the_typed_getter(self) -> None:
+        """The property, not a table of expectations: the two lanes agree."""
+        for stamp in self._stamp():
+            rows = stamp._conversion_rows()
+            assert rows
+            for label, value, _suffix in rows:
+                converted = stamp.get_unit(TimeUnit(label), format="coordinate")
+                assert converted.value == value
+                assert type(converted.value) is type(value)
+
+    def test_the_selector_getter_reads_the_same_boundary(self) -> None:
+        """``get_conversion_for`` names a map; the number is still the axis's."""
+        from_fraction_axis, from_int_axis = self._stamp()
+
+        assert from_fraction_axis.get_conversion_for("pixels") == 2
+        assert from_fraction_axis.get_conversion_for("seconds") == 446.03360544217685
+        assert from_int_axis.get_conversion_for("seconds") == 446.03360544217685
+        assert from_fraction_axis.get_conversion_for("beats") == Fraction(1, 3)
+
+    def test_rendered_text_shows_the_row_values(self) -> None:
+        """Both display lanes print the same numbers the rows carry."""
+        from_fraction_axis, from_int_axis = self._stamp()
+
+        text = str(from_fraction_axis)
+        assert "  pixels   2 pixels" in text
+        assert "  seconds  446.03360544217685 seconds" in text
+        assert "  beats    1/3 beats" in text
+
+        html = from_int_axis._repr_html_()
+        assert "446.03360544217685 seconds" in html
+        assert "1/3 quarters" in html
+
+
+class TestMapCallsWriteTheirTargetAxis:
+    """A public map evaluation lands on the target unit's own representation."""
+
+    @pytest.mark.parametrize(
+        ("target", "value", "expected"),
+        [
+            # float-canonical: an exact input degrades on the way out.
+            (TimeUnit.seconds, 1, 1.0),
+            (TimeUnit.seconds, Fraction(1), 1.0),
+            # fraction-canonical: a float input becomes its exact dyadic.
+            (TimeUnit.quarters, 1.5, Fraction(3, 2)),
+            (TimeUnit.quarters, Fraction(3, 2), Fraction(3, 2)),
+            # int-locked: quantized, because there is no fractional pixel.
+            (TimeUnit.pixels, Fraction(4, 3), 1),
+            (TimeUnit.pixels, 2.5, 2),
+        ],
+    )
+    def test_target_unit_decides(
+        self, target: TimeUnit, value: object, expected: object
+    ) -> None:
+        from timetoalign.maps import LinearMap
+
+        cmap = LinearMap(scalar=1, offset=0, target_unit=target)
+        result = cmap(value)
+
+        assert result == expected
+        assert type(result) is type(expected)
+
+    def test_a_map_without_a_target_unit_declares_nothing(self) -> None:
+        from timetoalign.maps import LinearMap
+
+        cmap = LinearMap(scalar=1, offset=0)
+
+        assert cmap.output_number_type is None
+        assert cmap(Fraction(3, 2)) == Fraction(3, 2)
+
+    def test_ordinal_maps_keep_their_own_whole_numbers(self) -> None:
+        """A measure count and a bucket index are not axis positions."""
+        from timetoalign.maps.meter import MetricMap
+        from timetoalign.maps.periodic import FloorMap
+
+        meter = MetricMap.from_uniform(
+            n_measures=4,
+            quarters_per_measure=Fraction(4, 1),
+            start_mc=1,
+            start_mn="1",
+        )
+        floors = FloorMap(4.0, base=1, target_unit=TimeUnit.floating_measures)
+
+        assert meter.target_unit is TimeUnit.floating_measures
+        assert meter(4.0) == 2
+        assert type(meter(4.0)) is int
+        assert floors(5.0) == 2
+        assert type(floors(5.0)) is int
 
 
 class TestNoFabricatedExactness:

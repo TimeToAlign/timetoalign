@@ -9,14 +9,15 @@ from __future__ import annotations
 import inspect
 import logging
 from abc import ABC, abstractmethod
+from fractions import Fraction
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, Union
 
 import numpy as np
 from numpy.typing import NDArray
 
-from ..core.enums import TimeUnit
+from ..core.enums import NumberType, TimeUnit
 from ..core.ids import IdGenerator
-from ..core.time import Coordinate, CoordinateValue
+from ..core.time import Coordinate, CoordinateValue, express_as
 
 if TYPE_CHECKING:
     from typing_extensions import Self
@@ -76,6 +77,12 @@ class ConversionMap(ABC, Generic[T]):
     # Class-level attributes that subclasses may override
     _default_source_unit: TimeUnit | None = None
     _default_target_unit: TimeUnit | None = None
+
+    # Set by maps whose result is an ordinal (a measure count, a floor index)
+    # rather than a position on the target axis, so the axis's own
+    # representation does not get imposed on a number that is not one of its
+    # coordinates.
+    _declared_output_number_type: NumberType | None = None
 
     # Registry of concrete map types, keyed by class name, populated
     # automatically as subclasses are defined. Used by from_dict() to
@@ -170,6 +177,28 @@ class ConversionMap(ABC, Generic[T]):
         """
         return True
 
+    @property
+    def output_number_type(self) -> NumberType | None:
+        """The representation this map's results are written in, if any.
+
+        The target decides, and it decides alone: this map's own declared
+        output representation where it has one, else the target unit's
+        default. What the value is converted *from* has no say -- a result
+        landing on a float-canonical axis is a float whether the source axis
+        was exact or not, and every reader of this map (row, column, typed
+        getter, direct call) gets that same answer.
+
+        A map whose answer is an ordinal rather than a position on the target
+        axis -- a measure count, a floor index -- declares that through
+        ``_declared_output_number_type``. A label or structured map names no
+        target unit and so declares nothing.
+        """
+        if self._declared_output_number_type is not None:
+            return self._declared_output_number_type
+        if self._target_unit is None:
+            return None
+        return self._target_unit.default_number_type
+
     # region Conversion methods
 
     def __call__(
@@ -198,14 +227,42 @@ class ConversionMap(ABC, Generic[T]):
                     f"Coordinate unit {value.unit} does not match "
                     f"map source unit {self._source_unit}"
                 )
-            return self._convert_scalar(value.value, **kwargs)
+            return self._on_target_axis(self._evaluate(value.value, **kwargs))
 
         # Handle array input
         if isinstance(value, np.ndarray):
             return self._convert_array(value, **kwargs)
 
         # Handle scalar input
+        return self._on_target_axis(self._evaluate(value, **kwargs))
+
+    def _evaluate(self, value: CoordinateValue, **kwargs: Any) -> T:
+        """The map's own result, before an axis decides how it is written.
+
+        Callers that re-express at a boundary of their own -- a stamp
+        resolving a unit, a display assembling a conversion row -- take this
+        rather than calling the map, so the value is written once instead of
+        being degraded on the way out and rebuilt on arrival. Everyone else
+        calls the map and gets its target axis's representation.
+        """
         return self._convert_scalar(value, **kwargs)
+
+    def _on_target_axis(self, result: T) -> T:
+        """Write a public conversion result the way its target axis writes numbers.
+
+        A map's arithmetic runs in whatever representation its own scalars
+        happen to have, which says nothing about the axis the result lands
+        on: ``ticks``-valued output is an integer count however the ratio was
+        computed. Re-expressing here means a caller reading a map directly
+        gets the same number a timestamp getter would report for it.
+
+        Label and structured maps declare no target unit and pass through
+        untouched, as does the array lane, which stays float64 by contract.
+        """
+        number_type = self.output_number_type
+        if number_type is None or not isinstance(result, (int, float, Fraction)):
+            return result
+        return express_as(result, number_type)  # type: ignore[return-value]
 
     @abstractmethod
     def _convert_scalar(self, value: CoordinateValue, **kwargs: Any) -> T:

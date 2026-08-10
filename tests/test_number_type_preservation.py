@@ -13,12 +13,14 @@ from __future__ import annotations
 import math
 from fractions import Fraction
 
-from timetoalign.alignment import AlignmentBundle, MatchStamp
-from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
-from timetoalign.maps import ScalarMap, TicksToQuarters
+from timetoalign.alignment import AlignmentBundle, MatchClaim, MatchStamp
+from timetoalign.alignment.warpmap import WarpMap
+from timetoalign.core import Coordinate, IdCoordinate, NumberType, TimeUnit
+from timetoalign.maps import LinearMap, ScalarMap, TicksToQuarters
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
+    DiscreteGraphicalTimeline,
     DiscreteLogicalTimeline,
     TimelineGroup,
 )
@@ -276,3 +278,406 @@ def test_bundle_matchstamp_axis_stays_float_on_a_float_axis() -> None:
         axis = bundle.get_matchstamp_at(query, "cpt1").axis
         assert axis.value == 25.0
         assert isinstance(axis.value, float)
+
+
+def _claimed_bundle() -> tuple[AlignmentBundle, list[MatchClaim]]:
+    """A quarters/seconds bundle whose claims are built from storage cells.
+
+    The specimen matters: a plain Python ``2.5`` never reproduced the defect,
+    because the scalar never-degrade rule has nothing exact to keep. A real
+    event cell carries both sides (``{value: 2.5, numerator: 5,
+    denominator: 2}``), and reading one hands the claim an exact ratio for a
+    position on a float-canonical axis.
+    """
+    score = ContinuousLogicalTimeline(length=Fraction(16), uid="score")
+    audio = ContinuousPhysicalTimeline(length=10.0, uid="audio")
+    score.add_events([{"start": q, "id": f"a{q}"} for q in (0, 4, 8, 12)])
+    audio.add_events(
+        [{"start": s, "id": f"b{i}"} for i, s in enumerate((0.0, 2.5, 5.75, 8.0))]
+    )
+    score_cells = score.get_events().table.column("start").to_pylist()
+    audio_cells = audio.get_events().table.column("start").to_pylist()
+
+    bundle = AlignmentBundle(id="b-claims")
+    bundle.add_timeline(score, uid="score", as_group="g-score")
+    bundle.add_timeline(audio, uid="audio", as_group="g-audio")
+    claims = [
+        MatchClaim.from_events(
+            event_a={"id": f"a{index}", "start": score_cells[index]},
+            tl_a_id="score",
+            event_b={"id": f"b{index}", "start": audio_cells[index]},
+            tl_b_id="audio",
+            unit_a=TimeUnit.quarters,
+            unit_b=TimeUnit.seconds,
+        )
+        for index in range(4)
+    ]
+    bundle.add_match_claims(claims)
+    return bundle, claims
+
+
+def test_claim_getters_follow_the_addressed_axis_in_both_directions() -> None:
+    """A claim answers per axis, exactly as the matchstamp built from it does.
+
+    Both directions on one claim: the seconds half proves an exact input does
+    not survive on a float-canonical axis, and the quarters half proves an
+    integral input is still written exactly. A check of the seconds half alone
+    would pass on an implementation that simply floated everything.
+    """
+    _, claims = _claimed_bundle()
+    claim = claims[1]
+
+    seconds = claim.get_coordinate_for("audio")
+    quarters = claim.get_coordinate_for("score")
+
+    assert seconds == IdCoordinate(2.5, TimeUnit.seconds, "audio")
+    assert isinstance(seconds.value, float)
+    assert quarters == IdCoordinate(Fraction(4, 1), TimeUnit.quarters, "score")
+    assert isinstance(quarters.value, Fraction)
+
+    plural = claim.get_coordinates_for(["score", "audio"])
+    assert [entry.value for entry in plural] == [Fraction(4, 1), 2.5]
+    assert claim.get_coordinate("audio") == seconds
+
+
+def test_claim_and_its_matchstamp_report_one_position() -> None:
+    """The two lanes off one claim agree, from the graph and without it."""
+    _, claims = _claimed_bundle()
+    claim = claims[1]
+
+    from_claim = claim.get_coordinate_for("audio", format="coordinate")
+    full = claim.get_matchstamp().get_coordinate_for("audio", format="coordinate")
+    reduced = claim.get_matchstamp(from_graph=False).get_coordinate_for(
+        "audio", format="coordinate"
+    )
+
+    assert from_claim == full == reduced
+    for value in (from_claim.value, full.value, reduced.value):
+        assert isinstance(value, float)
+
+
+def test_anchor_coordinates_are_positions_on_their_timelines() -> None:
+    """Anchor storage, access and rendering all carry the declared type."""
+    _, claims = _claimed_bundle()
+    anchor = claims[1].start_anchor
+
+    assert anchor.coordinate_b == Coordinate(2.5, TimeUnit.seconds)
+    assert isinstance(anchor.coordinate_b.value, float)
+    assert anchor.get_coordinate_for("audio") == IdCoordinate(
+        2.5, TimeUnit.seconds, "audio"
+    )
+    assert repr(anchor) == ("AlignmentAnchor(score@4 quarters <-> audio@2.5 seconds)")
+
+
+def test_matchline_and_warpmap_read_the_declared_axis() -> None:
+    """Anchors, source coordinates and inferred axis types all agree.
+
+    ``WarpMap.from_match_line`` infers its axis representations from the
+    anchors it is given, so an anchor carrying the wrong kind made the map
+    declare a seconds axis exact. Number type is a type system, not a record
+    of which Python object the value happened to arrive as.
+    """
+    bundle, _ = _claimed_bundle()
+    line = bundle._get_or_build_match_line("score")
+
+    assert [coordinate.value for coordinate in line.source_coordinates] == [
+        Fraction(0, 1),
+        Fraction(4, 1),
+        Fraction(8, 1),
+        Fraction(12, 1),
+    ]
+    assert all(
+        isinstance(coordinate.value, Fraction) for coordinate in line.source_coordinates
+    )
+
+    anchors = line.get_alignment_anchors("audio")
+    assert [anchor.coordinate_b.value for anchor in anchors] == [
+        0.0,
+        2.5,
+        5.75,
+        8.0,
+    ]
+    assert all(isinstance(anchor.coordinate_b.value, float) for anchor in anchors)
+
+    warp = WarpMap.from_match_line(line, "audio")
+    assert warp.source_number_type is NumberType.fraction
+    assert warp.target_number_type is NumberType.float
+
+
+def _typed_group() -> TimelineGroup:
+    """A group spanning all three representations plus a C-Map column."""
+    pixels = DiscreteGraphicalTimeline(length=12473, uid="dgt1")
+    pixels.add_conversion_map(
+        LinearMap(
+            scalar=Fraction(1, 4),
+            offset=0,
+            source_unit=TimeUnit.pixels,
+            target_unit=TimeUnit.beats,
+        )
+    )
+    score = ContinuousLogicalTimeline(length=Fraction(19, 2), uid="clt1")
+    # A fraction axis converting into a float-canonical unit: the target
+    # admits either, so the source axis's representation is kept -- the case
+    # where a column keyed on the map's own default disagreed with the row.
+    score.add_conversion_map(
+        LinearMap(
+            scalar=Fraction(4, 1),
+            offset=0,
+            source_unit=TimeUnit.quarters,
+            target_unit=TimeUnit.seconds,
+        )
+    )
+    group = TimelineGroup(id="g-typed")
+    group.add_timeline(pixels)
+    group.add_timeline(ContinuousPhysicalTimeline(length=37.5, uid="cpt1"))
+    group.add_timeline(score)
+    return group
+
+
+def test_frame_and_batch_getter_write_the_same_columns() -> None:
+    """``to_dataframe`` and ``get_timestamps_at`` present one set of positions.
+
+    Asserted side by side rather than as two pinned tables, because the
+    property is agreement: the group's timestamp table is a float64
+    interpolation lane, and the frame used to hand that lane's doubles
+    straight to the reader while the batch getter went through stamps and
+    reported ``12473`` where the frame said ``12473.0``.
+    """
+    group = _typed_group()
+
+    batch = group.get_timestamps_at([0, 12473], "dgt1")
+    frame = group.to_dataframe()
+
+    assert list(batch.columns) == [
+        "dgt1 (pixels)",
+        "cpt1 (seconds)",
+        "clt1 (quarters)",
+        "beats",
+        "seconds",
+    ]
+    assert list(frame.columns) == [
+        "dgt1 (pixels)",
+        "cpt1 (seconds)",
+        "clt1 (quarters)",
+        "pixels_to_beats (beats)",
+        "quarters_to_seconds (seconds)",
+    ]
+
+    for batch_column, frame_column in zip(batch.columns, frame.columns):
+        assert list(batch[batch_column]) == list(frame[frame_column])
+
+    assert list(frame["dgt1 (pixels)"]) == [0, 12473]
+    assert list(frame["cpt1 (seconds)"]) == [0.0, 37.5]
+    assert list(frame["clt1 (quarters)"]) == [Fraction(0, 1), Fraction(19, 2)]
+    assert list(frame["pixels_to_beats (beats)"]) == [
+        Fraction(0, 1),
+        Fraction(12473, 4),
+    ]
+    assert list(frame["quarters_to_seconds (seconds)"]) == [0.0, 38.0]
+
+    assert str(frame["dgt1 (pixels)"].dtype) == "int64"
+    assert str(frame["cpt1 (seconds)"].dtype) == "float64"
+    assert str(frame["clt1 (quarters)"].dtype) == "object"
+    assert str(frame["pixels_to_beats (beats)"].dtype) == "object"
+    # float64 even though the source axis is exact: a converted reading is
+    # written by its target, and seconds are float-canonical.
+    assert str(frame["quarters_to_seconds (seconds)"].dtype) == "float64"
+    assert [str(dtype) for dtype in batch.dtypes] == [
+        str(frame[name].dtype) for name in frame.columns
+    ]
+
+
+def test_a_gapped_integer_column_uses_the_nullable_dtype() -> None:
+    """Whole numbers where the axis reaches, a null where it does not."""
+    group = TimelineGroup(id="g-gapped")
+    group.add_timeline(DiscreteGraphicalTimeline(length=1000, uid="dgt1"))
+    group.add_timeline(
+        DiscreteGraphicalTimeline(length=400, uid="dgt2"),
+        start=0,
+        end=500,
+    )
+
+    frame = group.to_dataframe()
+    column = frame["dgt2 (pixels)"]
+
+    assert str(column.dtype) == "Int64"
+    assert column.isna().any()
+    assert list(column.dropna()) == [0, 400]
+
+
+def test_the_raw_timestamp_table_stays_the_float_lane() -> None:
+    """Only the frame is re-expressed; the table underneath keeps its doubles.
+
+    The re-expression belongs at the presentation boundary. Pushing it into
+    the table would turn the group's interpolation store into a column of
+    Python objects, which is the lane the rule explicitly leaves alone.
+    """
+    table = _typed_group().get_timestamp_table()
+
+    assert [str(field.type) for field in table.schema] == [
+        "double",
+        "double",
+        "double",
+        "double",
+        "double",
+    ]
+    assert table.column("dgt1").to_pylist() == [0.0, 12473.0]
+
+
+def _float_target_timeline() -> ContinuousLogicalTimeline:
+    """An exact quarters axis mapped into two float-canonical units."""
+    score = ContinuousLogicalTimeline(length=Fraction(64), uid="clt1")
+    score.add_conversion_map(
+        LinearMap(
+            scalar=Fraction(1, 3),
+            offset=0,
+            source_unit=TimeUnit.quarters,
+            target_unit=TimeUnit.seconds,
+        )
+    )
+    score.add_conversion_map(
+        LinearMap(
+            scalar=Fraction(1, 4),
+            offset=1,
+            source_unit=TimeUnit.quarters,
+            target_unit=TimeUnit.floating_measures,
+        )
+    )
+    return score
+
+
+def test_a_float_target_reads_float_from_an_exact_source() -> None:
+    """Every reader of one C-Map reports the target's representation.
+
+    The source axis is fraction-canonical and both targets are
+    float-canonical, which is the combination that decides the question: if
+    the source axis had any say, an exact ``1/3`` quarters would arrive as
+    an exact ratio on a seconds axis, and a ``floating_measures`` reading
+    would render as a forty-digit dyadic instead of ``1.25``. The five
+    readers are asserted together because the property is that they cannot
+    disagree, and each is a separate code path into the same map.
+    """
+    score = _float_target_timeline()
+    stamp = score.get_timestamp(Fraction(1))
+    seconds_map = score.get_conversion_map(TimeUnit.seconds)
+    measures_map = score.get_conversion_map(TimeUnit.floating_measures)
+
+    assert stamp._conversion_rows() == [
+        ("seconds", 0.3333333333333333, "seconds"),
+        ("floating_measures", 1.25, "floating_measures"),
+    ]
+    for unit, expected in (
+        (TimeUnit.seconds, 0.3333333333333333),
+        (TimeUnit.floating_measures, 1.25),
+    ):
+        converted = stamp.get_unit(unit, format="coordinate")
+        assert converted.value == expected
+        assert isinstance(converted.value, float)
+        assert stamp.get_conversion_for(unit.value) == expected
+
+    assert seconds_map(Fraction(1)) == 0.3333333333333333
+    assert measures_map(Fraction(1)) == 1.25
+    assert isinstance(seconds_map(Fraction(1)), float)
+    assert isinstance(measures_map(Fraction(1)), float)
+
+
+def test_one_map_reads_the_same_from_an_exact_and_an_integral_axis() -> None:
+    """Two axes, one conversion, one number.
+
+    The same seconds-valued scaling is attached to a fraction-canonical
+    quarters axis and to an integer-locked pixels axis. A reading that
+    carried its source axis's representation would answer these two
+    differently -- which is what a caller comparing a score position against
+    a scan position would then be doing.
+    """
+    quarters = ContinuousLogicalTimeline(length=Fraction(100), uid="clt1")
+    pixels = DiscreteGraphicalTimeline(length=20000, uid="dgt1")
+    for timeline, source_unit in (
+        (quarters, TimeUnit.quarters),
+        (pixels, TimeUnit.pixels),
+    ):
+        timeline.add_conversion_map(
+            LinearMap(
+                scalar=Fraction(3278347, 7350),
+                offset=0,
+                source_unit=source_unit,
+                target_unit=TimeUnit.seconds,
+            )
+        )
+
+    from_exact = quarters.get_timestamp(Fraction(1))
+    from_integral = pixels.get_timestamp(1)
+
+    assert from_exact.get_conversion_for("seconds") == 446.03360544217685
+    assert from_integral.get_conversion_for("seconds") == 446.03360544217685
+    assert from_exact._conversion_rows() == from_integral._conversion_rows()
+
+
+def test_a_fraction_target_stays_exact_from_any_source() -> None:
+    """The other direction: a fraction-canonical target is not floated.
+
+    Expressing per target is not a preference for floats -- it is a
+    preference for the target. A beats-valued conversion off an
+    integer-locked pixels axis comes back exact, because beats are
+    fraction-canonical.
+    """
+    pixels = DiscreteGraphicalTimeline(length=12473, uid="dgt1")
+    pixels.add_conversion_map(
+        LinearMap(
+            scalar=Fraction(1, 4),
+            offset=0,
+            source_unit=TimeUnit.pixels,
+            target_unit=TimeUnit.beats,
+        )
+    )
+    stamp = pixels.get_timestamp(3)
+
+    converted = stamp.get_unit(TimeUnit.beats, format="coordinate")
+    assert converted.value == Fraction(3, 4)
+    assert isinstance(converted.value, Fraction)
+    assert stamp._conversion_rows() == [("beats", Fraction(3, 4), "beats")]
+
+
+def test_an_unmatched_claim_writes_its_axis_in_both_directions() -> None:
+    """A NOMATCH claim carries its position outside an anchor, and it counts.
+
+    The anchored and interval lanes were brought onto their axes first, and
+    this one was missed because its coordinate lives in a different field --
+    which is exactly how the same defect reappears in a fixed area. The
+    storage and every rendering of it are asserted, since the coordinate is
+    read straight off the model rather than through a getter (an anchorless
+    claim raises on ``get_coordinate_for``, and rightly so). Both directions:
+    the exact side of the seconds cell is a sixteen-digit ratio, and a
+    quarters axis must still keep its exact third.
+    """
+    audio = ContinuousPhysicalTimeline(length=300.0, uid="Demo2")
+    audio.add_events([{"id": "sect", "event_type": "Section", "instant": 164.3}])
+    score = ContinuousLogicalTimeline(length=Fraction(64), uid="score")
+    score.add_events([{"id": "n1", "event_type": "Note", "instant": Fraction(1, 3)}])
+
+    on_float_axis = MatchClaim.nomatch(
+        event=audio.get_event("sect"),
+        source_tl_id="Demo2",
+        target_tl_id="Studio",
+        unit=TimeUnit.seconds,
+    )
+    on_exact_axis = MatchClaim.nomatch(
+        event=score.get_event("n1"),
+        source_tl_id="score",
+        target_tl_id="perf",
+        unit=TimeUnit.quarters,
+    )
+
+    assert on_float_axis.source_coordinate == Coordinate(164.3, TimeUnit.seconds)
+    assert isinstance(on_float_axis.source_coordinate.value, float)
+    assert repr(on_float_axis) == (
+        "MatchClaim(Demo2@164.3 seconds <-> Studio [NOMATCH])"
+    )
+    assert "@164.3 seconds" in str(on_float_axis)
+    assert "164.3 seconds" in on_float_axis._repr_html_()
+
+    assert on_exact_axis.source_coordinate == Coordinate(
+        Fraction(1, 3), TimeUnit.quarters
+    )
+    assert isinstance(on_exact_axis.source_coordinate.value, Fraction)
+    assert repr(on_exact_axis) == ("MatchClaim(score@1/3 quarters <-> perf [NOMATCH])")
