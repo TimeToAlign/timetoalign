@@ -152,6 +152,7 @@ _DEFERRED_EXPORTS = {
     # Loader layer
     "AudioInfo": ("timetoalign.loader", "AudioInfo"),
     "AudioLoader": ("timetoalign.loader", "AudioLoader"),
+    "RekordboxLoader": ("timetoalign.loader", "RekordboxLoader"),
     "EepNotesLoader": ("timetoalign.loader", "EepNotesLoader"),
     "Loader": ("timetoalign.loader", "Loader"),
     "EventLoader": ("timetoalign.loader", "EventLoader"),

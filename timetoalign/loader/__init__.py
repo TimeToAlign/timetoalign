@@ -70,6 +70,7 @@ from .physical import (
     AudioInfo,
     AudioLoader,
     EepNotesLoader,
+    RekordboxLoader,
     RepoVizzInfo,
     RepoVizzLoader,
 )
@@ -91,6 +92,7 @@ __all__ = [
     "RepoVizzLoader",
     "RepoVizzInfo",
     "EepNotesLoader",
+    "RekordboxLoader",
     "Field",
     "ComputedField",
     "parse_json_to_struct",

@@ -3475,6 +3475,41 @@ class Interval(BaseModel):
     start: Coordinate
     end: Coordinate
 
+    def __init__(
+        self,
+        start: Coordinate | TimeScalarValue | None = None,
+        end: Coordinate | TimeScalarValue | None = None,
+        unit: TimeUnit | str | None = None,
+        /,
+        **data: Any,
+    ) -> None:
+        if start is not None or end is not None or unit is not None:
+            if "start" in data or "end" in data:
+                raise TypeError(
+                    f"{type(self).__name__} received conflicting positional "
+                    "and keyword arguments"
+                )
+            resolved_unit = TimeUnit(unit) if unit is not None else None
+            endpoints: list[Coordinate] = []
+            for label, value in (("start", start), ("end", end)):
+                if isinstance(value, Coordinate):
+                    if resolved_unit is not None and value.unit != resolved_unit:
+                        raise ValueError(
+                            f"Interval {label} unit {value.unit} does not match "
+                            f"requested unit {resolved_unit}"
+                        )
+                    endpoints.append(value)
+                    continue
+                if value is None:
+                    raise TypeError(f"Interval {label} must be provided")
+                if resolved_unit is None:
+                    raise TypeError(
+                        "Raw Interval endpoints require a TimeUnit or abbreviation"
+                    )
+                endpoints.append(Coordinate(value, resolved_unit))
+            data = {"start": endpoints[0], "end": endpoints[1], **data}
+        super().__init__(**data)
+
     @field_validator("start", "end", mode="before")
     @classmethod
     def _validate_plain_coordinate(cls, value: object) -> Coordinate:
