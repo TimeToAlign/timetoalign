@@ -1311,3 +1311,223 @@ The following test methods use the deprecated `PerfectAlignment` class and will 
 - `TestBackwardCompatibility.test_iter_timelines_still_works`
 
 These tests verify backward compatibility during the migration period.
+
+---
+
+## TimeSkeleton Validation
+
+This section explains **how** the upcoming tests prove the ``TimeSkeleton`` correct
+under the Zero Tolerance Validation Policy: every anchor below is derived from an
+actual data file and stated as an exact value with no range or approximation.
+
+A ``TimeSkeleton`` is **one** temporal structure shared by every timeline of a work.
+It composes:
+
+- a ``SectionHierarchy`` whose leaves carry immutable ``MeasureMap`` segments;
+- a ``MetricHierarchy`` of ``BeatPolicy`` objects (a beat size, plus optional bpm
+  and display name);
+- **flows** — ordered traversals over the atomic sections, including authored
+  flows and ``Gap`` markers for inserted material.
+
+Internally the skeleton composes an **alignment bundle**: participants attach to a
+flow and carry match claims; each flow that has attachments owns an unfolded
+**reference timeline** measured in quarters as exact ``Fraction`` values.
+
+Measures follow the Measure Map standard (``id``, ``count``, ``qstamp``,
+``number``, ``name``, ``time_signature``, ``nominal_length``, ``actual_length``,
+``start_repeat``, ``end_repeat``, ``next``; plus ``volta``). **A measure is never
+an event; a measure address is a position.** Measure-address axes (measure id
+``m<n>`` or printed number) index positions; floating-measure (``fm``) axes are
+``float``; quarters are exact ``Fraction``.
+
+### Ground-truth data file
+
+`trois-gymnopedies.measures.tsv` (Satie, *Trois Gymnopédies*) is the reference
+score. Facts verified directly from the file:
+
+| Fact | Value |
+|------|-------|
+| Measure rows | 203 (``mc``/``mn`` both 1..203; ``mc == mn`` on every row) |
+| Time signature | ``3/4`` on every measure (``act_dur`` ``3/4`` everywhere) |
+| Quarters per measure | exactly 3 (``duration_qb`` == 3.0 on every row) |
+| ``quarterbeats`` column | prefix sums 0, 3, 6, …, 606 (first = 0, last = 606) |
+| Whole-score span | 606 + 3 = **609 quarters** |
+| Section closers (``breaks`` contains ``"section"``) | measure ``mc 78`` and ``mc 143`` — the marker closes a section **after** that bar |
+| ``repeats`` markers | ``firstMeasure`` on ``mc 1``, ``lastMeasure`` on ``mc 203`` (no interior repeats) |
+
+The two section closers cut the 203 measures into **exactly three** leaf sections:
+
+| Section | Measure ids | Measure count | Quarter span | First onset (quarters) | Last onset (quarters) |
+|---------|-------------|---------------|--------------|------------------------|-----------------------|
+| 1 | m1..m78    | 78 | 78 × 3 = **234** | 0   | 231 |
+| 2 | m79..m143  | 65 | 65 × 3 = **195** | 234 | 426 |
+| 3 | m144..m203 | 60 | 60 × 3 = **180** | 429 | 606 |
+
+Cross-checks a correct implementation must reproduce: 78 + 65 + 60 = 203;
+234 + 195 + 180 = 609; each section's first onset equals the previous section's
+last onset + 3 (231→234, 426→429); the last measure onset 606 + 3 = 609.
+
+Each leaf ``MeasureMap`` segment is immutable and standard-conformant: measure ids
+``m1``..``m203``; ``qstamp`` values are the exact ``Fraction`` prefix sums
+(``Fraction(0)``, ``Fraction(3)``, …, ``Fraction(606)``); ``number`` == ``count``
+here (1..203); ``time_signature`` ``3/4``; ``nominal_length`` == ``actual_length``
+== 3 quarters; no ``start_repeat``/``end_repeat``/``volta``.
+
+### (a) Construction equivalences
+
+**Ground truth.** The same three-section hierarchy can be spelled three ways.
+
+**Derivation / inputs that must compare equal.**
+
+1. Nested measure lists: ``[[m1..m78], [m79..m143], [m144..m203]]``.
+2. Per-section counts: ``[78, 65, 60]``.
+3. Name→count mapping: ``{"I": 78, "II": 65, "III": 60}`` (any display names).
+
+**Expected.** All three constructions compare **equal**. Equality is decided on
+structural facts only — number of leaf sections (3), the ordered leaf measure
+counts (78, 65, 60), the derived total measure count (203), and the per-leaf
+quarter spans (234, 195, 180). **Display names are excluded from equality**: two
+hierarchies that differ only in section names are equal, and the name→count
+construction is equal to the count-only construction despite carrying names.
+
+### (b) Metric-hierarchy equivalence
+
+**Ground truth.** *Trois Gymnopédies* is in ``3/4`` throughout with no tempo mark,
+so the beat is a quarter note and bpm is absent.
+
+**Derivation / inputs that must compare equal.**
+
+1. A name→policy mapping (``{"slow": BeatPolicy(beat=quarter, bpm=None)}``) plus a
+   section grouping that assigns the ``"slow"`` policy to all three sections.
+2. Per-section named policies: each of the three sections given its own
+   ``BeatPolicy(beat=quarter, bpm=None)``.
+
+**Expected.** The two ``MetricHierarchy`` objects compare **equal**. Equality
+compares only the metric facts of each policy: the **beat size** (one quarter =
+``Fraction(1)`` quarter, three beats per ``3/4`` bar) and the **bpm** (``None``
+here). The policy **display name is excluded** from equality, exactly as section
+display names are in (a). A test that changed a bpm from ``None`` to a number, or
+the beat size from a quarter to an eighth, must break equality.
+
+### (c) Skeleton-from-load
+
+**Ground truth.** Loading `trois-gymnopedies.measures.tsv`.
+
+**Expected (default load).**
+
+- Section count == **3**.
+- Measure count == **203**.
+- A flow named ``"source"`` is **always present** (count of flows named
+  ``"source"`` == 1).
+- Participant count == **1** (the score attaches to ``"source"`` by default).
+
+**Expected (flatten opt-out).** Loading with flattening disabled yields the same
+skeleton shape — section count == 3, measure count == 203, the ``"source"`` flow
+still present — but participant count == **0** (no participant is auto-attached).
+"Yields none" is exactly this: zero participants, not a missing flow and not a
+different section/measure count.
+
+### (d) Attach semantics
+
+**Ground truth.** Starting from the default-loaded skeleton (1 participant on
+``"source"``).
+
+**Derivation / expected.**
+
+- Attaching a participant over a measure-id range **mints a one-step flow**: a flow
+  whose traversal is exactly **1** atomic-section step (step count == 1) covering
+  that range.
+- Participant count increases by exactly 1: 1 → **2**.
+- Flow count increases by exactly 1 (the minted flow joins ``"source"``): 1 → **2**.
+- **Detach must be the exact inverse.** After detaching that participant:
+  participant count returns to **1**; the minted flow — now with zero attachments —
+  is removed, so flow count returns to **1** and only ``"source"`` remains; the
+  ``SectionHierarchy`` (3 sections), measure count (203), and all quarter spans
+  (234/195/180, total 609) are **unchanged**. Detach restores counts and the flow
+  set; it never mutates the skeleton's temporal facts.
+
+### (e) Authored flows
+
+**Ground truth.** An authored **elision** flow that traverses ``m1..m41`` then
+``m44..m78``, skipping ``m42`` and ``m43``.
+
+**Derivation.**
+
+- ``m1..m41`` = 41 measures; ``m44..m78`` = 35 measures; 41 + 35 = **76 measures**.
+- Elided ``m42, m43`` = 2 measures.
+- Cross-check: the full ``m1..m78`` section is 78 measures; 78 − 2 = 76.
+- Quarters: 76 × 3 = **228 quarters** (equivalently 123 + 105, or the section's 234
+  minus the 6 quarters of the two elided bars).
+
+**Expected.** The elision flow traverses exactly **76 measures = 228 quarters**.
+
+A ``Gap`` step contributes **inserted material with no skeleton counterpart**: it
+carries a quarter length on the flow's reference timeline but maps to **no**
+measure id and **no** atomic section (its measure-address span is ``None``). A
+correct flow store is distinguished by these facts, all of which a test must pin:
+
+- the **ordered** list of steps (atomic-section references and ``Gap`` markers) in
+  authored order;
+- each step's measure-id span, or ``None`` for a ``Gap``;
+- each step's quarter length;
+- the flow's measure count (**76**, ``Gap`` excluded) and its reference-quarter
+  span (228 plus any ``Gap`` quarters).
+
+A store that merged the two non-adjacent ranges into a single ``m1..m78`` step, or
+reordered steps, or counted a ``Gap`` toward the measure count, must fail.
+
+### (f) Claim recording
+
+**Ground truth.** A claim anchoring measure ``m1`` to **0.35 seconds** on a
+recording participant.
+
+**Expected — exactly two coordinate facts, on two axes.**
+
+1. A **measure-address / reference-quarter** coordinate on the skeleton side:
+   measure id ``m1``, whose onset qstamp is the exact ``Fraction(0)`` quarters.
+   This is a **position** (a measure address), never an event.
+2. A **physical-time** coordinate on the recording participant's seconds axis:
+   ``0.35`` seconds.
+
+A correct claim records both and only both; it must store ``m1`` on the
+measure-address axis (equivalently ``Fraction(0)`` on the reference-quarter axis)
+and ``0.35`` on the recording's physical (seconds) axis — not a floating-measure
+value, and not an approximate quarter.
+
+### (g) Reference-timeline materialization
+
+**Ground truth.** A reordered "suite" flow that plays the sections in the order
+**third, first, second** (``[s3, s1, s2]``).
+
+**Derivation.** Section quarter spans in traversal order: 180, 234, 195. Cumulative
+onsets on the unfolded reference axis:
+
+| Position | Section | Onset (quarters) |
+|----------|---------|------------------|
+| start of s3 | 3 | 0 |
+| start of s1 | 1 | 180 |
+| start of s2 | 2 | 180 + 234 = 414 |
+| flow end    | — | 414 + 195 = **609** |
+
+**Expected.**
+
+- Total span == **609 quarters**, with section spans **180 + 234 + 195** in that
+  order (section boundaries at exact quarters 0, 180, 414, 609).
+- The unfolded reference axis is **strictly monotonically increasing**: every
+  measure onset is strictly greater than the previous. Concretely the 203 measure
+  onsets run 0, 3, 6, … up to 606 (last measure), end 609 — no repeats, no
+  decrease, even though the sections are reordered relative to the score.
+
+### (h) Attach refusal and the single-attachment accessor
+
+**Ground truth.** Participants attach to a **flow**, not to a timeline.
+
+**Expected.**
+
+- **Timeline-side attach refusal.** Attempting to attach a participant on the
+  timeline side must be **refused (raise)**; only the flow side accepts attachments.
+- **Single-attachment accessor.** The accessor that returns a flow's one attachment
+  must **raise on zero** attachments and **raise on many** (≥ 2); it returns the
+  attachment only when the flow has **exactly one**. For the default-loaded
+  ``"source"`` flow with its single participant the accessor returns that
+  participant; after a second attach it raises; after full detach it raises.
