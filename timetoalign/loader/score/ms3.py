@@ -700,6 +700,9 @@ class Ms3Loader(ScoreLoader):
                 flatten=flatten,
                 **kwargs,
             )
+            if self._measure_map is not None:
+                notated_length = self._measure_map.total_actual_length or Fraction(0)
+                timeline.length = max(timeline.length.value, notated_length)
             if name is not None:
                 timeline.name = name
 
