@@ -93,8 +93,8 @@ class TimeSkeleton:
         *,
         flow: str | tuple[str, str] = "source",
         claims: Any = None,
-    ) -> None:
-        """Enroll a timeline against one of this structure's traversals."""
+    ) -> TimeSkeleton:
+        """Enroll a timeline and return this skeleton for chaining."""
         if isinstance(flow, tuple):
             if len(flow) != 2:
                 raise ValueError("A measure range flow must contain exactly two IDs")
@@ -111,6 +111,7 @@ class TimeSkeleton:
         self._timeline_flows[timeline.id] = flow_id
         if claims is not None:
             self._bundle.add_match_claims(claims)
+        return self
 
     def detach(self, timeline: Any) -> None:
         """Remove a participant and its claims from this structure."""
@@ -330,8 +331,13 @@ class TimeSkeleton:
 
     @staticmethod
     def _coordinate_for_timeline(value: Any, timeline: Any) -> Coordinate:
+        if isinstance(value, IdCoordinate):
+            if value.timeline_id != timeline.id:
+                raise ValueError(
+                    f"Coordinate timeline {value.timeline_id!r} does not match "
+                    f"participant timeline {timeline.id!r}"
+                )
+            return Coordinate(value.value, value.unit, number_type=value.number_type)
         if isinstance(value, Coordinate):
-            return Coordinate(
-                value.value, timeline.unit, number_type=timeline.number_type
-            )
+            return value
         return Coordinate(value, timeline.unit, number_type=timeline.number_type)
