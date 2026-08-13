@@ -1421,11 +1421,10 @@ the beat size from a quarter to an eighth, must break equality.
   ``"source"`` == 1).
 - Participant count == **1** (the score attaches to ``"source"`` by default).
 
-**Expected (flatten opt-out).** Loading with flattening disabled yields the same
-skeleton shape — section count == 3, measure count == 203, the ``"source"`` flow
-still present — but participant count == **0** (no participant is auto-attached).
-"Yields none" is exactly this: zero participants, not a missing flow and not a
-different section/measure count.
+**Expected (flatten opt-out).** Loading with flattening disabled creates **no
+skeleton at all**: nothing is attached, and the timeline's ``skeleton`` accessor
+raises (zero attachments). The opt-out suppresses structure creation entirely —
+it does not produce a participant-less skeleton.
 
 ### (d) Attach semantics
 
