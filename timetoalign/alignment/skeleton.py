@@ -53,6 +53,16 @@ class TimeSkeleton:
         for flow_id, steps in (flows or {}).items():
             self.add_flow(steps, id=flow_id)
 
+    def __repr__(self) -> str:
+        hierarchy = self._section_hierarchy
+        flows = ", ".join(self._flows)
+        plural = "" if self.n_participants == 1 else "s"
+        return (
+            f"{type(self).__name__}({self._id!r}: {hierarchy.n_sections} sections, "
+            f"{hierarchy.n_measures} measures, flows [{flows}], "
+            f"{self.n_participants} participant{plural})"
+        )
+
     @property
     def id(self) -> str:
         """Unique skeleton identifier."""
@@ -275,6 +285,14 @@ class TimeSkeleton:
 
     def _resolve_reference_position(self, at: Any, flow_id: str) -> Coordinate:
         if isinstance(at, Address):
+            if at.rendition is not None:
+                raise NotImplementedError(
+                    "Address rendition qualifiers are not supported: "
+                    "occurrence-qualified resolution is not available yet"
+                )
+            within = getattr(at, "at", None)
+            if isinstance(within, Coordinate):
+                self._require_reference_unit(within)
             target_id = self._measure_id_for_address(at)
             running = Fraction(0)
             for step in self._flow_steps[flow_id]:
@@ -287,7 +305,6 @@ class TimeSkeleton:
                 for measure in self._section_hierarchy.measure_map.measures[first:end]:
                     if measure.id == target_id:
                         offset = Fraction(0)
-                        within = getattr(at, "at", None)
                         if isinstance(within, Coordinate):
                             offset = Fraction(within.value)
                         elif isinstance(within, Beat):
@@ -303,10 +320,20 @@ class TimeSkeleton:
                         raise ValueError(f"Measure {measure.id!r} has no actual_length")
                     running += measure.actual_length
             raise ValueError(f"Address {at!r} is outside flow {flow_id!r}")
+        if isinstance(at, Coordinate):
+            self._require_reference_unit(at)
         return Coordinate(
             at.value if isinstance(at, Coordinate) else at,
             TimeUnit.quarters,
         )
+
+    @staticmethod
+    def _require_reference_unit(coordinate: Coordinate) -> None:
+        if coordinate.unit is not TimeUnit.quarters:
+            raise ValueError(
+                f"Coordinate unit {coordinate.unit.value!r} does not match "
+                f"the expected {TimeUnit.quarters.value!r} reference axis"
+            )
 
     def _measure_id_for_address(self, address: Address) -> str:
         measures = self._section_hierarchy.measure_map.measures

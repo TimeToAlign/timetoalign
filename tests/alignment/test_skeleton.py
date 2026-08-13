@@ -407,3 +407,34 @@ class TestMembership:
 
 
 # endregion
+
+
+def test_reordered_suite_claims_record_exact_reference_onsets(
+    mini_skeleton: TimeSkeleton,
+) -> None:
+    from timetoalign.core import Coordinate, MeasureId
+
+    mini_skeleton.add_flow(["sec3", "sec1", "sec2"], id="claim-suite")
+    recording = ContinuousPhysicalTimeline(
+        length=30.0,
+        unit=TimeUnit.seconds,
+        uid="claim-suite-recording",
+    )
+    mini_skeleton.attach(recording, flow="claim-suite")
+
+    claims = [
+        mini_skeleton.create_match_claim(recording.id, at=at, coordinate=0.0)
+        for at in (
+            MeasureId("m6"),
+            MeasureId("m1"),
+            MeasureId("m4"),
+            MeasureId("m5"),
+        )
+    ]
+
+    assert [claim.start_anchor.coordinate_b for claim in claims] == [
+        Coordinate(Fraction(0), TimeUnit.quarters),
+        Coordinate(Fraction(6), TimeUnit.quarters),
+        Coordinate(Fraction(15), TimeUnit.quarters),
+        Coordinate(Fraction(18), TimeUnit.quarters),
+    ]

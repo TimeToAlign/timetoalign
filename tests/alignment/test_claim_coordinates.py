@@ -5,7 +5,13 @@ from fractions import Fraction
 import pytest
 
 from timetoalign import Coordinate, Measure, SectionHierarchy, TimeSkeleton
-from timetoalign.core import IdCoordinate, MeasureId, NumberType, TimeUnit
+from timetoalign.core import (
+    IdCoordinate,
+    MeasureId,
+    MeasureIdAddress,
+    NumberType,
+    TimeUnit,
+)
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
     DiscretePhysicalTimeline,
@@ -170,3 +176,79 @@ def test_attach_returns_skeleton_and_supports_chaining() -> None:
     assert skeleton.attach(samples).attach(quarters) is skeleton
     assert skeleton.attach(samples) is skeleton
     assert skeleton.n_participants == 2
+
+
+def test_reference_coordinate_rejects_seconds_unit() -> None:
+    measures = [
+        Measure(id="direct-unit-m1", actual_length=Fraction(3), time_signature="3/4")
+    ]
+    skeleton = TimeSkeleton(SectionHierarchy.from_measures(measures))
+    participant = ContinuousLogicalTimeline(length=Fraction(3), uid="direct-unit")
+    skeleton.attach(participant)
+
+    with pytest.raises(ValueError, match="seconds.*quarters.*reference axis"):
+        skeleton.create_match_claim(
+            participant.id,
+            at=Coordinate(2, TimeUnit.seconds),
+            coordinate=Fraction(0),
+        )
+
+
+def test_within_measure_reference_coordinate_rejects_seconds_unit() -> None:
+    measures = [
+        Measure(id="within-unit-m1", actual_length=Fraction(3), time_signature="3/4")
+    ]
+    skeleton = TimeSkeleton(SectionHierarchy.from_measures(measures))
+    participant = ContinuousLogicalTimeline(length=Fraction(3), uid="within-unit")
+    skeleton.attach(participant)
+
+    with pytest.raises(ValueError, match="seconds.*quarters.*reference axis"):
+        skeleton.create_match_claim(
+            participant.id,
+            at=MeasureIdAddress(
+                "within-unit-m1",
+                at=Coordinate(Fraction(3, 2), TimeUnit.seconds),
+            ),
+            coordinate=Fraction(0),
+        )
+
+
+def test_rendition_qualified_address_is_not_resolved() -> None:
+    measures = [
+        Measure(id="rendition-m1", actual_length=Fraction(3), time_signature="3/4")
+    ]
+    skeleton = TimeSkeleton(SectionHierarchy.from_measures(measures))
+    participant = ContinuousLogicalTimeline(length=Fraction(3), uid="rendition")
+    skeleton.attach(participant)
+
+    with pytest.raises(
+        NotImplementedError,
+        match="rendition.*occurrence-qualified resolution is not available yet",
+    ):
+        skeleton.create_match_claim(
+            participant.id,
+            at=MeasureId("rendition-m1", rendition=2),
+            coordinate=Fraction(0),
+        )
+
+
+def test_first_source_measure_records_exact_fraction_zero() -> None:
+    measures = [
+        Measure(id="source-first-m1", actual_length=Fraction(3), time_signature="3/4"),
+        Measure(id="source-first-m2", actual_length=Fraction(3), time_signature="3/4"),
+    ]
+    skeleton = TimeSkeleton(SectionHierarchy.from_measures(measures))
+    participant = ContinuousLogicalTimeline(length=Fraction(6), uid="source-first")
+    skeleton.attach(participant)
+
+    claim = skeleton.create_match_claim(
+        participant.id,
+        at=MeasureId("source-first-m1"),
+        coordinate=Fraction(0),
+    )
+    reference_coordinate = claim.start_anchor.coordinate_b
+
+    assert reference_coordinate == Coordinate(Fraction(0), TimeUnit.quarters)
+    assert type(reference_coordinate.value) is Fraction
+    assert reference_coordinate.unit is TimeUnit.quarters
+    assert reference_coordinate.number_type is NumberType.fraction
