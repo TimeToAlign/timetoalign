@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
+from bisect import bisect_right
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -15,8 +16,8 @@ from timetoalign.loader.base import Loader
 class RekordboxTempo:
     """One Rekordbox beat-grid declaration."""
 
-    inizio: float
-    bpm: float
+    inizio: Fraction
+    bpm: Fraction
     metro: str
     battito: int
 
@@ -31,12 +32,12 @@ class RekordboxTempo:
         return int(self.metro.split("/", maxsplit=1)[1])
 
     @property
-    def beat_seconds(self) -> float:
+    def beat_seconds(self) -> Fraction:
         """Return one grid beat in seconds."""
-        return 60.0 / self.bpm
+        return Fraction(60) / self.bpm
 
     @property
-    def bar_seconds(self) -> float:
+    def bar_seconds(self) -> Fraction:
         """Return one grid bar in seconds."""
         return self.numerator * self.beat_seconds
 
@@ -52,7 +53,7 @@ class RekordboxTrack:
 
     track_id: str
     name: str
-    total_time: float
+    total_time: Fraction
     average_bpm: float | None
     sample_rate: int | None
     location: str | None
@@ -104,14 +105,14 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         try:
             track_id = attributes["TrackID"]
             name = attributes["Name"]
-            total_time = float(attributes["TotalTime"])
+            total_time = Fraction(attributes["TotalTime"])
         except KeyError as exc:
             raise ValueError(f"Collection TRACK is missing {exc.args[0]}") from exc
 
         tempos = tuple(
             RekordboxTempo(
-                inizio=float(child.attrib["Inizio"]),
-                bpm=float(child.attrib["Bpm"]),
+                inizio=Fraction(child.attrib["Inizio"]),
+                bpm=Fraction(child.attrib["Bpm"]),
                 metro=child.attrib["Metro"],
                 battito=int(child.attrib["Battito"]),
             )
@@ -178,10 +179,13 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
 
         downbeats = cls._downbeats(track)
         measures = cls._measure_map(track, downbeats)
-        seconds, floating_measures = cls._conversion_anchors(track, downbeats)
+        measure_map = MeasureMap(measures)
+        seconds, floating_measures = cls._conversion_anchors(
+            track, downbeats, measure_map
+        )
 
         timeline = ContinuousPhysicalTimeline(
-            length=track.total_time,
+            length=float(track.total_time),
             unit=TimeUnit.seconds,
             number_type=NumberType.float,
             uid=track.name,
@@ -203,13 +207,13 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
                 name="rekordbox_floating_measures",
             )
         )
-        hierarchy = SectionHierarchy.from_measures(MeasureMap(measures))
+        hierarchy = SectionHierarchy.from_measures(measure_map)
         TimeSkeleton(hierarchy, uid=f"{track.name}/skeleton").attach(timeline)
         return timeline
 
     @staticmethod
-    def _downbeats(track: RekordboxTrack) -> list[tuple[float, RekordboxTempo]]:
-        downbeats: list[tuple[float, RekordboxTempo]] = []
+    def _downbeats(track: RekordboxTrack) -> list[tuple[Fraction, RekordboxTempo]]:
+        downbeats: list[tuple[Fraction, RekordboxTempo]] = []
         for index, tempo in enumerate(track.tempos):
             grid_end = (
                 track.tempos[index + 1].inizio
@@ -232,18 +236,27 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
 
     @classmethod
     def _measure_map(cls, track: RekordboxTrack, downbeats: list[Any]) -> list[Any]:
-        from timetoalign.core import IrregularMeasure, RegularMeasure
+        from timetoalign.core import (
+            IrregularMeasure,
+            MeasureConstituent,
+            RegularMeasure,
+        )
 
         measures: list[Any] = []
         first_tempo = track.tempos[0]
         if first_tempo.battito != 1:
             remaining_beats = first_tempo.numerator - first_tempo.battito + 1
             measures.append(
-                IrregularMeasure(
+                MeasureConstituent(
+                    number=0,
                     time_signature=first_tempo.metro,
                     nominal_length=first_tempo.nominal_quarters,
                     actual_length=Fraction(
                         remaining_beats * 4, first_tempo.denominator
+                    ),
+                    offset_within_measure=Fraction(
+                        (first_tempo.battito - 1) * 4,
+                        first_tempo.denominator,
                     ),
                 )
             )
@@ -256,21 +269,15 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
             )
             if next_downbeat <= downbeat:
                 continue
-            if index + 1 < len(downbeats):
-                measure_type = RegularMeasure
-                actual_length = tempo.nominal_quarters
-            else:
-                last_grid = cls._tempo_at(track, downbeat)
-                fraction = (track.total_time - downbeat) / last_grid.bar_seconds
-                actual_length = last_grid.nominal_quarters * Fraction(fraction)
-                measure_type = (
-                    RegularMeasure
-                    if actual_length == last_grid.nominal_quarters
-                    else IrregularMeasure
-                )
-                tempo = last_grid
+            actual_length = cls._quarters_between(track, downbeat, next_downbeat)
+            measure_type = (
+                RegularMeasure
+                if actual_length == tempo.nominal_quarters
+                else IrregularMeasure
+            )
             measures.append(
                 measure_type(
+                    number=index + 1,
                     time_signature=tempo.metro,
                     nominal_length=tempo.nominal_quarters,
                     actual_length=actual_length,
@@ -281,36 +288,65 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
             raise ValueError(f"Rekordbox track {track.name!r} contains no measures")
         return measures
 
-    @staticmethod
+    @classmethod
     def _conversion_anchors(
-        track: RekordboxTrack, downbeats: list[tuple[float, RekordboxTempo]]
-    ) -> tuple[list[float], list[float]]:
-        pickup = track.tempos[0].battito != 1
-        first_bar = 2.0 if pickup else 1.0
-        anchors = [
-            (instant, first_bar + index) for index, (instant, _) in enumerate(downbeats)
-        ]
+        cls,
+        track: RekordboxTrack,
+        downbeats: list[tuple[Fraction, RekordboxTempo]],
+        measure_map: Any,
+    ) -> tuple[list[Fraction], list[Fraction]]:
+        from timetoalign.maps import QuartersToFloatingMeasures
 
-        if anchors and anchors[0][0] == 0.0:
-            result = anchors
-        elif pickup:
-            result = [(0.0, 1.0), *anchors]
-        elif anchors:
-            first_time, first_fm = anchors[0]
-            start_fm = first_fm - first_time / track.tempos[0].bar_seconds
-            result = [(0.0, start_fm), *anchors]
-        else:
-            result = [(0.0, 1.0)]
+        downbeat_instants = [instant for instant, _ in downbeats]
+        anchors: dict[Fraction, Fraction] = {}
 
-        if result[-1][0] < track.total_time:
-            last_time, last_fm = result[-1]
-            last_grid = RekordboxLoader._tempo_at(track, last_time)
-            end_fm = last_fm + (track.total_time - last_time) / last_grid.bar_seconds
-            result.append((track.total_time, end_fm))
+        first_tempo = track.tempos[0]
+        first_bar = bisect_right(downbeat_instants, first_tempo.inizio)
+        first_fm = Fraction(first_bar) + Fraction(
+            first_tempo.battito - 1, first_tempo.numerator
+        )
+        anchors[Fraction(0)] = first_fm - first_tempo.inizio / first_tempo.bar_seconds
+
+        for tempo in track.tempos:
+            bar_number = bisect_right(downbeat_instants, tempo.inizio)
+            anchors[tempo.inizio] = Fraction(bar_number) + Fraction(
+                tempo.battito - 1, tempo.numerator
+            )
+
+        for index, (instant, _) in enumerate(downbeats, start=1):
+            anchors[instant] = Fraction(index)
+
+        canonical = QuartersToFloatingMeasures.from_measure_map(measure_map)
+        total_quarters = measure_map.total_actual_length
+        assert total_quarters is not None
+        anchors[track.total_time] = Fraction(str(canonical(total_quarters)))
+
+        result = sorted(anchors.items())
         return [item[0] for item in result], [item[1] for item in result]
 
+    @classmethod
+    def _quarters_between(
+        cls,
+        track: RekordboxTrack,
+        start: Fraction,
+        end: Fraction,
+    ) -> Fraction:
+        """Integrate exact quarter-note length over a seconds interval."""
+        cursor = start
+        active = cls._tempo_at(track, start)
+        quarters = Fraction(0)
+        for tempo in track.tempos:
+            if tempo.inizio <= start:
+                continue
+            if tempo.inizio >= end:
+                break
+            quarters += (tempo.inizio - cursor) * active.bpm / 60
+            cursor = tempo.inizio
+            active = tempo
+        return quarters + (end - cursor) * active.bpm / 60
+
     @staticmethod
-    def _tempo_at(track: RekordboxTrack, instant: float) -> RekordboxTempo:
+    def _tempo_at(track: RekordboxTrack, instant: Fraction) -> RekordboxTempo:
         selected = track.tempos[0]
         for tempo in track.tempos:
             if tempo.inizio > instant:

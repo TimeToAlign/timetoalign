@@ -47,9 +47,11 @@ with no range or approximation.
   the first beat at ``0.333`` s is beat 4, and **the next beat begins a new
   measure** at ``0.333 + 0.375 = 0.708`` s. The bar containing ``Inizio`` is a
   truncated pickup (only beat 4 falls inside the grid).
-- **Measure numbers rise monotonically across all grids of one track.** The measure
-  counter is continuous: a new grid does **not** reset it. Each downbeat increments
-  the measure number; across grid boundaries the count only ever increases.
+- **Measure numbers rise monotonically across all grids of one track.** A pickup is
+  the represented tail of nominal bar 0, and the first full downbeat is bar 1. The
+  measure counter is continuous: a new grid does **not** reset it. Each downbeat
+  increments the measure number; across grid boundaries the count only ever
+  increases.
 - A grid **ends** at the next grid's ``Inizio``, or at the track ``TotalTime`` for
   the last grid.
 - **Boundary precedence.** If the last beat implied by one grid would coincide with
@@ -122,14 +124,17 @@ one per collection track. Each timeline affords **floating-measure (``fm``)**
 readings through its grids: given a seconds position, its ``fm`` value is derived
 from the grid that contains it (its ``Inizio``, ``Bpm``, ``Metro``, ``Battito``),
 with measure numbers continuous across that track's grids per section (a).
+An anacrusis occupies its offset inside ``fm [0, 1)``; consequently, the first
+full downbeat reads ``fm 1`` and bar ``b`` begins at ``fm b``. Every raw grid
+instant is an interpolation anchor, including grid changes that occur mid-bar.
 
 **Example tracks to pin (exact facts).**
 
 - **``See Me Coming``** — single grid: ``Inizio 0.082``, ``Bpm 160.00``,
   ``Metro 4/4``, ``Battito 3``, ``TotalTime 256``. Because ``Battito 3``, the beat
   at ``0.082`` s is beat 3; the next downbeat (beat 1) is ``2 × 0.375 = 0.75`` s
-  later at ``0.832`` s. Measure 1 is a truncated pickup holding only beats 3 and 4
-  inside the grid.
+  later at ``0.832`` s. Nominal bar 0 is a truncated pickup holding only beats 3
+  and 4 inside the grid; the downbeat at ``0.832`` s reads ``fm 1``.
 - **``Fkn Raw``** — four grids (mid-track grid changes), all ``Bpm 160.00``,
   ``Metro 4/4``: ``(0.087, Battito 3)``, ``(48.088, Battito 3)``,
   ``(102.464, Battito 4)``, ``(156.840, Battito 1)``; ``TotalTime 176``. The
@@ -149,19 +154,25 @@ with measure numbers continuous across that track's grids per section (a).
 **Ground truth.** 94 data rows. The ``track`` column carries an ``"NN. "`` prefix
 (digits, dot, space) over the XML ``Name``.
 
-**Name resolution.** Strip a leading run of digits followed by ``". "`` from the
-``track`` label, then match the remainder **exactly** against an XML collection
-``Name``.
+**Name resolution.** Strip the filename prefix with ``^\d+[a-z]?\.\s*`` (the
+letter suffix covers split entries such as ``19a.``/``19b.``/``41a.``), then
+resolve in three steps: (1) exact match against an XML collection ``Name``;
+(2) case-insensitive substring containment in either direction, guarded by a
+minimum needle length of 4 characters — without the guard the bare placeholder
+``ID`` mis-resolves inside ``Tunnel Vision - Junkie Kid Remix``; (3) the single
+curated equivalence ``Woops (Anderex Edit)`` → ``WOOPS EDIT (FREE DL)``, which
+closes a perfect 36 ↔ 36 bijection between mapped csv tracks and real mix
+tracks in the collection.
 
-**Expected — exactly which rows resolve.** Of the 94 rows, **70 resolve** and
-**24 do not**. The 24 unresolved rows are skipped this iteration. They break down
-by cause (all counts read from the files):
-
-| Cause | Rows | Notes |
-|-------|------|-------|
-| Prefix is not ``"NN. "`` (a letter follows the digits) so it is not stripped | 5 | ``19a. Dying For You`` ×2, ``19b. Call You`` ×2, ``41a. ID`` ×1 |
-| Stripped title has no exact XML ``Name`` (``ID`` placeholders) | 5 | ``04. ID``, ``06. ID``, ``16. ID``, ``17. ID``, ``36. ID`` |
-| Stripped title is a **substring** of a longer XML ``Name`` (exact match required, so no resolution) | 14 | ``09. Rodeo`` ×5 (XML ``Garcia Sauvage - Rodeo [ERROR 303]``); ``25. Woops (Anderex Edit)`` ×4 (XML ``WOOPS EDIT (FREE DL)``); ``05. HUMBLE (Samuel Moriero REMIX)`` ×2; ``02. Tonight (Samuel Moriero Remix)`` ×1; ``29. HEROINE - Samuel Moriero Remix`` ×1; ``30. Hard Beat (Revelation Bootleg)`` ×1 |
+**Expected — exactly which rows resolve.** Of the 94 rows, **88 resolve** and
+**6 do not**: the six ``ID``-placeholder rows (``04.``, ``06.``, ``16.``,
+``17.``, ``36.``, ``41a.``), whose audio was unavailable at analysis time and
+which have no XML track. Unresolved rows are skipped. Of the 42 distinct csv
+track labels, 36 resolve; the collection's ``Vielleicht Vielleicht`` track is
+the one known mix track never referenced by the csv. Step (2) resolves
+``Tonight``, ``HUMBLE``, ``Rodeo``, ``HEROINE``, and ``Hard Beat`` (artist
+prefixes and label suffixes in the XML that the csv lacks); a resolver without
+the length guard must FAIL the six ``ID`` rows rather than mis-match them.
 
 Total unresolved = 5 + 5 + 14 = **24**; resolved = 94 − 24 = **70**. A test must
 assert exactly this split; resolution is by **exact** name equality after prefix

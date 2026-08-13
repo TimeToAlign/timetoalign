@@ -3506,7 +3506,13 @@ class Interval(BaseModel):
                     raise TypeError(
                         "Raw Interval endpoints require a TimeUnit or abbreviation"
                     )
-                endpoints.append(Coordinate(value, resolved_unit))
+                endpoints.append(
+                    Coordinate(
+                        value,
+                        resolved_unit,
+                        number_type=resolved_unit.default_number_type,
+                    )
+                )
             data = {"start": endpoints[0], "end": endpoints[1], **data}
         super().__init__(**data)
 
