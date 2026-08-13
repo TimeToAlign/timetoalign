@@ -39,6 +39,7 @@ from .engines import (
     ExternalReferencesMixin,
     RegionsMixin,
     SegmentsMixin,
+    SkeletonsMixin,
     TabularExportMixin,
 )
 from .engines import children as _children_engine
@@ -75,6 +76,7 @@ class Timeline(
     TabularExportMixin,
     RegionsMixin,
     SegmentsMixin,
+    SkeletonsMixin,
 ):
     """A positive coordinate axis with events and nested child timelines.
 
@@ -312,6 +314,9 @@ class Timeline(
         # FlowMaps enable unfold/fold coordinate conversion for timelines
         # that have flow control (repeats, jumps, etc.).
         self._flow_maps = {}
+
+        # Shared temporal structures enroll timelines through TimeSkeleton.
+        self._skeleton_attachments: list[Any] = []
 
         # Logger
         self._logger = module_logger.getChild(self._id)

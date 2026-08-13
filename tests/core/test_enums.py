@@ -1,5 +1,7 @@
 """Tests for core/enums.py."""
 
+from __future__ import annotations
+
 from fractions import Fraction
 
 import pytest
@@ -95,7 +97,7 @@ class TestTimeUnit:
     def test_logical_units(self) -> None:
         """Musical domain units have correct values."""
         assert TimeUnit.quarters.value == "quarters"
-        assert TimeUnit.beats.value == "beats"
+        assert TimeUnit.number.value == "number"
         assert TimeUnit.floating_measures.value == "floating_measures"
         assert TimeUnit.ticks.value == "ticks"
 
@@ -116,7 +118,6 @@ class TestTimeUnit:
         """Aliases work correctly."""
         # Musical
         assert TimeUnit.q is TimeUnit.quarters
-        assert TimeUnit.b is TimeUnit.beats
         assert TimeUnit.fm is TimeUnit.floating_measures
         assert TimeUnit.pulses is TimeUnit.ticks
 
@@ -129,6 +130,23 @@ class TestTimeUnit:
         assert TimeUnit.pt is TimeUnit.points
         assert TimeUnit.mm is TimeUnit.millimeters
         assert TimeUnit.cm is TimeUnit.centimeters
+
+    def test_a_generic_beat_axis_is_the_number_unit(self) -> None:
+        """There is no ``beats`` unit, and no alias resurrects one.
+
+        A bare "beat 217 of this timeline" carries no metrical meaning and
+        may cumulate beats of different sizes, so beats are typed keys
+        rather than a coordinate unit. A source-given cumulative beat rod
+        rides the generic ``number`` axis, which admits an exact ratio.
+        """
+        for spelling in ("beats", "b"):
+            with pytest.raises(ValueError, match="is not a valid TimeUnit"):
+                TimeUnit(spelling)
+
+        assert not hasattr(TimeUnit, "beats")
+        assert TimeUnit.number.domain == Domain.logical
+        assert TimeUnit.number.is_discrete is False
+        assert NumberType.fraction in TimeUnit.number.allowed_number_types
 
     def test_timeunit_from_alias(self) -> None:
         """Can create TimeUnit from alias string."""
@@ -146,7 +164,6 @@ class TestTimeUnit:
     def test_timeunit_domain_logical(self) -> None:
         """Musical units map to logical domain."""
         assert TimeUnit.quarters.domain == Domain.logical
-        assert TimeUnit.beats.domain == Domain.logical
         assert TimeUnit.floating_measures.domain == Domain.logical
         assert TimeUnit.ticks.domain == Domain.logical
         assert TimeUnit.number.domain == Domain.logical
@@ -170,7 +187,6 @@ class TestTimeUnit:
         assert TimeUnit.seconds.is_discrete is False
         assert TimeUnit.milliseconds.is_discrete is False
         assert TimeUnit.quarters.is_discrete is False
-        assert TimeUnit.beats.is_discrete is False
         assert TimeUnit.floating_measures.is_discrete is False
         assert TimeUnit.points.is_discrete is False
         assert TimeUnit.inches.is_discrete is False

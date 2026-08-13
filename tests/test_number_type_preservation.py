@@ -156,24 +156,24 @@ def test_irrational_map_output_is_expressed_in_the_axis_type() -> None:
     the axis, because a type says how a number is written and not where it
     came from.
     """
-    timeline = ContinuousLogicalTimeline(length=Fraction(12), uid="source")
+    timeline = DiscreteGraphicalTimeline(length=12, uid="source")
     timeline.add_conversion_map(
         ScalarMap(
             scalar=math.sqrt(2),
-            source_unit=TimeUnit.quarters,
-            target_unit=TimeUnit.beats,
+            source_unit=TimeUnit.pixels,
+            target_unit=TimeUnit.quarters,
         )
     )
 
-    converted = timeline.convert_to(Fraction(1, 3), TimeUnit.beats)
+    converted = timeline.convert_to(3, TimeUnit.quarters)
 
-    # beats are fraction-canonical, so the result is a Fraction -- the exact
-    # dyadic of the double the computation produced, numerically identical
-    # to it. That the scaling was irrational is a fact about the map, not
-    # something the coordinate's type is asked to carry.
+    # quarters are fraction-canonical, so the result is a Fraction -- the
+    # exact dyadic of the double the computation produced, numerically
+    # identical to it. That the scaling was irrational is a fact about the
+    # map, not something the coordinate's type is asked to carry.
     assert isinstance(converted.value, Fraction)
-    assert converted.value == Fraction(math.sqrt(2) * Fraction(1, 3))
-    assert float(converted.value) == math.sqrt(2) * Fraction(1, 3)
+    assert converted.value == Fraction(math.sqrt(2) * 3)
+    assert float(converted.value) == math.sqrt(2) * 3
 
 
 def test_matchstamp_typed_access_preserves_stored_fraction() -> None:
@@ -412,7 +412,7 @@ def _typed_group() -> TimelineGroup:
             scalar=Fraction(1, 4),
             offset=0,
             source_unit=TimeUnit.pixels,
-            target_unit=TimeUnit.beats,
+            target_unit=TimeUnit.quarters,
         )
     )
     score = ContinuousLogicalTimeline(length=Fraction(19, 2), uid="clt1")
@@ -453,7 +453,7 @@ def test_stamp_lane_and_frame_lane_write_the_same_positions() -> None:
         "dgt1 (pixels)",
         "cpt1 (seconds)",
         "clt1 (quarters)",
-        "pixels_to_beats (beats)",
+        "pixels_to_quarters (quarters)",
         "quarters_to_seconds (seconds)",
     ]
     assert list(queried.columns) == list(frame.columns)
@@ -470,7 +470,7 @@ def test_stamp_lane_and_frame_lane_write_the_same_positions() -> None:
     assert list(frame["dgt1 (pixels)"]) == [0, 12473]
     assert list(frame["cpt1 (seconds)"]) == [0.0, 37.5]
     assert list(frame["clt1 (quarters)"]) == [Fraction(0, 1), Fraction(19, 2)]
-    assert list(frame["pixels_to_beats (beats)"]) == [
+    assert list(frame["pixels_to_quarters (quarters)"]) == [
         Fraction(0, 1),
         Fraction(12473, 4),
     ]
@@ -479,7 +479,7 @@ def test_stamp_lane_and_frame_lane_write_the_same_positions() -> None:
     assert str(frame["dgt1 (pixels)"].dtype) == "int64"
     assert str(frame["cpt1 (seconds)"].dtype) == "float64"
     assert str(frame["clt1 (quarters)"].dtype) == "object"
-    assert str(frame["pixels_to_beats (beats)"].dtype) == "object"
+    assert str(frame["pixels_to_quarters (quarters)"].dtype) == "object"
     # float64 even though the source axis is exact: a converted reading is
     # written by its target, and seconds are float-canonical.
     assert str(frame["quarters_to_seconds (seconds)"].dtype) == "float64"
@@ -622,8 +622,8 @@ def test_a_fraction_target_stays_exact_from_any_source() -> None:
     """The other direction: a fraction-canonical target is not floated.
 
     Expressing per target is not a preference for floats -- it is a
-    preference for the target. A beats-valued conversion off an
-    integer-locked pixels axis comes back exact, because beats are
+    preference for the target. A quarters-valued conversion off an
+    integer-locked pixels axis comes back exact, because quarters are
     fraction-canonical.
     """
     pixels = DiscreteGraphicalTimeline(length=12473, uid="dgt1")
@@ -632,15 +632,15 @@ def test_a_fraction_target_stays_exact_from_any_source() -> None:
             scalar=Fraction(1, 4),
             offset=0,
             source_unit=TimeUnit.pixels,
-            target_unit=TimeUnit.beats,
+            target_unit=TimeUnit.quarters,
         )
     )
     stamp = pixels.get_timestamp(3)
 
-    converted = stamp.get_unit(TimeUnit.beats, format="coordinate")
+    converted = stamp.get_unit(TimeUnit.quarters, format="coordinate")
     assert converted.value == Fraction(3, 4)
     assert isinstance(converted.value, Fraction)
-    assert stamp._conversion_rows() == [("beats", Fraction(3, 4), "beats")]
+    assert stamp._conversion_rows() == [("quarters", Fraction(3, 4), "quarters")]
 
 
 def test_an_unmatched_claim_writes_its_axis_in_both_directions() -> None:

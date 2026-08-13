@@ -322,7 +322,7 @@ class PerformancePrecisionLoader(AlignmentLoader):
         solo = SoloLoader.from_file(solo_path)
         table = solo.events._table
 
-        measures = [r["value"] for r in table.column("measure_number").to_pylist()]
+        measures = [int(r["mn"]) for r in table.column("measure_number").to_pylist()]
         onsets = [
             Fraction(r["numerator"], r["denominator"])
             for r in table.column("mn_onset").to_pylist()

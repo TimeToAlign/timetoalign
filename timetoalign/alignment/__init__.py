@@ -39,11 +39,23 @@ from .matching import (
     prepare_eep_notes_for_matching,
 )
 from .matchline import MatchLine
+from .skeleton import TimeSkeleton
+from .structure import (
+    MeasureMap,
+    MetricHierarchy,
+    MetricHierarchyComponent,
+    SectionHierarchy,
+)
 from .warpmap import WarpMap
 
 __all__ = [
     # Bundle (Primary Entry Point)
     "AlignmentBundle",
+    "TimeSkeleton",
+    "MeasureMap",
+    "SectionHierarchy",
+    "MetricHierarchy",
+    "MetricHierarchyComponent",
     # Anchors and Claims
     "Agent",
     "AlignmentAnchor",

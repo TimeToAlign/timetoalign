@@ -117,7 +117,7 @@ class TestTableMapHonesty:
         )
         tl.add_conversion_map(tmap)
 
-        assert tl._unit_maps[TimeUnit.seconds] is tmap
+        assert tl._unit_maps[TimeUnit.seconds] == [tmap]
 
         ts = tl.get_timestamp(2)
         assert ts.get_unit(TimeUnit.seconds, format="float") == 0.0

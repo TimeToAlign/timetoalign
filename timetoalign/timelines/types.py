@@ -120,7 +120,7 @@ class MetricalResult:
 # Logical domain units (symbolic/musical time)
 LOGICAL_UNITS: frozenset[TimeUnit] = frozenset(
     {
-        TimeUnit.beats,
+        TimeUnit.whole_note,
         TimeUnit.quarters,
         TimeUnit.floating_measures,
         TimeUnit.ticks,
@@ -153,7 +153,12 @@ GRAPHICAL_UNITS: frozenset[TimeUnit] = frozenset(
 
 # Continuous vs discrete unit categorization
 CONTINUOUS_LOGICAL_UNITS: frozenset[TimeUnit] = frozenset(
-    {TimeUnit.beats, TimeUnit.quarters, TimeUnit.floating_measures, TimeUnit.number}
+    {
+        TimeUnit.whole_note,
+        TimeUnit.quarters,
+        TimeUnit.floating_measures,
+        TimeUnit.number,
+    }
 )
 DISCRETE_LOGICAL_UNITS: frozenset[TimeUnit] = frozenset({TimeUnit.ticks})
 

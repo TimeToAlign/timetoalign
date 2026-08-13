@@ -10,6 +10,7 @@ from fractions import Fraction
 from typing import TYPE_CHECKING, Any, Iterator
 
 from timetoalign.core.enums import FlowMode
+from timetoalign.core.events import Gap
 
 from .measures import (
     IncompleteMeasure,
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
+    from timetoalign.alignment.structure import MeasureMap
     from timetoalign.display.ascii import Diagram
 
     from .controller import ScoreFlowController
@@ -76,6 +78,8 @@ class AtomicSection:
     section_type: str = "default"  # "default" | "leap_end" | "leap_start"
     typed_measures: tuple["TypedMeasure", ...] | None = None  # Typing-step output
     groups: tuple["MeasureGroup", ...] | None = None  # Grouping-step output
+    measure_map: "MeasureMap | None" = None
+    name: str | None = None
 
     def __post_init__(self) -> None:
         """Validate section configuration."""
@@ -98,6 +102,11 @@ class AtomicSection:
     def mc_count(self) -> int:
         """Number of MCs in this section (right-open: end - start)."""
         return self.mc_end - self.mc_start
+
+    @property
+    def n_measures(self) -> int:
+        """Number of measures carried by this leaf section."""
+        return len(self.measure_map) if self.measure_map is not None else self.mc_count
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -943,64 +952,6 @@ def _coerce_intervals(
 
 
 # endregion
-
-# region Gaps
-
-
-@dataclass(frozen=True)
-class Gap:
-    """A stretch of target time that no source material fills.
-
-    A ``Gap`` is written **between** interval-like descriptors in a flow spec.
-    Where a played span carries material from the source into the target axis,
-    a ``Gap`` carries nothing: it only pushes everything after it later by its
-    own duration, leaving a hole in the assembled result.
-
-    This is the vocabulary for describing a flow whose spans do *not* simply
-    concatenate — most importantly the inverse of a cut. The A8 performance
-    omits two measures (6 quarters), so its inverse must place the second span
-    6 quarters after the first one ends, restoring the original layout::
-
-        performance.create_flow_map(["A8_1", Gap(6), "A8_2"], id="restored")
-
-    A gap with no explicit *duration* is **auto-sized**: it takes the distance
-    between the source end of the span before it and the source start of the
-    span after it. That reads the hole straight off the folded coordinates, so
-    a flow spec written against the folded source reproduces the source layout
-    without repeating the arithmetic::
-
-        folded.create_flow_map(["A8_1", Gap(), "A8_2"], id="layout")
-
-    Auto-sizing needs a played span on both sides, since it has nothing to
-    measure otherwise; a leading or trailing ``Gap()`` must state its duration.
-
-    Attributes:
-        duration: Length of the hole in target coordinates, or ``None`` to
-            auto-size it from the neighbouring spans' source coordinates.
-        label: Optional name for the hole, used when the assembled timeline
-            marks its gaps as Regions.
-    """
-
-    duration: Fraction | int | float | None = None
-    label: str | None = None
-
-    def __post_init__(self) -> None:
-        if self.duration is None:
-            return
-        duration = Fraction(self.duration)
-        if duration < 0:
-            raise ValueError(f"A Gap duration cannot be negative, got {duration}")
-        object.__setattr__(self, "duration", duration)
-
-    @property
-    def is_auto(self) -> bool:
-        """Whether this gap sizes itself from its neighbouring spans."""
-        return self.duration is None
-
-    def __repr__(self) -> str:
-        size = "auto" if self.is_auto else str(self.duration)
-        label = f", label={self.label!r}" if self.label else ""
-        return f"Gap({size}{label})"
 
 
 def _coerce_flow_entries(

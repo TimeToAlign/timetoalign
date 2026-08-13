@@ -107,7 +107,7 @@ class MetricMap(ConversionMap[int]):
         mns: Sequence[str],
         lengths: Sequence[Fraction],
         source_unit: TimeUnit | str = TimeUnit.quarters,
-        target_unit: TimeUnit | str = TimeUnit.floating_measures,
+        target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
         name: str | None = None,
     ) -> None:
@@ -121,9 +121,12 @@ class MetricMap(ConversionMap[int]):
             mns: Measure Number labels (strings like "1", "1a", "0") for each measure.
             lengths: Quarter-beat lengths for each measure.
             source_unit: Source coordinate unit (default: quarters).
-            target_unit: Target unit (default: measures).
+            target_unit: Target unit. ``None`` by default: an MC is an
+                ordinal that indexes this map's own boundaries, not a
+                position on any coordinate axis.
             uid: Optional explicit ID.
-            name: Human-readable name for this map. Defaults to the map's ID.
+            name: Human-readable name for this map. Defaults to
+                ``"measure_counts"``.
 
         Raises:
             ValueError: If arrays have different lengths or are empty.
@@ -133,7 +136,7 @@ class MetricMap(ConversionMap[int]):
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
-            name=name,
+            name=name or "measure_counts",
         )
 
         if not (len(starts) == len(mcs) == len(mns) == len(lengths)):
@@ -318,7 +321,7 @@ class MetricMap(ConversionMap[int]):
             mns=data["mns"],
             lengths=[Fraction(wire_to_rational(ln)) for ln in data["lengths"]],
             source_unit=data.get("source_unit", TimeUnit.quarters),
-            target_unit=data.get("target_unit", TimeUnit.floating_measures),
+            target_unit=data.get("target_unit"),
             uid=data.get("id"),
             name=data.get("name"),
         )
@@ -560,7 +563,7 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
         meter_map: MetricMap,
         *,
         source_unit: TimeUnit | str = TimeUnit.quarters,
-        target_unit: TimeUnit | str = TimeUnit.beats,
+        target_unit: TimeUnit | str | None = None,
         uid: str | None = None,
         name: str | None = None,
     ) -> None:
@@ -569,15 +572,17 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
         Args:
             meter_map: The MetricMap providing measure boundaries.
             source_unit: Source coordinate unit (default: quarters).
-            target_unit: Target unit (default: beats).
+            target_unit: Target unit. ``None`` by default: a beat count
+                inside a bar is a metrical position, not a coordinate.
             uid: Optional explicit ID.
-            name: Human-readable name for this map. Defaults to the map's ID.
+            name: Human-readable name for this map. Defaults to
+                ``"beat_in_measure"``.
         """
         super().__init__(
             source_unit=source_unit,
             target_unit=target_unit,
             uid=uid,
-            name=name,
+            name=name or "beat_in_measure",
         )
         self._meter_map = meter_map
 
@@ -629,7 +634,7 @@ class BeatInMeasureMap(ConversionMap[Fraction]):
         return cls(
             meter_map,
             source_unit=data.get("source_unit", TimeUnit.quarters),
-            target_unit=data.get("target_unit", TimeUnit.beats),
+            target_unit=data.get("target_unit"),
             uid=data.get("id"),
             name=data.get("name"),
         )

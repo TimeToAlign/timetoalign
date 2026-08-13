@@ -57,22 +57,34 @@ class ConversionMapsMixin:
         and ``extrapolate`` policy directly, and analytical maps (e.g.
         ``ScalarMap``, ``LinearMap``) are likewise stored directly.
 
+        Several maps may target the same unit — a piece can carry two
+        readings of the same axis — and nothing is ever displaced:
+        the unit registry holds a list, stamps and tables show every
+        reading, and scalar lookup refuses to guess between them
+        unless the caller names one.
+
         Args:
             cmap: The ConversionMap to add.
 
         Raises:
-            ValueError: If the map's source unit is incompatible.
+            ValueError: If the map's source unit is incompatible, or if a
+                map with the same id is already attached.
         """
         if cmap.source_unit is not None and cmap.source_unit != self._unit:
             raise ValueError(
                 f"Map source unit '{cmap.source_unit}' does not match "
                 f"timeline unit '{self._unit}'"
             )
+        if cmap.id in self._conversion_maps:
+            raise ValueError(
+                f"Conversion map id '{cmap.id}' is already attached to timeline "
+                f"'{self._id}'. Attached map ids: {list(self._conversion_maps)}"
+            )
         self._conversion_maps[cmap.id] = cmap
 
         # Register in the unified timestamp system for unit-based lookup
         if cmap.target_unit is not None:
-            self._unit_maps[cmap.target_unit] = cmap
+            self._unit_maps.setdefault(cmap.target_unit, []).append(cmap)
 
         self._logger.debug(f"Added conversion map '{cmap.id}'")
 
@@ -82,8 +94,10 @@ class ConversionMapsMixin:
         """Get a conversion map by target unit **or** by name/id.
 
         When *target_unit* is a valid `TimeUnit` value (or an alias such as
-        ``"seconds"``), the method returns the first attached map whose
-        ``target_unit`` matches.
+        ``"seconds"``), the method returns the attached map targeting that
+        unit — and raises when several do, because picking one of two
+        readings of the same axis is the caller's decision, not this
+        method's.
 
         When *target_unit* is a string that does **not** correspond to any
         ``TimeUnit`` member, the method falls back to a name-based lookup:
@@ -99,6 +113,9 @@ class ConversionMapsMixin:
         Returns:
             A matching ``ConversionMap``, or ``None`` if not found.
 
+        Raises:
+            ValueError: If several attached maps target the requested unit.
+
         Examples:
             >>> timeline.get_conversion_map(TimeUnit.seconds)
             ScalarMap(...)
@@ -111,10 +128,7 @@ class ConversionMapsMixin:
         except ValueError:
             pass
         else:
-            for cmap in self._conversion_maps.values():
-                if cmap.target_unit == target:
-                    return cmap
-            return None
+            return self._get_unit_map(target)
 
         # Fallback: name/id-based lookup (target_unit is a plain string)
         name = str(target_unit)
@@ -240,18 +254,11 @@ class ConversionMapsMixin:
         from ..types import get_timeline_class
 
         target_domain = target.domain.name.lower()
-        # Determine discrete vs continuous based on target unit
-        # Ticks, samples, frames, pixels are discrete
-        discrete_units = {
-            TimeUnit.ticks,
-            TimeUnit.samples,
-            TimeUnit.frames,
-            TimeUnit.pixels,
-        }
-        is_discrete = target in discrete_units
 
         try:
-            derived_class = get_timeline_class(target_domain, discrete=is_discrete)
+            derived_class = get_timeline_class(
+                target_domain, discrete=target.is_discrete
+            )
         except ValueError:
             # Fallback to base Timeline if domain lookup fails
             derived_class = Timeline
@@ -396,23 +403,66 @@ class ConversionMapsMixin:
         """
         return None
 
-    def _get_unit_map(self, unit: TimeUnit) -> ConversionMap[Any] | None:
-        """Get a map for unit-based conversion.
+    def _get_unit_maps(self, unit: TimeUnit) -> list[ConversionMap[Any]]:
+        """Get every map registered for a unit, in attachment order.
 
-        Returns whichever ``ConversionMap`` was registered by
-        :meth:`add_conversion_map` for this unit, called directly regardless
-        of its concrete type (``TableMap``, ``ScalarMap``, ``LinearMap``,
-        ...).
-
-        This method is part of the TimeStampSource protocol.
+        A stamp or table shows all the readings an axis has, while scalar
+        lookup must choose between them.
 
         Args:
             unit: Target unit.
 
         Returns:
-            A map for conversion, or None if no C-Map available.
+            The attached maps targeting *unit*; empty when there are none.
         """
-        return self._unit_maps.get(unit)
+        return list(self._unit_maps.get(unit, ()))
+
+    def _get_unit_map(
+        self, unit: TimeUnit, *, name: str | None = None
+    ) -> ConversionMap[Any] | None:
+        """Get the one map for unit-based conversion, refusing to guess.
+
+        Returns whichever ``ConversionMap`` was registered by
+        :meth:`add_conversion_map` for this unit, called directly regardless
+        of its concrete type (``TableMap``, ``ScalarMap``, ``LinearMap``,
+        ...).  When several maps target the unit, an unnamed request is
+        ambiguous and raises rather than picking by attachment order.
+
+        This method is part of the TimeStampSource protocol.
+
+        Args:
+            unit: Target unit.
+            name: Which of several same-unit maps to take, by id or by
+                name.  Required only when there is more than one.
+
+        Returns:
+            A map for conversion, or None if no C-Map available.
+
+        Raises:
+            ValueError: If several maps target *unit* and no *name* is given.
+            KeyError: If *name* matches no map targeting *unit*.
+        """
+        candidates = self._unit_maps.get(unit, ())
+        if not candidates:
+            return None
+        if name is None:
+            if len(candidates) > 1:
+                listed = ", ".join(f"{cmap.id} ({cmap.name})" for cmap in candidates)
+                raise ValueError(
+                    f"Timeline '{self._id}' has {len(candidates)} conversion maps "
+                    f"targeting '{unit}'; name the one you mean. Candidates: {listed}"
+                )
+            return candidates[0]
+        for cmap in candidates:
+            if cmap.id == name:
+                return cmap
+        for cmap in candidates:
+            if cmap.name == name:
+                return cmap
+        raise KeyError(
+            f"No conversion map named '{name}' targets '{unit}' on timeline "
+            f"'{self._id}'. Available: {[cmap.id for cmap in candidates]}"
+        )
 
     def _get_unit_map_for_timeline(
         self, timeline_id: str, unit: TimeUnit
@@ -427,6 +477,15 @@ class ConversionMapsMixin:
         if timeline is None:
             return None
         return timeline._get_unit_map(unit)
+
+    def _get_unit_maps_for_timeline(
+        self, timeline_id: str, unit: TimeUnit
+    ) -> list[ConversionMap[Any]]:
+        """Get every unit C-Map attached to this timeline or any descendant."""
+        timeline = self._find_descendant(timeline_id)
+        if timeline is None:
+            return []
+        return timeline._get_unit_maps(unit)
 
     def _get_number_type_for_timeline(self, timeline_id: str) -> NumberType | None:
         """Get the numeric representation used by this timeline or a descendant."""

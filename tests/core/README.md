@@ -816,7 +816,7 @@ ValidationError)` — the concrete class, not a bare `Exception`.
 
 3. **TimeUnit Enum** (18 tests)
    - Physical units: `seconds`, `milliseconds`, `samples`, `frames`
-   - Logical units: `quarters`, `beats`, `measures`, `ticks`
+   - Logical units: `quarters`, `floating_measures`, `ticks`, `number`
    - Graphical units: `pixels`, `points`, `inches`, `millimeters`
    - Alias support (`q`, `ms`, `px`, etc.)
    - `domain` property mapping
@@ -837,6 +837,81 @@ The enum types enforce TimeToAlign's domain model:
 - Three domains (Logical, Physical, Graphical)
 - Each domain has discrete and continuous variants
 - Units must be compatible within operations
+
+---
+
+### `test_addresses.py` - Typed measure and beat keys
+
+**Purpose:** Validates the `Address` hierarchy — the typed keys that name a
+measure or a beat rather than a position on a coordinate axis — and the
+storage shape of the ones that are column payloads.
+
+**Why these specimens.** Every value below is a real spelling from an
+alignment or score source, chosen because it is exactly where a looser design
+loses information:
+
+* `"12+3/8"` is the performance-alignment spelling of "bar 12, three eighths
+  in". The offset fraction counts **whole notes**, so the gold value is
+  `3/8 × 4 = 3/2` quarters — a factor of four away from the reading that takes
+  the fraction for quarters, which is why the conversion is pinned as an exact
+  `Fraction` and not as `0.375`. The parsed key is a
+  `MeasureNumberAddress(mn="12", at=Coordinate(Fraction(3, 2), quarters))`;
+  a wrong answer here would place every note of a performance a dotted quarter
+  off its bar.
+* `"12a"` has no `+`, so it parses to a bare `MeasureNumber` and keeps its
+  suffix. A parser that stripped the `a` would merge the two halves of a split
+  bar into one address, which is the failure the label type exists to prevent.
+* `MeasureId(value=13)` versus `MeasureId(value="m-0023")`: strictness is the
+  whole point. `13` is a **position** — the thirteenth measure-like unit — and
+  `"m-0023"` is an **identifier** looked up against the measures' own ids. A
+  model that coerced `"13"` to `13` would silently turn an MEI `xml:id` into a
+  count, so `MeasureId.count("13")` must raise rather than convert.
+* `classify_dispatch_input(Address)` returning `"coordinate"` is the runtime
+  half of the retrieval grid: an address names a structural position, so it
+  belongs on the `_at` getters rather than the string-key `_for` getters.
+* The Field round trip uses `"237b"` — the printed label of the second half of
+  the split bar that is measure count 261 in Beethoven's WoO 71. The storage
+  struct also carries optional rendition, skeleton, and section qualifiers;
+  the round trip asserts the source facts because a
+  struct that stored only an integer could not hold this label at all.
+
+**Zero tolerance:** every offset is asserted as an exact `Fraction`, every
+label as the exact string the source prints.
+
+---
+
+### `test_beat_policy.py` - How a bar is counted in beats
+
+**Purpose:** Validates that a time signature is read into the two facts it
+actually states — which note value is counted, and how those values group into
+beats — and that every derived quantity follows from that pair.
+
+**Why grouping + division rather than stored beat lengths.** A `6/8` bar is
+not "six beats of an eighth"; it is two beats of three eighths. Storing the
+rods directly would lose which encoding produced them, so `BeatPolicy`
+stores `grouping` and `division` and derives the rest. The specimens:
+
+* `from_time_signature("6/8")` → `grouping=(3, 3)`, `division=1/2` quarters,
+  so `rods == (Fraction(3, 2), Fraction(3, 2))`. Reading `6/8` as six beats
+  would give six rods of `1/2` — a different metrical claim, and one that puts
+  "beat 3" in a different place.
+* `from_time_signature("4/4")` → four rods of one quarter each. Simple meters
+  count one division per beat, so the compound rule must not fire; `4 % 3 != 0`
+  keeps it off, and the `n > 3 and d >= 8` guard keeps `3/8` simple.
+* `from_time_signature("3/8+2/8+3/8")` → `grouping=(3, 2, 3)` over eighths, so
+  `rods == (Fraction(3, 2), Fraction(1), Fraction(3, 2))` and
+  `offset_for(3) == Fraction(3, 2) + Fraction(1) == Fraction(5, 2)`. This is
+  the Don Giovanni-style uneven bar: any implementation that averages the
+  grouping puts beat 3 at `5/3` instead of `5/2`.
+* `uniform(Fraction(1, 2), 6)` is the override policy — counting a `3/4` bar in
+  eighths — and gives six rods of `1/2` summing to the same three quarters.
+  The same bar, counted two ways, must still span the same time.
+* An unreadable signature raises. There is deliberately no silent fall back to
+  `4/4`: choosing a default for a source that states nothing is a loader's
+  decision, and a policy that guessed would report a metre the source never
+  gave.
+
+**Zero tolerance:** every rod, offset and span is an exact `Fraction`.
 
 ---
 

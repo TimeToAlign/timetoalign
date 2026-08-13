@@ -1878,6 +1878,19 @@ class TimelineGroup:
                 return descendant._get_unit_map(unit)
         return None
 
+    def _get_unit_maps_for_timeline(
+        self, timeline_id: str, unit: "TimeUnit"
+    ) -> list[Any]:
+        """Get all maps to one unit on a member timeline or descendant."""
+        timeline = self._timelines.get(timeline_id)
+        if timeline is not None:
+            return timeline._get_unit_maps(unit)
+        for member in self._timelines.values():
+            descendant = member._find_descendant(timeline_id)
+            if descendant is not None:
+                return descendant._get_unit_maps(unit)
+        return []
+
     def _get_related_timeline_ids(self) -> list[str]:
         """Get IDs of the direct member timelines.
 

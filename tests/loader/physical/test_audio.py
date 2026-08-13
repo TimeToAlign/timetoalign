@@ -18,7 +18,7 @@ import pytest
 from timetoalign.core import NumberType, TimeUnit
 from timetoalign.loader.physical import AudioInfo, AudioLoader
 from timetoalign.maps import SamplesToSeconds
-from timetoalign.timelines import DiscretePhysicalTimeline
+from timetoalign.timelines import ContinuousPhysicalTimeline
 
 # region Test Fixtures
 
@@ -283,10 +283,10 @@ class TestAudioLoaderTimeline:
         loader = AudioLoader().load(wav_file)
         timeline = loader.create_timeline()
 
-        assert isinstance(timeline, DiscretePhysicalTimeline)
-        assert timeline.unit == TimeUnit.samples
-        assert timeline.number_type == NumberType.int
-        assert timeline.length.value == 44100
+        assert isinstance(timeline, ContinuousPhysicalTimeline)
+        assert timeline.unit == TimeUnit.seconds
+        assert timeline.number_type == NumberType.float
+        assert timeline.length.value == 1.0
 
     def test_create_timeline_with_uid(self, wav_file: Path):
         """Test timeline creation with custom uid."""
@@ -305,18 +305,12 @@ class TestAudioLoaderTimeline:
         assert timeline.name == "test.wav"
 
     def test_create_timeline_with_cmap(self, wav_file: Path):
-        """Test timeline creation with SamplesToSeconds C-map."""
+        """A seconds-native timeline needs no samples conversion map."""
         loader = AudioLoader().load(wav_file)
         timeline = loader.create_timeline(attach_cmap=True)
 
-        # Should have a C-map to seconds
         cmap = timeline.get_conversion_map(TimeUnit.seconds)
-        assert cmap is not None
-        assert isinstance(cmap, SamplesToSeconds)
-
-        # Test conversion
-        result = cmap(44100)
-        assert result == 1.0
+        assert cmap is None
 
     def test_create_timeline_without_cmap(self, wav_file: Path):
         """Test timeline creation without C-map attachment."""
@@ -357,25 +351,17 @@ class TestAudioLoaderIntegration:
     """Integration tests for AudioLoader with the TTA framework."""
 
     def test_timeline_coordinate_conversion(self, wav_file: Path):
-        """Test coordinate conversion on audio timeline."""
+        """The audio axis is already expressed in seconds."""
         loader = AudioLoader().load(wav_file)
         timeline = loader.create_timeline()
 
-        # The timeline should be able to convert samples to seconds
-        # This tests integration with the C-map system
-        half_sample = 22050
-        result = timeline.convert_to(half_sample, TimeUnit.seconds)
-
-        assert result.value == 0.5
+        assert timeline.unit is TimeUnit.seconds
+        assert timeline.length.value == 1.0
 
     def test_timeline_used_with_metrical_grid(self, stereo_wav_file: Path):
         """Test that audio timeline works with ContinuousPhysicalTimeline workflow."""
-        # This tests that the discrete audio timeline can be used alongside
-        # continuous physical timelines in the same alignment workflow
-        from timetoalign.timelines import ContinuousPhysicalTimeline
-
         loader = AudioLoader().load(stereo_wav_file)
-        discrete_tl = loader.create_timeline(uid="audio_samples")
+        audio_tl = loader.create_timeline(uid="audio")
 
         # Create a continuous timeline representing the same duration
         continuous_tl = ContinuousPhysicalTimeline(
@@ -385,14 +371,8 @@ class TestAudioLoaderIntegration:
         )
 
         # Both should represent the same duration
-        assert discrete_tl.length.value == 96000  # samples
+        assert audio_tl.length.value == 2.0
         assert continuous_tl.length.value == 2.0  # seconds
-
-        # Convert discrete length to seconds via C-map
-        duration_from_discrete = discrete_tl.convert_to(
-            discrete_tl.length.value, TimeUnit.seconds
-        )
-        assert duration_from_discrete.value == 2.0
 
 
 # endregion
@@ -434,7 +414,7 @@ class TestAudioLoaderEdgeCases:
     def test_method_chaining(self, wav_file: Path):
         """Test that load() returns self for method chaining."""
         timeline = AudioLoader().load(wav_file).create_timeline()
-        assert isinstance(timeline, DiscretePhysicalTimeline)
+        assert isinstance(timeline, ContinuousPhysicalTimeline)
 
 
 # endregion

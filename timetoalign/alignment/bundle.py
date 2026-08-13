@@ -59,7 +59,7 @@ from timetoalign.core.retrieval import (
 from timetoalign.core.timestamp import TimestampColumn, build_timestamp_table
 from timetoalign.timelines import TimelineGroup
 
-from .claims import MatchClaim, MatchClaimField
+from .claims import AlignmentAnchor, MatchClaim, MatchClaimField
 from .filters import ClaimFilter
 from .graph import MatchGraph, MatchStamp
 from .matchline import MatchLine
@@ -1053,7 +1053,7 @@ class AlignmentBundle:
 
     def add_match_claims(
         self,
-        claims: list[MatchClaim],
+        claims: Any,
     ) -> "AlignmentBundle":
         """Add MatchClaims connecting timelines across different groups.
 
@@ -1066,15 +1066,53 @@ class AlignmentBundle:
         ``get_matchstamp_at()`` call, so adding claims is cheap.
 
         Args:
-            claims: List of MatchClaim objects.  Each synchronous claim
-                connects two timelines via its ``start_anchor``.
+            claims: MatchClaim objects, claim tuples, or lists of claim tuples.
+                A tuple is ``(timeline_a_id, interval_a, timeline_b_id,
+                interval_b)``.
 
         Returns:
             self (for method chaining)
         """
-        for claim in claims:
+        materialized = list(claims)
+        flattened: list[Any] = []
+        for item in materialized:
+            if isinstance(item, list):
+                flattened.extend(item)
+            else:
+                flattened.append(item)
+
+        normalized: list[MatchClaim] = []
+        for item in flattened:
+            if isinstance(item, MatchClaim):
+                normalized.append(item)
+                continue
+            if not isinstance(item, tuple) or len(item) != 4:
+                raise TypeError("Claims must be MatchClaims or four-item claim tuples")
+            timeline_a_id, interval_a, timeline_b_id, interval_b = item
+            start_anchor = AlignmentAnchor(
+                timeline_a_id=str(timeline_a_id),
+                coordinate_a=interval_a.start,
+                timeline_b_id=str(timeline_b_id),
+                coordinate_b=interval_b.start,
+            )
+            end_anchor = AlignmentAnchor(
+                timeline_a_id=str(timeline_a_id),
+                coordinate_a=interval_a.end,
+                timeline_b_id=str(timeline_b_id),
+                coordinate_b=interval_b.end,
+            )
+            normalized.append(
+                MatchClaim(
+                    timeline_a_id=str(timeline_a_id),
+                    timeline_b_id=str(timeline_b_id),
+                    start_anchor=start_anchor,
+                    end_anchor=end_anchor,
+                )
+            )
+
+        for claim in normalized:
             claim.set_bundle(self)
-        self.cross_group_claims.extend(claims)
+        self.cross_group_claims.extend(normalized)
         self._invalidate_warp_cache()
         return self
 

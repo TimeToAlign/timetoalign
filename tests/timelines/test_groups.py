@@ -85,10 +85,16 @@ class TestEventIdTimestampLookup:
         assert [stamp.source_id for stamp in timestamps] == ["audio", "audio"]
         assert [
             stamp.get_coordinate_for("audio", format="float") for stamp in timestamps
-        ] == [6.0, 2.0]
+        ] == [
+            6.0,
+            2.0,
+        ]
         assert [
             stamp.get_coordinate_for("score", format="float") for stamp in timestamps
-        ] == [12.0, 4.0]
+        ] == [
+            12.0,
+            4.0,
+        ]
 
     def test_get_timestamps_for_missing_event_raises_atomically(self) -> None:
         """One unknown ID aborts the batch instead of emitting an empty row."""
@@ -642,7 +648,10 @@ class TestGetTimestampAt:
 
         assert [
             stamp.get_coordinate_for("audio", format="float") for stamp in stamps
-        ] == [75.0, 75.01538461538462]
+        ] == [
+            75.0,
+            75.01538461538462,
+        ]
         assert [stamp.get_coordinate_for("dgt1", format="int") for stamp in stamps] == [
             2438,
             2438,
@@ -1271,7 +1280,7 @@ class TestTimelineGroupTimestampAt:
                 x_values=[0.0, 4875.0],
                 y_values=[0.0, 100.0],
                 source_unit=TimeUnit.pixels,
-                target_unit=TimeUnit.beats,
+                target_unit=TimeUnit.whole_note,
                 uid="pixels-to-beats",
             )
         )
@@ -1280,7 +1289,7 @@ class TestTimelineGroupTimestampAt:
         ts = group.get_timestamp_at(4875.0, "dgt1", conversion_maps=False)
 
         with pytest.raises(KeyError):
-            ts.get_unit(TimeUnit.beats)
+            ts.get_unit(TimeUnit.whole_note)
         assert ts.get_coordinate_for("dgt1", format="int") == 4875
 
     def test_get_timestamp_at_with_restricted_conversion_maps(
@@ -1294,7 +1303,7 @@ class TestTimelineGroupTimestampAt:
                 x_values=[0.0, 4875.0],
                 y_values=[0.0, 100.0],
                 source_unit=TimeUnit.pixels,
-                target_unit=TimeUnit.beats,
+                target_unit=TimeUnit.whole_note,
                 uid="pixels-to-beats",
             )
         )
@@ -1312,10 +1321,10 @@ class TestTimelineGroupTimestampAt:
         ts = group.get_timestamp_at(
             4875.0,
             "dgt1",
-            conversion_maps=[TimeUnit.beats],
+            conversion_maps=[TimeUnit.whole_note],
         )
 
-        assert ts.get_unit(TimeUnit.beats, format="float") == 100.0
+        assert ts.get_unit(TimeUnit.whole_note, format="float") == 100.0
         with pytest.raises(KeyError):
             ts.get_unit(TimeUnit.frames)
 

@@ -228,6 +228,103 @@ registry dispatches on.
 
 ---
 
+### `test_floating_measures.py` - The floating-measure conversion
+
+**Purpose:** Validates `QuartersToFloatingMeasures.from_measure_map` — the one
+map that answers the floating-measure (fm) convention — against the corpora
+whose published annotations define it.
+
+**What fm is, and why the two rules below are not cosmetic.** An fm value
+reads a position as `<measure ordinal>.<how far into that bar>`, at three
+decimals. Two properties decide every gold value here:
+
+1. **The fractional part is anchored on the NOMINAL bar.** An incomplete bar's
+   content sits where it is *notated*, not flush against its sounding start.
+   The lattice therefore puts one knot per measure record at that bar's
+   **virtual nominal downbeat** — sounding start minus the offset at which its
+   content sits — and interpolates linearly between knots, so the slope inside
+   a bar is exactly `1 / nominal_length`.
+2. **Emission truncates, never rounds.**
+
+**The specimen that separates truncation from rounding.** The Wagner Ring
+Dataset's *Walküre* act III scene 3 opens with a 1/8 pickup in 9/8
+(`Wagner_WWV086B-3.measures.tsv`, mc 1: `timesig 9/8`, `act_dur 1/8`,
+`mc_offset 1`). In quarters: `nominal_length = 9/8 x 4 = 9/2`,
+`actual_length = 1/8 x 4 = 1/2`, `nominal_offset = 1 x 4 = 4`. The pickup's
+notated downbeat is therefore a virtual `0 - 4 = -4` quarters, and the onset at
+quarter 0 sits
+
+    fm(0) = 0 + (0 - (-4)) / (1/2 - (-4)) = 4 / (9/2) = 8/9 = 0.8888...
+
+The published WRD tables read **`0.888`**. Truncation gives that;
+`round(8/9, 3)` gives `0.889`, which is not the number the dataset states — so
+the rule is `floor(value x 1000) / 1000`, and the same rule seen from the right
+is what produces the `.999` an interval end shows. A rounding implementation
+fails this one assertion and nothing else, which is exactly why it is pinned.
+
+**The ordinal rule.** Ordinals count measure *records*, never printed labels.
+The first record is `0` when it is an anacrusis (its content is offset and it is
+shorter than its nominal bar) and `1` otherwise; every following record adds
+one. Counting runs monotonically through voltas — Beethoven's WoO 71 has three
+consecutive bars all printed `237` (mc 260, 261, 262: first ending, second
+ending, and the bar after) and they get three consecutive ordinals — and never
+resets. Deriving the ordinal from the label instead would give all three the
+same fm, collapsing four quarters of music onto one point.
+
+**The eroica pickup** is the second anacrusis shape: a 1/8 pickup in 2/4
+(`nominal_length = 2`, `actual_length = 1/2`, `nominal_offset = 3/2`). Its
+notated downbeat is `-3/2` and its onset reads
+`(0 + 3/2) / (1/2 + 3/2) = 3/4`, i.e. **`0.750`** — the same rule, a different
+metre.
+
+**One map, one answer, however you ask.** Reading a column has to give what
+reading its entries one at a time gives. That is not automatic: the knots are
+ratios, so a lattice walked in floating point lands a few units below an exact
+thousandth boundary about as often as above it, and truncating afterwards then
+drops a whole thousandth — in the wrong direction half the time, so it is not
+even a consistent offset. A bulk export would then disagree with a single
+lookup on the same map and the same input.
+
+The specimen that shows it is a bar of **7/3 quarters** — a septuplet-length
+bar, whose boundaries no binary fraction reaches. Its slope is `3/7` fm per
+quarter, so an exact thousandth boundary `k` sits at quarter `7k/3000`:
+
+| quarter | derivation | fm |
+|---|---|---|
+| `0.007` | `1 + (3/7)(7/1000)` = `1 + 3/1000` | `1.003` |
+| `0.014` | `1 + 6/1000` | `1.006` |
+| `0.287` | `1 + 123/1000` | `1.122` |
+| `2.331` | `1 + 999/1000` | `1.998` |
+
+Both call shapes are asserted element for element across a sweep of the whole
+three-bar grid, plus these four boundary readings. A float-interpolating column
+reads `1.002` at quarter `0.007` and fails here.
+
+**What a loaded score gets.** A score's fm conversion is derived from the
+structure its measure rows describe — the measure map those rows build — never
+from the printed labels in them. The Wagner *Walküre* file loaded through
+`create_timeline()` therefore reads `fm(0) == 0.888`, the published value
+derived above, and not the `1.0` that reading the label `"1"` off the pickup row
+would produce. Where a score's structure cannot be expressed as an fm lattice —
+WoO 71's split bars, below — the timeline is loaded with **no** floating-measure
+conversion at all and a warning naming the offending position. Its absence is
+honest; numbers derived from a rule the source does not support are not, and a
+silent fallback to label-derived ordinals is the worst of the three, because
+nothing downstream can tell the two kinds of fm apart.
+
+**The inverse** interpolates linearly over the same knots and performs no
+truncation-reconstruction: a value that was truncated on the way out carries at
+most one thousandth of a bar of error, and that is documented rather than
+"corrected". `limit_denominator` and every other ratio-guessing device stay
+banned. Inverting exactly-representable values is asserted instead: on the
+eroica grid `0.750` inverts to `Coordinate(0)` quarters (the pickup's sounding
+onset) and `2.0` to the start of measure 2.
+
+**Zero tolerance:** every fm value is asserted as the exact float the
+convention states; every quarters value as an exact `Fraction`.
+
+---
+
 ### `test_properties.py` - Property-Based Invariants (Hypothesis)
 
 **Purpose:** Verifies mathematical invariants (invertibility, composition

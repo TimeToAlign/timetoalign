@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -282,6 +283,7 @@ class ScoreStore(EventStore):
             >>> measure_map = cmaps["measures"]
             >>> measure_map(4.0)  # e.g., 2.0 (start of measure 2)
         """
+        from timetoalign.alignment.structure import MeasureMap
         from timetoalign.maps import ScalarMap
         from timetoalign.maps.interval import QuartersToFloatingMeasures
 
@@ -299,15 +301,23 @@ class ScoreStore(EventStore):
         if tempo_events:
             cmaps["seconds"] = self._create_tempo_map(tempo_events)
 
-        # Measure map (if measures are present)
+        # Floating-measure conversion is derived from the structure described
+        # by the rows, never from printed labels.
         if len(self.measures) > 0:
             try:
-                cmaps["measures"] = QuartersToFloatingMeasures.from_measure_data(
-                    self.measures
+                measure_map = MeasureMap.from_measure_data(self.measures)
+                cmaps["measures"] = QuartersToFloatingMeasures.from_measure_map(
+                    measure_map
                 )
-            except ValueError:
-                # MeasureData might be present but invalid for map creation
-                pass
+            except ValueError as exc:
+                # A structure the fm lattice cannot express — split bars
+                # share one notated downbeat and cannot anchor two
+                # ordinals. Leave the conversion absent: an fm reading these
+                # measures do not support is worse than no fm reading.
+                warnings.warn(
+                    f"No floating-measure conversion built for these measures: {exc}",
+                    stacklevel=2,
+                )
 
         return cmaps
 

@@ -155,7 +155,7 @@ class NumberType(Enum):
 
 # Domain mappings for TimeUnit (module-level for efficiency)
 _LOGICAL_UNITS: frozenset[str] = frozenset(
-    {"beats", "floating_measures", "quarters", "ticks", "number"}
+    {"floating_measures", "whole_note", "quarters", "ticks", "number"}
 )
 _PHYSICAL_UNITS: frozenset[str] = frozenset(
     {"milliseconds", "seconds", "minutes", "samples", "frames"}
@@ -174,7 +174,7 @@ _DISCRETE_UNITS: frozenset[str] = frozenset({"ticks", "samples", "frames", "pixe
 # Continuous units whose values are most faithfully written as exact
 # ratios: notated rhythm is rational by construction (a triplet eighth is
 # 1/3 of a quarter, not 0.333...).
-_RATIONAL_DEFAULT_UNITS: frozenset[str] = frozenset({"quarters", "beats"})
+_RATIONAL_DEFAULT_UNITS: frozenset[str] = frozenset({"whole_note", "quarters"})
 
 
 class TimeUnit(FancyStrEnum):
@@ -188,15 +188,15 @@ class TimeUnit(FancyStrEnum):
     number = auto()
 
     # logical domain
-    beats = auto()
-    """beats"""
-    b = beats
-    """beats"""
-
     floating_measures = auto()
     """measures"""
     fm = floating_measures
     """measures"""
+
+    whole_note = auto()
+    """whole notes"""
+    w = whole_note
+    """whole notes"""
 
     quarters = auto()
     """quarter notes"""
@@ -285,8 +285,8 @@ class TimeUnit(FancyStrEnum):
         timeline, loader, or field -- needs to carry its own default:
 
         * discrete units are ``int``;
-        * ``quarters`` and ``beats`` are ``fraction``, because notated
-          rhythm is rational by construction;
+        * ``quarters`` is ``fraction``, because notated rhythm is
+          rational by construction;
         * every other continuous unit is ``float``.
         """
         if self.is_discrete:

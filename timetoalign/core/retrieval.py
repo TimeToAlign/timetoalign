@@ -10,9 +10,12 @@ import numpy as np
 import pandas as pd
 
 from .enums import NumberType, TimeUnit
+from .events import Address
 from .time import Coordinate, IdCoordinate
 
-CoordinateInput: TypeAlias = int | float | Fraction | Coordinate | IdCoordinate
+CoordinateInput: TypeAlias = (
+    int | float | Fraction | Coordinate | IdCoordinate | Address
+)
 CoordinateCollection: TypeAlias = (
     Sequence[CoordinateInput] | np.ndarray | pd.Index | pd.Series
 )
@@ -121,7 +124,7 @@ def reject_dataframe_options(format: str, **options: object) -> None:
 def is_coordinate_input(value: object) -> bool:
     """Return whether *value* is one accepted scalar coordinate input."""
     return not isinstance(value, bool) and isinstance(
-        value, (int, float, Fraction, Coordinate)
+        value, (int, float, Fraction, Coordinate, Address)
     )
 
 

@@ -25,9 +25,11 @@ Layout convention: five labelled sections — base hierarchy → translator
 from __future__ import annotations
 
 import enum
+import inspect
 import json
 import sys
 from abc import ABC, abstractmethod
+from fractions import Fraction
 from functools import lru_cache
 from importlib.machinery import PathFinder
 from typing import (
@@ -1185,6 +1187,24 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
             f"Unsupported source type for {cls.__name__}.from_field: {type(source).__name__}"
         )
 
+    @classmethod
+    def supports_plain_blueprint(cls) -> bool:
+        """Whether ``cls(name=...)`` builds a blueprint on its own.
+
+        The plain-blueprint mode of :meth:`__init__` is what lets a
+        caller hand a bare source column to a field class and get that
+        class's own packing rule applied.  Subclasses that cannot exist
+        without further state — a bound time unit, a pair of endpoints —
+        override ``__init__`` without that mode, so there is no way to
+        ask them to read an atomic column.  Callers that pack a source
+        into a target shape check this first, and say so plainly when
+        the answer is no, rather than letting a constructor fail.
+
+        Returns:
+            True when the class accepts ``name=`` on its own.
+        """
+        return "name" in inspect.signature(cls.__init__).parameters
+
     def from_array(
         self,
         source: pa.Array | pa.ChunkedArray,
@@ -1199,14 +1219,16 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
           (``{value, numerator, denominator}``), parse via
           :func:`~timetoalign.core.time.build_number_struct_array`.
         * If the schema is a single-sub-field struct (e.g.
-          ``{value: int}`` for :class:`MeasureNumberField` /
-          :class:`IdField`, ``{midi_number: int}`` for
-          :class:`EnharmonicPitchField`), pack the (cast) atomic
+          ``{value: string}`` for :class:`IdField`, ``{midi_number: int}``
+          for :class:`EnharmonicPitchField`), pack the (cast) atomic
           source into the struct shape directly.
         * Otherwise fall back to a row-wise ``model_validate`` of each
           source row followed by the column-builder.  This path is
           reserved for richer scalars whose storage shape exceeds the
-          single-atomic-value case.
+          single-atomic-value case; a class whose source column fills
+          only some of its sub-fields overrides this method instead
+          (see :meth:`MeasureNumberField.from_array`, where a label
+          column fills ``mn`` and leaves ``mc`` and ``volta`` null).
         """
         if not self.is_empty:
             raise TypeError(
@@ -1248,12 +1270,9 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
             if pa.types.is_integer(sub_type) or pa.types.is_floating(sub_type):
                 casted = pc.cast(source, sub_type)
             elif pa.types.is_string(sub_type):
-                if pa.types.is_string(source.type) or pa.types.is_large_string(
-                    source.type
-                ):
-                    casted = source
-                else:
-                    casted = pc.cast(source, pa.string())
+                casted = (
+                    source if source.type == sub_type else pc.cast(source, sub_type)
+                )
             else:
                 raise TypeError(
                     f"{cls.__name__}.from_array: unsupported sub-field type {sub_type!r}"
@@ -1523,6 +1542,13 @@ def _atomic_arrow_type(py_type: Any) -> pa.DataType:
         return pa.float64()
     if py_type is bool:
         return pa.bool_()
+    if py_type is Fraction:
+        # An exact ratio stores the way every other number in the library
+        # stores: the canonical redundant struct, not a second {num, den}
+        # shape invented per scalar.
+        from .time import RATIONAL_STRUCT_TYPE
+
+        return RATIONAL_STRUCT_TYPE
 
     origin = get_origin(py_type)
 
@@ -1954,6 +1980,11 @@ def _build_field_arrays(
         )
     pa_field = pa_subfields[0]
     pa_type = pa_field.type
+    if inner_type is Fraction:
+        from .enums import NumberType
+        from .time import build_number_struct_array
+
+        return [build_number_struct_array(values, number_type=NumberType.fraction)]
     if pa.types.is_struct(pa_type) and all(
         pa_type.field(i).name == f"_{i}" for i in range(pa_type.num_fields)
     ):

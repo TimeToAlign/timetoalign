@@ -1,10 +1,14 @@
 """Tests for interval-to-constant and quarters-to-measures maps."""
 
+from __future__ import annotations
+
 from fractions import Fraction
 
 import numpy as np
 import pytest
 
+from timetoalign.alignment import MeasureMap
+from timetoalign.core import Measure, MeasureConstituent
 from timetoalign.core.enums import InterpolationKind
 from timetoalign.maps.interval import (
     IntervalToConstantMap,
@@ -233,44 +237,6 @@ class TestQuartersToMeasureNumber:
         assert m(1) == "1"
         assert m(5) == "2"
 
-    def test_to_floating_measures(self):
-        """Convert to QuartersToFloatingMeasures."""
-        m = QuartersToMeasureNumber(
-            boundaries=[0, 4, 8, 12],
-            mns=["1", "2", "3", "4"],
-        )
-
-        fm = m.to_floating_measures()
-
-        assert fm(0) == 1.0
-        assert fm(2) == 1.5  # Halfway through M1
-        assert fm(4) == 2.0
-        assert fm(6) == 2.5
-
-    def test_to_floating_measures_strips_suffix(self):
-        """to_floating_measures strips non-numeric suffixes with warning."""
-        m = QuartersToMeasureNumber(
-            boundaries=[0, 2, 4],
-            mns=["19a", "19b", "20"],
-        )
-
-        with pytest.warns(UserWarning, match="Non-numeric suffixes"):
-            fm = m.to_floating_measures()
-
-        assert fm(0) == 19.0
-        assert fm(2) == 19.0  # Both 19a and 19b become 19
-        assert fm(4) == 20.0
-
-    def test_to_floating_measures_invalid_mn_raises(self):
-        """to_floating_measures raises ValueError for non-numeric MN."""
-        m = QuartersToMeasureNumber(
-            boundaries=[0, 4],
-            mns=["A", "B"],  # Not numeric at all
-        )
-
-        with pytest.raises(ValueError, match="Cannot convert"):
-            m.to_floating_measures()
-
     def test_serialization(self):
         """to_dict and from_dict roundtrip."""
         m = QuartersToMeasureNumber(
@@ -343,37 +309,58 @@ class TestQuartersToFloatingMeasures:
         # Before first measure (negative)
         assert m(-4) == 0.0
 
-    def test_from_metric_map(self):
-        """Create from MetricMap."""
-        meter = MetricMap.from_uniform(
-            n_measures=4,
-            quarters_per_measure=Fraction(4, 1),
-            start_mc=1,
-            start_mn="1",
+    def test_from_measure_map(self):
+        """Build the lattice from exact measure lengths."""
+        measure_map = MeasureMap(
+            Measure(
+                id=f"m{count}",
+                number=count,
+                nominal_length=Fraction(4),
+                actual_length=Fraction(4),
+            )
+            for count in range(1, 5)
         )
 
-        m = QuartersToFloatingMeasures.from_metric_map(meter)
+        m = QuartersToFloatingMeasures.from_measure_map(measure_map)
 
         assert m(0) == 1.0
         assert m(2) == 1.5
         assert m(4) == 2.0
         assert m(8) == 3.0
 
-    def test_from_metric_map_anacrusis(self):
-        """Create from MetricMap with anacrusis (MN=0)."""
-        meter = MetricMap.from_uniform(
-            n_measures=4,
-            quarters_per_measure=Fraction(4, 1),
-            anacrusis_quarters=Fraction(1, 1),
-            start_mc=1,
-            start_mn="0",
+    def test_from_measure_map_anacrusis(self):
+        """A pickup is measure 0, and its content sits where it is notated.
+
+        The pickup is one quarter of a four-quarter bar, so it occupies the
+        LAST quarter of the nominal bar 0: its notated downbeat is a virtual
+        -3 quarters, and its onset reads three quarters of the way through
+        bar 0.
+        """
+        measure_map = MeasureMap(
+            [
+                MeasureConstituent(
+                    id="m1",
+                    number=0,
+                    nominal_length=Fraction(4),
+                    actual_length=Fraction(1),
+                    offset_within_measure=Fraction(3),
+                ),
+                *[
+                    Measure(
+                        id=f"m{count}",
+                        number=count - 1,
+                        nominal_length=Fraction(4),
+                        actual_length=Fraction(4),
+                    )
+                    for count in range(2, 5)
+                ],
+            ]
         )
 
-        m = QuartersToFloatingMeasures.from_metric_map(meter)
+        m = QuartersToFloatingMeasures.from_measure_map(measure_map)
 
-        # Anacrusis is MN=0
-        assert m(0) == 0.0
-        assert m(0.5) == 0.5  # Halfway through anacrusis
+        assert m(0) == 0.75
+        assert m(0.5) == 0.875  # Halfway through the sounding pickup
         assert m(1) == 1.0  # Start of M1
         assert m(5) == 2.0  # Start of M2
 

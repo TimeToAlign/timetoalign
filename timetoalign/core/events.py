@@ -24,13 +24,16 @@ import math
 import re
 from dataclasses import dataclass
 from enum import IntEnum
+from fractions import Fraction
 from typing import Any, ClassVar, Literal
 
 import pyarrow as pa
 import pyarrow.compute as pc
 from pydantic import (
+    AliasChoices,
     BaseModel,
     ConfigDict,
+    Field,
     computed_field,
     field_validator,
     model_validator,
@@ -44,7 +47,6 @@ from .fields import (
     install_paired_field_registry,
     register_value_projector,
 )
-from .ids import ScopedId
 from .protocols import TwelveTETPitchMixin
 from .time import (
     Coordinate,
@@ -2127,184 +2129,551 @@ class NoteField(SemanticField[Note]):
 
 
 class Measure(ScalarVocabulary, BaseModel):
-    """A single measure boundary event."""
+    """One measure-like unit in a work's immutable measure map.
+
+    ``count`` and ``qstamp`` may be supplied by a source, but a containing
+    measure map derives both from printed order and exact actual lengths.
+    The map warns when a supplied value disagrees with that derivation.
+    """
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
-    id: int  # noqa: A003 — MeasureMap field name
-    mn: str
-    start: Coordinate
-    end: Coordinate | None = None
-    duration: Duration | None = None
-    time_signature: tuple[int, int] = (4, 4)
-    key_signature: str | None = None
-    nominal_length: float | None = None
-    actual_length: float | None = None
+    id: str | None = Field(  # noqa: A003 - Measure Map vocabulary
+        default=None,
+        validation_alias=AliasChoices("id", "ID"),
+        serialization_alias="ID",
+    )
+    count: int | None = None
+    qstamp: Fraction | None = None
+    number: int | None = None
+    name: str | None = None
+    time_signature: str | None = None
+    nominal_length: Fraction | None = None
+    actual_length: Fraction | None = None
     start_repeat: bool = False
     end_repeat: bool = False
-    next_ids: tuple[str, ...] | None = None
+    next: tuple[str, ...] | None = None
     volta: int | None = None
 
-    @field_validator("duration", mode="before")
+    @field_validator("qstamp", "nominal_length", "actual_length", mode="before")
     @classmethod
-    def _coerce_duration_from_coordinate(cls, v: object) -> Duration | None:
-        if v is None or isinstance(v, Duration):
-            return v
-        if isinstance(v, Coordinate):
-            return Duration(v.value, v.unit)
-        return v
+    def _as_exact_quarters(cls, value: Any) -> Any:
+        if value is None or isinstance(value, Fraction):
+            return value
+        return Fraction(value)
 
-    @field_validator("next_ids", mode="before")
+    @field_validator("next", mode="before")
     @classmethod
-    def _coerce_next_ids(cls, v: object) -> tuple[str, ...] | None:
-        if v is None:
+    def _as_measure_ids(cls, value: Any) -> tuple[str, ...] | None:
+        if value is None or value == "":
             return None
-        if isinstance(v, str):
-            return (v,)
-        if isinstance(v, (list, tuple)):
-            out: list[str] = []
-            for item in v:
-                if isinstance(item, ScopedId):
-                    out.append(str(item))
-                elif isinstance(item, str):
-                    out.append(item)
-                else:
-                    raise TypeError(
-                        f"next_ids item must be ScopedId or string, got "
-                        f"{type(item).__name__}"
-                    )
-            return tuple(out)
-        raise TypeError(
-            f"next_ids must be a tuple of ScopedId/string, got {type(v).__name__}"
-        )
+        if isinstance(value, str):
+            text = value.strip().strip("()[]")
+            return (
+                tuple(part.strip() for part in text.split(",") if part.strip()) or None
+            )
+        return tuple(str(item) for item in value)
+
+    @model_validator(mode="after")
+    def _default_name(self) -> Measure:
+        if self.name is None and self.number is not None:
+            object.__setattr__(self, "name", str(self.number))
+        return self
 
     @property
     def semantic_type(self) -> str:
+        """Return the scalar's semantic name."""
         return "Measure"
 
-    def metadata_dict(self) -> dict[str, str]:
-        return {
-            **super().metadata_dict(),
-            "time_signature": f"{self.time_signature[0]}/{self.time_signature[1]}",
-        }
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "id": self.id,
-            "mn": self.mn,
-            "start": self.start.to_dict(),
-            "end": self.end.to_dict() if self.end is not None else None,
-            "duration": self.duration.to_dict() if self.duration is not None else None,
-            "time_signature": list(self.time_signature),
-            "key_signature": self.key_signature,
-            "nominal_length": self.nominal_length,
-            "actual_length": self.actual_length,
-            "start_repeat": self.start_repeat,
-            "end_repeat": self.end_repeat,
-            "next_ids": list(self.next_ids) if self.next_ids is not None else None,
-            "volta": self.volta,
-        }
-
-    @classmethod
-    def from_row(cls, row: dict[str, Any]) -> Measure | None:
-        from .enums import TimeUnit
-
-        id_raw = row.get("id")
-        if id_raw is None:
-            return None
-
-        def _coerce_coord(raw: Any) -> Coordinate | None:
-            if raw is None:
-                return None
-            if isinstance(raw, Coordinate):
-                return raw
-            if isinstance(raw, dict):
-                if raw.get("value") is None:
-                    return None
-                unit = raw.get("unit", TimeUnit.quarters)
-                return Coordinate(wire_to_rational(raw), unit)
-            return None
-
-        def _coerce_duration(raw: Any) -> Duration | None:
-            if raw is None:
-                return None
-            if isinstance(raw, Duration):
-                return raw
-            if isinstance(raw, Coordinate):
-                return Duration(raw.value, raw.unit)
-            if isinstance(raw, dict):
-                if raw.get("value") is None:
-                    return None
-                unit = raw.get("unit", TimeUnit.quarters)
-                return Duration(wire_to_rational(raw), unit)
-            return None
-
-        start = _coerce_coord(row.get("start"))
-        if start is None:
-            return None
-        ts_raw = row.get("time_signature", (4, 4))
-        if isinstance(ts_raw, dict):
-            ts = (int(ts_raw.get("_0", 4)), int(ts_raw.get("_1", 4)))
-        elif isinstance(ts_raw, (list, tuple)) and len(ts_raw) == 2:
-            ts = (int(ts_raw[0]), int(ts_raw[1]))
-        else:
-            ts = (4, 4)
-        return cls(
-            id=int(id_raw),
-            mn=str(row.get("mn") or ""),
-            start=start,
-            end=_coerce_coord(row.get("end")),
-            duration=_coerce_duration(row.get("duration")),
-            time_signature=ts,
-            key_signature=row.get("key_signature"),
-            nominal_length=row.get("nominal_length"),
-            actual_length=row.get("actual_length"),
-            start_repeat=bool(row.get("start_repeat", False)),
-            end_repeat=bool(row.get("end_repeat", False)),
-            next_ids=row.get("next_ids"),
-            volta=row.get("volta"),
-        )
-
     def __repr__(self) -> str:
-        ts = f"{self.time_signature[0]}/{self.time_signature[1]}"
-        return f"Measure(id={self.id}, mn={self.mn!r}, timesig={ts})"
+        return f"{type(self).__name__}(id={self.id!r}, count={self.count!r}, name={self.name!r})"
 
     def __str__(self) -> str:
-        return str(self.mn)
+        return self.name or (self.id or "Measure")
 
 
 class MeasureField(SemanticField[Measure]):
     """Columnar wrapper for ``Measure`` (paired Field)."""
 
 
-class MeasureNumber(BaseModel):
-    """A measure-number label for a tabular event.
+class RegularMeasure(Measure):
+    """A measure whose actual and nominal lengths agree."""
 
-    Storage struct (derived): ``{value: int64}``.  ``MeasureNumber``
-    carries the printed measure number of a musical event — the integer
-    that appears in the score margin (e.g. ``1``, ``2``, ``16``).  It is
-    a *label*, not a coordinate: it identifies a measure rather than
-    locating an instant on a timeline.
+
+class RegularMeasureField(SemanticField[RegularMeasure]):
+    """Columnar wrapper for :class:`RegularMeasure`."""
+
+
+class IrregularMeasure(Measure):
+    """A measure whose sounding length differs from its nominal length."""
+
+
+class IrregularMeasureField(SemanticField[IrregularMeasure]):
+    """Columnar wrapper for :class:`IrregularMeasure`."""
+
+
+class SplitRegularMeasure(RegularMeasure):
+    """A regular measure represented by more than one source constituent."""
+
+
+class SplitRegularMeasureField(SemanticField[SplitRegularMeasure]):
+    """Columnar wrapper for :class:`SplitRegularMeasure`."""
+
+
+class SplitIrregularMeasure(IrregularMeasure):
+    """An irregular split measure."""
+
+
+class SplitIrregularMeasureField(SemanticField[SplitIrregularMeasure]):
+    """Columnar wrapper for :class:`SplitIrregularMeasure`."""
+
+
+class MeasureConstituent(IrregularMeasure):
+    """A split-measure constituent with an offset in its nominal measure."""
+
+    offset_within_measure: Fraction = Fraction(0)
+
+    @field_validator("offset_within_measure", mode="before")
+    @classmethod
+    def _as_exact_offset(cls, value: Any) -> Fraction:
+        return value if isinstance(value, Fraction) else Fraction(value)
+
+
+class MeasureConstituentField(SemanticField[MeasureConstituent]):
+    """Columnar wrapper for :class:`MeasureConstituent`."""
+
+
+class CadenzaMeasure(IrregularMeasure):
+    """An unmetered or freely measured span."""
+
+
+class CadenzaMeasureField(SemanticField[CadenzaMeasure]):
+    """Columnar wrapper for :class:`CadenzaMeasure`."""
+
+
+@dataclass(frozen=True, init=False)
+class Gap:
+    """A stretch of target time that carries no source material.
+
+    A string passed positionally is a descriptive label. Numeric values are
+    exact durations; omitting both makes the gap auto-sized by flow machinery.
     """
 
-    model_config = ConfigDict(frozen=True)
+    duration: Fraction | None
+    label: str | None
 
-    value: int
+    def __init__(
+        self,
+        duration: Fraction | int | float | str | None = None,
+        label: str | None = None,
+    ) -> None:
+        if isinstance(duration, str):
+            if label is not None:
+                raise ValueError(
+                    "A positional Gap label cannot be combined with label="
+                )
+            label = duration
+            duration = None
+        exact = None if duration is None else Fraction(duration)
+        if exact is not None and exact < 0:
+            raise ValueError(f"A Gap duration cannot be negative, got {exact}")
+        object.__setattr__(self, "duration", exact)
+        object.__setattr__(self, "label", label)
+
+    @property
+    def is_auto(self) -> bool:
+        """Whether neighbouring source spans determine this gap's duration."""
+        return self.duration is None
+
+    def __repr__(self) -> str:
+        size = "auto" if self.is_auto else str(self.duration)
+        label = f", label={self.label!r}" if self.label else ""
+        return f"Gap({size}{label})"
+
+
+class BeatPolicy(BaseModel):
+    """How a bar is counted in beats: a grouping cycle over one division.
+
+    A time signature says two things at once — which note value is
+    counted, and how those values group into beats.  ``division`` is the
+    counted value in quarters (``Fraction(1, 2)`` for an eighth), and
+    ``grouping`` says how many of them each successive beat spans.  A
+    compound ``6/8`` bar is ``grouping=(3, 3)`` over eighths; a simple
+    ``4/4`` bar is ``grouping=(1, 1, 1, 1)`` over quarters; an uneven
+    ``(3+2+3)/8`` bar is ``grouping=(3, 2, 3)`` over eighths.
+
+    The beat lengths (:attr:`rods`) are derived from that pair, never
+    stored: the source encoding is what a policy holds, and every rod,
+    offset and index question is answered from it.
+
+    Args:
+        grouping: How many divisions each beat spans, in order.
+        division: The counted note value, in quarters.
+        name: Optional human-readable label for the policy.
+    """
+
+    model_config = ConfigDict(frozen=True, strict=True)
+
+    grouping: tuple[int, ...] = (1,)
+    division: Fraction | None = None
+    beat_size: Duration | None = None
+    bpm: int | float | None = None
+    name: str | None = None
+
+    @classmethod
+    def from_time_signature(cls, signature: str) -> BeatPolicy:
+        """Derive the default counting of a bar from its time signature.
+
+        A signature ``"n/d"`` is read as compound when ``n`` is a
+        multiple of three greater than three and the denominator is an
+        eighth or shorter — ``6/8``, ``9/8``, ``12/16`` count in dotted
+        beats of three divisions.  Everything else counts one division
+        per beat.  A composite signature ``"a/d+b/d+c/d"`` spells its own
+        grouping.  ``"C"`` is ``4/4`` and ``"C|"`` (also spelled
+        ``"cut"``) is ``2/2``.
+
+        Args:
+            signature: The time signature as the source spells it.
+
+        Returns:
+            The policy that counts a bar of that signature.
+
+        Raises:
+            ValueError: If *signature* cannot be read.  There is no
+                silent fallback to ``4/4``: choosing a default for an
+                unreadable source is a loader's decision, not a
+                policy's.
+        """
+        text = signature.strip()
+        if not text:
+            raise ValueError("Time signature must not be empty")
+        if text in ("C", "c"):
+            return cls(grouping=(1,) * 4, division=Fraction(1))
+        if text in ("C|", "c|", "cut", "CUT"):
+            return cls(grouping=(1,) * 2, division=Fraction(2))
+
+        terms = [term.strip() for term in text.split("+")]
+        numerators: list[int] = []
+        denominator: int | None = None
+        for term in terms:
+            match = re.fullmatch(r"(\d+)\s*/\s*(\d+)", term)
+            if match is None:
+                raise ValueError(f"Cannot read time signature {signature!r}")
+            numerator, term_denominator = int(match.group(1)), int(match.group(2))
+            if numerator < 1 or term_denominator < 1:
+                raise ValueError(f"Cannot read time signature {signature!r}")
+            if denominator is None:
+                denominator = term_denominator
+            elif denominator != term_denominator:
+                raise ValueError(
+                    f"Composite time signature {signature!r} mixes denominators; "
+                    "every term must share one denominator"
+                )
+            numerators.append(numerator)
+        assert denominator is not None
+        division = Fraction(4, denominator)
+
+        if len(numerators) > 1:
+            return cls(grouping=tuple(numerators), division=division)
+
+        count = numerators[0]
+        if count % 3 == 0 and count > 3 and denominator >= 8:
+            return cls(grouping=(3,) * (count // 3), division=division)
+        return cls(grouping=(1,) * count, division=division)
+
+    @classmethod
+    def uniform(cls, division: Fraction, count: int) -> BeatPolicy:
+        """Count *count* beats of one *division* each.
+
+        Args:
+            division: The counted note value, in quarters.
+            count: How many such beats fill the bar.
+
+        Returns:
+            A policy with an all-ones grouping.
+        """
+        return cls(grouping=(1,) * count, division=Fraction(division))
+
+    @field_validator("grouping")
+    @classmethod
+    def _validate_grouping(cls, value: tuple[int, ...]) -> tuple[int, ...]:
+        if not value:
+            raise ValueError("BeatPolicy grouping must not be empty")
+        if any(entry < 1 for entry in value):
+            raise ValueError("BeatPolicy grouping entries must be >= 1")
+        return value
+
+    @field_validator("division")
+    @classmethod
+    def _validate_division(cls, value: Fraction | None) -> Fraction | None:
+        if value is None:
+            return value
+        if value <= 0:
+            raise ValueError("BeatPolicy division must be positive")
+        return value
+
+    @model_validator(mode="after")
+    def _complete_beat_size(self) -> BeatPolicy:
+        """Keep the typed beat size and quarter-note division in agreement."""
+        from .enums import TimeUnit
+
+        division = self.division
+        beat_size = self.beat_size
+        if division is None and beat_size is None:
+            raise ValueError("BeatPolicy requires beat_size or division")
+        if division is None:
+            assert beat_size is not None
+            if beat_size.unit is TimeUnit.whole_note:
+                division = Fraction(beat_size.value) * 4
+            elif beat_size.unit is TimeUnit.quarters:
+                division = Fraction(beat_size.value)
+            else:
+                raise ValueError("BeatPolicy beat_size must use whole_note or quarters")
+            object.__setattr__(self, "division", division)
+        if beat_size is None:
+            object.__setattr__(
+                self,
+                "beat_size",
+                Duration(Fraction(division, 4), TimeUnit.whole_note),
+            )
+        return self
+
+    @property
+    def rods(self) -> tuple[Fraction, ...]:
+        """Length of every beat in this bar, in quarters."""
+        assert self.division is not None
+        return tuple(entry * self.division for entry in self.grouping)
+
+    @property
+    def n_beats(self) -> int:
+        """How many beats the bar is counted in."""
+        return len(self.grouping)
+
+    @property
+    def span(self) -> Fraction:
+        """Total length of one counted bar, in quarters."""
+        return sum(self.rods, Fraction(0))
+
+    def rod_for(self, index: int) -> Fraction:
+        """Return the length of beat *index* (1-based), in quarters.
+
+        Args:
+            index: 1-based beat index; ``1`` is the downbeat.
+
+        Returns:
+            The beat's length in quarters.
+
+        Raises:
+            ValueError: If *index* is outside ``1..n_beats``.
+        """
+        self._check_index(index)
+        return self.rods[index - 1]
+
+    def offset_for(self, index: int) -> Fraction:
+        """Return the distance from the downbeat to beat *index*.
+
+        Args:
+            index: 1-based beat index; ``1`` is the downbeat.
+
+        Returns:
+            Quarters from the bar's downbeat.
+
+        Raises:
+            ValueError: If *index* is outside ``1..n_beats``.
+        """
+        self._check_index(index)
+        return sum(self.rods[: index - 1], Fraction(0))
+
+    def index_at(self, offset: Fraction) -> int:
+        """Return the 1-based index of the beat containing *offset*.
+
+        Args:
+            offset: Quarters from the bar's downbeat.
+
+        Returns:
+            The 1-based beat index.
+
+        Raises:
+            ValueError: If *offset* is negative or beyond the bar's span.
+        """
+        position = Fraction(offset)
+        if position < 0 or position >= self.span:
+            raise ValueError(
+                f"Offset {position} lies outside a bar of {self.span} quarters"
+            )
+        running = Fraction(0)
+        for index, rod in enumerate(self.rods, start=1):
+            running += rod
+            if position < running:
+                return index
+        raise ValueError(  # pragma: no cover - guarded by the span check above
+            f"Offset {position} lies outside a bar of {self.span} quarters"
+        )
+
+    def _check_index(self, index: int) -> None:
+        if not 1 <= index <= self.n_beats:
+            raise ValueError(
+                f"Beat index {index} is outside 1..{self.n_beats} for this policy"
+            )
+
+    def __repr__(self) -> str:
+        grouping = "+".join(str(entry) for entry in self.grouping)
+        return f"BeatPolicy({grouping} x {self.division})"
+
+    def __str__(self) -> str:
+        return self.name or repr(self)
+
+
+def _bpm_field(_model_cls: type[BaseModel], name: str, _info: object) -> list[Any]:
+    """Store integer-or-float tempo values on one nullable float column."""
+    return [pa.field(name, pa.float64(), nullable=True)]
+
+
+register_value_projector(BeatPolicy, "bpm", _bpm_field)
+
+
+class BeatPolicyField(SemanticField[BeatPolicy]):
+    """Paired Field for :class:`BeatPolicy`.
+
+    Empty body — :class:`BeatPolicy` carries no ``@data_shaped``
+    methods, so the parity check is trivially satisfied.  The class
+    exists to give the paired-class shape (``Object`` + ``ObjectField``)
+    a stable home and to integrate with
+    ``EventData.get_field(BeatPolicy)`` dispatch.
+    """
+
+
+class Address(BaseModel):
+    """Abstract root of the typed positions that name measures and beats.
+
+    An address identifies a place in a piece the way a musician does —
+    "bar 12", "the second ending of bar 15", "beat 3" — rather than by a
+    position on a coordinate axis.  Resolving an address into a
+    coordinate is a :class:`~timetoalign.timelines.TimeSkeleton`
+    operation; the address itself is inert data and carries no timeline.
+
+    Subclasses are frozen and strict: a measure label is a string, a
+    measure count is an integer, and neither is silently coerced into
+    the other.
+    """
+
+    model_config = ConfigDict(frozen=True, strict=True)
+
+    rendition: int | None = None
+    skeleton_id: str | None = None
+
+    @classmethod
+    def parse(
+        cls,
+        text: str,
+        *,
+        offset_denomination: Fraction = Fraction(1, 1),
+    ) -> Address:
+        """Read an address out of its printed form.
+
+        Two forms are recognised:
+
+        * ``"N+p/q"`` — a measure label and a within-measure offset,
+          the spelling used by performance-alignment sources.  The
+          offset fraction is read in *offset_denomination* whole notes
+          and converted exactly to quarters, so the default reads
+          ``"12+3/8"`` as three eighths of a whole note, i.e. 3/2
+          quarters.
+        * anything else — a bare measure label, suffix included.
+
+        Args:
+            text: The printed address.
+            offset_denomination: The note value the offset fraction
+                counts, as a fraction of a whole note.
+
+        Returns:
+            A :class:`MeasureNumberAddress` for the first form, a
+            :class:`MeasureNumber` for the second.
+
+        Raises:
+            ValueError: If the offset part of the first form is not a
+                readable fraction.
+        """
+        from .enums import TimeUnit
+
+        label, separator, offset_text = text.partition("+")
+        if not separator:
+            return MeasureNumber(mn=text)
+        try:
+            offset = Fraction(offset_text)
+        except (ValueError, ZeroDivisionError) as error:
+            raise ValueError(
+                f"Cannot read the within-measure offset of address {text!r}"
+            ) from error
+        quarters = offset * Fraction(offset_denomination) * 4
+        return MeasureNumberAddress(
+            mn=label,
+            at=Coordinate(quarters, TimeUnit.quarters),
+        )
+
+    @property
+    def selects_span(self) -> bool:
+        """Whether this address names a whole span rather than an instant."""
+        raise NotImplementedError
+
+
+class MeasureNumber(Address):
+    """A measure addressed by its printed label.
+
+    Storage struct (derived): ``{mc: int64, mn: string, volta: int64}``.
+    The label is the number a musician reads in the margin, kept as a
+    string because it may carry a suffix (``"237b"``) or be ``"0"`` for
+    an anacrusis.  ``mc`` is a lossless carry-along of the source's own
+    measure count where it has one; it is never a resolution input.
+
+    Args:
+        mn: The printed label.  An integer is accepted and stringified.
+        mc: The source's measure count, when known.
+        volta: The ending this label belongs to, when known.
+    """
+
+    mc: int | None = None
+    mn: str
+    volta: int | None = None
+    section: str | None = None
 
     @classmethod
     def from_row(cls, row: dict[str, Any]) -> MeasureNumber | None:
+        """Rebuild a :class:`MeasureNumber` from a storage row."""
         if not isinstance(row, dict):
             return None
-        v = row.get("value")
-        if v is None:
+        mn = row.get("mn")
+        if mn is None:
             return None
-        return cls(value=int(v))
+        return cls(
+            mn=str(mn),
+            mc=row.get("mc"),
+            volta=row.get("volta"),
+            section=row.get("section"),
+            rendition=row.get("rendition"),
+            skeleton_id=row.get("skeleton_id"),
+        )
+
+    @field_validator("mn", mode="before")
+    @classmethod
+    def _coerce_label(cls, value: Any) -> Any:
+        return str(value) if isinstance(value, int) else value
+
+    @property
+    def selects_span(self) -> bool:
+        """A bare measure label names the whole bar."""
+        return True
 
     def __repr__(self) -> str:
-        return f"MeasureNumber({self.value})"
+        parts = [f"mn={self.mn!r}"]
+        if self.mc is not None:
+            parts.append(f"mc={self.mc}")
+        if self.volta is not None:
+            parts.append(f"volta={self.volta}")
+        return f"{type(self).__name__}({', '.join(parts)})"
 
     def __str__(self) -> str:
-        return str(self.value)
+        return self.mn
 
 
 class MeasureNumberField(SemanticField[MeasureNumber]):
@@ -2313,9 +2682,285 @@ class MeasureNumberField(SemanticField[MeasureNumber]):
     Empty body — :class:`MeasureNumber` carries no ``@data_shaped``
     methods, so the parity check is trivially satisfied.  The class
     exists to give the paired-class shape (``Object`` + ``ObjectField``)
-    a stable home for future evolution and to integrate with
+    a stable home and to integrate with
     ``EventData.get_field(MeasureNumber)`` dispatch.
     """
+
+    def from_array(
+        self,
+        source: pa.Array | pa.ChunkedArray,
+        *,
+        name: str | None = None,
+    ) -> SemanticField[MeasureNumber]:
+        """Read a column of printed labels into the ``{mc, mn, volta}`` struct.
+
+        A source column carries the label and nothing else — the
+        measure count and volta are facts a measure map holds, not facts
+        a label column states — so both are left null.
+
+        Args:
+            source: The label column, of any Arrow type.
+            name: Optional output field name.
+
+        Returns:
+            A live :class:`MeasureNumberField`.
+        """
+        if isinstance(source, pa.ChunkedArray):
+            source = source.combine_chunks()
+        schema = type(self).pa_schema
+        assert schema is not None
+        label_type = schema.field(schema.get_field_index("mn")).type
+        labels = source if source.type == label_type else pc.cast(source, label_type)
+        arrays = [
+            labels if field.name == "mn" else pa.nulls(len(labels), type=field.type)
+            for field in schema
+        ]
+        struct_arr = pa.StructArray.from_arrays(arrays, fields=list(schema))
+        out_name = name if name is not None else self.name
+        return type(self).from_field((struct_arr, pa.field(out_name, schema)))
+
+
+class MeasureNumberAddress(MeasureNumber):
+    """A measure label plus a position inside that measure.
+
+    The within-measure position is one polymorphic field: a
+    :class:`Beat` counts under a beat-size policy, a
+    :class:`~timetoalign.core.Coordinate` measures a distance from the
+    bar's notated downbeat.  Both resolve the same way — measure start
+    plus within-measure position — which is why they share a field
+    rather than splitting the class.
+
+    Args:
+        at: The position inside the measure.
+    """
+
+    at: Beat | Coordinate
+
+    @property
+    def selects_span(self) -> bool:
+        """A measure-plus-offset address names an instant."""
+        return False
+
+    def __repr__(self) -> str:
+        return f"MeasureNumberAddress(mn={self.mn!r}, at={self.at!r})"
+
+    def __str__(self) -> str:
+        return f"{self.mn}+{self.at}"
+
+
+class MeasureId(Address):
+    """A measure addressed by its identity.
+
+    An integer value resolves positionally — the thirteenth measure-like
+    unit in the piece — while a string value is looked up against the
+    measures' own identifiers.  Sources that mint identifiers as
+    ``str(count)`` make the two coincide; sources with opaque
+    identifiers keep them apart.  Strictness is what keeps them apart:
+    ``"13"`` is an identifier, never the count 13.
+
+    Args:
+        value: A positional count or an identifier.
+    """
+
+    value: int | str
+
+    @classmethod
+    def count(cls, value: int) -> MeasureId:
+        """Address the *value*-th measure-like unit.
+
+        Args:
+            value: 1-based position.
+
+        Returns:
+            A positional address.
+
+        Raises:
+            ValueError: If *value* is not an integer.
+        """
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError(f"MeasureId.count requires an int position, got {value!r}")
+        return cls(value=value)
+
+    @classmethod
+    def identifier(cls, value: str) -> MeasureId:
+        """Address the measure whose identifier is *value*.
+
+        Args:
+            value: The measure's identifier.
+
+        Returns:
+            An identifier address.
+
+        Raises:
+            ValueError: If *value* is not a string.
+        """
+        if not isinstance(value, str):
+            raise ValueError(f"MeasureId.identifier requires a str id, got {value!r}")
+        return cls(value=value)
+
+    def __init__(self, value: int | str | None = None, **data: Any) -> None:
+        if value is not None:
+            if "value" in data:
+                raise TypeError("MeasureId value was supplied twice")
+            data["value"] = value
+        super().__init__(**data)
+
+    @property
+    def is_positional(self) -> bool:
+        """Whether this address resolves by count rather than by identifier."""
+        return isinstance(self.value, int)
+
+    @property
+    def selects_span(self) -> bool:
+        """A bare measure identity names the whole bar."""
+        return True
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.value!r})"
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+class MeasureIdAddress(MeasureId):
+    """A measure identity plus a position inside that measure.
+
+    Args:
+        at: The position inside the measure.
+    """
+
+    at: Beat | Coordinate
+
+    @property
+    def selects_span(self) -> bool:
+        """A measure-plus-offset address names an instant."""
+        return False
+
+    def __repr__(self) -> str:
+        return f"MeasureIdAddress({self.value!r}, at={self.at!r})"
+
+    def __str__(self) -> str:
+        return f"{self.value}+{self.at}"
+
+
+class Beat(Address):
+    """A beat within an implied measure scope.
+
+    Storage struct (derived): ``{index: int64, policy: struct<grouping,
+    division, name>, level: int64}``.  The index is 1-based, so beat 1
+    is the downbeat.  A beat carries a :class:`BeatPolicy` only when
+    it means to override the bar's own counting: without one, the beat
+    is counted the way the bar's time signature counts it, and only
+    resolution — which knows the bar — can say how long it is.
+
+    Args:
+        index: 1-based beat index.
+        policy: Counting override, or ``None`` for the bar's default.
+        level: Metrical level; ``0`` is the beat, ``1`` and above are
+            hypermetrical.
+    """
+
+    index: int
+    policy: BeatPolicy | None = None
+    level: int = 0
+
+    @classmethod
+    def from_row(cls, row: dict[str, Any]) -> Beat | None:
+        """Rebuild a :class:`Beat` from a storage row."""
+        if not isinstance(row, dict):
+            return None
+        index = row.get("index")
+        if index is None:
+            return None
+        policy_row = row.get("policy")
+        policy: BeatPolicy | None = None
+        if isinstance(policy_row, dict) and policy_row.get("grouping") is not None:
+            policy = BeatPolicy(
+                grouping=tuple(int(entry) for entry in policy_row["grouping"]),
+                division=Fraction(wire_to_rational(policy_row["division"])),
+                name=policy_row.get("name"),
+            )
+        return cls(
+            index=int(index),
+            policy=policy,
+            level=int(row.get("level") or 0),
+            rendition=row.get("rendition"),
+            skeleton_id=row.get("skeleton_id"),
+        )
+
+    @field_validator("index")
+    @classmethod
+    def _validate_index(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("Beat index is 1-based; beat 1 is the downbeat")
+        return value
+
+    @field_validator("level")
+    @classmethod
+    def _validate_level(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("Beat level must not be negative")
+        return value
+
+    @property
+    def is_downbeat(self) -> bool:
+        """Whether this beat is the bar's downbeat."""
+        return self.index == 1 and self.level == 0
+
+    @property
+    def size(self) -> Fraction | None:
+        """This beat's length in quarters, or ``None`` without a policy."""
+        return None if self.policy is None else self.policy.rod_for(self.index)
+
+    @property
+    def selects_span(self) -> bool:
+        """A beat names the span it occupies."""
+        return True
+
+    def offset(self, policy: BeatPolicy | None = None) -> Fraction:
+        """Return the distance from the bar's downbeat to this beat.
+
+        Args:
+            policy: The bar's counting, used when the beat carries none.
+
+        Returns:
+            Quarters from the downbeat.
+
+        Raises:
+            ValueError: If neither the beat nor the caller supplies a
+                policy, or the index is outside the policy's bar.
+        """
+        effective = self.policy if self.policy is not None else policy
+        if effective is None:
+            raise ValueError(
+                f"Beat {self.index} needs a BeatPolicy to know where it sits"
+            )
+        return effective.offset_for(self.index)
+
+    def __repr__(self) -> str:
+        parts = [str(self.index)]
+        if self.policy is not None:
+            parts.append(f"policy={self.policy!r}")
+        if self.level:
+            parts.append(f"level={self.level}")
+        return f"Beat({', '.join(parts)})"
+
+    def __str__(self) -> str:
+        return str(self.index)
+
+
+class BeatField(SemanticField[Beat]):
+    """Paired Field for :class:`Beat`.
+
+    Empty body — :class:`Beat` carries no ``@data_shaped`` methods, so
+    the parity check is trivially satisfied.  The class exists to give
+    the paired-class shape (``Object`` + ``ObjectField``) a stable home
+    and to integrate with ``EventData.get_field(Beat)`` dispatch.
+    """
+
+
+MeasureNumberAddress.model_rebuild()
+MeasureIdAddress.model_rebuild()
 
 
 class Id(BaseModel):

@@ -88,10 +88,10 @@ class TestAllTimelineTypes:
     @pytest.mark.parametrize(
         ("timeline_class", "unit", "number_type", "length"),
         [
-            (ContinuousLogicalTimeline, TimeUnit.beats, NumberType.float, 4.0),
+            (ContinuousLogicalTimeline, TimeUnit.whole_note, NumberType.float, 4.0),
             (
                 ContinuousLogicalTimeline,
-                TimeUnit.beats,
+                TimeUnit.whole_note,
                 NumberType.fraction,
                 Fraction(4, 1),
             ),
@@ -346,7 +346,7 @@ class TestSerializedTypeParameters:
                 ContinuousLogicalTimeline,
                 Fraction(4, 1),
                 Fraction(1, 1),
-                TimeUnit.beats,
+                TimeUnit.whole_note,
             ),
         ],
     )
@@ -594,7 +594,7 @@ class TestLogicalTimeline:
         """LogicalTimeline accepts musical units only."""
         # Should work
         LogicalTimeline(length=4.0, unit=TimeUnit.quarters)
-        LogicalTimeline(length=4.0, unit=TimeUnit.beats)
+        LogicalTimeline(length=4.0, unit=TimeUnit.whole_note)
         LogicalTimeline(length=4.0, unit=TimeUnit.floating_measures)
         LogicalTimeline(length=480, unit=TimeUnit.ticks)
 
@@ -1130,11 +1130,9 @@ class TestTimestampTableEdgeCases:
 
         names = grid.get_timestamp_table().column_names
 
-        # The three numeric unit conversions become columns; the structured
-        # MetricalPositionMap does not.
-        assert "quarters_to_beats" in names
+        # The numeric seconds conversion becomes a column; neither typed beat
+        # addresses nor the structured MetricalPositionMap do.
         assert "quarters_to_seconds" in names
-        assert "quarters_to_floating_measures" in names
         assert not any(name.endswith("_metrical_map") for name in names)
 
 

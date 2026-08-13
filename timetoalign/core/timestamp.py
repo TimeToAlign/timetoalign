@@ -246,6 +246,12 @@ class TimeStampSource(Protocol):
         """Get a unit map associated with a specific timeline."""
         ...
 
+    def _get_unit_maps_for_timeline(
+        self, timeline_id: str, unit: "TimeUnit"
+    ) -> "list[Any]":
+        """Get every unit map associated with a specific timeline."""
+        ...
+
     def _get_related_timeline_ids(self) -> list[str]:
         """Get IDs of the direct related timelines (children/members)."""
         ...
@@ -799,10 +805,10 @@ class TimeStamp(Stamp):
 
         requested = spec if isinstance(spec, list) else [spec]
         maps = [
-            self.source._get_unit_map_for_timeline(timeline_id, unit)
+            cmap
             for timeline_id in self._surfaceable_ids()
+            for cmap in self.source._get_unit_maps_for_timeline(timeline_id, unit)
         ]
-        maps = [cmap for cmap in maps if cmap is not None]
 
         for allowed in requested:
             if isinstance(allowed, TimeUnit) and allowed == unit:

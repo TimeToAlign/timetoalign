@@ -109,6 +109,8 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
         return _FIELD_TYPE_MAP
 
     from timetoalign.core.events import (
+        BeatField,
+        BeatPolicyField,
         DcmlHarmonyField,
         EnharmonicPitchClassField,
         EnharmonicPitchField,
@@ -154,6 +156,8 @@ def _get_field_type_map() -> dict[str, type[SemanticField[Any]]]:
         "RomanNumeralHarmonyField": RomanNumeralHarmonyField,
         "WesternTertianHarmonyField": WesternTertianHarmonyField,
         # Event scalars
+        "BeatField": BeatField,
+        "BeatPolicyField": BeatPolicyField,
         "IdField": IdField,
         "MeasureField": MeasureField,
         "MeasureNumberField": MeasureNumberField,

@@ -1,5 +1,7 @@
 """Tests for composite maps (ChainMap, PiecewiseMap)."""
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 
@@ -10,11 +12,11 @@ from timetoalign.maps.linear import LinearMap, ScalarMap
 
 class TestChainMap:
     def test_initialization(self):
-        m1 = ScalarMap(scalar=2.0, source_unit="beats", target_unit="seconds")
+        m1 = ScalarMap(scalar=2.0, source_unit="quarters", target_unit="seconds")
         m2 = ScalarMap(scalar=10.0, source_unit="seconds", target_unit="milliseconds")
 
         chain = ChainMap([m1, m2])
-        assert chain.source_unit == TimeUnit.beats
+        assert chain.source_unit == TimeUnit.quarters
         assert chain.target_unit == TimeUnit.milliseconds
         assert len(chain.maps) == 2
 

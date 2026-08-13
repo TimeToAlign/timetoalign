@@ -4,6 +4,8 @@ This module tests RotationMap and FloorMap which are essential building blocks
 for metrical grids (beat rotation, measure numbering).
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 
@@ -107,7 +109,7 @@ class TestRotationMap:
             base=1.0,
             offset=0.5,
             source_unit="quarters",
-            target_unit="beats",
+            target_unit="number",
         )
 
         d = rot.to_dict()
@@ -219,7 +221,7 @@ class TestFloorMap:
             base=1,
             offset=0.5,
             source_unit="quarters",
-            target_unit="floating_measures",
+            target_unit="number",
         )
 
         d = fm.to_dict()
@@ -285,14 +287,14 @@ class TestPeriodicMapIntegration:
             divisor=QUARTERS_PER_MEASURE,
             base=1,
             source_unit="quarters",
-            target_unit="floating_measures",
+            target_unit="number",
         )
         beat_map = RotationMap(
             period=QUARTERS_PER_MEASURE,
             scale=1.0,
             base=1.0,
             source_unit="quarters",
-            target_unit="beats",
+            target_unit="number",
         )
 
         # First quarter -> measure 1, beat 1

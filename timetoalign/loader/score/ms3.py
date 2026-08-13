@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import math
+import warnings
 from fractions import Fraction
 from numbers import Integral, Real
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
@@ -32,6 +33,10 @@ except ImportError:
     pd = None
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from timetoalign.alignment import MeasureMap
+    from timetoalign.timelines import ContinuousLogicalTimeline
 
 
 class Ms3Loader(ScoreLoader):
@@ -83,6 +88,8 @@ class Ms3Loader(ScoreLoader):
         """
         super().__init__(*args, **kwargs)
         self._auto_discover = auto_discover
+        self._measure_map = None
+        self._section_counts: list[int] = []
 
     @classmethod
     def from_file(cls, *paths: Path | str, auto_discover: bool = False) -> "Ms3Loader":
@@ -242,13 +249,23 @@ class Ms3Loader(ScoreLoader):
         Returns:
             ScoreStore with populated data.
         """
-        try:
-            import ms3
-        except ImportError:
-            raise ImportError("Ms3Loader requires 'ms3'. Install with pip install ms3")
-
-        df = ms3.load_tsv(str(source))
         fname = source.name.lower()
+
+        if "measures" in fname:
+            if pd is None:
+                raise ImportError(
+                    "Ms3Loader requires pandas to read measures TSV files"
+                )
+            df = pd.read_csv(source, sep="\t")
+        else:
+            try:
+                import ms3
+            except ImportError:
+                raise ImportError(
+                    "Ms3Loader requires 'ms3' for non-measure facets. "
+                    "Install with pip install ms3"
+                )
+            df = ms3.load_tsv(str(source))
 
         # Determine category from filename
         if "measures" in fname:
@@ -640,8 +657,83 @@ class Ms3Loader(ScoreLoader):
             },
         )
 
+    @property
+    def measure_map(self) -> MeasureMap:
+        """The immutable measure structure parsed from a measures TSV."""
+        if self._measure_map is None:
+            raise ValueError("No measures TSV has been loaded")
+        return self._measure_map
+
+    def create_timeline(
+        self,
+        uid: str | None = None,
+        name: str | None = None,
+        *,
+        flatten: bool = False,
+        **kwargs: Any,
+    ) -> ContinuousLogicalTimeline:
+        """Create a score timeline and, by default, attach parsed structure."""
+        from timetoalign.alignment import SectionHierarchy, TimeSkeleton
+        from timetoalign.maps import ScalarMap
+        from timetoalign.maps.interval import QuartersToFloatingMeasures
+        from timetoalign.timelines import ContinuousLogicalTimeline
+
+        if self._measure_map is not None and all(
+            len(store) == 0
+            for store in (self.store.notes, self.store.controls, self.store.annotations)
+        ):
+            length = self._measure_map.total_actual_length or Fraction(0)
+            timeline = ContinuousLogicalTimeline(
+                length=length,
+                unit=TimeUnit.quarters,
+                number_type=NumberType.fraction,
+                uid=uid,
+                name=name,
+            )
+        else:
+            excluded = list(kwargs.pop("exclude_stores", []) or [])
+            if "measures" not in excluded:
+                excluded.append("measures")
+            timeline = super().create_timeline(
+                uid=uid,
+                exclude_stores=excluded,
+                flatten=flatten,
+                **kwargs,
+            )
+            if name is not None:
+                timeline.name = name
+
+        if self._measure_map is not None:
+            timeline.add_conversion_map(
+                ScalarMap(
+                    scalar=480,
+                    source_unit=TimeUnit.quarters,
+                    target_unit=TimeUnit.ticks,
+                )
+            )
+            try:
+                timeline.add_conversion_map(
+                    QuartersToFloatingMeasures.from_measure_map(self._measure_map)
+                )
+            except ValueError as exc:
+                warnings.warn(
+                    f"No floating-measure conversion built for these measures: {exc}",
+                    stacklevel=2,
+                )
+            if not flatten:
+                groups = []
+                start = 0
+                counts = self._section_counts or [len(self._measure_map)]
+                for count in counts:
+                    stop = start + count
+                    groups.append(self._measure_map.measures[start:stop])
+                    start += count
+                hierarchy = SectionHierarchy.from_measures(groups)
+                TimeSkeleton(hierarchy).attach(timeline)
+        return timeline
+
     def _load_measures(self, df: pd.DataFrame, source: Path) -> ScoreStore:
-        """Load measures TSV into MeasureData.
+        """Parse a measures TSV as an immutable measure map.
 
         Parses ms3/DCML measures.tsv format with columns:
         - mc, mn: Measure count/number
@@ -665,7 +757,7 @@ class Ms3Loader(ScoreLoader):
             source: Path to source file.
 
         Returns:
-            ScoreStore with populated MeasureData.
+            ScoreStore retaining the source facts needed by legacy flow readers.
         """
         import pandas as pd
 
@@ -850,11 +942,24 @@ class Ms3Loader(ScoreLoader):
                 }
             )
 
+        from timetoalign.alignment.structure import MeasureMap
+
+        self._measure_map = MeasureMap._from_measure_rows(measure_rows)
         measures_data = MeasureData.from_dicts(
             measure_rows,
             unit=TimeUnit.quarters,
             number_type=NumberType.fraction,
         )
+        section_ends = [
+            int(row["mc"])
+            for row in measure_rows
+            if "section" in str(row.get("breaks") or "").lower()
+        ]
+        previous = 0
+        self._section_counts = []
+        for end in [*section_ends, len(measure_rows)]:
+            self._section_counts.append(end - previous)
+            previous = end
 
         return ScoreStore(
             notes=NoteEventData.empty(),

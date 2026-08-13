@@ -141,6 +141,14 @@ from timetoalign.maps import (
 from timetoalign.storage import DictStore, EventData, EventStore, SingleStore
 
 _DEFERRED_EXPORTS = {
+    # Foundation structure
+    "BeatPolicy": ("timetoalign.core", "BeatPolicy"),
+    "Duration": ("timetoalign.core", "Duration"),
+    "Measure": ("timetoalign.core", "Measure"),
+    "MeasureMap": ("timetoalign.alignment", "MeasureMap"),
+    "MetricHierarchy": ("timetoalign.alignment", "MetricHierarchy"),
+    "SectionHierarchy": ("timetoalign.alignment", "SectionHierarchy"),
+    "TimeSkeleton": ("timetoalign.alignment", "TimeSkeleton"),
     # Loader layer
     "AudioInfo": ("timetoalign.loader", "AudioInfo"),
     "AudioLoader": ("timetoalign.loader", "AudioLoader"),
@@ -255,6 +263,7 @@ __all__ = [
     "NumberType",
     "EventType",
     # Types
+    "BeatPolicy",
     "Coordinate",
     "CoordinateField",
     "Coord",  # Alias for Coordinate
@@ -263,9 +272,15 @@ __all__ = [
     "IntervalField",
     "CoordinateValue",
     "CoordinateSpec",
+    "Duration",
+    "Measure",
+    "MeasureMap",
+    "MetricHierarchy",
     "OptionalCoordinate",
     "ResolvedCoordinate",
     "resolve_coordinate_spec",
+    "SectionHierarchy",
+    "TimeSkeleton",
     # Timestamps (first-class citizens)
     "TimeStamp",
     "TimeIntervalStamp",

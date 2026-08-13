@@ -164,7 +164,7 @@ class ChildrenMixin:
         inverse_cmap = cmap.inverse()
 
         # Temporarily add the inverse map to the child so derive() can use it
-        child_had_map = child.get_conversion_map(self._unit) is not None
+        child_had_map = bool(child._get_unit_maps(self._unit))
         if not child_had_map:
             child.add_conversion_map(inverse_cmap)
 
@@ -174,12 +174,18 @@ class ChildrenMixin:
                 copy_events=True,
             )
         finally:
-            # Clean up: remove the temporarily added map if we added it
+            # Clean up: remove the temporarily added map if we added it.
+            # Removal is by identity, so a map the child already carried for
+            # the same unit survives.
             if not child_had_map and inverse_cmap.id in child._conversion_maps:
                 del child._conversion_maps[inverse_cmap.id]
-                # Also clean up _unit_maps
-                if self._unit in child._unit_maps:
-                    del child._unit_maps[self._unit]
+                registered = child._unit_maps.get(self._unit)
+                if registered is not None:
+                    registered[:] = [
+                        cmap for cmap in registered if cmap is not inverse_cmap
+                    ]
+                    if not registered:
+                        del child._unit_maps[self._unit]
 
         # Assign a clear ID and name linking back to the original
         derived._id = f"{child.id}[{self._unit}]"
@@ -958,6 +964,13 @@ class ChildrenMixin:
             start: Start coordinate in source coords (for future bounded copy).
             end: End coordinate in source coords (for future bounded copy).
         """
+        # A slice does not inherit the parent's measure layer.  That layer
+        # describes a different extent, measured from a different origin,
+        # so handing it over verbatim would state bar positions the slice
+        # does not have; the slice answers with its own local structure.
+        # What a child should inherit from its parent's
+        # structure is a materialization decision, to be made where
+        # children are derived from that structure rather than here.
         for cmap_id, cmap in self._conversion_maps.items():
             try:
                 target.add_conversion_map(cmap)
