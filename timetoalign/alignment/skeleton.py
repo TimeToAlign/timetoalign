@@ -30,7 +30,14 @@ _skeleton_id_generator = IdGenerator(scope="skeleton")
 
 
 class TimeSkeleton:
-    """One authored temporal structure shared by participating timelines."""
+    """One authored temporal structure shared by participating timelines.
+
+    Equality is structural: two skeletons compare equal when their section
+    hierarchy, metric hierarchy, and authored flows (flow ids and step
+    content) agree. Identity (``id``), participants, claims, and
+    materialized reference timelines are excluded, so equal skeletons are
+    not interchangeable objects and instances are deliberately unhashable.
+    """
 
     def __init__(
         self,
@@ -46,12 +53,24 @@ class TimeSkeleton:
         self._bundle = AlignmentBundle()
         self._participant_ids: set[str] = set()
         self._timeline_flows: dict[str, str] = {}
-        self._reference_timelines: dict[str, Any] = {}
+        # Flow-keyed cache of materialized references; the ``None`` key is
+        # reserved for the abstract no-flow reference (flow ids are never
+        # empty, so no authored flow can collide with it).
+        self._reference_timelines: dict[str | None, Any] = {}
         self._flows: dict[str, Flow] = {}
         self._flow_steps: dict[str, tuple[str | Gap, ...]] = {}
         self._install_source_flow()
         for flow_id, steps in (flows or {}).items():
             self.add_flow(steps, id=flow_id)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, TimeSkeleton):
+            return NotImplemented
+        return (
+            self._section_hierarchy == other._section_hierarchy
+            and self._metric_hierarchy == other._metric_hierarchy
+            and self._flow_steps == other._flow_steps
+        )
 
     def __repr__(self) -> str:
         hierarchy = self._section_hierarchy
@@ -202,19 +221,25 @@ class TimeSkeleton:
 
         if flow is None:
             measures = self._section_hierarchy.measure_map.measures
-            if not measures or all(
-                measure.actual_length is None for measure in measures
+            if measures and any(
+                measure.actual_length is not None for measure in measures
             ):
-                return ContinuousLogicalTimeline(
-                    length=float(len(measures) + 1),
-                    unit=TimeUnit.floating_measures,
-                    number_type=NumberType.float,
-                    uid=f"{self._id}/source",
+                raise ValueError(
+                    "Concrete structures require materialize(flow='<id>'); "
+                    "only an abstract single-original structure supports materialize()"
                 )
-            raise ValueError(
-                "Concrete structures require materialize(flow='<id>'); "
-                "only an abstract single-original structure supports materialize()"
+            existing = self._reference_timelines.get(None)
+            if existing is not None:
+                return existing
+            reference = ContinuousLogicalTimeline(
+                length=float(len(measures) + 1),
+                unit=TimeUnit.floating_measures,
+                number_type=NumberType.float,
+                uid=f"{self._id}/source",
             )
+            self._reference_timelines[None] = reference
+            reference._add_skeleton_attachment(self)
+            return reference
         if flow not in self._flows:
             raise KeyError(f"Unknown flow {flow!r}")
         existing = self._reference_timelines.get(flow)
@@ -229,6 +254,7 @@ class TimeSkeleton:
         )
         self._reference_timelines[flow] = reference
         self._bundle.add_timeline(reference, uid=reference.id)
+        reference._add_skeleton_attachment(self)
         return reference
 
     def _install_source_flow(self) -> None:

@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.alignment import SectionHierarchy, TimeSkeleton
-from timetoalign.core import Gap, Measure, NumberType, TimeUnit
+from timetoalign.alignment import MetricHierarchy, SectionHierarchy, TimeSkeleton
+from timetoalign.core import BeatPolicy, Gap, Measure, NumberType, TimeUnit
 from timetoalign.loader.score.ms3 import Ms3Loader
 from timetoalign.timelines import ContinuousLogicalTimeline, ContinuousPhysicalTimeline
 
@@ -404,6 +404,128 @@ class TestMembership:
         assert len(recording.skeletons) == 2
         with pytest.raises(ValueError, match="skeleton attachments"):
             _ = recording.skeleton
+
+
+# endregion
+
+
+# region (i) Structural equality and identity-based attachment
+
+
+class TestStructuralEquality:
+    """Equality is the authored structure; identity and usage are excluded."""
+
+    def test_equal_hierarchies_compare_equal_despite_distinct_uids(self) -> None:
+        first = TimeSkeleton(_concrete_hierarchy(3, 2, 2))
+        second = TimeSkeleton(_concrete_hierarchy(3, 2, 2))
+        assert first.id != second.id
+        assert first == second
+
+    def test_non_skeleton_operand_is_not_equal(self) -> None:
+        assert (TimeSkeleton(_concrete_hierarchy(3)) == "skeleton") is False
+
+    def test_differing_metric_hierarchy_breaks_equality(self) -> None:
+        slow = BeatPolicy.from_time_signature("3/4").model_copy(update={"bpm": 60})
+        fast = BeatPolicy.from_time_signature("3/4").model_copy(update={"bpm": 120})
+        first = TimeSkeleton(
+            _concrete_hierarchy(3, 2, 2), MetricHierarchy.from_sections([slow] * 3)
+        )
+        second = TimeSkeleton(
+            _concrete_hierarchy(3, 2, 2), MetricHierarchy.from_sections([fast] * 3)
+        )
+        third = TimeSkeleton(
+            _concrete_hierarchy(3, 2, 2), MetricHierarchy.from_sections([slow] * 3)
+        )
+        assert first != second
+        assert first == third
+
+    def test_authored_flows_are_compared_by_content(self) -> None:
+        first = TimeSkeleton(_concrete_hierarchy(3, 2, 2))
+        second = TimeSkeleton(_concrete_hierarchy(3, 2, 2))
+        first.add_flow(["m1-m3", "m6-m7"], id="elision")
+        assert first != second
+        second.add_flow(["m1-m3", "m6-m7"], id="elision")
+        assert first == second
+
+    def test_participants_do_not_affect_equality(self) -> None:
+        first = TimeSkeleton(_concrete_hierarchy(3, 2, 2))
+        second = TimeSkeleton(_concrete_hierarchy(3, 2, 2))
+        recording = ContinuousPhysicalTimeline(
+            length=30.0, unit="seconds", uid="eq-rec"
+        )
+        # The always-present "source" flow mints no new flow on attach.
+        first.attach(recording)
+        assert first.n_participants == 1
+        assert second.n_participants == 0
+        assert first == second
+
+
+class TestAttachmentIdentity:
+    """Attachment bookkeeping distinguishes equal skeletons by identity."""
+
+    def test_two_equal_skeletons_attach_without_aliasing(self) -> None:
+        recording = ContinuousPhysicalTimeline(
+            length=10.0, unit="seconds", uid="id-rec1"
+        )
+        first = TimeSkeleton(_concrete_hierarchy(3))
+        second = TimeSkeleton(_concrete_hierarchy(3))
+        assert first == second
+        first.attach(recording)
+        second.attach(recording)
+        assert len(recording.skeletons) == 2
+        assert recording.skeletons[0] is first
+        assert recording.skeletons[1] is second
+
+    def test_detach_removes_exactly_the_detached_skeleton(self) -> None:
+        recording = ContinuousPhysicalTimeline(
+            length=10.0, unit="seconds", uid="id-rec2"
+        )
+        first = TimeSkeleton(_concrete_hierarchy(3))
+        second = TimeSkeleton(_concrete_hierarchy(3))
+        first.attach(recording)
+        second.attach(recording)
+        first.detach(recording)
+        assert len(recording.skeletons) == 1
+        assert recording.skeletons[0] is second
+
+
+# endregion
+
+
+# region (j) Materialization round trip
+
+
+class TestMaterializeRoundTrip:
+    """A reference timeline harvests back its originating skeleton."""
+
+    def test_abstract_reference_round_trips_to_the_same_skeleton(self) -> None:
+        skeleton = TimeSkeleton(SectionHierarchy.from_measure_counts([3, 2, 2]))
+        reference = skeleton.materialize()
+        assert reference.create_skeleton() is skeleton
+        assert reference.create_skeleton() == skeleton
+        assert skeleton.materialize() is reference
+
+    def test_flow_reference_round_trips_to_the_same_skeleton(
+        self, mini_skeleton: TimeSkeleton
+    ) -> None:
+        reference = mini_skeleton.materialize(flow="source")
+        assert reference.create_skeleton() is mini_skeleton
+        assert reference.create_skeleton() == mini_skeleton
+        assert mini_skeleton.materialize(flow="source") is reference
+
+    def test_flow_reference_is_not_a_participant(
+        self, mini_skeleton: TimeSkeleton
+    ) -> None:
+        reference = mini_skeleton.materialize(flow="source")
+        assert mini_skeleton.n_participants == 1
+        assert all(
+            participant is not reference for participant in mini_skeleton.participants
+        )
+
+    def test_abstract_reference_is_not_a_participant(self) -> None:
+        skeleton = TimeSkeleton(SectionHierarchy.from_measure_counts([3, 2, 2]))
+        skeleton.materialize()
+        assert skeleton.n_participants == 0
 
 
 # endregion

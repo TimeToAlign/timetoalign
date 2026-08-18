@@ -1530,3 +1530,60 @@ onsets on the unfolded reference axis:
   attachment only when the flow has **exactly one**. For the default-loaded
   ``"source"`` flow with its single participant the accessor returns that
   participant; after a second attach it raises; after full detach it raises.
+
+### (i) Structural skeleton equality
+
+**Ground truth.** A ``TimeSkeleton`` *is* its authored temporal facts: the
+section hierarchy, the metric hierarchy, and the authored flows (each flow's id
+and its ordered step content, ``Gap`` markers included). Everything else —
+generated uid, participants and their claims, materialized reference timelines,
+display names — is identity or usage, not structure.
+
+**Validation logic.** Equality must be decided by exactly the three structural
+facts and nothing else. Each fact needs one positive and one negative proof:
+
+1. Two skeletons built from structurally equal hierarchies compare **equal**
+   even though their generated uids differ — so identity is excluded.
+2. Giving the two skeletons **different metric hierarchies** (policies differing
+   in a metric fact such as bpm) breaks equality — so the metric hierarchy is
+   included.
+3. Authoring a custom flow on **one** side breaks equality — so flows are
+   included; authoring the **same** flow (same id, same steps) on the other
+   side restores it — so flow comparison is content-based, not
+   object-identity-based.
+4. Attaching a participant to one side (on the always-present ``"source"``
+   flow, which mints no new flow) leaves the two skeletons **equal** — so
+   participants are excluded.
+
+A non-skeleton operand must not compare equal. Section and metric hierarchies
+already define name-excluding structural equality ((a) and (b) above); skeleton
+equality must **delegate** to them, never re-derive their facts.
+
+**Consequence that must be pinned separately: attachment bookkeeping is by
+identity.** A timeline's skeleton-attachment store distinguishes attachments by
+*object identity*, because two structurally equal skeletons are still two
+distinct shared structures. The proof: attach two equal-but-distinct skeletons
+to one timeline — the timeline must hold **both** (count 2, each retrievable as
+the very object attached); detaching the **first** must remove exactly the
+first, leaving the second in place. A store using equality-based membership
+would alias the two and fail both halves.
+
+### (j) Materialization round trip
+
+**Ground truth.** A reference timeline materialized from a skeleton *carries*
+that skeleton's structure, so harvesting structure back from the reference must
+return the originating skeleton itself.
+
+**Validation logic.** For a materialized reference ``ref`` of skeleton ``ts``
+(both the abstract no-flow lane and the per-flow lane):
+
+- ``ref.create_skeleton() is ts`` — the round trip returns the **same object**,
+  not a reconstruction;
+- ``ref.create_skeleton() == ts`` — and therefore also compares equal under (i);
+- ``ts.materialize()`` (respectively ``ts.materialize(flow=...)``) called again
+  returns ``ref`` **by identity** — materialization is cached, so repeated calls
+  cannot mint drifting reference timelines with fresh generated ids.
+
+Reference timelines are **not participants**: after materializing, the
+participant count and the participant tuple are unchanged (no reference object
+among them). Participation is attach()-enrollment only.

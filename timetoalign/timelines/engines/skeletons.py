@@ -38,9 +38,14 @@ class SkeletonsMixin:
         raise ValueError(f"Timeline {self.id!r} has no harvestable temporal structure")
 
     def _add_skeleton_attachment(self, skeleton: Any) -> None:
-        if skeleton not in self._skeleton_attachments:
+        # Skeleton equality is structural, so two distinct shared structures
+        # may compare equal; attachment bookkeeping distinguishes by identity.
+        if not any(existing is skeleton for existing in self._skeleton_attachments):
             self._skeleton_attachments.append(skeleton)
 
     def _remove_skeleton_attachment(self, skeleton: Any) -> None:
-        if skeleton in self._skeleton_attachments:
-            self._skeleton_attachments.remove(skeleton)
+        self._skeleton_attachments = [
+            existing
+            for existing in self._skeleton_attachments
+            if existing is not skeleton
+        ]
