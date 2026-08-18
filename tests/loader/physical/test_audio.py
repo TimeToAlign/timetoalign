@@ -9,6 +9,7 @@ These tests verify that AudioLoader correctly:
 
 from __future__ import annotations
 
+import os
 import struct
 from pathlib import Path
 
@@ -434,6 +435,53 @@ class TestAudioLoaderEdgeCases:
         """Test that load() returns self for method chaining."""
         timeline = AudioLoader().load(wav_file).create_timeline()
         assert isinstance(timeline, DiscretePhysicalTimeline)
+
+
+# endregion
+
+
+# region Backend Probe Silence
+
+
+@pytest.fixture
+def mislabelled_mp3(tmp_path: Path) -> Path:
+    """A file named ``.mp3`` that holds no MPEG frames at all.
+
+    70,000 zero bytes: past the 65,536-byte window libsndfile's MP3 decoder
+    searches for a frame header before reporting its failure on file
+    descriptor 2.
+    """
+    path = tmp_path / "mislabelled.mp3"
+    path.write_bytes(b"\x00" * 70_000)
+    return path
+
+
+class TestAudioLoaderProbeSilence:
+    """Probing a file no backend can read prints nothing."""
+
+    def test_unreadable_file_probe_is_silent(self, mislabelled_mp3: Path, capfd):
+        """A failing probe reports through the exception, not the terminal."""
+        with pytest.raises(ValueError):
+            AudioLoader().load(mislabelled_mp3)
+
+        captured = capfd.readouterr()
+        assert captured.err == ""
+        assert captured.out == ""
+
+    def test_stderr_survives_the_probe(self, mislabelled_mp3: Path, capfd):
+        """The muted descriptor is restored, failure or not."""
+        with pytest.raises(ValueError):
+            AudioLoader().load(mislabelled_mp3)
+        os.write(2, b"after the probe\n")
+
+        assert capfd.readouterr().err == "after the probe\n"
+
+    def test_readable_file_load_is_silent(self, wav_file: Path, capfd):
+        """Muting the probe does not swallow the file it succeeds on."""
+        loader = AudioLoader().load(wav_file)
+
+        assert loader.n_samples == 44100
+        assert capfd.readouterr().err == ""
 
 
 # endregion

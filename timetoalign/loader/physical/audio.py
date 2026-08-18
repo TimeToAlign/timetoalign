@@ -22,9 +22,12 @@ Backend Support:
 from __future__ import annotations
 
 import logging
+import os
+import sys
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Iterator
 
 from timetoalign.loader.base import Loader
 
@@ -63,6 +66,40 @@ def _get_wave():
     import wave
 
     return wave
+
+
+@contextmanager
+def _muted_native_stderr() -> Iterator[None]:
+    """Mute writes to file descriptor 2 for the duration of the block.
+
+    The decoder libraries behind libsndfile report unreadable input by
+    writing to file descriptor 2 directly, bypassing Python's ``sys.stderr``
+    and therefore both :mod:`warnings` and :mod:`logging`. A probe that fails
+    is a normal step of the backend chain — the next backend then reads the
+    file — so those messages are noise, and a caller has no way to silence
+    them. Muting the descriptor around the probe is the only place that can.
+
+    Python-level stderr is flushed first so no buffered message is swallowed,
+    and the descriptor is restored even if the probe raises. If the
+    descriptor cannot be duplicated (a platform without ``os.dup``, or a
+    closed stream), the block runs unmuted rather than failing.
+    """
+    try:
+        saved_fd = os.dup(2)
+    except (AttributeError, OSError):
+        yield
+        return
+    try:
+        sys.stderr.flush()
+    except (AttributeError, ValueError):
+        pass
+    try:
+        with open(os.devnull, "wb") as devnull:
+            os.dup2(devnull.fileno(), 2)
+        yield
+    finally:
+        os.dup2(saved_fd, 2)
+        os.close(saved_fd)
 
 
 # endregion
@@ -257,8 +294,15 @@ class AudioLoader(Loader[AudioInfo]):
         self._source_path = path
 
     def _load_with_soundfile(self, sf, path: Path) -> AudioInfo:
-        """Load metadata using soundfile (libsndfile backend)."""
-        info = sf.info(str(path))
+        """Load metadata using soundfile (libsndfile backend).
+
+        The probe runs with file-descriptor-level stderr muted: libsndfile's
+        decoders print their own diagnostics there when the input is not what
+        its extension claims, and such a file is handed on to the next backend
+        rather than being an error the user must see.
+        """
+        with _muted_native_stderr():
+            info = sf.info(str(path))
 
         return AudioInfo(
             n_samples=info.frames,

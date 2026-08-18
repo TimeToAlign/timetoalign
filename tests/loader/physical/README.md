@@ -4,7 +4,7 @@ Tests for the physical-domain loaders in `timetoalign.loader.physical`.
 
 ## Test Files
 
-### `test_audio.py` (24 tests)
+### `test_audio.py` (27 tests)
 
 Tests for `AudioLoader` against minimal in-memory WAV files.
 
@@ -15,6 +15,24 @@ to the value expression and is checked with `==` (no `pytest.approx`). The
 integer-sample fixtures divide out cleanly (44100/44100 = `1.0`, 96000/48000 =
 `2.0`, 22050/44100 = `0.5`); the 10-sample edge case is pinned as `10 / 44100`,
 the same double the C-map returns. No approx assertions remain in this file.
+
+**Backend-probe silence** (`TestAudioLoaderProbeSilence`, 3 tests). The loader
+tries backends in order and hands an unreadable file to the next one, so a
+failing probe is a normal step, not an event a user should be told about. The
+decoders behind libsndfile do not agree: they write their diagnostics straight
+to file descriptor 2, where neither `warnings` nor `logging` can reach them —
+so proving the loader is quiet means capturing the *descriptor*, not
+`sys.stderr`. These tests therefore use pytest's `capfd`, never `capsys`, and
+the fixture is a file whose extension lies: 70,000 zero bytes named `.mp3`,
+past the 65,536-byte window the MP3 decoder searches before it reports failure.
+
+What must hold: probing that file produces **empty** captured stderr and
+stdout while still raising `ValueError` (the diagnosis reaches the caller as an
+exception, not as terminal noise); a native `os.write(2, ...)` immediately
+afterwards **is** captured, since a muting that leaked would silence the rest
+of the session; and a WAV file that loads successfully is equally silent and
+still reports its exact sample count, which is what distinguishes muting the
+probe from muting the loader.
 
 ### `test_repovizz_loader.py` (27 tests)
 
@@ -81,7 +99,7 @@ Each recording directory has an XML manifest cataloguing all 332+ data files.
 | Test File | Tests | Status |
 |-----------|-------|--------|
 | `test_repovizz_loader.py` | 27 | All pass |
-| `test_audio.py` | 24 | All pass |
-| **Total** | **51** | **All pass** |
+| `test_audio.py` | 27 | All pass |
+| **Total** | **54** | **All pass** |
 
 All tests pass in parallel mode (`pytest-xdist -n auto`).
