@@ -24,7 +24,7 @@ with no range or approximation.
 
 | Fact | Value |
 |------|-------|
-| Data rows | **94** |
+| Data rows | **96** |
 | Columns | ``track``, ``track_start_bar``, ``mix_start_bar``, ``track_end_bar``, ``mix_end_bar``, ``track_loop``, ``analysis`` |
 | ``track`` labels | XML ``Name`` prefixed with ``"NN. "`` (a number, a dot, a space) |
 
@@ -151,7 +151,7 @@ instant is an interpolation anchor, including grid changes that occur mid-bar.
 
 ## (d) `tracks-to-mix.csv` ingestion and name resolution
 
-**Ground truth.** 94 data rows. The ``track`` column carries an ``"NN. "`` prefix
+**Ground truth.** 96 data rows. The ``track`` column carries an ``"NN. "`` prefix
 (digits, dot, space) over the XML ``Name``.
 
 **Name resolution.** Strip the filename prefix with ``^\d+[a-z]?\.\s*`` (the
@@ -164,7 +164,7 @@ curated equivalence ``Woops (Anderex Edit)`` → ``WOOPS EDIT (FREE DL)``, which
 closes a perfect 36 ↔ 36 bijection between mapped csv tracks and real mix
 tracks in the collection.
 
-**Expected — exactly which rows resolve.** Of the 94 rows, **88 resolve** and
+**Expected — exactly which rows resolve.** Of the 96 rows, **90 resolve** and
 **6 do not**: the six ``ID``-placeholder rows (``04.``, ``06.``, ``16.``,
 ``17.``, ``36.``, ``41a.``), whose audio was unavailable at analysis time and
 which have no XML track. Unresolved rows are skipped. Of the 42 distinct csv
@@ -173,10 +173,7 @@ the one known mix track never referenced by the csv. Step (2) resolves
 ``Tonight``, ``HUMBLE``, ``Rodeo``, ``HEROINE``, and ``Hard Beat`` (artist
 prefixes and label suffixes in the XML that the csv lacks); a resolver without
 the length guard must FAIL the six ``ID`` rows rather than mis-match them.
-
-Total unresolved = 5 + 5 + 14 = **24**; resolved = 94 − 24 = **70**. A test must
-assert exactly this split; resolution is by **exact** name equality after prefix
-stripping, never substring or fuzzy matching.
+A test must assert exactly this 90 / 6 split.
 
 ---
 
@@ -219,22 +216,22 @@ Total-claim accounting, all derived from the files:
 
 | Category | Rows | Claims |
 |----------|------|--------|
-| Unresolved by name (skipped) | 24 | 0 |
-| Resolved, non-loop, **complete** track interval (both bar endpoints present) | 57 | 57 |
+| Unresolved by name (skipped) | 6 | 0 |
+| Resolved, non-loop, **complete** track interval (both bar endpoints present) | 78 | 78 |
 | Resolved, loop rows (expanded) | 6 | 40 |
-| Resolved, non-loop, **incomplete** track interval (a bar endpoint is ``NaN``) | 7 | 0 complete bidirectional claims |
+| Resolved, non-loop, **incomplete** track interval (a bar endpoint is missing) | 6 | 0 complete bidirectional claims |
 
-The **7 incomplete rows** resolve by name but lack a full ``[track_start_bar,
-track_end_bar]`` interval (``08. F THE POLICE`` — no ``track_end_bar`` and no
-``mix_end_bar``; ``11. LIKE ME`` ×2; ``14. Tunnel Vision - Junkie Kid Remix`` ×3;
-``34. BLOW IT UP`` ×1). They cannot express a bar-unit interval-on-track claim.
+The **6 incomplete rows** resolve by name but lack a full ``[track_start_bar,
+track_end_bar]`` interval (``09. Rodeo`` ×1; ``11. LIKE ME`` ×2;
+``14. Tunnel Vision - Junkie Kid Remix`` ×3). They cannot express a bar-unit
+interval-on-track claim.
 
 Therefore the exact expected count of **complete interval↔interval bar claims** is
-``57 + 40 = 97``, with ``24`` rows skipped for name resolution and ``7`` resolved
+``78 + 40 = 118``, with ``6`` rows skipped for name resolution and ``6`` resolved
 rows carrying no complete track interval. (If a future loader instead emits one
 mix-side placement per resolved row regardless of a missing track endpoint, the
-count is ``64 + 40 = 104``; a test must state which policy it asserts. This
-iteration pins **97** complete claims and calls the other 7 out explicitly rather
+count is ``84 + 40 = 124``; a test must state which policy it asserts. This
+iteration pins **118** complete claims and calls the other 6 out explicitly rather
 than folding them in silently.)
 
 ---
@@ -267,3 +264,50 @@ naming the **same** track interval:
 They abut at bar 1129 and together cover ``[1121, 1137]``. A correct claim carries
 both bar-unit intervals and their orientation (which axis is mix, which is track);
 loop expansion must preserve the shared track interval across all N copies.
+
+---
+
+## (g) Timeline identity and conversion axes
+
+### Identity comes from the file name, not the display name
+
+**Ground truth.** The csv (and every artifact that cross-references the
+collection) names tracks by their **file name** — ``"NN. "`` prefix included —
+while the XML ``Name`` attribute is display metadata that often differs (artist
+prefixes, label suffixes, remix tags). The stable identity of a track is
+therefore the URL-decoded stem of its ``Location`` attribute:
+``file://localhost/~/git/djmix-analysis/data/moriero/01.%20See%20Me%20Coming.mp3``
+identifies the track ``01. See Me Coming``.
+
+**Validation logic.** A synthetic track whose ``Location`` basename **differs**
+from its ``Name`` separates the two lanes: the created timeline's **id** must be
+the decoded ``Location`` stem and its **name** must remain the XML ``Name``. A
+track carrying **no** ``Location`` cannot derive a file identity, so its id must
+fall back to ``Name`` — never to an invented value. The proof requires the two
+values to be observably different in the first case and identical in the second.
+
+**Specimen anchors (exact).** All 46 collection tracks carry a ``Location``, so
+the bundle's timeline ids are exactly the 46 decoded file stems. Pinned members:
+``01. See Me Coming``, ``05. HUMBLE (Samuel Moriero REMIX)``,
+``41b. Vielleicht Vielleicht``, and the mix
+``001-samuel_moriero-impact_halloween_xxl_2025_full_set``. The six csv
+placeholder labels (``04. ID``, ``06. ID``, ``16. ID``, ``17. ID``, ``36. ID``,
+``41a. ID``) have **no** audio file in the collection and therefore must NOT
+appear as timeline ids — a loader that minted ids from csv labels or ``Name``
+collisions would fail this disjointness.
+
+### SampleRate affords a seconds → samples axis; its absence affords nothing
+
+**Ground truth.** A track's ``SampleRate`` attribute states the audio's discrete
+resolution. ``SampleRate="48000"`` means second ``s`` is sample ``s × 48000``
+exactly; samples are a discrete (integer) unit.
+
+**Validation logic.** A track declaring ``SampleRate="48000"`` must expose a
+samples conversion axis on its seconds timeline such that querying the position
+``1.5`` seconds answers exactly ``72000`` samples — an integer on a discrete
+axis, reached through the public retrieval surface (a ``Coordinate`` goes in, a
+``Coordinate`` comes out; no bare floats). ``1.5 × 48000 = 72000`` is exact, so
+no rounding ambiguity can hide an off-by-one. A track with **no** ``SampleRate``
+attribute states nothing about its resolution, and the loader must attach **no**
+samples axis — guessing a default sample rate would fabricate a fact the source
+does not carry.

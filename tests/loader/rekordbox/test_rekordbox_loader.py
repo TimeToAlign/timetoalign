@@ -15,18 +15,30 @@ SPECIMEN = Path(
 )
 
 
+_DEFAULT_LOCATION = object()
+
+
 def _track_xml(
     track_id: str,
     name: str,
     *,
     total_time: str = "8",
     tempos: str = "",
+    sample_rate: str | None = "48000",
+    location: object = _DEFAULT_LOCATION,
 ) -> str:
     if not tempos:
         tempos = '<TEMPO Inizio="0" Bpm="60" Metro="4/4" Battito="1" />'
+    if location is _DEFAULT_LOCATION:
+        location = f"file:///{name}.wav"
+    optional = ""
+    if sample_rate is not None:
+        optional += f' SampleRate="{sample_rate}"'
+    if location is not None:
+        optional += f' Location="{location}"'
     return f"""
     <TRACK TrackID="{track_id}" Name="{name}" TotalTime="{total_time}"
-           AverageBpm="90" SampleRate="48000" Location="file:///{name}.wav">
+           AverageBpm="90"{optional}>
       {tempos}
       <POSITION_MARK Name="cue" Type="0" Start="1.25" Num="0" />
     </TRACK>
@@ -94,6 +106,57 @@ def test_pickup_grid_change_and_trailing_measure_are_exact(tmp_path: Path) -> No
         "SampleRate": 48000,
         "POSITION_MARK": [{"Name": "cue", "Type": "0", "Start": "1.25", "Num": "0"}],
     }
+
+
+def test_timeline_id_is_decoded_location_stem(tmp_path: Path) -> None:
+    path = _write_collection(
+        tmp_path,
+        _track_xml(
+            "1",
+            "Habstrakt - Tonight FREE DL",
+            location="file://localhost/~/music/02.%20Tonight%20(Remix).mp3",
+        ),
+    )
+    timeline = RekordboxLoader.from_file(path).create_timeline()
+
+    assert timeline.id == "02. Tonight (Remix)"
+    assert timeline.name == "Habstrakt - Tonight FREE DL"
+
+
+def test_timeline_id_falls_back_to_name_without_location(tmp_path: Path) -> None:
+    path = _write_collection(tmp_path, _track_xml("1", "Display Only", location=None))
+    timeline = RekordboxLoader.from_file(path).create_timeline()
+
+    assert timeline.id == "Display Only"
+    assert timeline.name == "Display Only"
+    assert timeline.meta["Location"] is None
+
+
+def test_sample_rate_affords_exact_seconds_to_samples_conversion(
+    tmp_path: Path,
+) -> None:
+    path = _write_collection(tmp_path, _track_xml("1", "Sampled"))
+    timeline = RekordboxLoader.from_file(path).create_timeline()
+    samples_map = timeline.get_conversion_map(TimeUnit.samples)
+
+    assert samples_map is not None
+    assert samples_map.sample_rate == 48000
+    converted = timeline.get_timestamp_at(Coordinate(1.5, TimeUnit.seconds)).get_unit(
+        TimeUnit.samples
+    )
+    assert isinstance(converted, Coordinate)
+    assert converted.timeline_id == "Sampled"
+    assert converted.unit is TimeUnit.samples
+    assert converted.number_type is NumberType.int
+    assert converted.value == 72000
+
+
+def test_absent_sample_rate_attaches_no_samples_axis(tmp_path: Path) -> None:
+    path = _write_collection(tmp_path, _track_xml("1", "Unsampled", sample_rate=None))
+    timeline = RekordboxLoader.from_file(path).create_timeline()
+
+    assert timeline.meta["SampleRate"] is None
+    assert timeline.get_conversion_map(TimeUnit.samples) is None
 
 
 def test_collection_scope_bundle_and_claim_tuple_ingestion(tmp_path: Path) -> None:
@@ -235,7 +298,7 @@ def test_real_specimen_collection_and_mix_grids_are_exact() -> None:
     )
     assert floating_measures(Fraction(5277)) == canonical(total_quarters)
 
-    brace = bundle.get_timeline("Brace For Impact")
+    brace = bundle.get_timeline("40. Brace For Impact")
     brace_grid = next(
         track for track in loader.tracks if track.name == brace.name
     ).tempos[0]
@@ -244,3 +307,21 @@ def test_real_specimen_collection_and_mix_grids_are_exact() -> None:
     first_downbeat = brace_grid.inizio + 3 * brace_grid.beat_seconds
     assert first_downbeat == Fraction("1.345")
     assert brace_fm(first_downbeat) == 1.0
+
+
+def test_real_specimen_timeline_ids_are_decoded_file_stems() -> None:
+    if not SPECIMEN.exists():
+        pytest.skip(f"Test data file not found: {SPECIMEN}")
+
+    bundle = RekordboxLoader.from_file(SPECIMEN).create_bundle()
+    ids = set(bundle.timelines)
+
+    assert len(ids) == 46
+    assert {
+        "01. See Me Coming",
+        "05. HUMBLE (Samuel Moriero REMIX)",
+        "41b. Vielleicht Vielleicht",
+        "001-samuel_moriero-impact_halloween_xxl_2025_full_set",
+    } <= ids
+    # The csv placeholder labels have no audio file in the collection.
+    assert ids.isdisjoint({"04. ID", "06. ID", "16. ID", "17. ID", "36. ID", "41a. ID"})

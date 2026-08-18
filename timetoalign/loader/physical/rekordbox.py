@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlparse
 
 from timetoalign.loader.base import Loader
 
@@ -174,7 +175,7 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
     def _create_track_timeline(cls, track: RekordboxTrack) -> Any:
         from timetoalign.alignment import MeasureMap, SectionHierarchy, TimeSkeleton
         from timetoalign.core import NumberType, TimeUnit
-        from timetoalign.maps import TableMap
+        from timetoalign.maps import SecondsToSamples, TableMap
         from timetoalign.timelines import ContinuousPhysicalTimeline
 
         downbeats = cls._downbeats(track)
@@ -188,7 +189,7 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
             length=float(track.total_time),
             unit=TimeUnit.seconds,
             number_type=NumberType.float,
-            uid=track.name,
+            uid=cls._track_uid(track),
             name=track.name,
             meta={
                 "TrackID": track.track_id,
@@ -207,9 +208,23 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
                 name="rekordbox_floating_measures",
             )
         )
+        if track.sample_rate is not None:
+            timeline.add_conversion_map(SecondsToSamples(sample_rate=track.sample_rate))
         hierarchy = SectionHierarchy.from_measures(measure_map)
         TimeSkeleton(hierarchy, uid=f"{track.name}/skeleton").attach(timeline)
         return timeline
+
+    @staticmethod
+    def _track_uid(track: RekordboxTrack) -> str:
+        """Return the track's stable identity: the decoded file-name stem.
+
+        Collection artifacts cross-reference tracks by file name, while the
+        XML ``Name`` is display metadata; a track without a ``Location``
+        falls back to that display name.
+        """
+        if track.location is None:
+            return track.name
+        return Path(unquote(urlparse(track.location).path)).stem
 
     @staticmethod
     def _downbeats(track: RekordboxTrack) -> list[tuple[Fraction, RekordboxTempo]]:
