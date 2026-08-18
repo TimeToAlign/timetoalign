@@ -123,12 +123,28 @@ class TimeSkeleton:
         flow: str | tuple[str, str] = "source",
         claims: Any = None,
     ) -> TimeSkeleton:
-        """Enroll a timeline and return this skeleton for chaining."""
+        """Enroll a timeline and return this skeleton for chaining.
+
+        A measure-range ``flow`` tuple mints a one-step flow whose id is the
+        range step itself (e.g. ``"m1-m5"``) — content-derived, never named
+        after the participant, so equal ranges share one flow and structural
+        equality stays participant-blind. An existing flow under that id is
+        reused when it holds exactly the one range step and refused otherwise.
+        """
         if isinstance(flow, tuple):
             if len(flow) != 2:
                 raise ValueError("A measure range flow must contain exactly two IDs")
-            flow_id = f"{timeline.id}-range"
-            self.add_flow([f"{flow[0]}-{flow[1]}"], id=flow_id)
+            step = f"{flow[0]}-{flow[1]}"
+            flow_id = step
+            existing_steps = self._flow_steps.get(flow_id)
+            if existing_steps is None:
+                self.add_flow([step], id=flow_id)
+            elif existing_steps != (step,):
+                raise ValueError(
+                    f"Flow {flow_id!r} already exists with steps "
+                    f"{existing_steps!r}; a range attach requires it to hold "
+                    f"exactly ({step!r},)"
+                )
         else:
             flow_id = flow
         if flow_id not in self._flows:

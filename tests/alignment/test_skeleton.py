@@ -345,10 +345,28 @@ class TestMembership:
         mini_skeleton.attach(recording, flow=("m1", "m5"))
         assert mini_skeleton.n_participants == 2
         assert len(mini_skeleton.flows) == 2
-        minted = mini_skeleton.flows["rec1-range"]
+        minted = mini_skeleton.flows["m1-m5"]
         assert len(minted.sections) == 1
         assert minted.sections[0].mc_range == (1, 6)
         assert minted.sections[0].atomic_section_ids == ("m1-m5",)
+
+    def test_same_range_attach_reuses_the_content_derived_flow(
+        self, mini_skeleton: TimeSkeleton
+    ) -> None:
+        first = ContinuousPhysicalTimeline(length=30.0, unit="seconds", uid="rec1")
+        second = ContinuousPhysicalTimeline(length=25.0, unit="seconds", uid="rec2")
+        mini_skeleton.attach(first, flow=("m1", "m5"))
+        mini_skeleton.attach(second, flow=("m1", "m5"))
+        assert mini_skeleton.n_participants == 3
+        assert list(mini_skeleton.flows) == ["source", "m1-m5"]
+
+    def test_range_attach_refuses_a_differing_flow_under_its_id(
+        self, mini_skeleton: TimeSkeleton
+    ) -> None:
+        mini_skeleton.add_flow(["m1-m3", "m6-m7"], id="m1-m5")
+        recording = ContinuousPhysicalTimeline(length=30.0, unit="seconds", uid="rec1")
+        with pytest.raises(ValueError, match="'m1-m5' already exists with steps"):
+            mini_skeleton.attach(recording, flow=("m1", "m5"))
 
     def test_detach_restores_participant_count_and_structure(
         self, mini_skeleton: TimeSkeleton
@@ -421,8 +439,19 @@ class TestStructuralEquality:
         assert first.id != second.id
         assert first == second
 
+    def test_differing_section_hierarchy_breaks_equality(self) -> None:
+        assert TimeSkeleton(_concrete_hierarchy(3, 2, 2)) != TimeSkeleton(
+            _concrete_hierarchy(4, 2, 2)
+        )
+
     def test_non_skeleton_operand_is_not_equal(self) -> None:
-        assert (TimeSkeleton(_concrete_hierarchy(3)) == "skeleton") is False
+        skeleton = TimeSkeleton(_concrete_hierarchy(3))
+        assert skeleton.__eq__("skeleton") is NotImplemented
+        assert (skeleton == "skeleton") is False
+
+    def test_instances_are_unhashable(self) -> None:
+        with pytest.raises(TypeError, match="unhashable"):
+            hash(TimeSkeleton(_concrete_hierarchy(3)))
 
     def test_differing_metric_hierarchy_breaks_equality(self) -> None:
         slow = BeatPolicy.from_time_signature("3/4").model_copy(update={"bpm": 60})
@@ -453,10 +482,24 @@ class TestStructuralEquality:
         recording = ContinuousPhysicalTimeline(
             length=30.0, unit="seconds", uid="eq-rec"
         )
-        # The always-present "source" flow mints no new flow on attach.
         first.attach(recording)
         assert first.n_participants == 1
         assert second.n_participants == 0
+        assert first == second
+
+    def test_same_range_attach_on_two_skeletons_preserves_equality(self) -> None:
+        first = TimeSkeleton(_concrete_hierarchy(3, 2, 2))
+        second = TimeSkeleton(_concrete_hierarchy(3, 2, 2))
+        rec_a = ContinuousPhysicalTimeline(
+            length=30.0, unit="seconds", uid="range-rec-a"
+        )
+        rec_b = ContinuousPhysicalTimeline(
+            length=25.0, unit="seconds", uid="range-rec-b"
+        )
+        # The minted flow id is the range step itself, never the participant
+        # id, so identical ranges keep the flow stores identical.
+        first.attach(rec_a, flow=("m1", "m5"))
+        second.attach(rec_b, flow=("m1", "m5"))
         assert first == second
 
 

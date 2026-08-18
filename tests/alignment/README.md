@@ -1544,20 +1544,34 @@ facts and nothing else. Each fact needs one positive and one negative proof:
 
 1. Two skeletons built from structurally equal hierarchies compare **equal**
    even though their generated uids differ — so identity is excluded.
-2. Giving the two skeletons **different metric hierarchies** (policies differing
+2. Hierarchies whose leaf measure counts differ (``(3, 2, 2)`` vs
+   ``(4, 2, 2)``) break equality — so the section hierarchy is included, and
+   deleting its clause cannot go unnoticed while the other facts agree.
+3. Giving the two skeletons **different metric hierarchies** (policies differing
    in a metric fact such as bpm) breaks equality — so the metric hierarchy is
    included.
-3. Authoring a custom flow on **one** side breaks equality — so flows are
+4. Authoring a custom flow on **one** side breaks equality — so flows are
    included; authoring the **same** flow (same id, same steps) on the other
    side restores it — so flow comparison is content-based, not
    object-identity-based.
-4. Attaching a participant to one side (on the always-present ``"source"``
-   flow, which mints no new flow) leaves the two skeletons **equal** — so
-   participants are excluded.
+5. Participants are excluded, proven on **both** attach lanes: attaching a
+   participant to the always-present ``"source"`` flow leaves the two
+   skeletons **equal**; and a measure-range attach mints its flow under a
+   **content-derived** id — the range step itself (e.g. ``"m1-m5"``), never
+   the participant's id — so two skeletons whose *different* participants
+   attach over the *identical* range also stay **equal**. The same range
+   attached twice on one skeleton **reuses** the flow (participant count
+   rises, the flow list is unchanged); a range attach whose id collides with
+   an authored flow holding different steps must **raise** rather than
+   silently reuse it.
 
-A non-skeleton operand must not compare equal. Section and metric hierarchies
-already define name-excluding structural equality ((a) and (b) above); skeleton
-equality must **delegate** to them, never re-derive their facts.
+A non-skeleton operand must not compare equal: the equality hook returns
+``NotImplemented`` and ``==`` answers ``False``. Instances are **unhashable by
+contract** (``hash(skeleton)`` raises ``TypeError``): structural equality
+without identity hashing would corrupt hash containers, so none may exist.
+Section and metric hierarchies already define name-excluding structural
+equality ((a) and (b) above); skeleton equality must **delegate** to them,
+never re-derive their facts.
 
 **Consequence that must be pinned separately: attachment bookkeeping is by
 identity.** A timeline's skeleton-attachment store distinguishes attachments by
