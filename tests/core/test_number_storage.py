@@ -209,9 +209,16 @@ class TestIntCanonical:
 
 
 class TestVectorisedEqualsScalar:
-    """Two routes into one struct must not be two answers."""
+    """Two routes into one struct must not be two answers.
 
-    def test_routes_agree_and_canonical_side_survives(self) -> None:
+    The vectorised route is the one that can differ *by platform*, since it
+    alone reaches numpy — so the tests that bind it to the scalar definition
+    take ``platform_contract`` and run under both widths numpy binds its
+    C-typed ufunc arguments to. A rule the two routes share everywhere except
+    on the platform nobody here runs is not a rule the storage contract holds.
+    """
+
+    def test_routes_agree_and_canonical_side_survives(self, platform_contract) -> None:
         rng = np.random.default_rng(20260809)
         samples = np.concatenate(
             [
@@ -231,7 +238,7 @@ class TestVectorisedEqualsScalar:
             )
             assert row["value"] == float(sample)
 
-    def test_mirror_is_exact_wherever_int64_allows(self) -> None:
+    def test_mirror_is_exact_wherever_int64_allows(self, platform_contract) -> None:
         # Everything at or above 2**-10 fits: its dyadic denominator is at
         # most 2**62. 1e-8 does not, and is covered by the test below.
         samples = np.array([0.1, 1 / 3, 1.5, 2.0, 0.5, 2**-10])
@@ -243,7 +250,9 @@ class TestVectorisedEqualsScalar:
                 float(sample)
             )
 
-    def test_below_the_int64_limit_only_the_mirror_gives(self) -> None:
+    def test_below_the_int64_limit_only_the_mirror_gives(
+        self, platform_contract
+    ) -> None:
         # 0.0001 needs denominator 2**66, past int64. The fallback is the
         # nearest ratio over 2**62 — round(value * 2**62) / 2**62, reduced —
         # and the canonical side is untouched.
@@ -281,6 +290,93 @@ class TestVectorisedEqualsScalar:
         # quarters is fraction-canonical, so the scalar refuses it too.
         with pytest.raises(ValueError, match="number_type float"):
             build_number_struct_array([0.0001], number_type=NumberType.fraction)
+
+
+class TestTheBuilderRunsOnEveryPlatform:
+    """A column of doubles must become a column of ratios anywhere.
+
+    The mirror is a *binary* decomposition, so every quantity in it is a bit
+    count or a power of two — nothing whose meaning depends on how wide a C
+    ``int`` happens to be. These tests hold the implementation to that:
+    ``platform_contract`` runs each of them once as this machine offers numpy
+    and once as an LLP64 build does.
+    """
+
+    def test_the_scale_needs_no_c_typed_exponent(self, platform_contract) -> None:
+        """Scaling a double by a power of two must not go through a C int.
+
+        The exponent is a bit count capped at 62 and the scale factor is the
+        denominator itself, exact as a double — so the mirror can be built
+        with a multiply, and nothing has to be handed to a ufunc argument
+        whose width the platform, rather than the library, decides.
+        """
+        samples = np.array([0.1, 1 / 3, 1.5, 2.0, 0.5, 2**-10, 0.0, -1.0])
+        rows = build_number_struct_array(
+            samples, number_type=NumberType.float
+        ).to_pylist()
+
+        for sample, row in zip(samples, rows, strict=True):
+            assert (row["numerator"], row["denominator"]) == _pair_from_float(
+                float(sample)
+            )
+            assert row["value"] == float(sample)
+
+    def test_the_denominator_keeps_its_full_64_bit_width(
+        self, platform_contract
+    ) -> None:
+        """What the exponent counts still needs all 64 bits.
+
+        ``1 << 62`` overflows anything narrower, so a denominator accumulated
+        in a 32-bit width would wrap into nonsense — silently, and only for
+        the smallest values, which is the worst way for it to be wrong.
+        """
+        row = build_number_struct_array(
+            np.array([2**-10]), number_type=NumberType.float
+        ).to_pylist()[0]
+
+        assert (row["numerator"], row["denominator"]) == (1, 1024)
+        assert Fraction(row["numerator"], row["denominator"]) == Fraction(2**-10)
+
+        # 0.0001 is past the int64 ceiling, so it lands on the capped mirror —
+        # the one place the full 2**62 denominator is actually stored.
+        capped = build_number_struct_array(
+            np.array([0.0001]), number_type=NumberType.float
+        ).to_pylist()[0]
+        assert capped["denominator"] == 2**62
+        assert capped["numerator"] == 461168601842739
+
+    def test_the_reduction_finds_every_common_power_of_two(
+        self, platform_contract
+    ) -> None:
+        """Reducing by the lowest set bit must equal reducing step by step.
+
+        The dyadic ratio's only common factor is a power of two, so the whole
+        reduction is the numerator's lowest set bit — one pass, not one per
+        bit. Values are chosen so that the bit to strip is at the bottom
+        (``2**-10``), in the middle (``0.75``), absent (``0.1``), and the
+        whole numerator (``0.0``, which reduces to 0/1 and has no lowest bit
+        to find at all).
+        """
+        samples = np.array([2**-10, 0.75, 0.1, 0.0, -0.0, 3.0, 2.0**52])
+        rows = build_number_struct_array(
+            samples, number_type=NumberType.float
+        ).to_pylist()
+
+        pairs = [(row["numerator"], row["denominator"]) for row in rows]
+        assert pairs == [
+            (1, 1024),
+            (3, 4),
+            (3602879701896397, 36028797018963968),
+            (0, 1),
+            (0, 1),
+            (3, 1),
+            (2**52, 1),
+        ]
+        # A pair equal to the value's Fraction *component for component* is a
+        # pair in lowest terms, since Fraction normalises on construction.
+        for sample, (numerator, denominator) in zip(samples, pairs, strict=True):
+            exact = Fraction(float(sample))
+            assert (numerator, denominator) == (exact.numerator, exact.denominator)
 
 
 class TestExactValuesAreNeverSilentlyRounded:

@@ -610,6 +610,33 @@ assert the two routes agree cell for cell, and that the canonical float side
 survives bit-for-bit in every case. Two implementations of one rule are two
 chances to be wrong, so the equality is asserted rather than trusted.
 
+**The vectorised path must also run where the developers do not.** Only the
+vectorised route reaches numpy, so it alone can differ *by platform* — and a
+rule the two routes share everywhere except on the platform nobody here runs is
+not a rule the storage contract holds. The `platform_contract` fixture
+(`tests/conftest.py`) therefore runs the route-agreement tests twice: once as
+this machine offers numpy, and once with every C-typed ufunc argument narrowed
+to 32 bits, as an LLP64 build (Windows) does. The difference is real: numpy
+binds `ldexp`'s exponent to a C `int`/`long`, so an `int64` exponent finds a
+loop where a long is 64 bits and finds none where it is 32, and numpy raises
+rather than narrow it for you.
+
+The builder answers that by never handing an exponent to a ufunc at all: the
+denominator is a power of two, exactly representable as a double, so the mirror
+is built by **multiplying** by it — exact for the same reason an exponent-taking
+scale would be. Three tests hold that shape. The scale test asserts the same
+exact ratios come out under both contracts. The width test guards the other
+half: the exponent is a bit count, but what it shifts is not, and a denominator
+accumulated in 32 bits would wrap past `1 << 31` silently and only for the
+smallest values — so `2**-10` (denominator 1024) and the capped `0.0001`
+(denominator `2**62`) are pinned. The reduction test pins the one-pass
+reduction — the dyadic ratio's only common factor is a power of two, namely the
+numerator's lowest set bit — with the bit to strip at the bottom (`2**-10`), in
+the middle (`0.75`), absent (`0.1`), and with no bit to find at all (`0.0`,
+which reduces to `0/1`). Each expected pair is spelled out, and each is checked
+component-for-component against the value's own `Fraction`, which is in lowest
+terms by construction.
+
 **Where int64 runs out.** A double below roughly `2**-10` *may* need a
 denominator past `2**62` — only the full-mantissa ones do, which is why the
 fuzz test sees 362 of 10,009 rather than every sub-threshold value
@@ -646,6 +673,36 @@ a given resolution quantizes by definition, so `quantize_to_unit` rounds where
 the constructor refuses. Tests assert both sides of that line, since a single
 rule in both places would either forbid legitimate conversion or license the
 silent rounding the refusal exists to prevent.
+
+### `test_numpy_portability_hygiene.py` - Integer widths the library chooses
+
+**Purpose:** Keeps the storage guarantee ("an int64 numerator means 64 bits of
+numerator wherever this runs") true by scanning the package for constructs that
+hand the choice of width to the platform's C ABI instead.
+
+**What is scanned, and why those.** The test parses every module with `ast` —
+not a text grep, so prose and comments explaining a construct cannot trip it —
+and reports `file:line` for:
+
+| Construct | Why it is a decision, not a detail |
+|---|---|
+| `np.ldexp` | its exponent is a C `int`/`long`, so which loops exist differs by platform; an `int64` exponent binds on LP64 and raises on LLP64 |
+| `np.int_`, `np.long`, `np.ulong`, `np.intc`, `np.uintc` | aliases for whatever integer the C ABI calls native, i.e. a different width on Windows than on Linux |
+| `dtype=int`, `astype(int)` | the same question spelled with the builtin |
+
+`np.frexp` is deliberately **not** on the list: its exponent is an *output*,
+always a C int, and reading a 32-bit integer out is not a portability question.
+Explicit widths (`np.int64(1) << shift`, `astype(np.int64)`, `dtype=np.int32`)
+are exactly what the test asks for, and a companion case asserts they are left
+alone — a scan that flags the recommended spelling would be uninstallable.
+
+**Why the scan is itself tested.** A hygiene test that silently stops matching
+is worse than none, since it reads as a guarantee. So every pattern is
+exercised against a snippet containing it, and the recognised list is asserted
+in full and in source order. The package passes with **zero** hits today; a new
+use is not automatically wrong, but it must be argued — make the width
+explicit, scale by a value rather than by an exponent, or record the exception
+here and in `platform_contract` so the emulation still covers it.
 
 ### `test_coordinate_resolution.py` - Coordinate Input Resolution
 

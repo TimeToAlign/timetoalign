@@ -597,17 +597,23 @@ def _pairs_from_float_array(
             offender = float(values[overflowing][0])
             _pair_from_exact(Fraction(offender))
     shift = np.clip(wanted, 0, _MIRROR_DENOMINATOR_EXPONENT).astype(np.int64)
-    numerator = np.rint(np.ldexp(values, shift)).astype(np.int64)
-    denominator = (np.int64(1) << shift).astype(np.int64)
+    denominator = np.int64(1) << shift
 
-    # Reduce: the ratio is dyadic, so its only possible common factor is 2.
-    for _ in range(_MIRROR_DENOMINATOR_EXPONENT + 1):
-        reducible = (denominator > 1) & (numerator % 2 == 0)
-        if not reducible.any():
-            break
-        numerator = np.where(reducible, numerator // 2, numerator)
-        denominator = np.where(reducible, denominator // 2, denominator)
-    return numerator, denominator
+    # Scale by the denominator rather than by its exponent.  The denominator is
+    # a power of two, so multiplying by it is exact — the same guarantee an
+    # exponent-taking scale offers — and the exponent never crosses into a
+    # ufunc argument, where numpy would bind it to a C int and find no loop for
+    # it wherever that int is narrower than the value it carries.
+    numerator = np.rint(values * denominator.astype(np.float64)).astype(np.int64)
+
+    # Reduce: the ratio is dyadic, so its only common factor is a power of two
+    # — the numerator's lowest set bit, and never more than the denominator.
+    # A zero numerator has no lowest bit and reduces to 0/1.
+    lowest_set_bit = numerator & -numerator
+    common = np.where(
+        numerator == 0, denominator, np.minimum(lowest_set_bit, denominator)
+    )
+    return numerator // common, denominator // common
 
 
 def _as_object_list(values: Any) -> list[Any]:
