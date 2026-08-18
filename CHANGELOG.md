@@ -1,5 +1,60 @@
 # Changelog
 
+## [2.0.0](https://github.com/TimeToAlign/timetoalign/compare/v1.2.0...v2.0.0) (2026-08-18)
+
+
+### ⚠ BREAKING CHANGES
+
+* **retrieval:** `to_dataframe()` is removed from Timeline, TimelineGroup and AlignmentBundle in favour of `format="table"|"dataframe"` on the table getters; `get_timestamp_of`/`get_timestamps_of` are renamed to `_for`; the `coordinates=` keyword on every table getter is renamed to `at`, which now also accepts event keys; `as_fractions` is deleted because it let a caller override an axis's declared number type; `get_matchstamps` keeps only its claims path; and `Timeline.get_timestamp_table` no longer emits an `axis` column, which was byte-identical to the receiver's own column.
+* **retrieval:** raw-float stamp accessors, coordinate pair tuples, and the untyped WarpMap call surface are removed; retrieval defaults return IdCoordinate. Full suite: 4589 passed, 24 skipped.
+* **core:** TimelineGroup.get_timestamp_at and AlignmentBundle.get_matchstamp_at now express the axis in the addressed timeline's declared number type (a float query on a rational axis yields an exact fraction; an exact query on a float axis yields a float), and fractional queries on discrete axes round before interpolation.
+* **core:** query and derived coordinates on rational axes now surface as exact fractions rather than floats; get_timestamp(9.5) on a quarters timeline yields Fraction(19, 2).
+* **core:** RationalField, CoordinateParser and the public DISCRETE_UNITS constant are removed; storage/parsing.py and timelines/engines/coordinate_ops.py are gone. NumberType defaults are now derived from the unit rather than per-timeline/per-loader settings. to_int() defaults to "round" (was "truncate"). Stamp.axis carries the canonical numeric value instead of always-float. Scalar constructors coerce to the unit's representation, so Coordinate(1.5, quarters) now holds Fraction(3, 2); a non-integral exact fraction in a discrete unit raises instead of silently rounding.
+* **alignment:** `AlignmentBundle.add_timeline(aligned_to=...)` is now `AlignmentBundle.add_timeline(grouped_with=...)`. No alias is kept; existing call sites must be renamed.
+
+### Features
+
+* **core:** derive number representation from the unit, end to end ([ddf9832](https://github.com/TimeToAlign/timetoalign/commit/ddf9832002a2b8d92eb468c7d393d48cc5fbe463))
+* **ieee1599:** nest engraved editions as pages of accolades ([2078b9c](https://github.com/TimeToAlign/timetoalign/commit/2078b9ce83dc2c00395cb8c914ad776fdf737375))
+* **retrieval:** complete the retrieval grid across stamps and tables ([897e3d2](https://github.com/TimeToAlign/timetoalign/commit/897e3d26ade6609d957f4add217ee9c3fd68de55))
+* **retrieval:** typed coordinate retrieval with format vocabulary, Interval scalar, and typed stamp storage ([b9aebd2](https://github.com/TimeToAlign/timetoalign/commit/b9aebd21145cb6b07fed06f55e88b3a8e845d3a1))
+
+
+### Bug Fixes
+
+* **alignment:** render claim coordinates exactly, with their units ([0b85da4](https://github.com/TimeToAlign/timetoalign/commit/0b85da410bbfecbbcf6fc2089047929345339718))
+* **core:** build the dyadic mirror without a platform-bound exponent ([39d8e59](https://github.com/TimeToAlign/timetoalign/commit/39d8e598b177958fdcce5b87ee2dc486769044f1))
+* **core:** exact duration ingestion and uniform stamp-axis number types ([ecc4e31](https://github.com/TimeToAlign/timetoalign/commit/ecc4e31c01eb471c4162b2f5afda1fe2ca1c8a39))
+* **core:** express every derived value in its axis's declared number type ([8173232](https://github.com/TimeToAlign/timetoalign/commit/81732328be561fdd4b4baa239e4300d3549d5c26))
+* **core:** express retrieved readings on their declared axes and make stamp order deterministic ([a4f64e4](https://github.com/TimeToAlign/timetoalign/commit/a4f64e4da3dedcc96ec230f6ba590ce7d2182799))
+* **core:** keep exact rational coordinates exact through conversion and stamps ([ecfa12e](https://github.com/TimeToAlign/timetoalign/commit/ecfa12e4f5377904173347a3be3003cce64b5ef0))
+* **core:** stop reporting positions and pitches with more certainty than they carry ([c8272f7](https://github.com/TimeToAlign/timetoalign/commit/c8272f72652f0ac018e552d346c329db3735c9b8))
+* **display:** render nested children in the root's columns ([e6a5adc](https://github.com/TimeToAlign/timetoalign/commit/e6a5adc529287c6b276a0cc9d2ec424a5e5e57ac))
+* **loader:** keep audio metadata probing quiet on misnamed files ([1454024](https://github.com/TimeToAlign/timetoalign/commit/1454024511c96278c1f4ea513720f02eefaeba1b))
+* **timelines:** render discrete coordinates as integers in error messages ([c4ad085](https://github.com/TimeToAlign/timetoalign/commit/c4ad0855066bf9be39a16f5986730d97c934e8bd))
+
+
+### Documentation
+
+* migrate notebooks and site to the typed retrieval surface ([5bb8ec8](https://github.com/TimeToAlign/timetoalign/commit/5bb8ec87fcaf82292661f36ef2370d5bbfe4a9aa))
+* publish the loader walkthrough and fix its heading order ([6b0f428](https://github.com/TimeToAlign/timetoalign/commit/6b0f428506e1bdd3f124466eef7e229f4d97e970))
+* re-execute the notebooks whose output drifted ([29ed486](https://github.com/TimeToAlign/timetoalign/commit/29ed486945c97dfa6e4032f13e73794ec687b753))
+* **site:** compile the tutorial series into the published notebooks ([ecb0826](https://github.com/TimeToAlign/timetoalign/commit/ecb0826ce73fa95530e95a76e48866e80b65d833))
+* **site:** rebuild the published notebooks ([4926205](https://github.com/TimeToAlign/timetoalign/commit/4926205f37199916e0d37db9e99ea2d681d8bd5f))
+* **site:** rebuild the published notebooks after the consistency pass ([0042cfe](https://github.com/TimeToAlign/timetoalign/commit/0042cfe9d90d96bbcd1bc92c4421537f93eb8ecc))
+* **site:** rebuild the published notebooks after the final corrections ([07d7dba](https://github.com/TimeToAlign/timetoalign/commit/07d7dbadeb84191bc4b0ffe73fd044edc445f2ec))
+* **site:** rebuild the published notebooks with exact claim rendering ([192b43f](https://github.com/TimeToAlign/timetoalign/commit/192b43ffa29819cc733fbe8a48999f509e7bb795))
+* **tutorials:** close the last gaps between prose and rendered output ([b48d100](https://github.com/TimeToAlign/timetoalign/commit/b48d100ae5edf771ddecca81fba8cc3ab7d93820))
+* **tutorials:** make the ten notebooks read as one series ([dc7f5bd](https://github.com/TimeToAlign/timetoalign/commit/dc7f5bdb3c7b9da3552cc8f5001cce5bf64e205a))
+* **tutorials:** match every claim in the prose to what the page shows ([9a53baa](https://github.com/TimeToAlign/timetoalign/commit/9a53baa111d7d9c897f0232ada8a17cdf3fa438a))
+* **tutorials:** rebuild the tutorial series around a single learning curve ([ac37610](https://github.com/TimeToAlign/timetoalign/commit/ac37610208eb7af585ad02cec08e2fe0ce116c45))
+* **tutorials:** show what the library returns, and one idea per cell ([c2a3238](https://github.com/TimeToAlign/timetoalign/commit/c2a32380c6421654b3f2bb1e4a03aa626dd0386f))
+
+
+### Code Refactoring
+
+* **alignment:** name the bundle grouping parameter grouped_with ([fdcf269](https://github.com/TimeToAlign/timetoalign/commit/fdcf269c3aa097899cf606ba608ed5fe2f2d60a0))
+
 ## [1.2.0](https://github.com/TimeToAlign/timetoalign/compare/v1.1.0...v1.2.0) (2026-08-08)
 
 
