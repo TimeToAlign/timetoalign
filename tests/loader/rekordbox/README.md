@@ -151,29 +151,25 @@ instant is an interpolation anchor, including grid changes that occur mid-bar.
 
 ## (d) `tracks-to-mix.csv` ingestion and name resolution
 
-**Ground truth.** 96 data rows. The ``track`` column carries an ``"NN. "`` prefix
-(digits, dot, space) over the XML ``Name``.
+**Ground truth.** 96 data rows. The ``track`` column carries the source file's
+name stem — ``"NN. "`` prefix included (a number, an optional letter for split
+entries such as ``41a.``/``41b.``, a dot, a space) — which per (g) is exactly
+the collection timeline id.
 
-**Name resolution.** Strip the filename prefix with ``^\d+[a-z]?\.\s*`` (the
-letter suffix covers split entries such as ``19a.``/``19b.``/``41a.``), then
-resolve in three steps: (1) exact match against an XML collection ``Name``;
-(2) case-insensitive substring containment in either direction, guarded by a
-minimum needle length of 4 characters — without the guard the bare placeholder
-``ID`` mis-resolves inside ``Tunnel Vision - Junkie Kid Remix``; (3) the single
-curated equivalence ``Woops (Anderex Edit)`` → ``WOOPS EDIT (FREE DL)``, which
-closes a perfect 36 ↔ 36 bijection between mapped csv tracks and real mix
-tracks in the collection.
+**Name resolution.** A csv label resolves iff it **equals a timeline id** (the
+URL-decoded ``Location`` stem): plain string equality, no prefix stripping, no
+substring matching, no curated equivalences. Display-``Name`` matching is
+forbidden — labels such as ``02. Tonight (Samuel Moriero Remix)`` differ from
+their XML ``Name`` (``Habstrakt & Samplifire - Tonight (Samuel Moriero Remix)
+FREE DL``) and resolve only by file stem.
 
 **Expected — exactly which rows resolve.** Of the 96 rows, **90 resolve** and
 **6 do not**: the six ``ID``-placeholder rows (``04.``, ``06.``, ``16.``,
 ``17.``, ``36.``, ``41a.``), whose audio was unavailable at analysis time and
-which have no XML track. Unresolved rows are skipped. Of the 42 distinct csv
-track labels, 36 resolve; the collection's ``Vielleicht Vielleicht`` track is
-the one known mix track never referenced by the csv. Step (2) resolves
-``Tonight``, ``HUMBLE``, ``Rodeo``, ``HEROINE``, and ``Hard Beat`` (artist
-prefixes and label suffixes in the XML that the csv lacks); a resolver without
-the length guard must FAIL the six ``ID`` rows rather than mis-match them.
-A test must assert exactly this 90 / 6 split.
+which name no collection file. Unresolved rows are skipped. Of the 42 distinct
+csv labels, 36 resolve; ``41b. Vielleicht Vielleicht`` is the one
+``"NN. "``-prefixed source track never referenced by the csv. A test must
+assert exactly this 90 / 6 split.
 
 ---
 
@@ -310,4 +306,5 @@ axis, reached through the public retrieval surface (a ``Coordinate`` goes in, a
 no rounding ambiguity can hide an off-by-one. A track with **no** ``SampleRate``
 attribute states nothing about its resolution, and the loader must attach **no**
 samples axis — guessing a default sample rate would fabricate a fact the source
-does not carry.
+does not carry. All 46 specimen tracks carry a ``SampleRate`` (only ``44100``
+and ``48000`` occur), so the absence branch has synthetic coverage only.

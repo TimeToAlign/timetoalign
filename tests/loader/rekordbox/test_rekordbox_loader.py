@@ -121,6 +121,7 @@ def test_timeline_id_is_decoded_location_stem(tmp_path: Path) -> None:
 
     assert timeline.id == "02. Tonight (Remix)"
     assert timeline.name == "Habstrakt - Tonight FREE DL"
+    assert timeline.skeleton.id == "02. Tonight (Remix)/skeleton"
 
 
 def test_timeline_id_falls_back_to_name_without_location(tmp_path: Path) -> None:
@@ -129,6 +130,7 @@ def test_timeline_id_falls_back_to_name_without_location(tmp_path: Path) -> None
 
     assert timeline.id == "Display Only"
     assert timeline.name == "Display Only"
+    assert timeline.skeleton.id == "Display Only/skeleton"
     assert timeline.meta["Location"] is None
 
 
@@ -148,6 +150,7 @@ def test_sample_rate_affords_exact_seconds_to_samples_conversion(
     assert converted.timeline_id == "Sampled"
     assert converted.unit is TimeUnit.samples
     assert converted.number_type is NumberType.int
+    assert isinstance(converted.value, int)
     assert converted.value == 72000
 
 

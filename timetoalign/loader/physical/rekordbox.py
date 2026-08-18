@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from bisect import bisect_right
 from dataclasses import dataclass
 from fractions import Fraction
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import unquote, urlparse
 
@@ -185,11 +185,12 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
             track, downbeats, measure_map
         )
 
+        uid = cls._track_uid(track)
         timeline = ContinuousPhysicalTimeline(
             length=float(track.total_time),
             unit=TimeUnit.seconds,
             number_type=NumberType.float,
-            uid=cls._track_uid(track),
+            uid=uid,
             name=track.name,
             meta={
                 "TrackID": track.track_id,
@@ -211,7 +212,7 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         if track.sample_rate is not None:
             timeline.add_conversion_map(SecondsToSamples(sample_rate=track.sample_rate))
         hierarchy = SectionHierarchy.from_measures(measure_map)
-        TimeSkeleton(hierarchy, uid=f"{track.name}/skeleton").attach(timeline)
+        TimeSkeleton(hierarchy, uid=f"{uid}/skeleton").attach(timeline)
         return timeline
 
     @staticmethod
@@ -220,11 +221,13 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
 
         Collection artifacts cross-reference tracks by file name, while the
         XML ``Name`` is display metadata; a track without a ``Location``
-        falls back to that display name.
+        (or with one that decodes to an empty stem) falls back to that
+        display name. URL paths are POSIX regardless of platform.
         """
         if track.location is None:
             return track.name
-        return Path(unquote(urlparse(track.location).path)).stem
+        stem = PurePosixPath(unquote(urlparse(track.location).path)).stem
+        return stem or track.name
 
     @staticmethod
     def _downbeats(track: RekordboxTrack) -> list[tuple[Fraction, RekordboxTempo]]:
