@@ -37,9 +37,15 @@ website:
       - reference/LogicalTimeline.qmd
       - reference/PhysicalTimeline.qmd
       - reference/GraphicalTimeline.qmd
-      - reference/BeatGrid.qmd
       - reference/SegmentLine.qmd
       section: Timelines
+    - contents:
+      - reference/BeatGrid.qmd
+      - reference/BeatGridSegment.qmd
+      - reference/GridBeat.qmd
+      - reference/BeatPolicy.qmd
+      - reference/policy_for_metro.qmd
+      section: Beat Grids
     - contents:
       - reference/Flow.qmd
       - reference/FlowMap.qmd

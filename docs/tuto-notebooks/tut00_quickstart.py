@@ -243,10 +243,10 @@ flow_preview
 
 # %% [markdown]
 # The written position at two quarters appears at two and six quarters in the
-# played order. This cell previews only repeat unfolding; the next tutorial
-# introduces metrical grids separately. Open
+# played order. This cell previews only repeat unfolding; beat grids are a
+# separate subject. Open
 # [Flow and Grids](tut07_flow_and_grids.ipynb) to model complete playthroughs
-# and metrical queries.
+# and to ask where measures and beats fall in a recording.
 
 # %% [markdown]
 # ## The Data Model

@@ -37,7 +37,7 @@ complete alignment workflows.
 | `tut04_loading_data` | Loading Real Data | The two-phase loader contract, EventStores, timeline ids, and what a loader builds for you |
 | `tut05_timeline_groups` | Timeline Groups | Commensurability, interpolation between peers, group timestamps, and partial alignment |
 | `tut06_alignment_bundles` | Alignment Bundles and MatchClaims | Claims, claim types, MatchLines and WarpMaps, MatchStamps, and support policies |
-| `tut07_flow_and_grids` | Flow Control and Grids | Folded and unfolded time, FlowMaps, apply_flow, and metrical grids |
+| `tut07_flow_and_grids` | Flow Control and Grids | Folded and unfolded time, FlowMaps, apply_flow, and beat grids |
 | `tut08_data_model` | The Data Model | Why PyArrow, the three layers, raw and semantic fields, blueprints, and Parquet metadata |
 | `tut09_pitch_and_harmony` | Pitch and Harmony across Formats | What each format knows about a note, and why the library refuses to invent the rest |
 
@@ -55,7 +55,7 @@ the manuscript (not Chorissimo from Figure 5).
 | `how01_loading_data` | Loading Data | Format-agnostic ingestion with Loaders |
 | `how01_tabular_loaders` | Loading Tabular Data | CoordinateField, ComputedField |
 | `how01_graphical_timelines` | Graphical Timelines | TimeAxisPath, image timelines, pixel-to-time conversion |
-| `how01_beat_grids` | Building Beat Grids | BeatGrid, FloorMap, RotationMap |
+| `how01_beat_grids` | Building Beat Grids | BeatGrid, tempo segments, beat tables, annotation-tool export |
 | **`how01_thoresen_annotation_transfer`** | **Transferring Annotations Between Graphical Analyses** | **SegmentLine, ConstantMap, MatchClaim, y-coordinate transfer (manuscript Section 3.3)** |
 | **`how02_supra_piano_roll`** | **Aligning a Piano Roll (SUPRA)** | **IIIF images, ATON, MIDI, Audio, Score (manuscript Section 3.1)** |
 | `how03_create_note_alignment` | Creating a Note Alignment | MatchClaims, AlignmentBundle, MatchLines (manuscript Section 3.4 prerequisite) |

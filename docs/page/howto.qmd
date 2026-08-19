@@ -48,7 +48,8 @@ documentation:
 - [How to Transfer Annotations Between Graphical Analyses](howto/how01_thoresen_annotation_transfer.ipynb) ---
   SegmentLine, ConstantMap, MatchClaim.from_projection, y-coordinate transfer.
 - [How to Build Beat Grids](howto/how01_beat_grids.ipynb) ---
-  BeatGrid, FloorMap, RotationMap, and measure/beat queries.
+  BeatGrid, tempo segments, beat tables, measure/beat queries, and
+  annotation-tool export.
 
 ### TimelineGroups
 

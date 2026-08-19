@@ -206,9 +206,21 @@ quartodoc:
           package: timetoalign.timelines
         - name: GraphicalTimeline
           package: timetoalign.timelines
+        - name: SegmentLine
+          package: timetoalign.timelines
+
+    - title: Beat Grids
+      desc: Tempo segments that generate a labelled lattice of beats on a seconds axis.
+      contents:
         - name: BeatGrid
           package: timetoalign.timelines
-        - name: SegmentLine
+        - name: BeatGridSegment
+          package: timetoalign.timelines
+        - name: GridBeat
+          package: timetoalign.timelines
+        - name: BeatPolicy
+          package: timetoalign.core
+        - name: policy_for_metro
           package: timetoalign.timelines
 
     - title: Flow Control
