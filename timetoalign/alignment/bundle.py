@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any
@@ -29,6 +30,7 @@ from timetoalign.core import (
     CoordinateValue,
     IdCoordinate,
     IdGenerator,
+    Interval,
     SupportPolicy,
     TimeUnit,
     express_as,
@@ -45,12 +47,11 @@ from timetoalign.core.retrieval import (
     KeyCollection,
     Rounding,
     TableFormat,
+    collection_values,
     dispatch_retrieval,
     format_coordinates,
     is_coordinate_input,
-    is_key_input,
     reject_dataframe_options,
-    resolve_coordinate_collection,
     resolve_key_collection,
     validate_coordinate_collection,
     validate_key_collection,
@@ -1507,6 +1508,65 @@ class AlignmentBundle:
             )
         return claim.model_copy(update=updates)
 
+    def _interval_claim_candidate(
+        self,
+        claim: MatchClaim,
+        queried_timeline_id: str,
+        query: Coordinate,
+    ) -> tuple[str, Coordinate | None, bool]:
+        """Map one query through an interval claim onto its counterpart axis.
+
+        Exact endpoints are returned directly. Interior arithmetic stays in the
+        operands' numeric domain, then crosses the counterpart timeline's axis
+        boundary exactly once. A point on the queried side paired with a
+        nonzero counterpart interval has no single mapped coordinate.
+
+        Returns:
+            Counterpart public UID, mapped coordinate or ``None``, and whether
+            the query is one of the claim's stored anchors.
+        """
+        if not claim.is_interval or queried_timeline_id not in claim.timelines:
+            raise ValueError("Interval claim does not contain the queried timeline")
+        queried_interval = claim.get_interval_for(queried_timeline_id)
+        counterpart_id = (
+            claim.timeline_b_id
+            if queried_timeline_id == claim.timeline_a_id
+            else claim.timeline_a_id
+        )
+        counterpart_interval = claim.get_interval_for(counterpart_id)
+        query_value = query.value
+        queried_start = queried_interval.start.value
+        queried_end = queried_interval.end.value
+        counterpart_start = counterpart_interval.start.value
+        counterpart_end = counterpart_interval.end.value
+        is_anchor = query_value == queried_start or query_value == queried_end
+
+        public_id = self._timeline_id_to_uid.get(counterpart_id, counterpart_id)
+        if queried_start == queried_end:
+            if counterpart_start != counterpart_end:
+                return public_id, None, is_anchor
+            mapped = counterpart_start
+        elif query_value == queried_start:
+            mapped = counterpart_start
+        elif query_value == queried_end:
+            mapped = counterpart_end
+        else:
+            mapped = counterpart_start + (
+                (query_value - queried_start) / (queried_end - queried_start)
+            ) * (counterpart_end - counterpart_start)
+
+        timeline = self.get_timeline(public_id)
+        canonical = self._axis_on(mapped, public_id)
+        return (
+            public_id,
+            Coordinate(
+                canonical,
+                timeline.unit,
+                number_type=timeline.number_type,
+            ),
+            is_anchor,
+        )
+
     def _get_or_build_matchgraph(
         self,
         timeline_id: str,
@@ -1567,17 +1627,6 @@ class AlignmentBundle:
             source=self,
             source_id=timeline_id,
         )
-
-        # Interval claims add both their start- and end-anchor edges,
-        # which usually live on separate connected components. Restrict
-        # to the component containing the queried node so that
-        # ``get_matchstamp()`` returns a single, well-defined stamp.
-        components = mg.split_components()
-        target = (timeline_id, coordinate)
-        for component in components:
-            if target in component._graph.nodes():
-                mg = component
-                break
 
         # Cache keyed by ALL nodes in the graph
         for node in mg._graph.nodes():
@@ -1832,7 +1881,7 @@ class AlignmentBundle:
 
     def get_matchstamp_at(
         self,
-        at: CoordinateSpec,
+        at: CoordinateSpec | Interval,
         timeline_id: str | None = None,
         *,
         support_policy: "SupportPolicy | str | None" = None,
@@ -1842,19 +1891,20 @@ class AlignmentBundle:
         include_domains: set["Domain"] | None = None,
         include_units: set["TimeUnit"] | None = None,
     ) -> MatchStamp | MatchIntervalStamp:
-        """Get a cross-group match stamp at a coordinate on a timeline.
+        """Get a cross-group match stamp for a position on a timeline.
 
-        This is the primary interface for cross-domain coordinate transfer.
-        Given a coordinate on one timeline, returns coordinates on ALL
-        connected timelines across ALL groups.
+        Coordinate input is the primary interface for cross-domain coordinate
+        transfer and returns coordinates on every connected timeline. Interval
+        input resolves its endpoints through that same coordinate lane and
+        combines the two results.
 
-        The stamp is the **transitive cross-group union** reachable from the
-        query. Exact-anchor coordinates from the coordinate's MatchGraph are
-        overlaid first (exact wins over interpolated), then the assembly walks
-        outward across groups to closure: every reached timeline expands into
-        its own group (by interpolation) and warps into not-yet-reached groups
-        (by WarpMap). ``is_interpolated`` is ``False`` exactly when the query
-        node itself carries an explicit anchor.
+        A coordinate stamp is the **transitive cross-group union** reachable
+        from the query. Exact-anchor coordinates from the coordinate's
+        MatchGraph are overlaid first (exact wins over interpolated), then the
+        assembly walks outward across groups to closure: every reached timeline
+        expands into its own group (by interpolation) and warps into
+        not-yet-reached groups (by WarpMap). ``is_interpolated`` is ``False``
+        exactly when the query node itself carries an explicit anchor.
 
         A timeline whose transferred coordinate falls outside alignment
         support — the entering coordinate lies outside the transferring
@@ -1863,12 +1913,13 @@ class AlignmentBundle:
         ever yields a negative coordinate or one beyond a timeline's length.
 
         Args:
-            at: The query coordinate. Can be:
+            at: The query position. Can be:
 
                 - int/float/Fraction: Raw value, ``timeline_id`` required.
                 - Coordinate: Value with unit, ``timeline_id`` required.
                 - IdCoordinate: Value with unit AND timeline_id
                   (``timeline_id`` param optional).
+                - Interval: Two coordinate positions, ``timeline_id`` required.
             timeline_id: Bundle UID of the source timeline. Required unless
                 ``at`` is an ``IdCoordinate``, in which case the
                 coordinate's own ``timeline_id`` is used.
@@ -1886,13 +1937,12 @@ class AlignmentBundle:
             include_units: Only these units in the result.
 
         Returns:
-            A MatchIntervalStamp containing every directly relevant claim if
-            at least one interval claim contains the query; otherwise a
-            MatchStamp spanning all connected instant timelines.
+            A coordinate query returns a MatchStamp. An Interval query returns
+            a MatchIntervalStamp combining its independently resolved endpoint
+            MatchStamps.
 
         Raises:
-            TypeError: If ``at`` is not int/float/Fraction/Coordinate/
-                IdCoordinate.
+            TypeError: If ``at`` is not a supported coordinate or Interval.
             ValueError: If timeline_id is None and ``at`` is not an
                 IdCoordinate.
             KeyError: If timeline_id is not in the bundle.
@@ -1902,6 +1952,45 @@ class AlignmentBundle:
             >>> ms.n_timelines
             23  # score + 22 performers
         """
+        if isinstance(at, Interval):
+            if timeline_id is None:
+                raise ValueError(
+                    "timeline_id is required unless coordinate is an IdCoordinate"
+                )
+            start_stamp = self.get_matchstamp_at(
+                at.start,
+                timeline_id,
+                support_policy=support_policy,
+                conversion_maps=conversion_maps,
+                timeline_ids=timeline_ids,
+                id_pattern=id_pattern,
+                include_domains=include_domains,
+                include_units=include_units,
+            )
+            end_stamp = self.get_matchstamp_at(
+                at.end,
+                timeline_id,
+                support_policy=support_policy,
+                conversion_maps=conversion_maps,
+                timeline_ids=timeline_ids,
+                id_pattern=id_pattern,
+                include_domains=include_domains,
+                include_units=include_units,
+            )
+            assert type(start_stamp) is MatchStamp
+            assert type(end_stamp) is MatchStamp
+            source_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+            queried_interval = Interval(
+                start_stamp.coordinates[source_uid],
+                end_stamp.coordinates[source_uid],
+            )
+            return MatchIntervalStamp(
+                source_id=source_uid,
+                interval=queried_interval,
+                start_stamp=start_stamp,
+                end_stamp=end_stamp,
+            )
+
         coordinate_value, timeline_id, _unit = _resolve_coordinate_and_timeline(
             at, timeline_id
         )
@@ -1940,14 +2029,39 @@ class AlignmentBundle:
         queried = query_coordinate.value
 
         relevant_claims = self._relevant_claims_at(actual_timeline_id, query_coordinate)
-        if any(claim.is_interval for claim in relevant_claims):
-            return MatchIntervalStamp(
-                source_id=bundle_uid,
-                coordinate=query_coordinate,
-                claims=[
-                    self._claim_with_public_ids(claim) for claim in relevant_claims
-                ],
+        interval_claims = [claim for claim in relevant_claims if claim.is_interval]
+        candidate_groups: dict[
+            str, list[tuple[MatchClaim, Coordinate | None, bool]]
+        ] = {}
+        for claim in interval_claims:
+            target_id, candidate, is_anchor = self._interval_claim_candidate(
+                claim, actual_timeline_id, query_coordinate
             )
+            candidate_groups.setdefault(target_id, []).append(
+                (claim, candidate, is_anchor)
+            )
+
+        interval_coordinates: dict[str, CoordinateValue] = {}
+        interval_anchor_edges: list[tuple[str, str]] = []
+        interval_inferred_edges: list[tuple[str, str]] = []
+        for target_uid, candidates in candidate_groups.items():
+            values = [candidate for _, candidate, _ in candidates]
+            if any(candidate is None for candidate in values):
+                continue
+            unique: list[Coordinate] = []
+            for candidate in values:
+                assert candidate is not None
+                if candidate not in unique:
+                    unique.append(candidate)
+            if len(unique) != 1:
+                continue
+            target_id = self._uid_to_timeline_id.get(target_uid, target_uid)
+            interval_coordinates[target_id] = unique[0].value
+            edge = (actual_timeline_id, target_id)
+            if any(is_anchor for _, _, is_anchor in candidates):
+                interval_anchor_edges.append(edge)
+            else:
+                interval_inferred_edges.append(edge)
 
         policy = (
             self.support_policy
@@ -1961,6 +2075,17 @@ class AlignmentBundle:
                 actual_timeline_id,
                 support_policy=policy,
                 conversion_maps=conversion_maps,
+                interval_coordinates=interval_coordinates,
+                interval_anchor_edges=interval_anchor_edges,
+                interval_inferred_edges=interval_inferred_edges,
+                query_has_interval_anchor=any(
+                    query_coordinate.value
+                    in (
+                        claim.get_interval_for(actual_timeline_id).start.value,
+                        claim.get_interval_for(actual_timeline_id).end.value,
+                    )
+                    for claim in interval_claims
+                ),
             )
         )
 
@@ -2003,6 +2128,9 @@ class AlignmentBundle:
             source=self,
             is_interpolated=not query_has_anchor,
             conversion_maps=conversion_maps,
+            interval_claims=[
+                self._claim_with_public_ids(claim) for claim in interval_claims
+            ],
         )
 
         # Apply post-hoc filtering if requested
@@ -2058,6 +2186,9 @@ class AlignmentBundle:
                 source=stamp.source,
                 is_interpolated=stamp.is_interpolated,
                 conversion_maps=stamp.conversion_maps,
+                interval_claims=(
+                    stamp.interval_claims if stamp.source_id in filtered_coords else []
+                ),
             )
 
         return stamp
@@ -2071,7 +2202,7 @@ class AlignmentBundle:
 
     def get_matchstamps_at(
         self,
-        at: CoordinateCollection,
+        at: CoordinateCollection | Sequence[CoordinateInput | Interval],
         timeline_id: str | None = None,
         *,
         support_policy: "SupportPolicy | str | None" = None,
@@ -2081,16 +2212,17 @@ class AlignmentBundle:
         include_domains: set["Domain"] | None = None,
         include_units: set["TimeUnit"] | None = None,
     ) -> list[MatchStamp | MatchIntervalStamp]:
-        """Get cross-group MatchStamps at a collection of coordinates.
+        """Get cross-group MatchStamps at a collection of positions.
 
         Every element is resolved through :meth:`get_matchstamp_at`, so each
         one yields exactly one full transitive cross-section, and input order
         is preserved.
 
         Args:
-            at: Coordinate positions to resolve. Each element is a raw
+            at: Coordinate or Interval positions to resolve. Each element is a raw
                 ``int``/``float``/``Fraction`` or ``Coordinate`` (needing
-                ``timeline_id``) or an ``IdCoordinate`` (carrying its own).
+                ``timeline_id``), an ``IdCoordinate`` (carrying its own), or an
+                ``Interval`` (needing ``timeline_id``).
             timeline_id: Bundle UID of the source timeline.
             support_policy: How to treat out-of-support timelines.
             conversion_maps: C-map conversions available through the stamps.
@@ -2100,17 +2232,23 @@ class AlignmentBundle:
             include_units: Only these units in each result.
 
         Returns:
-            One match stamp per input coordinate; interval results pass
-            through unchanged. An empty collection gives an empty list.
+            One stamp per input position. Coordinate elements produce
+            MatchStamps and Interval elements produce MatchIntervalStamps.
 
         Examples:
             >>> stamps = bundle.get_matchstamps_at([0.0, 50.0], "score:clt1")
             >>> stamps[1].get_coordinate_for("score:clt1", format="float")
             50.0
         """
-        stamps, _ = resolve_coordinate_collection(
-            at,
-            lambda value: self.get_matchstamp_at(
+        values, _ = collection_values(at)
+        for position, value in enumerate(values):
+            if not is_coordinate_input(value) and not isinstance(value, Interval):
+                raise TypeError(
+                    f"Matchstamp collection element {position} has unsupported "
+                    f"type {type(value).__name__}"
+                )
+        return [
+            self.get_matchstamp_at(
                 value,
                 timeline_id,
                 support_policy=support_policy,
@@ -2119,9 +2257,9 @@ class AlignmentBundle:
                 id_pattern=id_pattern,
                 include_domains=include_domains,
                 include_units=include_units,
-            ),
-        )
-        return stamps
+            )
+            for value in values
+        ]
 
     def get_matchstamp_for(
         self,
@@ -2134,7 +2272,7 @@ class AlignmentBundle:
         id_pattern: str | None = None,
         include_domains: set["Domain"] | None = None,
         include_units: set["TimeUnit"] | None = None,
-    ) -> MatchStamp | MatchIntervalStamp:
+    ) -> MatchStamp:
         """Get the cross-group MatchStamp at a uniquely owned event.
 
         Args:
@@ -2191,7 +2329,7 @@ class AlignmentBundle:
         id_pattern: str | None = None,
         include_domains: set["Domain"] | None = None,
         include_units: set["TimeUnit"] | None = None,
-    ) -> list[MatchStamp | MatchIntervalStamp]:
+    ) -> list[MatchStamp]:
         """Get cross-group MatchStamps for a collection of event IDs.
 
         Args:
@@ -2230,7 +2368,14 @@ class AlignmentBundle:
 
     def get_matchstamp(
         self,
-        at: CoordinateInput | CoordinateCollection | str | KeyCollection,
+        at: (
+            CoordinateInput
+            | Interval
+            | CoordinateCollection
+            | Sequence[CoordinateInput | Interval]
+            | str
+            | KeyCollection
+        ),
         timeline_id: str | None = None,
         *,
         support_policy: "SupportPolicy | str | None" = None,
@@ -2243,7 +2388,7 @@ class AlignmentBundle:
         """Dispatch a positional or event-key match-stamp query.
 
         Args:
-            at: Scalar or plural coordinate position or event key.
+            at: Scalar or plural coordinate or Interval position, or event key.
             timeline_id: Bundle UID the query is expressed on.
             support_policy: How to treat out-of-support timelines.
             conversion_maps: C-map conversions available through the stamps.
@@ -2256,21 +2401,32 @@ class AlignmentBundle:
             The selected precise-getter result.
 
         Raises:
-            TypeError: If ``at`` mixes keys and coordinates or is an
+            TypeError: If ``at`` mixes keys with position forms or is an
                 unsupported runtime form.
         """
-        return dispatch_retrieval(
-            self,
-            "get_matchstamp",
-            "get_matchstamps",
-            at,
-            timeline_id,
-            support_policy=support_policy,
-            conversion_maps=conversion_maps,
-            timeline_ids=timeline_ids,
-            id_pattern=id_pattern,
-            include_domains=include_domains,
-            include_units=include_units,
+        options = {
+            "support_policy": support_policy,
+            "conversion_maps": conversion_maps,
+            "timeline_ids": timeline_ids,
+            "id_pattern": id_pattern,
+            "include_domains": include_domains,
+            "include_units": include_units,
+        }
+        if isinstance(at, str):
+            return self.get_matchstamp_for(at, timeline_id, **options)
+        if is_coordinate_input(at) or isinstance(at, Interval):
+            return self.get_matchstamp_at(at, timeline_id, **options)
+        values, _ = collection_values(at)
+        if all(isinstance(value, str) for value in values):
+            return self.get_matchstamps_for(values, timeline_id, **options)
+        if all(
+            is_coordinate_input(value) or isinstance(value, Interval)
+            for value in values
+        ):
+            return self.get_matchstamps_at(values, timeline_id, **options)
+        raise TypeError(
+            "Matchstamp dispatcher collections must contain only string keys or "
+            "coordinate and Interval positions"
         )
 
     def _assemble_matchstamp(
@@ -2280,6 +2436,10 @@ class AlignmentBundle:
         *,
         support_policy: SupportPolicy,
         conversion_maps: "ConversionMapsSpec",
+        interval_coordinates: dict[str, CoordinateValue] | None = None,
+        interval_anchor_edges: list[tuple[str, str]] | None = None,
+        interval_inferred_edges: list[tuple[str, str]] | None = None,
+        query_has_interval_anchor: bool = False,
     ) -> tuple[
         dict[str, CoordinateValue],
         list[tuple[str, str]],
@@ -2300,6 +2460,11 @@ class AlignmentBundle:
             actual_timeline_id: Actual timeline id of the query.
             support_policy: How out-of-support transfers are handled.
             conversion_maps: C-map spec forwarded to group timestamps.
+            interval_coordinates: Unambiguous interval-derived seed values.
+            interval_anchor_edges: Interval-claim edges reached at an anchor.
+            interval_inferred_edges: Interval-claim edges reached in an interior.
+            query_has_interval_anchor: Whether an interval claim explicitly
+                anchors the query position.
 
         Returns:
             ``(coordinates, anchor_edges, inferred_edges, query_has_anchor)``.
@@ -2333,17 +2498,25 @@ class AlignmentBundle:
                 raise
             mg = None
 
-        query_has_anchor = mg is not None
+        query_has_anchor = mg is not None or query_has_interval_anchor
         if query_has_anchor:
-            graph_stamp = mg.get_matchstamp()
-            coordinates.update(
-                {
-                    timeline_id: stored.value
-                    for timeline_id, stored in graph_stamp.coordinates.items()
-                }
-            )
-            anchor_edges.extend(graph_stamp.anchor_edges)
-            inferred_edges.extend(graph_stamp.inferred_edges)
+            if mg is not None:
+                graph_stamp = mg.get_matchstamp()
+                coordinates.update(
+                    {
+                        timeline_id: stored.value
+                        for timeline_id, stored in graph_stamp.coordinates.items()
+                    }
+                )
+                anchor_edges.extend(graph_stamp.anchor_edges)
+                inferred_edges.extend(graph_stamp.inferred_edges)
+        for timeline_id, value in (interval_coordinates or {}).items():
+            coordinates.setdefault(timeline_id, value)
+        for edge in interval_anchor_edges or []:
+            if edge not in anchor_edges and edge[::-1] not in anchor_edges:
+                anchor_edges.append(edge)
+        for edge in interval_inferred_edges or []:
+            add_inferred_edge(*edge)
         # The query timeline's coordinate is authoritative and never altered.
         coordinates[actual_timeline_id] = coordinate
 
@@ -2499,7 +2672,15 @@ class AlignmentBundle:
 
     def get_matchstamp_table(
         self,
-        at: CoordinateInput | CoordinateCollection | str | KeyCollection | None = None,
+        at: (
+            CoordinateInput
+            | Interval
+            | CoordinateCollection
+            | Sequence[CoordinateInput | Interval]
+            | str
+            | KeyCollection
+            | None
+        ) = None,
         timeline_id: str | None = None,
         *,
         claims: list[MatchClaim] | None = None,
@@ -2541,7 +2722,9 @@ class AlignmentBundle:
                 :meth:`get_matchstamp_at`, one row each in input order. Each
                 element is a raw ``int``/``float``/``Fraction`` or
                 ``Coordinate`` (needing ``timeline_id``) or an ``IdCoordinate``
-                (carrying its own timeline). Mutually exclusive with ``claims``.
+                (carrying its own timeline). An ``Interval`` also needs
+                ``timeline_id`` and has no table form. Mutually exclusive with
+                ``claims``.
             timeline_id: Source timeline for the ``at`` batch; may be
                 ``None`` when every element is an ``IdCoordinate`` or an event
                 ID. Ignored on the ``claims`` path.
@@ -2597,24 +2780,26 @@ class AlignmentBundle:
         if at is not None:
             if claims is not None:
                 raise ValueError("Pass either claims or at, not both")
-            stamps = (
-                self.get_matchstamps_for(
-                    [at] if isinstance(at, str) else at,
-                    timeline_id,
-                    conversion_maps=conversion_maps,
-                )
-                if is_key_input(at)
-                else self.get_matchstamps_at(
-                    [at] if is_coordinate_input(at) else at,
-                    timeline_id,
-                    conversion_maps=conversion_maps,
-                )
+            resolved = self.get_matchstamp(
+                at,
+                timeline_id,
+                conversion_maps=conversion_maps,
             )
+            stamps = resolved if isinstance(resolved, list) else [resolved]
             if any(isinstance(stamp, MatchIntervalStamp) for stamp in stamps):
                 raise NotImplementedError(
-                    "get_matchstamp_table does not support positions whose hits "
-                    "include interval claims"
+                    "get_matchstamp_table does not support Interval queries; "
+                    "there is no interval table form"
                 )
+            for stamp in stamps:
+                assert isinstance(stamp, MatchStamp)
+                ambiguous = stamp._ambiguous_interval_candidates()
+                if ambiguous:
+                    raise ValueError(
+                        "get_matchstamp_table cannot materialize ambiguous "
+                        "interval-derived coordinates for timelines "
+                        f"{list(ambiguous)}"
+                    )
             rows = [dict(stamp.coordinates) for stamp in stamps]
             all_tl_ids: set[str] = set()
             for row in rows:

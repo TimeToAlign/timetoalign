@@ -3,7 +3,7 @@
 This module implements the mid-level graph structure for alignment:
 
 - MatchStamp: Cross-group timestamp at a single coordinate
-- MatchIntervalStamp: Per-claim matches relevant at a queried coordinate
+- MatchIntervalStamp: Combined endpoint resolutions for an interval query
 - MatchGraph: Graph of MatchClaims yielding MatchStamps
 
 The hierarchy is:
@@ -43,14 +43,16 @@ from timetoalign.core.retrieval import (
     CoordinateFormat,
     CoordinateInput,
     CoordinateResult,
+    KeyCollection,
     Rounding,
     coordinate_wire_entry,
     dispatch_retrieval,
     format_coordinates,
     number_type_for_converted_unit,
     validate_coordinate_collection,
+    validate_key_collection,
 )
-from timetoalign.core.time import Coordinate, CoordinateValue, IdCoordinate
+from timetoalign.core.time import Coordinate, CoordinateValue, IdCoordinate, Interval
 from timetoalign.core.timestamp import (
     ConversionMapsSpec,
     Stamp,
@@ -114,6 +116,7 @@ class MatchStamp(Stamp):
     source: "AlignmentBundle | None" = None
     is_interpolated: bool = False
     conversion_maps: ConversionMapsSpec = False
+    interval_claims: list[MatchClaim] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Isolate mutable containers from callers and serialized data."""
@@ -142,6 +145,114 @@ class MatchStamp(Stamp):
         )
         object.__setattr__(
             self, "inferred_edges", [tuple(edge) for edge in self.inferred_edges]
+        )
+        normalized_claims: list[MatchClaim] = []
+        for claim in self.interval_claims:
+            if not isinstance(claim, MatchClaim) or not claim.is_interval:
+                raise TypeError(
+                    "MatchStamp interval_claims must contain interval MatchClaim values"
+                )
+            normalized_claims.append(claim.model_copy(deep=True))
+        object.__setattr__(self, "interval_claims", normalized_claims)
+
+    def _interval_candidate_rows(
+        self,
+    ) -> list[tuple[MatchClaim, str, Coordinate | None]]:
+        """Return every interval claim's mapped counterpart candidate."""
+        if not self.interval_claims or self.source is None:
+            return []
+        query = self.coordinates[self.source_id]
+        rows: list[tuple[MatchClaim, str, Coordinate | None]] = []
+        for claim in self.interval_claims:
+            target_id, coordinate, _ = self.source._interval_claim_candidate(
+                claim, self.source_id, query
+            )
+            rows.append((claim, target_id, coordinate))
+        return rows
+
+    def _ambiguous_interval_candidates(
+        self,
+    ) -> dict[str, list[tuple[MatchClaim, Coordinate | None]]]:
+        """Return per-timeline candidates that do not define one coordinate."""
+        grouped: dict[str, list[tuple[MatchClaim, Coordinate | None]]] = {}
+        for claim, timeline_id, coordinate in self._interval_candidate_rows():
+            grouped.setdefault(timeline_id, []).append((claim, coordinate))
+        ambiguous: dict[str, list[tuple[MatchClaim, Coordinate | None]]] = {}
+        for timeline_id, candidates in grouped.items():
+            values = [coordinate for _, coordinate in candidates]
+            if any(coordinate is None for coordinate in values):
+                ambiguous[timeline_id] = candidates
+                continue
+            unique = []
+            for coordinate in values:
+                if coordinate not in unique:
+                    unique.append(coordinate)
+            if len(unique) != 1:
+                ambiguous[timeline_id] = candidates
+        return ambiguous
+
+    @staticmethod
+    def _claim_candidate_text(
+        index: int,
+        claim: MatchClaim,
+        timeline_id: str,
+        coordinate: Coordinate | None,
+    ) -> str:
+        """Format one claim candidate for display and diagnostics."""
+        value = (
+            "MISSING (no single coordinate)"
+            if coordinate is None
+            else _format_stamp_value(coordinate.value, coordinate.unit.value)
+        )
+        return (
+            f"claim {index} {claim.timeline_a_id}<->{claim.timeline_b_id}: "
+            f"{timeline_id}={value}"
+        )
+
+    def get_coordinate_for(
+        self,
+        timeline_id: str,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> CoordinateResult | pd.Series:
+        """Return one coordinate, rejecting per-claim ambiguity atomically."""
+        if timeline_id not in self.coordinates:
+            candidates = self._ambiguous_interval_candidates().get(timeline_id)
+            if candidates:
+                details = "; ".join(
+                    self._claim_candidate_text(index, claim, timeline_id, coordinate)
+                    for index, (claim, coordinate) in enumerate(candidates, 1)
+                )
+                raise ValueError(
+                    f"Timeline {timeline_id!r} has multiple interval-claim "
+                    f"candidates: {details}"
+                )
+        return super().get_coordinate_for(timeline_id, format=format, rounding=rounding)
+
+    def get_coordinates_for(
+        self,
+        timeline_ids: KeyCollection,
+        *,
+        format: CoordinateFormat = "id_coordinate",
+        rounding: Rounding = "round",
+    ) -> list[CoordinateResult] | pd.Series:
+        """Return coordinates after validating every requested timeline."""
+        keys, _ = validate_key_collection(timeline_ids)
+        ambiguous = self._ambiguous_interval_candidates()
+        for timeline_id in keys:
+            candidates = ambiguous.get(timeline_id)
+            if candidates:
+                details = "; ".join(
+                    self._claim_candidate_text(index, claim, timeline_id, coordinate)
+                    for index, (claim, coordinate) in enumerate(candidates, 1)
+                )
+                raise ValueError(
+                    f"Timeline {timeline_id!r} has multiple interval-claim "
+                    f"candidates: {details}"
+                )
+        return super().get_coordinates_for(
+            timeline_ids, format=format, rounding=rounding
         )
 
     @property
@@ -338,6 +449,9 @@ class MatchStamp(Stamp):
             source=self.source,
             is_interpolated=self.is_interpolated,
             conversion_maps=self.conversion_maps,
+            interval_claims=(
+                self.interval_claims if self.source_id in filtered_coords else []
+            ),
         )
 
     def to_dict(
@@ -498,12 +612,18 @@ class MatchStamp(Stamp):
         )
 
     def __repr__(self) -> str:
-        tl_list = ", ".join(
+        entries = [
             f"{timeline_id}="
             f"{_format_stamp_value(coordinate.value, coordinate.unit.value)}"
             for timeline_id, coordinate in self.coordinates.items()
+        ]
+        entries.extend(
+            self._claim_candidate_text(index, claim, timeline_id, coordinate)
+            for index, (claim, timeline_id, coordinate) in enumerate(
+                self._interval_candidate_rows(), 1
+            )
         )
-        return f"MatchStamp({tl_list})"
+        return f"MatchStamp({', '.join(entries)})"
 
     def __str__(self) -> str:
         """Readable cross-section showing all coordinates.
@@ -552,6 +672,23 @@ class MatchStamp(Stamp):
 
         for label, value, suffix in self._conversion_rows():
             entries.append((label, _format_stamp_value(value, suffix), ""))
+
+        for index, (claim, timeline_id, coordinate) in enumerate(
+            self._interval_candidate_rows(), 1
+        ):
+            entries.append(
+                (
+                    f"{claim.timeline_a_id}<->{claim.timeline_b_id}",
+                    (
+                        "MISSING"
+                        if coordinate is None
+                        else _format_stamp_value(
+                            coordinate.value, coordinate.unit.value
+                        )
+                    ),
+                    f"interval claim {index} ({timeline_id})",
+                )
+            )
 
         if entries:
             max_id = max(len(e[0]) for e in entries)
@@ -621,6 +758,22 @@ class MatchStamp(Stamp):
                 f"<td style='color: #666;'><em>cmap</em></td></tr>"
             )
 
+        for index, (claim, timeline_id, coordinate) in enumerate(
+            self._interval_candidate_rows(), 1
+        ):
+            label = html_mod.escape(f"{claim.timeline_a_id}<->{claim.timeline_b_id}")
+            value = (
+                "MISSING"
+                if coordinate is None
+                else _format_stamp_value(coordinate.value, coordinate.unit.value)
+            )
+            rows.append(
+                f"<tr><td style='color: #666;'>{label}</td>"
+                f"<td style='text-align: right;'>{html_mod.escape(value)}</td>"
+                f"<td style='color: #666;'><em>interval claim {index} "
+                f"({html_mod.escape(timeline_id)})</em></td></tr>"
+            )
+
         badge = (
             f" <span style='background: #e3f2fd; padding: 0 4px; "
             f"border-radius: 3px; font-size: 0.8em;'>"
@@ -657,124 +810,172 @@ class MatchStamp(Stamp):
 
 @dataclass(frozen=True, slots=True)
 class MatchIntervalStamp:
-    """Relevant match claims at one position on a timeline.
-
-    Each stored claim remains an independent entry. Interval sides are read
-    from that claim's anchors, so overlapping or repeated timeline mappings
-    are never collapsed into a per-timeline value.
-
-    Args:
-        source_id: Timeline identity used for the query.
-        coordinate: Canonical query coordinate on the source timeline.
-        claims: Relevant synchronous claims in first-relevance order.
-    """
+    """Two coordinate match stamps combined for an interval query."""
 
     source_id: str
-    coordinate: Coordinate
-    claims: list[MatchClaim]
+    interval: Interval
+    start_stamp: MatchStamp
+    end_stamp: MatchStamp
 
     def __post_init__(self) -> None:
-        """Validate and isolate canonical typed storage."""
+        """Validate the queried interval and endpoint resolutions."""
         if not isinstance(self.source_id, str) or not self.source_id:
             raise ValueError(
                 "MatchIntervalStamp source_id must be a non-empty timeline ID"
             )
-        if type(self.coordinate) is not Coordinate:
-            raise TypeError(
-                "MatchIntervalStamp coordinate must be a plain Coordinate value"
-            )
-        normalized_coordinate = Coordinate(
-            self.coordinate.value,
-            self.coordinate.unit,
-            number_type=self.coordinate.number_type,
+        if type(self.interval) is not Interval:
+            raise TypeError("MatchIntervalStamp interval must be an Interval")
+        if (
+            type(self.start_stamp) is not MatchStamp
+            or type(self.end_stamp) is not MatchStamp
+        ):
+            raise TypeError("MatchIntervalStamp endpoints must be MatchStamp values")
+        if self.source_id not in self.start_stamp.coordinates:
+            raise ValueError("MatchIntervalStamp start does not contain its source")
+        if self.source_id not in self.end_stamp.coordinates:
+            raise ValueError("MatchIntervalStamp end does not contain its source")
+        canonical = Interval(
+            self.interval.start,
+            self.interval.end,
         )
-        normalized_claims: list[MatchClaim] = []
-        for claim in self.claims:
-            if not isinstance(claim, MatchClaim):
-                raise TypeError(
-                    "MatchIntervalStamp claims must contain MatchClaim values"
-                )
-            if not claim.is_synchronous or claim.start_anchor is None:
-                raise ValueError(
-                    "MatchIntervalStamp claims must be synchronous and anchored"
-                )
-            normalized_claims.append(claim.model_copy(deep=True))
-        if not normalized_claims:
-            raise ValueError("MatchIntervalStamp requires at least one claim")
-        object.__setattr__(self, "coordinate", normalized_coordinate)
-        object.__setattr__(self, "claims", normalized_claims)
+        object.__setattr__(self, "interval", canonical)
 
     def __repr__(self) -> str:
-        """List every claim's asserted pair of sides."""
-
-        def _side(claim: MatchClaim, timeline_id: str) -> str:
-            if claim.is_interval:
-                interval = claim.get_interval_for(timeline_id)
-                start = _format_stamp_value(
-                    interval.start.value, interval.start.unit.value
-                )
-                end = _format_stamp_value(interval.end.value, interval.end.unit.value)
-                return f"{timeline_id}=[{start}, {end}]"
-            coordinate = claim.start_anchor.get_coordinate_for(
-                timeline_id, format="coordinate"
-            )
-            assert isinstance(coordinate, Coordinate)
-            value = _format_stamp_value(coordinate.value, coordinate.unit.value)
-            return f"{timeline_id}={value}"
-
+        """Render one resolved endpoint pair per present timeline."""
         entries = "; ".join(
-            f"{_side(claim, claim.timeline_a_id)} <-> "
-            f"{_side(claim, claim.timeline_b_id)}"
-            for claim in self.claims
+            f"{timeline_id}={self._pair_text(timeline_id)}"
+            for timeline_id in self.present_timelines
         )
-        query = _format_stamp_value(self.coordinate.value, self.coordinate.unit.value)
-        return f"MatchIntervalStamp({self.source_id}={query}; {entries})"
+        return f"MatchIntervalStamp({entries})"
+
+    def __str__(self) -> str:
+        """Render a readable table of resolved endpoint pairs."""
+        lines = [f"MatchIntervalStamp ({len(self.present_timelines)} timelines)"]
+        entries = [
+            (timeline_id, self._pair_text(timeline_id))
+            for timeline_id in self.present_timelines
+        ]
+        max_id = max(len(timeline_id) for timeline_id, _ in entries)
+        for timeline_id, pair in entries:
+            lines.append(f"  {timeline_id:<{max_id}}  {pair}")
+        return "\n".join(lines)
 
     @property
-    def axis(self) -> Coordinate:
-        """Return the canonical query coordinate."""
-        return self.coordinate
+    def axis(self) -> Interval:
+        """Return the canonical queried interval."""
+        return self.interval
+
+    @property
+    def start(self) -> MatchStamp:
+        """Return the full start-endpoint resolution."""
+        return self.start_stamp
+
+    @property
+    def end(self) -> MatchStamp:
+        """Return the full end-endpoint resolution."""
+        return self.end_stamp
 
     @property
     def present_timelines(self) -> list[str]:
-        """Return timeline IDs in deterministic first-appearance order."""
+        """Return source-first endpoint timeline order."""
         ordered = [self.source_id]
-        for claim in self.claims:
-            for timeline_id in claim.timelines:
-                if timeline_id not in ordered:
-                    ordered.append(timeline_id)
+        ordered.extend(
+            timeline_id
+            for timeline_id in self.start_stamp.present_timelines
+            if timeline_id not in ordered
+        )
+        ordered.extend(
+            timeline_id
+            for timeline_id in self.end_stamp.present_timelines
+            if timeline_id not in ordered
+        )
         return ordered
 
-    def to_dict(self) -> dict[str, Any]:
-        """Serialize query and claim sides with typed coordinate leaves."""
-        entries: list[dict[str, Any]] = []
-        for claim in self.claims:
-            entry: dict[str, Any] = {
-                "timeline_a_id": claim.timeline_a_id,
-                "timeline_b_id": claim.timeline_b_id,
+    def _pair_text(self, timeline_id: str) -> str:
+        """Format one timeline's two resolved sides."""
+        start = self.start_stamp.coordinates.get(timeline_id)
+        end = self.end_stamp.coordinates.get(timeline_id)
+        start_text = (
+            "MISSING"
+            if start is None
+            else _format_stamp_value(start.value, start.unit.value)
+        )
+        end_text = (
+            "MISSING" if end is None else _format_stamp_value(end.value, end.unit.value)
+        )
+        return f"[{start_text}, {end_text}]"
+
+    def get_interval_for(self, timeline_id: str) -> Interval:
+        """Return one complete, ordered resolved interval."""
+        if timeline_id not in self.present_timelines:
+            raise KeyError(
+                f"Unknown timeline ID {timeline_id!r} on MatchIntervalStamp. "
+                f"Available timelines: {self.present_timelines}"
+            )
+        start = self.start_stamp.coordinates.get(timeline_id)
+        end = self.end_stamp.coordinates.get(timeline_id)
+        if start is None:
+            raise ValueError(f"Timeline {timeline_id!r} has a missing start endpoint")
+        if end is None:
+            raise ValueError(f"Timeline {timeline_id!r} has a missing end endpoint")
+        if start.value > end.value:
+            raise ValueError(
+                f"Timeline {timeline_id!r} has reversed endpoints: "
+                f"start {start.value!r} exceeds end {end.value!r}"
+            )
+        return Interval(start, end)
+
+    def to_dict(self) -> dict[str, dict[str, Any | None]]:
+        """Serialize endpoint coverage with typed leaves and null missing sides."""
+        result: dict[str, dict[str, Any | None]] = {}
+        for timeline_id in self.present_timelines:
+            start = self.start_stamp.coordinates.get(timeline_id)
+            end = self.end_stamp.coordinates.get(timeline_id)
+            result[timeline_id] = {
+                "start": None if start is None else coordinate_wire_entry(start),
+                "end": None if end is None else coordinate_wire_entry(end),
             }
-            for side, timeline_id in (
-                ("timeline_a", claim.timeline_a_id),
-                ("timeline_b", claim.timeline_b_id),
-            ):
-                if claim.is_interval:
-                    interval = claim.get_interval_for(timeline_id)
-                    entry[side] = {
-                        "start": coordinate_wire_entry(interval.start),
-                        "end": coordinate_wire_entry(interval.end),
-                    }
-                else:
-                    coordinate = claim.start_anchor.get_coordinate_for(
-                        timeline_id, format="coordinate"
-                    )
-                    assert isinstance(coordinate, Coordinate)
-                    entry[side] = coordinate_wire_entry(coordinate)
-            entries.append(entry)
-        return {
-            "source_id": self.source_id,
-            "coordinate": coordinate_wire_entry(self.coordinate),
-            "claims": entries,
-        }
+        return result
+
+    def _repr_html_(self) -> str:
+        """Return an HTML table of resolved endpoint pairs."""
+        import html as html_mod
+
+        rows = []
+        for timeline_id in self.present_timelines:
+            start = self.start_stamp.coordinates.get(timeline_id)
+            end = self.end_stamp.coordinates.get(timeline_id)
+            start_text = (
+                "MISSING"
+                if start is None
+                else _format_stamp_value(start.value, start.unit.value)
+            )
+            end_text = (
+                "MISSING"
+                if end is None
+                else _format_stamp_value(end.value, end.unit.value)
+            )
+            rows.append(
+                f"<tr><td>{html_mod.escape(timeline_id)}</td>"
+                f"<td style='text-align: right;'>{html_mod.escape(start_text)}</td>"
+                f"<td style='text-align: right;'>{html_mod.escape(end_text)}</td>"
+                f"</tr>"
+            )
+        badge = (
+            f" <span style='background: #e3f2fd; padding: 0 4px; "
+            f"border-radius: 3px; font-size: 0.8em;'>"
+            f"{len(self.present_timelines)} timelines</span>"
+        )
+        return (
+            f"<div style='font-family: monospace;'>"
+            f"<strong>MatchIntervalStamp</strong>{badge}"
+            f"<table style='border-collapse: collapse; margin-top: 4px;'>"
+            f"<thead><tr style='border-bottom: 1px solid #ccc;'>"
+            f"<th style='text-align: left; padding: 2px 8px;'>ID</th>"
+            f"<th style='text-align: right; padding: 2px 8px;'>Start</th>"
+            f"<th style='text-align: right; padding: 2px 8px;'>End</th>"
+            f"</tr></thead><tbody>{''.join(rows)}</tbody></table></div>"
+        )
 
 
 # endregion

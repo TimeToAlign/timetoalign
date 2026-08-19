@@ -196,37 +196,56 @@ needs at least two anchors), which keeps the out-of-support counts exact.
 
 ### What We're Validating
 
-Position retrieval treats a synchronous interval claim as relevant throughout
-both of its asserted closed intervals, while preserving every relevant claim as
-an independent result entry. Synthetic standalone timelines isolate claim
-geometry from group interpolation and corpus data.
+The runtime form of the query determines the stamp form. A coordinate query
+always produces a `MatchStamp`; every relevant interval claim maps that position
+affinely from the queried side to the counterpart side. An `Interval` query
+always produces a `MatchIntervalStamp` by resolving its start and end as two full
+coordinate stamps and combining their timeline coverage. Synthetic standalone
+timelines isolate claim geometry from group interpolation and corpus data.
 
 The validation covers these exact geometries:
 
-- A strict interior position selects one interval claim and reproduces both
-  asserted native-unit intervals exactly.
-- Each endpoint selects the interval because containment is closed.
-- Overlapping claims to different counterpart timelines remain separate and
-  retain claim insertion order; two claims to the same counterpart likewise
-  remain two entries rather than collapsing by timeline.
-- Adjacent claims sharing a source endpoint both select at that endpoint.
-- An instant claim and an interval claim at one source position are returned as
-  two entries, with the instant retaining its asserted coordinate pair.
-- Two instant claims forming `A -> B -> C` resolve all three standalone
-  timelines, proving direct claim edges provide transitive reachability without
-  group membership.
+- Closed containment selects an interval claim at both anchors and throughout
+  its interior. Anchor queries map to the stored counterpart anchors and are not
+  interpolated; interior queries map proportionally and are interpolated.
+- Overlapping claims to different counterpart timelines contribute both mapped
+  coordinates in first-relevance order. The DJ-set crossfade geometry is checked
+  for both a coordinate query and an interval query.
+- Adjacent claims mapping one shared source boundary to different values on the
+  same counterpart timeline retain both per-claim candidates. The classic
+  coordinate mapping omits that timeline, singular retrieval raises with both
+  claims and values, and both display forms expose the alternatives.
+- Unequal interval extents use proportional mapping. A fraction-canonical case
+  pins an exact rational result that binary64 interpolation cannot reproduce.
+- Unambiguous interval-derived coordinates participate in transitive closure in
+  the same way as other reached coordinates.
+- An interval query whose endpoints both reach a timeline yields its exact
+  `Interval`. A timeline reached by only one endpoint retains the reached side,
+  serializes the other as null, displays the missing side, and refuses interval
+  retrieval with the missing side named.
+- When both endpoints reach every timeline, each wire pair is complete and
+  agrees exactly with the constituent `MatchStamp` coordinate projections;
+  plural timeline-coordinate retrieval rejects conflicting per-claim
+  alternatives before projecting any requested coordinate, and plural position
+  retrieval rejects an unsupported element before resolving a preceding valid
+  element.
+- Raw values, `Coordinate`, `IdCoordinate`, `Interval`, plural position getters,
+  and the dispatcher preserve query-form result selection. A mixed collection
+  resolves each element independently. Raw and interval inputs without a source
+  timeline fail atomically.
 - A fraction-canonical source axis compares a converted query and native claim
-  boundaries as exact `Fraction` values, proving retrieval does not depend on a
-  second float comparison pass.
-- A zero-length fraction interval in columnar storage distinguishes exact `1/3`
-  from an unequal fraction with the same binary64 value at both closed endpoints.
-- Positional table materialization rejects interval-bearing results explicitly,
-  because its one-cell-per-timeline row shape cannot represent repeated
-  per-claim intervals.
-- A position outside every claim retains the existing source-only instant stamp.
+  boundaries in the exact domain, and the columnar decimal comparison
+  distinguishes exact `1/3` from a different fraction with the same binary64
+  value.
+- Coordinate-query tables materialize unambiguous mapped cells exactly. Interval
+  queries have no table form and raise `NotImplementedError`; ambiguous queried
+  cells raise instead of becoming null.
+- Two instant claims forming `A -> B -> C` retain standalone transitive closure,
+  direct-edge transfer fallback remains available, public exports remain stable,
+  and a position outside every claim produces a source-only `MatchStamp`.
 
-Every assertion pins exact `Coordinate` and `Interval` objects, exact entry
-counts, and exact ordering; no tolerance or approximate comparison is used.
+Every assertion uses exact `Coordinate`, `Interval`, `Fraction`, wire-entry, and
+ordering expectations; no tolerance or approximate comparison is used.
 
 ---
 

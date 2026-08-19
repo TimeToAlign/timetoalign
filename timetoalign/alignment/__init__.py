@@ -14,7 +14,7 @@ Public API:
 - MatchMetadata: Provenance information for matches (agent + certainty)
 - MatchGraph: Graph of MatchClaims (networkx integration)
 - MatchStamp: Cross-group timestamp at a single coordinate
-- MatchIntervalStamp: Per-claim interval matches at a queried coordinate
+- MatchIntervalStamp: Combined endpoint resolutions for an interval query
 - MatchLine: Ordered sequence of MatchStamps for WarpMap generation
 - WarpMap: Bidirectional coordinate warping from alignment data
 """
