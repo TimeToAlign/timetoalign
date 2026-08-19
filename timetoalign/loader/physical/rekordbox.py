@@ -10,6 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import unquote, urlparse
 
+from timetoalign.alignment import AlignmentBundle
 from timetoalign.loader.base import Loader
 
 
@@ -162,9 +163,8 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
             )
         return self._create_track_timeline(self._tracks[0])
 
-    def create_bundle(self) -> Any:
+    def create_bundle(self) -> AlignmentBundle:
         """Create an alignment bundle containing every collection track."""
-        from timetoalign.alignment import AlignmentBundle
 
         bundle = AlignmentBundle()
         for timeline in self.create_timelines():
