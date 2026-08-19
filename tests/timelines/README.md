@@ -9,7 +9,6 @@ which implements the central Timeline class and its 6 domain-specific subclasses
 |--------|----------|--------|
 | `timelines/base.py` | 94% | Excellent |
 | `timelines/types.py` | 100% | Complete |
-| `timelines/mixins.py` | 100% | Complete |
 | `timelines/beatgrid.py` | 100% | Complete |
 | `timelines/regions.py` | 94% | Excellent |
 
@@ -524,6 +523,25 @@ last by the grid's `extent`, and generates beats forever from each one. Beat
 and bar lengths are derived, never stored beside the facts, so no test may
 assert a stored duration — it asserts the derivation.
 
+A `GridBeat` **stores** its position as `seconds`, the exact `Fraction` the
+grid's arithmetic produced, and **publishes** it as `instant`, a derived
+seconds `Coordinate`. One stored field, one derived view: exactness is what the
+grid computes with — the loader's fm anchors and the tempo integration read
+`seconds` — while `instant` is what a caller sees, built exactly as
+`seconds_at` builds its answer, on the float lane the seconds axis declares.
+
+That is the point of the split, and the tests pin it as such: **the two
+directions of the grid must compare equal**, so
+`grid.position_at(x).instant == grid.seconds_at(m, b)` holds whenever both name
+the same moment. A `fraction`-typed instant against a `float`-typed
+`seconds_at` never compared equal, which made the obvious cross-getter
+assertion fail on values that were in fact identical. The equality is asserted
+at 30.9375 s — a value every lane represents exactly, so it pins the equality
+rather than a shared rounding — and again at 7.01 s, where no exact float
+exists but both directions convert the same ratio and therefore still land
+together. A negative case (`position_at(30).instant != seconds_at(16)`) keeps
+the assertion from passing vacuously.
+
 #### The boundary rule is the whole reason the grid exists
 
 The rule under test: **a beat of segment *k* is dropped when it falls within
@@ -616,15 +634,69 @@ no single tempo produces. All decimal inputs are read as exact decimal
 rationals; a float input is documented to contribute its exact binary value,
 which is why the tests spell decimals as strings or `Fraction`s.
 
+#### One address, one beat
+
+`position_at` and `get_beat_table` read *instants*, which are unambiguous: a
+second belongs to exactly one beat. The reverse direction is not symmetric. A
+measure stays open until the next downbeat, and a segment that re-anchors
+mid-bar restarts its own beat count immediately — so one measure can state one
+beat index twice, and `(measure, beat)` then names no single instant.
+
+**The fixture that produces it.** Segments `(0 s, 120 bpm, 4/4, battito 1)` and
+`(30 s, 128 bpm, 4/4, battito 3)` over 32 seconds. At 120 BPM a beat is 0.5 s,
+so measure 15 opens at `56 × 0.5 = 28.0` and its four beats fall at 28.0, 28.5,
+29.0, 29.5; the beat at 30.0 would be the next one, but the extent of segment 1
+stops it (and the half-beat rule leaves 29.5 alone — the gap is a full 0.5 s
+against a 0.25 s half-beat). Segment 2 anchors on **beat 3** at 30.0 with a
+`60/128 = 0.46875` s beat, so 30.0 is beat 3 again and 30.46875 is beat 4 again;
+its first downbeat is `30.0 + 2 × 0.46875 = 30.9375`, which opens measure 16.
+Measure 15 therefore holds six beats — 1, 2, 3, 4, 3, 4.
+
+**The rule.** `seconds_at` and `segment_seconds_at` raise `ValueError` naming
+the candidate instants when the queried index is stated more than once —
+`seconds_at(15, 3)` lists 29 and 30 — because picking either one would answer a
+question the caller did not ask. A fractional beat interpolates between the
+*unique* beats ⌊b⌋ and ⌊b⌋+1 whichever segments they come from, and raises the
+same way when either index is missing or duplicated. Unaffected and asserted
+alongside: `seconds_at(15, 2)` still answers 28.5, and `get_beat_table()` lists
+all six rows of measure 15, because neither reading is ambiguous.
+
+#### Segments abut, and a stated end must say so
+
+A grid bounds each segment by the next one's `start` and the last by `extent`.
+A segment arriving with `end=None` is filled in; a segment arriving with an
+`end` of its own must state exactly that bound. Silently rebounding a stated
+end would discard a caller's declared fact, and honouring a different one would
+leave a gap or an overlap the lattice cannot represent — so a disagreement
+raises. Pinned in both directions: a segment stating the correct bound survives
+`__init__` unchanged, and one stating any other (including an `end` on the last
+segment of an unbounded grid) raises.
+
+#### `quarters_between` has a domain, and it is not the whole line
+
+The seconds direction (`_seconds_after`, reached through a caller policy)
+already raised past the extent. The quarters direction silently extrapolated,
+so one direction answered where the other refused. Both now share the domain
+**`[0, extent]`**, closed at both ends — `[0, ∞)` when the grid is unbounded.
+
+Closed at the extent is deliberate: no beat sounds there, but the grid does
+state a tempo up to it, and the final measure's length is exactly
+`quarters_between(last_downbeat, extent)`. Open at zero is equally deliberate:
+a grid whose first segment opens at 0.5 s still reads `[0, 0.5)` at that
+segment's tempo, because the floating-measure lattice hangs its `t = 0` anchor
+on precisely that stretch. Outside the domain the grid states no tempo, and
+both directions raise.
+
 #### Atomic raises
 
 Per the retrieval contract, an unresolvable **query** raises rather than
 answering approximately. Pinned: a position before the grid's first segment; a
 position at or after the extent (the half-open convention, so the extent
 itself raises); a `(measure, beat)` pair the grid does not state; a fractional
-beat whose upper neighbour is missing; a coordinate carrying a unit other than
-seconds; and tabulating or counting measures of an unbounded grid, which
-generates beats without end.
+beat whose upper neighbour is missing; a `(measure, beat)` the grid states
+twice; a `quarters_between` end outside `[0, extent]`; a coordinate carrying a
+unit other than seconds; and tabulating or counting measures of an unbounded
+grid, which generates beats without end.
 
 #### Serialization
 

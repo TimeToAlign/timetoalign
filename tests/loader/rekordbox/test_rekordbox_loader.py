@@ -78,6 +78,10 @@ def test_pickup_grid_change_and_trailing_measure_are_exact(tmp_path: Path) -> No
     assert len(loader.tracks) == 1
     assert [tempo.inizio for tempo in loader.tracks[0].tempos] == [0.0, 3.5, 7.0]
     assert [tempo.battito for tempo in loader.tracks[0].tempos] == [4, 2, 1]
+    # The raw parse keeps both halves of Metro as the source spells them.
+    first_tempo = loader.tracks[0].tempos[0]
+    assert [tempo.metro for tempo in loader.tracks[0].tempos] == ["4/4"] * 3
+    assert (first_tempo.numerator, first_tempo.denominator) == (4, 4)
     assert [measure.id for measure in measures] == ["m1", "m2", "m3", "m4"]
     assert [measure.number for measure in measures] == [0, 1, 2, 3]
     assert isinstance(measures[0], MeasureConstituent)
@@ -174,7 +178,7 @@ def test_displaced_anchor_beats_are_not_counted_twice(tmp_path: Path) -> None:
     assert len(grid.get_beat_table()) == 60
     assert grid.seconds_at(6).value == 10.51
     assert grid.position_at(10.505) == GridBeat(
-        instant=Fraction(10), segment=0, measure=5, segment_measure=5, beat=4
+        seconds=Fraction(10), segment=0, measure=5, segment_measure=5, beat=4
     )
 
 
@@ -225,7 +229,7 @@ def test_a_grid_reanchoring_mid_measure_continues_the_measure_count(
 
     assert grid.seconds_at(3).value == 7.01
     assert grid.position_at(6.5) == GridBeat(
-        instant=Fraction("6.01"), segment=1, measure=2, segment_measure=0, beat=3
+        seconds=Fraction("6.01"), segment=1, measure=2, segment_measure=0, beat=3
     )
     assert grid.position_at(6.6).beat == 4
 

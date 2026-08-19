@@ -2312,10 +2312,15 @@ class BeatPolicy(BaseModel):
     stored: the source encoding is what a policy holds, and every rod,
     offset and index question is answered from it.
 
-    Args:
+    Attributes:
         grouping: How many divisions each beat spans, in order.
-        division: The counted note value, in quarters.
-        name: Optional human-readable label for the policy.
+        division: The counted note value, in quarters. Given either
+            directly or through *beat_size*, which completes it.
+        beat_size: The counted value as a typed duration in whole notes
+            or quarters. Completed from *division* when omitted.
+        bpm: Optional tempo indication, in counted beats per minute.
+        name: Optional human-readable label, typically the signature the
+            source spells.
     """
 
     model_config = ConfigDict(frozen=True, strict=True)

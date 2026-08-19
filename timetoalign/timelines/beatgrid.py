@@ -49,7 +49,10 @@ def _as_fraction(value: Any, *, what: str) -> Fraction:
         The value as an exact rational.
 
     Raises:
-        TypeError: If *value* is not a number the grid can read.
+        TypeError: If *value* is of a type the grid cannot read as a
+            number.
+        ValueError: If *value* is a string that does not spell one
+            (raised by :class:`~fractions.Fraction` itself).
     """
     if isinstance(value, Fraction):
         return value
@@ -195,20 +198,40 @@ class GridBeat:
     """One beat of a grid, labelled in both numbering schemes.
 
     Attributes:
-        instant: Seconds at which the beat sounds.
+        seconds: Where the beat sounds, as the exact ratio the grid's
+            arithmetic produced. This is what the grid computes with and
+            what a caller integrating tempi or deriving anchors reads.
         segment: 0-based index of the segment that generated it.
         measure: Measure number counted across the whole grid. Beats
             before the grid's first downbeat carry ``0``.
         segment_measure: Measure number restarted at each segment. Beats
             before the segment's first downbeat carry ``0``.
         beat: 1-based beat-in-measure index under its segment's policy.
+        instant: Derived from :attr:`seconds`: the same position as a
+            float-typed seconds :class:`~timetoalign.core.Coordinate`,
+            built as :meth:`BeatGrid.seconds_at` builds its answer, so
+            the two directions of the grid compare equal.
+        is_downbeat: Derived: whether this beat opens a measure, that is
+            whether :attr:`beat` is ``1``.
     """
 
-    instant: Fraction
+    seconds: Fraction
     segment: int
     measure: int
     segment_measure: int
     beat: int
+
+    @property
+    def instant(self) -> Coordinate:
+        """Where the beat sounds, as a published seconds coordinate.
+
+        The seconds axis is float-declared, and this is built exactly as
+        :meth:`BeatGrid.seconds_at` builds its answer, so the two
+        directions of the grid compare equal whenever they name the same
+        moment. Exactness stays in :attr:`seconds`, which is where the
+        grid does its arithmetic.
+        """
+        return Coordinate(float(self.seconds), TimeUnit.seconds)
 
     @property
     def is_downbeat(self) -> bool:
@@ -227,12 +250,14 @@ class BeatGrid:
     Examples:
         >>> from fractions import Fraction
         >>> grid = BeatGrid.from_tempo(120, extent=8)
-        >>> [str(beat.instant) for beat in grid.iter_beats()][:5]
+        >>> [str(beat.seconds) for beat in grid.iter_beats()][:5]
         ['0', '1/2', '1', '3/2', '2']
         >>> grid.seconds_at(2)
         Coordinate(2.0, seconds)
-        >>> grid.position_at(2.75)
-        GridBeat(instant=Fraction(5, 2), segment=0, measure=2, segment_measure=2, beat=2)
+        >>> grid.position_at(2.75).instant
+        Coordinate(2.5, seconds)
+        >>> grid.position_at(2.75).instant == grid.seconds_at(2, 2)
+        True
     """
 
     @classmethod
@@ -278,17 +303,24 @@ class BeatGrid:
     ) -> None:
         """Assemble tempo segments into one grid.
 
+        **Segments abut**: one runs until the next one opens, and the
+        last until the grid's extent. A segment stating no ``end`` is
+        bounded accordingly; a segment stating one must state that same
+        bound, because a shorter or longer end would leave a gap or an
+        overlap the lattice has no way to represent.
+
         Args:
-            segments: The segments, in any order. Each one's ``end`` is
-                replaced by its successor's ``start``; the last one's by
-                *extent*.
+            segments: The segments, in any order. An ``end`` of ``None``
+                is filled with the successor's ``start``, or with
+                *extent* for the last segment.
             extent: Exclusive bound of the whole grid, in seconds.
                 ``None`` leaves the grid unbounded.
 
         Raises:
             ValueError: If no segments are given, if two segments share a
-                start, or if *extent* does not lie after the last
-                segment's start.
+                start, if a segment states an ``end`` other than the one
+                the grid bounds it at, or if *extent* does not lie after
+                the last segment's start.
         """
         ordered = sorted(segments, key=lambda segment: segment.start)
         if not ordered:
@@ -301,9 +333,20 @@ class BeatGrid:
                 )
         self._extent = None if extent is None else _as_seconds(extent, what="An extent")
         bounds = [segment.start for segment in ordered[1:]] + [self._extent]
-        self._segments = tuple(
-            replace(segment, end=bound) for segment, bound in zip(ordered, bounds)
-        )
+        bounded: list[BeatGridSegment] = []
+        for segment, bound in zip(ordered, bounds):
+            if segment.end is not None and segment.end != bound:
+                stated = "the grid's extent" if bound is None else f"{bound}"
+                raise ValueError(
+                    f"The grid segment starting at {segment.start} states "
+                    f"end={segment.end}, but the grid bounds it at {stated}; "
+                    "grid segments abut, so a stated end must equal the next "
+                    "segment's start"
+                )
+            bounded.append(
+                segment if segment.end is not None else replace(segment, end=bound)
+            )
+        self._segments = tuple(bounded)
         self._beats: tuple[GridBeat, ...] | None = None
 
     def __eq__(self, other: object) -> bool:
@@ -363,7 +406,7 @@ class BeatGrid:
         bound = None if stop is None else _as_seconds(stop, what="A stop")
         if self._extent is not None:
             for beat in self._all_beats():
-                if bound is not None and beat.instant >= bound:
+                if bound is not None and beat.seconds >= bound:
                     return
                 yield beat
             return
@@ -475,7 +518,7 @@ class BeatGrid:
         self._require_within(position)
         found: GridBeat | None = None
         for beat in self.iter_beats(stop=position + 1):
-            if beat.instant > position:
+            if beat.seconds > position:
                 break
             found = beat
         if found is None:
@@ -497,8 +540,14 @@ class BeatGrid:
     ) -> Fraction:
         """Integrate exact quarter-note length over a seconds interval.
 
-        Each segment contributes its own tempo; positions before the
-        first segment are read at that segment's tempo.
+        Each segment contributes its own tempo. **The domain is
+        ``[0, extent]``** — ``[0, inf)`` on an unbounded grid — closed at
+        both ends, so the extent itself may be named even though no beat
+        sounds there. A grid that opens late still reads the seconds
+        before it, at its first segment's tempo: that stretch carries the
+        anchor the floating-measure lattice hangs on. Outside the domain
+        the grid states no tempo, and this raises rather than
+        extrapolating, exactly as the seconds direction does.
 
         Args:
             start_seconds: Where the interval opens.
@@ -508,12 +557,15 @@ class BeatGrid:
             The interval's length in quarter notes, exactly.
 
         Raises:
-            ValueError: If the interval runs backwards.
+            ValueError: If the interval runs backwards, or if either end
+                lies outside the grid's domain.
         """
         start = _as_seconds(start_seconds, what="An interval start")
         end = _as_seconds(end_seconds, what="An interval end")
         if end < start:
             raise ValueError(f"Interval [{start}, {end}] runs backwards")
+        self._require_in_domain(start, what="An interval start")
+        self._require_in_domain(end, what="An interval end")
 
         active = self._segments[0]
         for segment in self._segments:
@@ -576,10 +628,10 @@ class BeatGrid:
         starts = [self._segments[beat.segment].start for beat in beats]
         return pd.DataFrame(
             {
-                "seconds": [float(beat.instant) for beat in beats],
+                "seconds": [float(beat.seconds) for beat in beats],
                 "segment": [beat.segment for beat in beats],
                 "segment_seconds": [
-                    float(beat.instant - start) for beat, start in zip(beats, starts)
+                    float(beat.seconds - start) for beat, start in zip(beats, starts)
                 ],
                 "measure": [
                     beat.measure if numbering == "set" else beat.segment_measure
@@ -698,6 +750,20 @@ class BeatGrid:
                 yield GridBeat(instant, index, measure, segment_measure, beat)
                 step += 1
 
+    def _require_in_domain(self, position: Fraction, *, what: str) -> None:
+        """Raise unless *position* lies in the grid's tempo domain.
+
+        The domain runs from zero to the extent inclusive — the span over
+        which the grid states a tempo, which is wider than the span over
+        which it sounds beats.
+        """
+        if position < 0:
+            raise ValueError(f"{what} at {position} lies before zero")
+        if self._extent is not None and position > self._extent:
+            raise ValueError(
+                f"{what} at {position} lies beyond the grid's extent {self._extent}"
+            )
+
     def _require_within(self, position: Fraction) -> None:
         """Raise unless *position* lies inside the grid's span."""
         first = self._segments[0].start
@@ -732,17 +798,23 @@ class BeatGrid:
             if beat.measure > measure:
                 return None
             if beat.measure == measure and beat.beat == 1:
-                return beat.instant
+                return beat.seconds
         return None
 
-    def _beats_of_measure(self, measure: int) -> dict[int, Fraction]:
-        """Return the instants of a measure's beats, by beat index."""
-        found: dict[int, Fraction] = {}
+    def _beats_of_measure(self, measure: int) -> dict[int, list[Fraction]]:
+        """Return the instants of a measure's beats, by beat index.
+
+        A measure interrupted by a segment that re-anchors mid-bar can
+        state one index more than once — the new segment resumes counting
+        from its own anchor while the measure stays open — so every
+        instant is kept rather than the last one winning.
+        """
+        found: dict[int, list[Fraction]] = {}
         for beat in self.iter_beats():
             if beat.measure > measure:
                 break
             if beat.measure == measure:
-                found[beat.beat] = beat.instant
+                found.setdefault(beat.beat, []).append(beat.seconds)
         if not found:
             raise ValueError(f"Measure {measure} is not one this grid states")
         return found
@@ -762,20 +834,45 @@ class BeatGrid:
         if policy is not None:
             return self._instant_under_policy(measure, whole, remainder, policy)
         instants = self._beats_of_measure(measure)
-        if whole not in instants:
-            raise ValueError(
-                f"Measure {measure} has no beat {whole}. Available beats: "
-                f"{sorted(instants)}"
-            )
+        start = self._unique_beat(instants, measure, whole)
         if remainder == 0:
-            return instants[whole]
-        if whole + 1 not in instants:
+            return start
+        following = self._unique_beat(instants, measure, whole + 1)
+        return start + remainder * (following - start)
+
+    @staticmethod
+    def _unique_beat(
+        instants: dict[int, list[Fraction]], measure: int, index: int
+    ) -> Fraction:
+        """Return the one instant a measure states for a beat index.
+
+        Args:
+            instants: The measure's beats, by index.
+            measure: The measure being addressed, for the error message.
+            index: The 1-based beat index.
+
+        Returns:
+            The instant that beat sounds at.
+
+        Raises:
+            ValueError: If the measure states that index no times or more
+                than once. An ambiguous address is not resolved by
+                picking one of the candidates.
+        """
+        candidates = instants.get(index, [])
+        if not candidates:
             raise ValueError(
-                f"Measure {measure} has no beat {whole + 1}, so beat {index} "
-                "cannot be interpolated. Available beats: "
+                f"Measure {measure} has no beat {index}. Available beats: "
                 f"{sorted(instants)}"
             )
-        return instants[whole] + remainder * (instants[whole + 1] - instants[whole])
+        if len(candidates) > 1:
+            spelled = ", ".join(str(candidate) for candidate in candidates)
+            raise ValueError(
+                f"Measure {measure} states beat {index} at more than one instant: "
+                f"{spelled}. A segment re-anchoring inside the measure restarts "
+                "its count, so this address names no single beat"
+            )
+        return candidates[0]
 
     def _instant_under_policy(
         self,
@@ -799,7 +896,12 @@ class BeatGrid:
         return instant
 
     def _seconds_after(self, start: Fraction, quarters: Fraction) -> Fraction:
-        """Return the instant *quarters* after *start*, across tempo changes."""
+        """Return the instant *quarters* after *start*, across tempo changes.
+
+        The inverse of :meth:`quarters_between` and bounded the same way:
+        a result past the grid's extent raises rather than extrapolating,
+        because beyond it the grid states no tempo.
+        """
         if quarters == 0:
             return start
         remaining = quarters

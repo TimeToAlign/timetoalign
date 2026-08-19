@@ -209,6 +209,14 @@ instant is an interpolation anchor, including grid changes that occur mid-bar.
 
 ## (d) `tracks-to-mix.csv` ingestion and name resolution
 
+> **Sections (d), (e) and (f) specify a lane no loader implements yet.** They
+> are the validation logic the alignment-CSV reader must satisfy when it is
+> written — derived from the two data files, and to be asserted then. Nothing
+> in `test_rekordbox_loader.py` currently covers them, so they must not be read
+> as a description of existing behaviour. Sections (a)–(c), (g) and (h) do
+> describe the implemented loader and are covered by tests.
+
+
 **Ground truth.** 96 data rows. The ``track`` column carries the source file's
 name stem — ``"NN. "`` prefix included (a number, an optional letter for split
 entries such as ``41a.``/``41b.``, a dot, a space) — which per (g) is exactly
@@ -256,10 +264,10 @@ mix loop is one full pass of the same track material.
 
 | track | track [start,end] (bars) | mix [start,end] (bars) | mix span | N | L | check span = N × track span |
 |-------|--------------------------|------------------------|----------|---|---|-----------------------------|
-| ``10. The Sound`` | [64, 65] = 1 | [827, 839] | 12 | 12 | 1 | 12 = 12 × 1 ✓ |
-| ``13. TURN IT UP!`` | [53, 61] = 8 | [1121, 1137] | 16 | 2 | 8 | 16 = 2 × 8 ✓ |
-| ``28. Fkn Raw`` | [47, 51] = 4 | [2447, 2455] | 8 | 2 | 4 | 8 = 2 × 4 ✓ |
-| ``32. GUCCI BAG - Revelation Live Edit`` | [76, 77] = 1 | [2866, 2878] | 12 | 12 | 1 | 12 = 12 × 1 ✓ |
+| ``10. The Sound`` | [64, 65] = 1 | [829, 841] | 12 | 12 | 1 | 12 = 12 × 1 ✓ |
+| ``13. TURN IT UP!`` | [53, 61] = 8 | [1123, 1139] | 16 | 2 | 8 | 16 = 2 × 8 ✓ |
+| ``28. Fkn Raw`` | [47, 51] = 4 | [2449, 2457] | 8 | 2 | 4 | 8 = 2 × 4 ✓ |
+| ``32. GUCCI BAG - Revelation Live Edit`` | [76, 77] = 1 | [2868, 2880] | 12 | 12 | 1 | 12 = 12 × 1 ✓ |
 | ``37. Annihilatiøn`` | [25, 26] = 1 | [3162, 3170] | 8 | 8 | 1 | 8 = 8 × 1 ✓ |
 | ``37. Annihilatiøn`` | [59, 60] = 1 | [3166, 3170] | 4 | 4 | 1 | 4 = 4 × 1 ✓ |
 
@@ -296,26 +304,26 @@ than folding them in silently.)
 both in bar units.
 
 **Concrete non-loop row — ``01. See Me Coming`` (first entry).**
-``track [1, 89]``, ``mix [1, 89]``. The claim records the mix interval
-``[1, 89]`` (88 bars) ↔ the track interval ``[1, 89]`` (88 bars). Endpoint
-arithmetic: mix span ``89 − 1 = 88``; track span ``89 − 1 = 88``; equal length,
-so this is a 1:1 pass with no stretch.
+``track [1, 89]``, ``mix [3, 91]``. The claim records the mix interval
+``[3, 91]`` (88 bars) ↔ the track interval ``[1, 89]`` (88 bars). Endpoint
+arithmetic: mix span ``91 − 3 = 88``; track span ``89 − 1 = 88``; equal length,
+so this is a 1:1 pass with no stretch, offset by two bars.
 
 **Concrete non-loop row — ``01. See Me Coming`` (second entry).**
-``track [121, 166]``, ``mix [89, 134]``. Claim: mix ``[89, 134]`` (45 bars) ↔
-track ``[121, 166]`` (45 bars). Endpoint arithmetic: ``134 − 89 = 45`` and
+``track [121, 166]``, ``mix [91, 136]``. Claim: mix ``[91, 136]`` (45 bars) ↔
+track ``[121, 166]`` (45 bars). Endpoint arithmetic: ``136 − 91 = 45`` and
 ``166 − 121 = 45`` — equal length again, but the track side jumps from bar 89 to
 bar 121, i.e. this row skips 32 bars of the source before re-entering.
 
-**Concrete loop row — ``13. TURN IT UP!``.** ``track [53, 61]``, ``mix [1121,
-1137]``, ``track_loop = 2``. With ``L = (1137 − 1121) / 2 = 8`` (= the track span
+**Concrete loop row — ``13. TURN IT UP!``.** ``track [53, 61]``, ``mix [1123,
+1139]``, ``track_loop = 2``. With ``L = (1139 − 1123) / 2 = 8`` (= the track span
 ``61 − 53``), the row expands to exactly two adjacent, equal-length claims, both
 naming the **same** track interval:
 
-- claim 1: mix ``[1121, 1129]`` ↔ track ``[53, 61]``;
-- claim 2: mix ``[1129, 1137]`` ↔ track ``[53, 61]``.
+- claim 1: mix ``[1123, 1131]`` ↔ track ``[53, 61]``;
+- claim 2: mix ``[1131, 1139]`` ↔ track ``[53, 61]``.
 
-They abut at bar 1129 and together cover ``[1121, 1137]``. A correct claim carries
+They abut at bar 1131 and together cover ``[1123, 1139]``. A correct claim carries
 both bar-unit intervals and their orientation (which axis is mix, which is track);
 loop expansion must preserve the shared track interval across all N copies.
 

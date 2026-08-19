@@ -168,7 +168,7 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
 
         grid = cls._beat_grid(track)
         downbeats = [
-            (beat.instant, grid.segments[beat.segment])
+            (beat.seconds, grid.segments[beat.segment])
             for beat in grid.iter_beats()
             if beat.is_downbeat
         ]
@@ -230,16 +230,13 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         what ``Battito`` indexes; reading ``6/8`` as two dotted beats
         would put the anchor index outside its own bar.
         """
-        from timetoalign.core import BeatPolicy
-        from timetoalign.timelines import BeatGrid, BeatGridSegment
+        from timetoalign.timelines import BeatGrid, BeatGridSegment, policy_for_metro
 
         segments = [
             BeatGridSegment(
                 start=tempo.inizio,
                 bpm=tempo.bpm,
-                policy=BeatPolicy.uniform(
-                    Fraction(4, tempo.denominator), tempo.numerator, name=tempo.metro
-                ),
+                policy=policy_for_metro(tempo.metro),
                 battito=tempo.battito,
             )
             for tempo in track.tempos

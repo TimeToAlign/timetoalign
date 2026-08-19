@@ -18,6 +18,7 @@ Beat grids:
 - BeatGrid: Tempo segments generating a labelled lattice of beats
 - BeatGridSegment: One tempo segment of a beat grid
 - GridBeat: One labelled beat of a grid
+- policy_for_metro: Read an "n/d" lattice meter as one beat per counted value
 
 Structural components:
 - Region: Named TimeInterval (not a timeline itself)
@@ -64,7 +65,7 @@ Public API:
 from __future__ import annotations
 
 from .base import Timeline
-from .beatgrid import BeatGrid, BeatGridSegment, GridBeat
+from .beatgrid import BeatGrid, BeatGridSegment, GridBeat, policy_for_metro
 from .factory import create_timeline
 from .flow import (
     AtomicSection,
@@ -132,6 +133,7 @@ __all__ = [
     "BeatGrid",
     "BeatGridSegment",
     "GridBeat",
+    "policy_for_metro",
     # Structural components
     "Region",
     # Flow API

@@ -195,6 +195,7 @@ _DEFERRED_EXPORTS = {
     "BeatGrid": ("timetoalign.timelines", "BeatGrid"),
     "BeatGridSegment": ("timetoalign.timelines", "BeatGridSegment"),
     "GridBeat": ("timetoalign.timelines", "GridBeat"),
+    "policy_for_metro": ("timetoalign.timelines", "policy_for_metro"),
     "ContinuousGraphicalTimeline": (
         "timetoalign.timelines",
         "ContinuousGraphicalTimeline",
@@ -345,6 +346,7 @@ __all__ = [
     "BeatGrid",
     "BeatGridSegment",
     "GridBeat",
+    "policy_for_metro",
     "SegmentNameGenerator",
     # Maps
     "ConstantMap",

@@ -8,13 +8,20 @@ exact tempo integration, and the atomic raises.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from fractions import Fraction
 from pathlib import Path
 
 import pytest
 
 from timetoalign.alignment import SectionHierarchy, TimeSkeleton
-from timetoalign.core import BeatPolicy, Coordinate, RegularMeasure, TimeUnit
+from timetoalign.core import (
+    BeatPolicy,
+    Coordinate,
+    NumberType,
+    RegularMeasure,
+    TimeUnit,
+)
 from timetoalign.timelines import BeatGrid, BeatGridSegment, GridBeat
 from timetoalign.timelines.beatgrid import policy_for_metro
 
@@ -70,6 +77,20 @@ def _reanchor_grid() -> BeatGrid:
     return BeatGrid([_segment(0, 60), _segment("6.01", 120, battito=3)], extent=12)
 
 
+def _restated_index_grid() -> BeatGrid:
+    """A grid whose measure 15 states beats 3 and 4 twice.
+
+    Segment 1 runs 120 BPM from zero, so measure 15 opens at 28.0 and its
+    beats fall at 28.0, 28.5, 29.0, 29.5. Segment 2 anchors on beat 3 at
+    30.0 with a 60/128 = 0.46875 s beat, restating beats 3 and 4 before
+    its first downbeat at 30.9375 opens measure 16.
+    """
+    return BeatGrid(
+        [_segment(0, 120), _segment(30, 128, battito=3)],
+        extent=32,
+    )
+
+
 class TestSegmentAssembly:
     """Segments state source facts; the grid orders and bounds them."""
 
@@ -123,6 +144,34 @@ class TestSegmentAssembly:
         with pytest.raises(ValueError, match="distinct instant"):
             BeatGrid([_segment(1, 120), _segment(1, 90)], extent=10)
 
+    def test_a_stated_end_that_matches_the_bound_survives(self) -> None:
+        """Segments abut, so stating the bound the grid computes is fine."""
+        first = replace(_segment(0, 120), end=Fraction(4))
+        grid = BeatGrid([first, _segment(4, 120)], extent=8)
+
+        assert [segment.end for segment in grid.segments] == [
+            Fraction(4),
+            Fraction(8),
+        ]
+
+    def test_a_stated_end_that_disagrees_is_refused(self) -> None:
+        """A shorter or longer end would leave a gap or an overlap."""
+        with pytest.raises(
+            ValueError, match=r"states end=3, but the grid bounds it at 4"
+        ):
+            BeatGrid(
+                [replace(_segment(0, 120), end=Fraction(3)), _segment(4, 120)], extent=8
+            )
+        with pytest.raises(
+            ValueError, match=r"states end=6, but the grid bounds it at 8"
+        ):
+            BeatGrid([replace(_segment(0, 120), end=Fraction(6))], extent=8)
+        with pytest.raises(
+            ValueError,
+            match=r"states end=6, but the grid bounds it at the grid's extent",
+        ):
+            BeatGrid([replace(_segment(0, 120), end=Fraction(6))])
+
     def test_equality_is_structural_over_segments_and_extent(self) -> None:
         """Two grids of the same facts are equal; a different tempo is not."""
         assert _phantom_grid() == _phantom_grid()
@@ -175,6 +224,129 @@ class TestSegmentAssembly:
         )
 
 
+class TestRestatedBeatIndex:
+    """A measure a segment re-anchors inside can state one index twice."""
+
+    def test_the_measure_states_six_beats(self) -> None:
+        """Beats 1,2,3,4 from one segment and 3,4 again from the next."""
+        beats = [
+            beat for beat in _restated_index_grid().iter_beats() if beat.measure == 15
+        ]
+
+        assert [(beat.seconds, beat.segment, beat.beat) for beat in beats] == [
+            (Fraction(28), 0, 1),
+            (Fraction("28.5"), 0, 2),
+            (Fraction(29), 0, 3),
+            (Fraction("29.5"), 0, 4),
+            (Fraction(30), 1, 3),
+            (Fraction(30) + Fraction(60, 128), 1, 4),
+        ]
+        # The next segment's first downbeat opens measure 16.
+        assert _restated_index_grid().seconds_at(16).value == 30.9375
+
+    def test_a_restated_index_raises_and_names_its_candidates(self) -> None:
+        """Answering one of two instants would resolve a question not asked."""
+        grid = _restated_index_grid()
+
+        with pytest.raises(
+            ValueError,
+            match=r"Measure 15 states beat 3 at more than one instant: 29, 30",
+        ):
+            grid.seconds_at(15, 3)
+        with pytest.raises(ValueError, match="more than one instant"):
+            grid.segment_seconds_at(15, 4)
+
+    def test_an_unambiguous_index_in_the_same_measure_still_answers(self) -> None:
+        """Only the restated indices are refused."""
+        grid = _restated_index_grid()
+
+        assert grid.seconds_at(15, 2).value == 28.5
+        assert grid.seconds_at(15).value == 28.0
+        assert grid.segment_seconds_at(15, 2).value == 28.5
+
+    def test_interpolation_uses_the_unique_neighbours(self) -> None:
+        """A fractional beat needs both ends to name one instant each."""
+        grid = _restated_index_grid()
+
+        # Beats 1 and 2 are unique: 28.0 + 0.5 * 0.5 = 28.25.
+        assert grid.seconds_at(15, 1.5).value == 28.25
+        # Beat 3 is restated, so 2.5 cannot be interpolated.
+        with pytest.raises(ValueError, match="beat 3 at more than one instant"):
+            grid.seconds_at(15, 2.5)
+
+    def test_instants_stay_unambiguous(self) -> None:
+        """Reading a position and tabulating are unaffected by the restatement."""
+        grid = _restated_index_grid()
+
+        assert grid.position_at(30).beat == 3
+        assert grid.position_at(Fraction("29.2")).beat == 3
+        table = grid.get_beat_table()
+        measure_15 = table[table["measure"] == 15]
+        assert len(measure_15) == 6
+        assert measure_15["beat"].tolist() == [1, 2, 3, 4, 3, 4]
+        assert measure_15["seconds"].tolist() == [
+            28.0,
+            28.5,
+            29.0,
+            29.5,
+            30.0,
+            30.46875,
+        ]
+
+
+class TestBeatCoordinates:
+    """A beat stores the exact ratio and publishes the seconds coordinate."""
+
+    def test_seconds_is_the_exact_ratio(self) -> None:
+        """The stored field is what the grid's arithmetic produced."""
+        beat = _reanchor_grid().position_at(Fraction("6.5"))
+
+        assert isinstance(beat.seconds, Fraction)
+        assert beat.seconds == Fraction("6.01")
+        # 601/100 has no exact float, so a float lane would show here.
+        assert beat.seconds != Fraction(6.01)
+
+    def test_the_instant_is_a_float_seconds_coordinate(self) -> None:
+        """The published coordinate follows the seconds axis's own type."""
+        beat = _reanchor_grid().position_at(Fraction("6.5"))
+
+        assert isinstance(beat.instant, Coordinate)
+        assert beat.instant.unit is TimeUnit.seconds
+        assert beat.instant.number_type is NumberType.float
+        assert beat.instant.value == 6.01
+        assert beat.instant == Coordinate(6.01, TimeUnit.seconds)
+
+    def test_the_two_directions_of_the_grid_compare_equal(self) -> None:
+        """Reading a position and naming a measure answer the same value.
+
+        Measure 16 of the restated-index grid opens at 30.9375, a value
+        every lane represents exactly, so the assertion pins the equality
+        rather than a shared rounding.
+        """
+        grid = _restated_index_grid()
+
+        assert grid.seconds_at(16).value == 30.9375
+        assert grid.position_at(30.9375).instant == grid.seconds_at(16)
+        # And it is a real comparison: a different beat is not equal.
+        assert grid.position_at(30).instant != grid.seconds_at(16)
+
+    def test_the_equality_holds_for_ratios_without_an_exact_float(self) -> None:
+        """Both directions convert the same ratio, so both land together."""
+        grid = _reanchor_grid()
+
+        assert grid.position_at(Fraction("7.5")).instant == grid.seconds_at(3)
+        assert grid.seconds_at(3).value == 7.01
+
+    def test_a_beat_is_built_from_its_exact_seconds(self) -> None:
+        """Construction takes the ratio; equality compares the stored fields."""
+        built = GridBeat(
+            seconds=Fraction("6.01"), segment=1, measure=2, segment_measure=0, beat=3
+        )
+
+        assert built == _reanchor_grid().position_at(Fraction("6.5"))
+        assert built.instant == Coordinate(6.01, TimeUnit.seconds)
+
+
 class TestBoundaryRule:
     """A beat within half a beat of the next segment is the next anchor."""
 
@@ -184,8 +356,8 @@ class TestBoundaryRule:
         second = [beat for beat in grid.iter_beats() if beat.segment == 1]
 
         assert len(second) == 20
-        assert second[-1].instant == Fraction("20.01")
-        assert Fraction("20.31") - second[-1].instant == Fraction("0.3")
+        assert second[-1].seconds == Fraction("20.01")
+        assert Fraction("20.31") - second[-1].seconds == Fraction("0.3")
 
     def test_a_beat_just_before_the_boundary_is_dropped(self) -> None:
         """0.01 s before the next anchor: the displaced anchor, not a beat."""
@@ -193,37 +365,37 @@ class TestBoundaryRule:
         first = [beat for beat in grid.iter_beats() if beat.segment == 0]
 
         assert len(first) == 20
-        assert first[-1].instant == Fraction(10)
-        assert Fraction("10.5") not in {beat.instant for beat in grid.iter_beats()}
+        assert first[-1].seconds == Fraction(10)
+        assert Fraction("10.5") not in {beat.seconds for beat in grid.iter_beats()}
 
     def test_a_beat_exactly_half_a_beat_before_the_boundary_is_kept(self) -> None:
         """The knife edge: 60 BPM, boundary at 3.5, beat at 3.0 -- kept."""
         grid = _pickup_grid()
         first = [beat for beat in grid.iter_beats() if beat.segment == 0]
 
-        assert [beat.instant for beat in first] == [
+        assert [beat.seconds for beat in first] == [
             Fraction(0),
             Fraction(1),
             Fraction(2),
             Fraction(3),
         ]
         # The gap to the boundary is exactly half of the 60 BPM beat.
-        assert Fraction("3.5") - first[-1].instant == grid.segments[0].beat_seconds / 2
-        assert grid.position_at(Fraction("3.2")).instant == Fraction(3)
+        assert Fraction("3.5") - first[-1].seconds == grid.segments[0].beat_seconds / 2
+        assert grid.position_at(Fraction("3.2")).seconds == Fraction(3)
 
     def test_the_rule_does_not_apply_at_the_end_of_the_grid(self) -> None:
         """The last segment keeps every beat strictly below the extent."""
         grid = _phantom_grid()
         last = [beat for beat in grid.iter_beats() if beat.segment == 2]
 
-        assert last[-1].instant == Fraction("29.81")
-        assert Fraction(30) - last[-1].instant < Fraction(1, 4)
+        assert last[-1].seconds == Fraction("29.81")
+        assert Fraction(30) - last[-1].seconds < Fraction(1, 4)
 
     def test_a_beat_exactly_at_the_extent_is_not_generated(self) -> None:
         """The extent bounds the grid half-openly."""
         grid = BeatGrid([_segment(0, 120)], extent=2)
 
-        assert [beat.instant for beat in grid.iter_beats()] == [
+        assert [beat.seconds for beat in grid.iter_beats()] == [
             Fraction(0),
             Fraction(1, 2),
             Fraction(1),
@@ -238,12 +410,12 @@ class TestNumbering:
         """A Battito 4 anchor opens the represented tail of bar 0."""
         beats = list(_pickup_grid().iter_beats())
 
-        assert (beats[0].instant, beats[0].measure, beats[0].beat) == (
+        assert (beats[0].seconds, beats[0].measure, beats[0].beat) == (
             Fraction(0),
             0,
             4,
         )
-        assert (beats[1].instant, beats[1].measure, beats[1].beat) == (
+        assert (beats[1].seconds, beats[1].measure, beats[1].beat) == (
             Fraction(1),
             1,
             1,
@@ -251,7 +423,7 @@ class TestNumbering:
 
     def test_the_two_numberings_differ_at_a_mid_measure_re_anchor(self) -> None:
         """The anchor continues set measure 2 and opens segment measure 0."""
-        beats = {beat.instant: beat for beat in _reanchor_grid().iter_beats()}
+        beats = {beat.seconds: beat for beat in _reanchor_grid().iter_beats()}
 
         anchor = beats[Fraction("6.01")]
         assert (
@@ -323,20 +495,20 @@ class TestConversions:
 
         found = grid.position_at(10.505)
         assert isinstance(found, GridBeat)
-        assert (found.instant, found.segment, found.measure, found.beat) == (
+        assert (found.seconds, found.segment, found.measure, found.beat) == (
             Fraction(10),
             0,
             5,
             4,
         )
-        assert grid.position_at(Fraction("10.51")).instant == Fraction("10.51")
+        assert grid.position_at(Fraction("10.51")).seconds == Fraction("10.51")
 
     def test_position_at_carries_both_numberings(self) -> None:
         """The re-anchored grid answers set and segment measures together."""
         grid = _reanchor_grid()
 
         assert grid.position_at(Fraction("6.5")) == GridBeat(
-            instant=Fraction("6.01"),
+            seconds=Fraction("6.01"),
             segment=1,
             measure=2,
             segment_measure=0,
@@ -405,6 +577,27 @@ class TestQuartersBetween:
         assert grid.quarters_between(4, 4) == Fraction(0)
         with pytest.raises(ValueError, match="runs backwards"):
             grid.quarters_between(5, 4)
+
+    def test_the_domain_is_closed_at_the_extent(self) -> None:
+        """No beat sounds at the extent, but the grid states a tempo up to it."""
+        grid = _phantom_grid()
+
+        # The last measure runs from its downbeat to the extent: 1.69 s.
+        assert grid.quarters_between(Fraction("28.31"), 30) == Fraction(169, 50)
+        with pytest.raises(
+            ValueError, match=r"end at 30001/1000 lies beyond the grid's extent 30"
+        ):
+            grid.quarters_between(0, Fraction("30.001"))
+        with pytest.raises(ValueError, match="lies before zero"):
+            grid.quarters_between(-1, 4)
+
+    def test_an_unbounded_grid_has_no_upper_bound(self) -> None:
+        """Without an extent the tempo runs on, and so does the integration."""
+        grid = BeatGrid.from_tempo(120)
+
+        assert grid.quarters_between(0, 1000) == Fraction(2000)
+        with pytest.raises(ValueError, match="lies before zero"):
+            grid.quarters_between(-1, 0)
 
     def test_the_counted_value_governs_the_quarter_reading(self) -> None:
         """A 6/8 bar is three quarters however many beats count it."""
@@ -511,7 +704,7 @@ class TestFromTempo:
 
         assert grid.extent is None
         assert grid.segments[0].end is None
-        assert [beat.instant for beat in grid.iter_beats(stop=2)] == [
+        assert [beat.seconds for beat in grid.iter_beats(stop=2)] == [
             Fraction(0),
             Fraction(1, 2),
             Fraction(1),
