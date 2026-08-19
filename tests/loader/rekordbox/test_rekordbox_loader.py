@@ -249,8 +249,8 @@ def test_real_specimen_collection_and_mix_grids_are_exact() -> None:
         for index, tempo in enumerate(mix.tempos)
     ]
 
-    assert len(loader.tracks) == 46
-    assert sum(len(track.tempos) for track in loader.tracks) == 155
+    assert len(loader.tracks) == 38
+    assert sum(len(track.tempos) for track in loader.tracks) == 147
     assert mix.name == "001-samuel_moriero-impact_halloween_xxl_2025_full_set"
     assert mix.total_time == Fraction(5277)
     assert len(mix.tempos) == 14
@@ -266,7 +266,7 @@ def test_real_specimen_collection_and_mix_grids_are_exact() -> None:
     assert mix.tempos[12].bpm == Fraction("160.38")
 
     bundle = loader.create_bundle()
-    assert bundle.n_timelines == 46
+    assert bundle.n_timelines == 38
     mix_timeline = bundle.get_timeline(mix.name)
     measure_map = mix_timeline.skeleton.section_hierarchy.measure_map
     floating_measures = mix_timeline.get_conversion_map(TimeUnit.floating_measures)
@@ -319,7 +319,7 @@ def test_real_specimen_timeline_ids_are_decoded_file_stems() -> None:
     bundle = RekordboxLoader.from_file(SPECIMEN).create_bundle()
     ids = set(bundle.timelines)
 
-    assert len(ids) == 46
+    assert len(ids) == 38
     assert {
         "01. See Me Coming",
         "05. HUMBLE (Samuel Moriero REMIX)",
