@@ -893,8 +893,8 @@ class TestCrossGroupTransfer:
         result = bundle.transfer(50.0, "score", "audio")
         assert result is None
 
-    def test_cross_group_single_claim_insufficient(self) -> None:
-        """A single claim (1 anchor point) is insufficient for WarpMap (need >= 2)."""
+    def test_cross_group_single_claim_resolves_only_exact_anchor(self) -> None:
+        """One claim resolves its exact edge but cannot interpolate a WarpMap."""
         bundle, score_tl, _, audio_tl, _ = _make_cross_group_bundle()
 
         claims = [
@@ -911,8 +911,8 @@ class TestCrossGroupTransfer:
         ]
         bundle.add_match_claims(claims)
 
-        result = bundle.transfer(100.0, "score", "audio")
-        assert result is None
+        assert bundle.transfer(100.0, "score", "audio") == 50.0
+        assert bundle.transfer(75.0, "score", "audio") is None
 
     def test_transfer_interval_cross_group(self) -> None:
         """transfer_interval works across groups."""

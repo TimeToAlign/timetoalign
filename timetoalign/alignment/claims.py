@@ -21,7 +21,7 @@ Design:
 
     ``MatchClaim`` is paired with ``MatchClaimField`` — a genuine
     ``SemanticField[MatchClaim]`` whose single derived struct column holds a
-    large set of synchronous-instant pairwise claims columnar, with shared
+    large set of synchronous pairwise claims columnar, with shared
     provenance injected on read.
 """
 
@@ -30,6 +30,7 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Iterator, Sequence
+from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any, ClassVar
 
@@ -1587,7 +1588,7 @@ class MatchClaimField(SemanticField[MatchClaim]):
     """A ``SemanticField[MatchClaim]`` columnar store for pairwise claims.
 
     ``MatchClaimField`` is the Field paired with the :class:`MatchClaim`
-    scalar.  It holds a large set of synchronous-instant pairwise alignment
+    scalar.  It holds a large set of synchronous pairwise alignment
     claims (millions of rows) in a single derived struct column instead of one
     frozen :class:`MatchClaim` per claim.  Individual claims are materialised
     lazily, only when a row is indexed or iterated.
@@ -1603,12 +1604,9 @@ class MatchClaimField(SemanticField[MatchClaim]):
     materialised :class:`MatchClaim`.  This keeps the store compact (one struct
     column, no per-row metadata) while remaining a genuine SemanticField.
 
-    **Scope (v1): synchronous instant pairwise claims only.** Every row
-    represents a claim where ``is_synchronous is True``, ``start_anchor`` is
-    present, and ``end_anchor`` is ``None`` (an instant). NOMATCH claims
-    (non-synchronous) and interval claims (with an end anchor) are **out of
-    scope** for this store; :meth:`from_claims` raises :class:`ValueError`
-    when handed one.
+    Every row represents a synchronous claim with a start anchor and an
+    optional end anchor. NOMATCH claims remain outside this store because
+    they carry no coordinate pair to query.
 
     Attributes:
         table: The backing single-column :class:`pyarrow.Table` (read-only
@@ -1724,8 +1722,8 @@ class MatchClaimField(SemanticField[MatchClaim]):
     ) -> "MatchClaimField":
         """Build a field from existing :class:`MatchClaim` objects.
 
-        Every claim must be a synchronous instant (``is_synchronous is True``,
-        ``start_anchor`` present, ``end_anchor is None``) per the v1 scope.
+        Every claim must be synchronous and carry a start anchor. Interval
+        claims retain their end anchors.
 
         If ``metadata`` is ``None`` and all claims share one identical
         :class:`MatchMetadata` (by equality), that metadata is adopted as the
@@ -1742,23 +1740,16 @@ class MatchClaimField(SemanticField[MatchClaim]):
             A new :class:`MatchClaimField`.
 
         Raises:
-            ValueError: If any claim is non-synchronous (NOMATCH), lacks a
-                start anchor, or is an interval (carries an end anchor).
+            ValueError: If any claim is non-synchronous (NOMATCH) or lacks a
+                start anchor.
         """
         for index, claim in enumerate(claims):
             if not claim.is_synchronous or claim.start_anchor is None:
                 raise ValueError(
-                    f"MatchClaimField holds synchronous instant claims only; "
+                    f"MatchClaimField holds synchronous claims only; "
                     f"claim at index {index} is non-synchronous (NOMATCH) and "
                     f"is out of scope."
                 )
-            if claim.end_anchor is not None:
-                raise ValueError(
-                    f"MatchClaimField holds synchronous instant claims only; "
-                    f"claim at index {index} is an interval claim (has an "
-                    f"end anchor) and is out of scope."
-                )
-
         if metadata is None:
             metadata = cls._common_metadata(claims)
 
@@ -1772,8 +1763,50 @@ class MatchClaimField(SemanticField[MatchClaim]):
             [claim.start_anchor.coordinate_b.value for claim in claims],
             [claim.start_anchor.coordinate_b.unit for claim in claims],
         )
+        end_coord_a = cls._coordinate_struct_array(
+            [
+                (
+                    None
+                    if claim.end_anchor is None
+                    else claim.end_anchor.coordinate_a.value
+                )
+                for claim in claims
+            ],
+            [
+                (
+                    claim.start_anchor.coordinate_a.unit
+                    if claim.end_anchor is None
+                    else claim.end_anchor.coordinate_a.unit
+                )
+                for claim in claims
+            ],
+        )
+        end_coord_b = cls._coordinate_struct_array(
+            [
+                (
+                    None
+                    if claim.end_anchor is None
+                    else claim.end_anchor.coordinate_b.value
+                )
+                for claim in claims
+            ],
+            [
+                (
+                    claim.start_anchor.coordinate_b.unit
+                    if claim.end_anchor is None
+                    else claim.end_anchor.coordinate_b.unit
+                )
+                for claim in claims
+            ],
+        )
         struct_array = cls._build_struct_array(
-            len(claims), tl_a, tl_b, coord_a, coord_b
+            len(claims),
+            tl_a,
+            tl_b,
+            coord_a,
+            coord_b,
+            end_coord_a,
+            end_coord_b,
         )
         return cls._from_struct_array(struct_array, metadata=metadata)
 
@@ -1800,7 +1833,21 @@ class MatchClaimField(SemanticField[MatchClaim]):
         tl_b = cls._string_array(data["timeline_b_id"])
         coord_a = cls._coordinate_struct_array(data["coordinate_a"], data["unit_a"])
         coord_b = cls._coordinate_struct_array(data["coordinate_b"], data["unit_b"])
-        struct_array = cls._build_struct_array(len(tl_a), tl_a, tl_b, coord_a, coord_b)
+        end_values_a = data["end_coordinate_a"]
+        end_values_b = data["end_coordinate_b"]
+        end_units_a = data["end_unit_a"]
+        end_units_b = data["end_unit_b"]
+        end_coord_a = cls._coordinate_struct_array(end_values_a, end_units_a)
+        end_coord_b = cls._coordinate_struct_array(end_values_b, end_units_b)
+        struct_array = cls._build_struct_array(
+            len(tl_a),
+            tl_a,
+            tl_b,
+            coord_a,
+            coord_b,
+            end_coord_a,
+            end_coord_b,
+        )
         return cls._from_struct_array(struct_array, metadata=metadata)
 
     @classmethod
@@ -1823,6 +1870,8 @@ class MatchClaimField(SemanticField[MatchClaim]):
         timeline_b_id: pa.Array,
         coordinate_a: pa.StructArray,
         coordinate_b: pa.StructArray,
+        end_coordinate_a: pa.StructArray | None = None,
+        end_coordinate_b: pa.StructArray | None = None,
     ) -> pa.StructArray:
         """Assemble the derived ``MatchClaim`` struct array, vectorized.
 
@@ -1831,22 +1880,8 @@ class MatchClaimField(SemanticField[MatchClaim]):
         slots are all-null arrays of the right type.
         """
         schema = cls.pa_schema
-        anchor_type = schema.field("start_anchor").type
-        # Build the anchor's child arrays BY NAME (not by position) so a future
-        # AlignmentAnchor field reorder cannot silently misalign the columns.
-        anchor_sources: dict[str, pa.Array] = {
-            "timeline_a_id": timeline_a_id,
-            "coordinate_a": coordinate_a,
-            "timeline_b_id": timeline_b_id,
-            "coordinate_b": coordinate_b,
-        }
-        anchor_children = [
-            anchor_sources[anchor_type.field(i).name]
-            for i in range(anchor_type.num_fields)
-        ]
-        start_anchor = pa.StructArray.from_arrays(
-            anchor_children,
-            fields=list(anchor_type),
+        start_anchor = cls._build_anchor_array(
+            timeline_a_id, timeline_b_id, coordinate_a, coordinate_b
         )
         true_array = pa.array([True] * n, type=pa.bool_())
 
@@ -1857,12 +1892,45 @@ class MatchClaimField(SemanticField[MatchClaim]):
             "is_synchronous": true_array,
             "is_explicit": true_array,
         }
+        if end_coordinate_a is not None and end_coordinate_b is not None:
+            per_field["end_anchor"] = cls._build_anchor_array(
+                timeline_a_id,
+                timeline_b_id,
+                end_coordinate_a,
+                end_coordinate_b,
+                nullable=True,
+            )
         arrays: list[pa.Array] = []
         for sub_field in schema:
             arrays.append(
                 per_field.get(sub_field.name) or pa.nulls(n, type=sub_field.type)
             )
         return pa.StructArray.from_arrays(arrays, fields=list(schema))
+
+    @classmethod
+    def _build_anchor_array(
+        cls,
+        timeline_a_id: pa.Array,
+        timeline_b_id: pa.Array,
+        coordinate_a: pa.StructArray,
+        coordinate_b: pa.StructArray,
+        *,
+        nullable: bool = False,
+    ) -> pa.StructArray:
+        """Build one anchor struct from parallel typed columns."""
+        anchor_type = cls.pa_schema.field("start_anchor").type
+        sources: dict[str, pa.Array] = {
+            "timeline_a_id": timeline_a_id,
+            "coordinate_a": coordinate_a,
+            "timeline_b_id": timeline_b_id,
+            "coordinate_b": coordinate_b,
+        }
+        children = [sources[field.name] for field in anchor_type]
+        return pa.StructArray.from_arrays(
+            children,
+            fields=list(anchor_type),
+            mask=pc.is_null(coordinate_a) if nullable else None,
+        )
 
     @staticmethod
     def _string_array(
@@ -1996,8 +2064,8 @@ class MatchClaimField(SemanticField[MatchClaim]):
             i: Zero-based row index (negative counts from the end).
 
         Returns:
-            A synchronous instant :class:`MatchClaim` carrying the field's
-            shared metadata.
+            A synchronous :class:`MatchClaim` carrying the field's shared
+            metadata.
 
         Raises:
             IndexError: If ``i`` is out of range.
@@ -2070,24 +2138,22 @@ class MatchClaimField(SemanticField[MatchClaim]):
         mask = self._involves_mask(timeline_id)
         return self._filtered(mask)
 
-    def at(self, timeline_id: str, coordinate: float) -> "MatchClaimField":
-        """Return the claims anchored at ``(timeline_id, coordinate)``.
+    def at(self, timeline_id: str, coordinate: CoordinateSpec) -> "MatchClaimField":
+        """Return claims relevant at ``(timeline_id, coordinate)``.
 
         The selection is a vectorized PyArrow boolean mask over the struct
-        column — rows where ``timeline_a_id == timeline_id`` and the anchor's
-        ``coordinate_a`` equals ``coordinate``, OR the symmetric
-        ``timeline_b_id`` / ``coordinate_b`` pair.  No claim is materialised
-        and the rest of the field is never touched; the shared metadata
-        carries over.
+        column. Instant rows compare their start coordinate exactly. Interval
+        rows use closed containment between their start and end coordinates.
+        No claim is materialised and the rest of the field is never touched;
+        the shared metadata carries over.
 
-        Coordinate matching is **exact float equality** — a query coordinate
-        must land on a value the field actually carries.  There is no
-        tolerance and no nearest-value fallback, so the result agrees with a
-        per-claim scan of the same claims.
+        Coordinate matching is exact in the query coordinate's declared
+        number representation. There is no tolerance or nearest-value
+        fallback.
 
         Args:
             timeline_id: The timeline the queried coordinate lives on.
-            coordinate: The exact coordinate value on that timeline.
+            coordinate: A raw or typed coordinate on that timeline.
 
         Returns:
             A new :class:`MatchClaimField` holding only the matching rows
@@ -2096,16 +2162,52 @@ class MatchClaimField(SemanticField[MatchClaim]):
         data = self._raw.data
         if data is None or len(data) == 0:
             return self._empty()
-        mask = pc.or_(
-            pc.and_(
-                pc.equal(data.field("timeline_a_id"), timeline_id),
-                pc.equal(self._anchor_values("a"), coordinate),
-            ),
-            pc.and_(
-                pc.equal(data.field("timeline_b_id"), timeline_id),
-                pc.equal(self._anchor_values("b"), coordinate),
-            ),
-        )
+        if isinstance(coordinate, IdCoordinate):
+            if coordinate.timeline_id != timeline_id:
+                raise ValueError(
+                    f"coordinate timeline_id {coordinate.timeline_id!r} does not "
+                    f"match {timeline_id!r}"
+                )
+            query = coordinate.to_coordinate()
+        elif isinstance(coordinate, Coordinate):
+            query = coordinate
+        elif not isinstance(coordinate, bool) and isinstance(
+            coordinate, (int, float, Fraction)
+        ):
+            number_type = (
+                NumberType.fraction
+                if isinstance(coordinate, Fraction)
+                else (
+                    NumberType.float
+                    if isinstance(coordinate, float)
+                    else NumberType.int
+                )
+            )
+            query = Coordinate(coordinate, TimeUnit.number, number_type=number_type)
+        else:
+            raise TypeError(
+                "MatchClaimField.at coordinate must be int, float, Fraction, "
+                "Coordinate, or IdCoordinate"
+            )
+        masks: list[pa.Array] = []
+        for side in ("a", "b"):
+            side_id = pc.equal(data.field(f"timeline_{side}_id"), timeline_id)
+            start = self._coordinate_comparison_mask(
+                "start_anchor", side, query, "equal"
+            )
+            contained = pc.and_(
+                self._coordinate_comparison_mask(
+                    "start_anchor", side, query, "less_equal"
+                ),
+                self._coordinate_comparison_mask(
+                    "end_anchor", side, query, "greater_equal"
+                ),
+            )
+            relevant = pc.if_else(
+                pc.is_valid(data.field("end_anchor")), contained, start
+            )
+            masks.append(pc.and_(side_id, relevant))
+        mask = pc.or_(*masks)
         # Empty-mask short-circuit: skip building a filtered sub-field.
         if pc.sum(pc.cast(mask, "int64")).as_py() == 0:
             return self._empty()
@@ -2313,7 +2415,7 @@ class MatchClaimField(SemanticField[MatchClaim]):
         is provided for convenience and round-tripping, not for hot paths.
 
         Returns:
-            A list of synchronous instant claims, one per row.
+            A list of synchronous claims, one per row.
         """
         return [self[i] for i in range(len(self))]
 
@@ -2337,11 +2439,18 @@ class MatchClaimField(SemanticField[MatchClaim]):
                 "coordinate_b": empty,
                 "unit_a": empty,
                 "unit_b": empty,
+                "end_coordinate_a": empty,
+                "end_coordinate_b": empty,
+                "end_unit_a": empty,
+                "end_unit_b": empty,
             }
         else:
             anchor = data.field("start_anchor")
+            end_anchor = data.field("end_anchor")
             stored_a = anchor.field("coordinate_a").to_pylist()
             stored_b = anchor.field("coordinate_b").to_pylist()
+            stored_end_a = end_anchor.field("coordinate_a").to_pylist()
+            stored_end_b = end_anchor.field("coordinate_b").to_pylist()
             columns = {
                 "timeline_a_id": data.field("timeline_a_id").to_pylist(),
                 "timeline_b_id": data.field("timeline_b_id").to_pylist(),
@@ -2353,6 +2462,20 @@ class MatchClaimField(SemanticField[MatchClaim]):
                 ],
                 "unit_a": [value["unit"] for value in stored_a],
                 "unit_b": [value["unit"] for value in stored_b],
+                "end_coordinate_a": [
+                    None if value is None else _coordinate_from_dict(value).value
+                    for value in stored_end_a
+                ],
+                "end_coordinate_b": [
+                    None if value is None else _coordinate_from_dict(value).value
+                    for value in stored_end_b
+                ],
+                "end_unit_a": [
+                    None if value is None else value["unit"] for value in stored_end_a
+                ],
+                "end_unit_b": [
+                    None if value is None else value["unit"] for value in stored_end_b
+                ],
             }
         columns["metadata"] = (
             self._metadata.to_dict() if self._metadata is not None else None
@@ -2374,6 +2497,38 @@ class MatchClaimField(SemanticField[MatchClaim]):
         """The stored anchor coordinate values on ``side`` (``"a"`` / ``"b"``)."""
         anchor = self._raw.data.field("start_anchor")
         return anchor.field(f"coordinate_{side}").field("value")
+
+    def _coordinate_comparison_mask(
+        self,
+        anchor_name: str,
+        side: str,
+        query: Coordinate,
+        comparison: str,
+    ) -> pa.Array:
+        """Compare one stored coordinate column to an exact typed query."""
+        coordinate = self._raw.data.field(anchor_name).field(f"coordinate_{side}")
+        if query.number_type in (NumberType.int, NumberType.fraction):
+            exact = Fraction(query.value)
+            decimal = pa.decimal256(37, 0)
+            stored_numerator = pc.cast(coordinate.field("numerator"), decimal)
+            stored_denominator = pc.cast(coordinate.field("denominator"), decimal)
+            left = pc.multiply(
+                stored_numerator,
+                pa.scalar(Decimal(exact.denominator), type=decimal),
+            )
+            right = pc.multiply(
+                stored_denominator,
+                pa.scalar(Decimal(exact.numerator), type=decimal),
+            )
+        else:
+            left = coordinate.field("value")
+            right = pa.scalar(float(query.value))
+        operations = {
+            "equal": pc.equal,
+            "less_equal": pc.less_equal,
+            "greater_equal": pc.greater_equal,
+        }
+        return operations[comparison](left, right)
 
     @staticmethod
     def _id_value_set(timeline_ids: set[str]) -> pa.Array:

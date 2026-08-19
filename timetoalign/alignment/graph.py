@@ -3,6 +3,7 @@
 This module implements the mid-level graph structure for alignment:
 
 - MatchStamp: Cross-group timestamp at a single coordinate
+- MatchIntervalStamp: Per-claim matches relevant at a queried coordinate
 - MatchGraph: Graph of MatchClaims yielding MatchStamps
 
 The hierarchy is:
@@ -646,6 +647,134 @@ class MatchStamp(Stamp):
             f"{affordance_line(affordances)}"
             f"</div>"
         )
+
+
+# endregion
+
+
+# region MatchIntervalStamp
+
+
+@dataclass(frozen=True, slots=True)
+class MatchIntervalStamp:
+    """Relevant match claims at one position on a timeline.
+
+    Each stored claim remains an independent entry. Interval sides are read
+    from that claim's anchors, so overlapping or repeated timeline mappings
+    are never collapsed into a per-timeline value.
+
+    Args:
+        source_id: Timeline identity used for the query.
+        coordinate: Canonical query coordinate on the source timeline.
+        claims: Relevant synchronous claims in first-relevance order.
+    """
+
+    source_id: str
+    coordinate: Coordinate
+    claims: list[MatchClaim]
+
+    def __post_init__(self) -> None:
+        """Validate and isolate canonical typed storage."""
+        if not isinstance(self.source_id, str) or not self.source_id:
+            raise ValueError(
+                "MatchIntervalStamp source_id must be a non-empty timeline ID"
+            )
+        if type(self.coordinate) is not Coordinate:
+            raise TypeError(
+                "MatchIntervalStamp coordinate must be a plain Coordinate value"
+            )
+        normalized_coordinate = Coordinate(
+            self.coordinate.value,
+            self.coordinate.unit,
+            number_type=self.coordinate.number_type,
+        )
+        normalized_claims: list[MatchClaim] = []
+        for claim in self.claims:
+            if not isinstance(claim, MatchClaim):
+                raise TypeError(
+                    "MatchIntervalStamp claims must contain MatchClaim values"
+                )
+            if not claim.is_synchronous or claim.start_anchor is None:
+                raise ValueError(
+                    "MatchIntervalStamp claims must be synchronous and anchored"
+                )
+            normalized_claims.append(claim.model_copy(deep=True))
+        if not normalized_claims:
+            raise ValueError("MatchIntervalStamp requires at least one claim")
+        object.__setattr__(self, "coordinate", normalized_coordinate)
+        object.__setattr__(self, "claims", normalized_claims)
+
+    def __repr__(self) -> str:
+        """List every claim's asserted pair of sides."""
+
+        def _side(claim: MatchClaim, timeline_id: str) -> str:
+            if claim.is_interval:
+                interval = claim.get_interval_for(timeline_id)
+                start = _format_stamp_value(
+                    interval.start.value, interval.start.unit.value
+                )
+                end = _format_stamp_value(interval.end.value, interval.end.unit.value)
+                return f"{timeline_id}=[{start}, {end}]"
+            coordinate = claim.start_anchor.get_coordinate_for(
+                timeline_id, format="coordinate"
+            )
+            assert isinstance(coordinate, Coordinate)
+            value = _format_stamp_value(coordinate.value, coordinate.unit.value)
+            return f"{timeline_id}={value}"
+
+        entries = "; ".join(
+            f"{_side(claim, claim.timeline_a_id)} <-> "
+            f"{_side(claim, claim.timeline_b_id)}"
+            for claim in self.claims
+        )
+        query = _format_stamp_value(self.coordinate.value, self.coordinate.unit.value)
+        return f"MatchIntervalStamp({self.source_id}={query}; {entries})"
+
+    @property
+    def axis(self) -> Coordinate:
+        """Return the canonical query coordinate."""
+        return self.coordinate
+
+    @property
+    def present_timelines(self) -> list[str]:
+        """Return timeline IDs in deterministic first-appearance order."""
+        ordered = [self.source_id]
+        for claim in self.claims:
+            for timeline_id in claim.timelines:
+                if timeline_id not in ordered:
+                    ordered.append(timeline_id)
+        return ordered
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize query and claim sides with typed coordinate leaves."""
+        entries: list[dict[str, Any]] = []
+        for claim in self.claims:
+            entry: dict[str, Any] = {
+                "timeline_a_id": claim.timeline_a_id,
+                "timeline_b_id": claim.timeline_b_id,
+            }
+            for side, timeline_id in (
+                ("timeline_a", claim.timeline_a_id),
+                ("timeline_b", claim.timeline_b_id),
+            ):
+                if claim.is_interval:
+                    interval = claim.get_interval_for(timeline_id)
+                    entry[side] = {
+                        "start": coordinate_wire_entry(interval.start),
+                        "end": coordinate_wire_entry(interval.end),
+                    }
+                else:
+                    coordinate = claim.start_anchor.get_coordinate_for(
+                        timeline_id, format="coordinate"
+                    )
+                    assert isinstance(coordinate, Coordinate)
+                    entry[side] = coordinate_wire_entry(coordinate)
+            entries.append(entry)
+        return {
+            "source_id": self.source_id,
+            "coordinate": coordinate_wire_entry(self.coordinate),
+            "claims": entries,
+        }
 
 
 # endregion

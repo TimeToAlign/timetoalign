@@ -14,6 +14,7 @@ Public API:
 - MatchMetadata: Provenance information for matches (agent + certainty)
 - MatchGraph: Graph of MatchClaims (networkx integration)
 - MatchStamp: Cross-group timestamp at a single coordinate
+- MatchIntervalStamp: Per-claim interval matches at a queried coordinate
 - MatchLine: Ordered sequence of MatchStamps for WarpMap generation
 - WarpMap: Bidirectional coordinate warping from alignment data
 """
@@ -30,7 +31,7 @@ from .claims import (
     MatchMetadata,
 )
 from .filters import ClaimFilter
-from .graph import MatchGraph, MatchStamp
+from .graph import MatchGraph, MatchIntervalStamp, MatchStamp
 from .match_format import MatchFileContext, NoteRecord, SnoteRecord
 from .matching import (
     MatchResult,
@@ -67,6 +68,7 @@ __all__ = [
     "ClaimFilter",
     # Graph, Stamps, and Lines
     "MatchGraph",
+    "MatchIntervalStamp",
     "MatchStamp",
     "MatchLine",
     "WarpMap",

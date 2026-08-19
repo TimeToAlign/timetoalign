@@ -510,7 +510,7 @@ class TestFromClaims:
         with pytest.raises(ValueError, match="non-synchronous"):
             MatchClaimField.from_claims([nomatch])
 
-    def test_from_claims_rejects_interval(self) -> None:
+    def test_from_claims_preserves_interval(self) -> None:
         interval = MatchClaim.from_events(
             event_a={"id": "a", "start": 0.0, "end": 1.0},
             tl_a_id="A",
@@ -521,8 +521,9 @@ class TestFromClaims:
             end_coord_key="end",
         )
         assert interval.is_interval
-        with pytest.raises(ValueError, match="interval"):
-            MatchClaimField.from_claims([interval])
+        field = MatchClaimField.from_claims([interval])
+        assert field[0].get_interval_for("A") == interval.get_interval_for("A")
+        assert field[0].get_interval_for("B") == interval.get_interval_for("B")
 
     def test_from_claims_empty(self) -> None:
         field = MatchClaimField.from_claims([])

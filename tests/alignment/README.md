@@ -192,6 +192,44 @@ needs at least two anchors), which keeps the out-of-support counts exact.
 
 ---
 
+## Interval-Claim Position Retrieval (`test_interval_matchstamp.py`)
+
+### What We're Validating
+
+Position retrieval treats a synchronous interval claim as relevant throughout
+both of its asserted closed intervals, while preserving every relevant claim as
+an independent result entry. Synthetic standalone timelines isolate claim
+geometry from group interpolation and corpus data.
+
+The validation covers these exact geometries:
+
+- A strict interior position selects one interval claim and reproduces both
+  asserted native-unit intervals exactly.
+- Each endpoint selects the interval because containment is closed.
+- Overlapping claims to different counterpart timelines remain separate and
+  retain claim insertion order; two claims to the same counterpart likewise
+  remain two entries rather than collapsing by timeline.
+- Adjacent claims sharing a source endpoint both select at that endpoint.
+- An instant claim and an interval claim at one source position are returned as
+  two entries, with the instant retaining its asserted coordinate pair.
+- Two instant claims forming `A -> B -> C` resolve all three standalone
+  timelines, proving direct claim edges provide transitive reachability without
+  group membership.
+- A fraction-canonical source axis compares a converted query and native claim
+  boundaries as exact `Fraction` values, proving retrieval does not depend on a
+  second float comparison pass.
+- A zero-length fraction interval in columnar storage distinguishes exact `1/3`
+  from an unequal fraction with the same binary64 value at both closed endpoints.
+- Positional table materialization rejects interval-bearing results explicitly,
+  because its one-cell-per-timeline row shape cannot represent repeated
+  per-claim intervals.
+- A position outside every claim retains the existing source-only instant stamp.
+
+Every assertion pins exact `Coordinate` and `Interval` objects, exact entry
+counts, and exact ordering; no tolerance or approximate comparison is used.
+
+---
+
 ## TimelineGroup Integration
 
 ### What We're Validating

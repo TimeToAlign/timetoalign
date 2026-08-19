@@ -61,7 +61,7 @@ from timetoalign.timelines import TimelineGroup
 
 from .claims import AlignmentAnchor, MatchClaim, MatchClaimField
 from .filters import ClaimFilter
-from .graph import MatchGraph, MatchStamp
+from .graph import MatchGraph, MatchIntervalStamp, MatchStamp
 from .matchline import MatchLine
 from .warpmap import AmbiguousWarpMapError, WarpMap
 
@@ -214,7 +214,7 @@ class AlignmentBundle:
         default_factory=dict, repr=False
     )
     # Cached MatchGraphs: (timeline_id, coordinate) -> MatchGraph
-    _matchgraph_cache: dict[tuple[str, float], MatchGraph] = field(
+    _matchgraph_cache: dict[tuple[str, CoordinateValue], MatchGraph] = field(
         default_factory=dict, repr=False
     )
     # Hash of cross_group_claims list at time of last cache build
@@ -679,17 +679,26 @@ class AlignmentBundle:
                 f"Available timelines: {list(self.timelines.keys())}"
             )
 
-        coord_value, _resolved_timeline_id, unit = _resolve_coordinate_and_timeline(
+        coord_value, _resolved_timeline_id, _unit = _resolve_coordinate_and_timeline(
             coord, from_timeline
         )
-        if unit is not None:
-            coord = float(
-                self.get_timeline(from_timeline)
-                .get_coordinate_at(Coordinate(coord_value, unit), format="coordinate")
-                .value
-            )
+        source_timeline = self.get_timeline(from_timeline)
+        if isinstance(coord, IdCoordinate):
+            query_input = coord.to_coordinate()
+        elif isinstance(coord, Coordinate):
+            query_input = coord
         else:
-            coord = float(coord_value)
+            query_input = Coordinate(
+                coord_value,
+                source_timeline.unit,
+                number_type=source_timeline.number_type,
+            )
+        query_coordinate = source_timeline.get_coordinate_at(
+            query_input,
+            format="coordinate",
+        )
+        assert isinstance(query_coordinate, Coordinate)
+        coord = float(query_coordinate.value)
 
         # Same timeline: no conversion needed
         if from_timeline == to_timeline:
@@ -782,6 +791,13 @@ class AlignmentBundle:
                     return float(result.value)
                 except Exception:
                     continue
+
+        # A single exact claim cannot construct a WarpMap, but it is still a
+        # direct reachability edge. Reuse the match-stamp closure for that
+        # exact-anchor case, including chains through standalone timelines.
+        stamp = self.get_matchstamp_at(query_coordinate, from_timeline)
+        if isinstance(stamp, MatchStamp) and to_timeline in stamp.coordinates:
+            return float(stamp.coordinates[to_timeline].value)
 
         self._logger.debug(
             "No transfer path between '%s' and '%s'",
@@ -1135,8 +1151,8 @@ class AlignmentBundle:
         ``cross_group_claim_fields`` at once.
 
         Args:
-            claim_field: A :class:`MatchClaimField` of synchronous instant
-                pairwise claims.
+            claim_field: A :class:`MatchClaimField` of synchronous pairwise
+                claims.
 
         Returns:
             self (for method chaining)
@@ -1433,10 +1449,68 @@ class AlignmentBundle:
             return coordinate
         return express_as(coordinate, unit.default_number_type)
 
+    @staticmethod
+    def _claim_is_relevant_at(
+        claim: MatchClaim, timeline_id: str, coordinate: Coordinate
+    ) -> bool:
+        """Return whether one native-unit claim is relevant to a query."""
+        if not claim.is_synchronous or claim.start_anchor is None:
+            return False
+        if timeline_id not in claim.timelines:
+            return False
+        if claim.is_interval:
+            interval = claim.get_interval_for(timeline_id)
+            return interval.start.value <= coordinate.value <= interval.end.value
+        stored = claim.start_anchor.get_coordinate_for(timeline_id, format="coordinate")
+        assert isinstance(stored, Coordinate)
+        return stored.value == coordinate.value
+
+    def _relevant_claims_at(
+        self, timeline_id: str, coordinate: Coordinate
+    ) -> list[MatchClaim]:
+        """Find relevant claims in deterministic store and row order."""
+        relevant: list[MatchClaim] = []
+        for raw_claim in self.cross_group_claims:
+            claim = self._claim_in_native_units(raw_claim)
+            if self._claim_is_relevant_at(claim, timeline_id, coordinate):
+                relevant.append(claim)
+        for claim_field in self.cross_group_claim_fields:
+            for raw_claim in claim_field.at(timeline_id, coordinate):
+                claim = self._claim_in_native_units(raw_claim)
+                if self._claim_is_relevant_at(claim, timeline_id, coordinate):
+                    relevant.append(claim)
+        return relevant
+
+    def _claim_with_public_ids(self, claim: MatchClaim) -> MatchClaim:
+        """Return a claim whose timeline identities are public bundle UIDs."""
+        updates: dict[str, Any] = {
+            "timeline_a_id": self._timeline_id_to_uid.get(
+                claim.timeline_a_id, claim.timeline_a_id
+            ),
+            "timeline_b_id": self._timeline_id_to_uid.get(
+                claim.timeline_b_id, claim.timeline_b_id
+            ),
+        }
+        for name in ("start_anchor", "end_anchor"):
+            anchor = getattr(claim, name)
+            if anchor is None:
+                continue
+            updates[name] = anchor.model_copy(
+                update={
+                    "timeline_a_id": self._timeline_id_to_uid.get(
+                        anchor.timeline_a_id, anchor.timeline_a_id
+                    ),
+                    "timeline_b_id": self._timeline_id_to_uid.get(
+                        anchor.timeline_b_id, anchor.timeline_b_id
+                    ),
+                }
+            )
+        return claim.model_copy(update=updates)
+
     def _get_or_build_matchgraph(
         self,
         timeline_id: str,
-        coordinate: float,
+        coordinate: CoordinateValue,
     ) -> MatchGraph:
         """Get or build the MatchGraph containing (timeline_id, coordinate).
 
@@ -1461,31 +1535,14 @@ class AlignmentBundle:
         if key in self._matchgraph_cache:
             return self._matchgraph_cache[key]
 
-        # Find ALL claims that touch this coordinate on this timeline.
-        # Scan the per-claim Python list as before (small for the other
-        # alignment loaders) ...
-        relevant_claims: list[MatchClaim] = []
-        for raw_claim in self.cross_group_claims:
-            c = self._claim_in_native_units(raw_claim)
-            if not c.is_synchronous or c.start_anchor is None:
-                continue
-            anchor = c.start_anchor
-            if (
-                anchor.timeline_a_id == timeline_id
-                and anchor.coordinate_a.value == coordinate
-            ) or (
-                anchor.timeline_b_id == timeline_id
-                and anchor.coordinate_b.value == coordinate
-            ):
-                relevant_claims.append(c)
-
-        # ... then query each columnar field vectorized, materialising only
-        # the matched rows (never the whole field).
-        for claim_field in self.cross_group_claim_fields:
-            relevant_claims.extend(
-                self._claim_in_native_units(claim)
-                for claim in claim_field.at(timeline_id, coordinate).to_claims()
-            )
+        bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
+        timeline = self.get_timeline(bundle_uid)
+        query = Coordinate(coordinate, timeline.unit, number_type=timeline.number_type)
+        relevant_claims = [
+            claim
+            for claim in self._relevant_claims_at(timeline_id, query)
+            if not claim.is_interval
+        ]
 
         if not relevant_claims:
             raise ValueError(
@@ -1784,8 +1841,8 @@ class AlignmentBundle:
         id_pattern: str | None = None,
         include_domains: set["Domain"] | None = None,
         include_units: set["TimeUnit"] | None = None,
-    ) -> MatchStamp:
-        """Get a cross-group MatchStamp at a coordinate on a timeline.
+    ) -> MatchStamp | MatchIntervalStamp:
+        """Get a cross-group match stamp at a coordinate on a timeline.
 
         This is the primary interface for cross-domain coordinate transfer.
         Given a coordinate on one timeline, returns coordinates on ALL
@@ -1829,7 +1886,9 @@ class AlignmentBundle:
             include_units: Only these units in the result.
 
         Returns:
-            MatchStamp spanning all connected timelines.
+            A MatchIntervalStamp containing every directly relevant claim if
+            at least one interval claim contains the query; otherwise a
+            MatchStamp spanning all connected instant timelines.
 
         Raises:
             TypeError: If ``at`` is not int/float/Fraction/Coordinate/
@@ -1843,7 +1902,7 @@ class AlignmentBundle:
             >>> ms.n_timelines
             23  # score + 22 performers
         """
-        coordinate_value, timeline_id, unit = _resolve_coordinate_and_timeline(
+        coordinate_value, timeline_id, _unit = _resolve_coordinate_and_timeline(
             at, timeline_id
         )
         if timeline_id is None:
@@ -1862,19 +1921,33 @@ class AlignmentBundle:
 
         bundle_uid = self._timeline_id_to_uid.get(timeline_id, timeline_id)
         actual_timeline_id = self._uid_to_timeline_id.get(bundle_uid, timeline_id)
-        # The query's own position is known exactly; only the graph and warp
-        # lanes below need it as a double. Keeping the exact value here is
-        # what lets the source timeline's own cell report the ratio that was
-        # asked for instead of the dyadic of its double -- the transferred
-        # cells are genuinely interpolated and stay re-expressed from float.
-        queried: CoordinateValue = (
-            self.get_timeline(bundle_uid)
-            .get_coordinate_at(Coordinate(coordinate_value, unit), format="coordinate")
-            .value
-            if unit is not None
-            else coordinate_value
+        source_timeline = self.get_timeline(bundle_uid)
+        if isinstance(at, IdCoordinate):
+            query_input = at.to_coordinate()
+        elif isinstance(at, Coordinate):
+            query_input = at
+        else:
+            query_input = Coordinate(
+                coordinate_value,
+                source_timeline.unit,
+                number_type=source_timeline.number_type,
+            )
+        query_coordinate = source_timeline.get_coordinate_at(
+            query_input,
+            format="coordinate",
         )
-        coordinate = float(queried)
+        assert isinstance(query_coordinate, Coordinate)
+        queried = query_coordinate.value
+
+        relevant_claims = self._relevant_claims_at(actual_timeline_id, query_coordinate)
+        if any(claim.is_interval for claim in relevant_claims):
+            return MatchIntervalStamp(
+                source_id=bundle_uid,
+                coordinate=query_coordinate,
+                claims=[
+                    self._claim_with_public_ids(claim) for claim in relevant_claims
+                ],
+            )
 
         policy = (
             self.support_policy
@@ -1884,7 +1957,7 @@ class AlignmentBundle:
 
         coordinates, anchor_edges, inferred_edges, query_has_anchor = (
             self._assemble_matchstamp(
-                coordinate,
+                queried,
                 actual_timeline_id,
                 support_policy=policy,
                 conversion_maps=conversion_maps,
@@ -2007,7 +2080,7 @@ class AlignmentBundle:
         id_pattern: str | None = None,
         include_domains: set["Domain"] | None = None,
         include_units: set["TimeUnit"] | None = None,
-    ) -> list[MatchStamp]:
+    ) -> list[MatchStamp | MatchIntervalStamp]:
         """Get cross-group MatchStamps at a collection of coordinates.
 
         Every element is resolved through :meth:`get_matchstamp_at`, so each
@@ -2027,8 +2100,8 @@ class AlignmentBundle:
             include_units: Only these units in each result.
 
         Returns:
-            One MatchStamp per input coordinate; an empty collection gives an
-            empty list.
+            One match stamp per input coordinate; interval results pass
+            through unchanged. An empty collection gives an empty list.
 
         Examples:
             >>> stamps = bundle.get_matchstamps_at([0.0, 50.0], "score:clt1")
@@ -2061,7 +2134,7 @@ class AlignmentBundle:
         id_pattern: str | None = None,
         include_domains: set["Domain"] | None = None,
         include_units: set["TimeUnit"] | None = None,
-    ) -> MatchStamp:
+    ) -> MatchStamp | MatchIntervalStamp:
         """Get the cross-group MatchStamp at a uniquely owned event.
 
         Args:
@@ -2118,7 +2191,7 @@ class AlignmentBundle:
         id_pattern: str | None = None,
         include_domains: set["Domain"] | None = None,
         include_units: set["TimeUnit"] | None = None,
-    ) -> list[MatchStamp]:
+    ) -> list[MatchStamp | MatchIntervalStamp]:
         """Get cross-group MatchStamps for a collection of event IDs.
 
         Args:
@@ -2166,7 +2239,7 @@ class AlignmentBundle:
         id_pattern: str | None = None,
         include_domains: set["Domain"] | None = None,
         include_units: set["TimeUnit"] | None = None,
-    ) -> MatchStamp | list[MatchStamp]:
+    ) -> MatchStamp | MatchIntervalStamp | list[MatchStamp | MatchIntervalStamp]:
         """Dispatch a positional or event-key match-stamp query.
 
         Args:
@@ -2202,12 +2275,17 @@ class AlignmentBundle:
 
     def _assemble_matchstamp(
         self,
-        coordinate: float,
+        coordinate: CoordinateValue,
         actual_timeline_id: str,
         *,
         support_policy: SupportPolicy,
         conversion_maps: "ConversionMapsSpec",
-    ) -> tuple[dict[str, float], list[tuple[str, str]], list[tuple[str, str]], bool]:
+    ) -> tuple[
+        dict[str, CoordinateValue],
+        list[tuple[str, str]],
+        list[tuple[str, str]],
+        bool,
+    ]:
         """Assemble the transitive cross-group union reachable from a query.
 
         Seeds from the query node, overlays exact-anchor coordinates from the
@@ -2228,7 +2306,7 @@ class AlignmentBundle:
             ``query_has_anchor`` is True when the query node carries an
             explicit anchor (making the stamp non-interpolated).
         """
-        coordinates: dict[str, float] = {}
+        coordinates: dict[str, CoordinateValue] = {}
         anchor_edges: list[tuple[str, str]] = []
         inferred_edges: list[tuple[str, str]] = []
 
@@ -2260,7 +2338,7 @@ class AlignmentBundle:
             graph_stamp = mg.get_matchstamp()
             coordinates.update(
                 {
-                    timeline_id: float(stored.value)
+                    timeline_id: stored.value
                     for timeline_id, stored in graph_stamp.coordinates.items()
                 }
             )
@@ -2280,6 +2358,37 @@ class AlignmentBundle:
             processed.add(node_id)
             node_coordinate = coordinates[node_id]
             node_uid = self._timeline_id_to_uid.get(node_id, node_id)
+            node_timeline = self.get_timeline(node_uid)
+
+            # Direct instant claims are reachability edges in their own right.
+            # This precedes group handling so standalone timelines participate
+            # in the same transitive closure.
+            query = Coordinate(
+                node_coordinate,
+                node_timeline.unit,
+                number_type=node_timeline.number_type,
+            )
+            for claim in self._relevant_claims_at(node_id, query):
+                if claim.is_interval:
+                    continue
+                anchor = claim.start_anchor
+                assert anchor is not None
+                if anchor.timeline_a_id == node_id:
+                    target_id = anchor.timeline_b_id
+                    target_coordinate = anchor.coordinate_b.value
+                else:
+                    target_id = anchor.timeline_a_id
+                    target_coordinate = anchor.coordinate_a.value
+                if (node_id, target_id) not in anchor_edges and (
+                    target_id,
+                    node_id,
+                ) not in anchor_edges:
+                    anchor_edges.append((node_id, target_id))
+                if target_id in coordinates:
+                    continue
+                coordinates[target_id] = target_coordinate
+                worklist.append(target_id)
+
             group_id = self.timeline_to_group.get(node_uid)
             if group_id is None:
                 continue
@@ -2291,7 +2400,7 @@ class AlignmentBundle:
             if len(source_group.timeline_ids) > 1:
                 grouped = self._get_group_timestamp(
                     source_group,
-                    node_coordinate,
+                    float(node_coordinate),
                     node_id,
                     conversion_maps=conversion_maps,
                 )
@@ -2318,7 +2427,7 @@ class AlignmentBundle:
                 ):
                     continue
                 transferred = self._transfer_to_group(
-                    node_coordinate,
+                    float(node_coordinate),
                     node_id,
                     source_group,
                     other_group,
@@ -2501,6 +2610,11 @@ class AlignmentBundle:
                     conversion_maps=conversion_maps,
                 )
             )
+            if any(isinstance(stamp, MatchIntervalStamp) for stamp in stamps):
+                raise NotImplementedError(
+                    "get_matchstamp_table does not support positions whose hits "
+                    "include interval claims"
+                )
             rows = [dict(stamp.coordinates) for stamp in stamps]
             all_tl_ids: set[str] = set()
             for row in rows:
