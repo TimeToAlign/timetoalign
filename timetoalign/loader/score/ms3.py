@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import math
-import warnings
 from fractions import Fraction
 from numbers import Integral, Real
 from pathlib import Path
@@ -672,7 +671,17 @@ class Ms3Loader(ScoreLoader):
         flatten: bool = False,
         **kwargs: Any,
     ) -> ContinuousLogicalTimeline:
-        """Create a score timeline and, by default, attach parsed structure."""
+        """Create a score timeline and, by default, attach parsed structure.
+
+        Known limitation: a score whose measures are **split** — two
+        records sharing one notated downbeat, as when a bar is divided
+        across a repeat sign — has no floating-measure lattice, because
+        the two halves cannot both anchor the same ordinal. The timeline
+        then carries no ``floating_measures`` conversion; every other
+        conversion, and the measure structure itself, is unaffected. No
+        approximate lattice is built in its place, since an fm reading
+        those measures do not support is worse than no fm reading.
+        """
         from timetoalign.alignment import SectionHierarchy, TimeSkeleton
         from timetoalign.maps import ScalarMap
         from timetoalign.maps.interval import QuartersToFloatingMeasures
@@ -718,11 +727,11 @@ class Ms3Loader(ScoreLoader):
                 timeline.add_conversion_map(
                     QuartersToFloatingMeasures.from_measure_map(self._measure_map)
                 )
-            except ValueError as exc:
-                warnings.warn(
-                    f"No floating-measure conversion built for these measures: {exc}",
-                    stacklevel=2,
-                )
+            except ValueError:
+                # Split bars cannot anchor two fm ordinals, so the lattice
+                # is left absent rather than approximated (documented on
+                # this method).
+                pass
             if not flatten:
                 groups = []
                 start = 0

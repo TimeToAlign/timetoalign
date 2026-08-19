@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign import Coordinate, Interval, NumberType, TimeUnit
+from timetoalign import Coordinate, GridBeat, Interval, NumberType, TimeUnit
 from timetoalign.core.events import IrregularMeasure, MeasureConstituent
 from timetoalign.loader import RekordboxLoader
 from timetoalign.maps import QuartersToFloatingMeasures
@@ -78,6 +78,10 @@ def test_pickup_grid_change_and_trailing_measure_are_exact(tmp_path: Path) -> No
     assert len(loader.tracks) == 1
     assert [tempo.inizio for tempo in loader.tracks[0].tempos] == [0.0, 3.5, 7.0]
     assert [tempo.battito for tempo in loader.tracks[0].tempos] == [4, 2, 1]
+    # The raw parse keeps both halves of Metro as the source spells them.
+    first_tempo = loader.tracks[0].tempos[0]
+    assert [tempo.metro for tempo in loader.tracks[0].tempos] == ["4/4"] * 3
+    assert (first_tempo.numerator, first_tempo.denominator) == (4, 4)
     assert [measure.id for measure in measures] == ["m1", "m2", "m3", "m4"]
     assert [measure.number for measure in measures] == [0, 1, 2, 3]
     assert isinstance(measures[0], MeasureConstituent)
@@ -106,6 +110,149 @@ def test_pickup_grid_change_and_trailing_measure_are_exact(tmp_path: Path) -> No
         "SampleRate": 48000,
         "POSITION_MARK": [{"Name": "cue", "Type": "0", "Start": "1.25", "Num": "0"}],
     }
+
+
+def test_displaced_anchor_beats_are_not_counted_twice(tmp_path: Path) -> None:
+    """A beat within half a beat of the next grid is that grid's anchor.
+
+    At 120 BPM a beat is 0.5 s and half a beat 0.25 s. Grid 1's would-be
+    beat at 10.5 sits 0.01 s before grid 2's anchor and is dropped; grid
+    2's last beat at 20.01 sits 0.30 s before grid 3's anchor and is kept.
+    """
+    tempos = """
+      <TEMPO Inizio="0.5" Bpm="120" Metro="4/4" Battito="1" />
+      <TEMPO Inizio="10.51" Bpm="120" Metro="4/4" Battito="1" />
+      <TEMPO Inizio="20.31" Bpm="120" Metro="4/4" Battito="1" />
+    """
+    path = _write_collection(
+        tmp_path,
+        _track_xml("1", "Phantom Study", total_time="30", tempos=tempos),
+    )
+
+    timeline = RekordboxLoader.from_file(path).create_timeline()
+    measures = timeline.skeleton.section_hierarchy.measure_map.measures
+    floating_measures = timeline.get_conversion_map(TimeUnit.floating_measures)
+    grid = timeline.skeleton.create_beatgrid()
+
+    assert len(measures) == 15
+    assert [measure.number for measure in measures] == list(range(1, 16))
+    # One irregular bar per grid boundary, plus the trailing bar.
+    assert [
+        index
+        for index, measure in enumerate(measures, start=1)
+        if isinstance(measure, IrregularMeasure)
+    ] == [5, 10, 15]
+    # [8.5, 10.51) is 2.01 s at 2 quarters per second.
+    assert measures[4].actual_length == Fraction(201, 50)
+    # [18.51, 20.31) is 1.8 s; [28.31, 30) is 1.69 s.
+    assert measures[9].actual_length == Fraction(18, 5)
+    assert measures[14].actual_length == Fraction(169, 50)
+    assert measures[0].actual_length == Fraction(4)
+
+    assert floating_measures is not None
+    assert floating_measures.x_values.tolist() == [
+        0.0,
+        0.5,
+        2.5,
+        4.5,
+        6.5,
+        8.5,
+        10.51,
+        12.51,
+        14.51,
+        16.51,
+        18.51,
+        20.31,
+        22.31,
+        24.31,
+        26.31,
+        28.31,
+        30.0,
+    ]
+    assert floating_measures.y_values.tolist() == [0.75] + [
+        float(ordinal) for ordinal in range(1, 17)
+    ]
+
+    assert grid.n_segments == 3
+    assert grid.n_measures == 15
+    assert len(grid.get_beat_table()) == 60
+    assert grid.seconds_at(6).value == 10.51
+    assert grid.position_at(10.505) == GridBeat(
+        seconds=Fraction(10), segment=0, measure=5, segment_measure=5, beat=4
+    )
+
+
+def test_a_grid_reanchoring_mid_measure_continues_the_measure_count(
+    tmp_path: Path,
+) -> None:
+    """A Battito 3 anchor joins the measure the previous grid opened.
+
+    Grid 1 runs at 60 BPM (beat 1 s, half a beat 0.5 s), so its beat at
+    6.0 is the displaced anchor of grid 2 at 6.01 and is dropped. Grid 2
+    anchors on beat 3, so its first downbeat arrives two 0.5 s beats
+    later at 7.01.
+    """
+    tempos = """
+      <TEMPO Inizio="0" Bpm="60" Metro="4/4" Battito="1" />
+      <TEMPO Inizio="6.01" Bpm="120" Metro="4/4" Battito="3" />
+    """
+    path = _write_collection(
+        tmp_path,
+        _track_xml("1", "Reanchor Study", total_time="12", tempos=tempos),
+    )
+
+    timeline = RekordboxLoader.from_file(path).create_timeline()
+    measures = timeline.skeleton.section_hierarchy.measure_map.measures
+    floating_measures = timeline.get_conversion_map(TimeUnit.floating_measures)
+    grid = timeline.skeleton.create_beatgrid()
+
+    assert [measure.id for measure in measures] == ["m1", "m2", "m3", "m4", "m5"]
+    # [4, 7.01) crosses the tempo change: 2.01 s at 1 q/s plus 1.0 s at 2 q/s.
+    assert measures[1].actual_length == Fraction(401, 100)
+    assert isinstance(measures[1], IrregularMeasure)
+    # [11.01, 12) is 0.99 s at 2 quarters per second.
+    assert measures[4].actual_length == Fraction(99, 50)
+    assert [measures[index].actual_length for index in (0, 2, 3)] == [Fraction(4)] * 3
+
+    assert floating_measures is not None
+    assert floating_measures.x_values.tolist() == [
+        0.0,
+        4.0,
+        6.01,
+        7.01,
+        9.01,
+        11.01,
+        12.0,
+    ]
+    # The Battito 3 anchor reads bar 2 plus two of its four beats.
+    assert floating_measures.y_values.tolist() == [1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0]
+
+    assert grid.seconds_at(3).value == 7.01
+    assert grid.position_at(6.5) == GridBeat(
+        seconds=Fraction("6.01"), segment=1, measure=2, segment_measure=0, beat=3
+    )
+    assert grid.position_at(6.6).beat == 4
+
+
+def test_grids_that_state_no_downbeat_are_refused(tmp_path: Path) -> None:
+    """A track whose grids never reach a downbeat states no measures.
+
+    Grid 1 spans 0.1 s, less than half of its own 0.5 s beat, so every
+    beat it would generate is grid 2's displaced anchor. Grid 2 opens on
+    Battito 3 and its single beat before 0.3 s is not a downbeat either,
+    and Battito 1 on grid 1 means there is no pickup bar to fall back on.
+    """
+    tempos = """
+      <TEMPO Inizio="0" Bpm="120" Metro="4/4" Battito="1" />
+      <TEMPO Inizio="0.1" Bpm="120" Metro="4/4" Battito="3" />
+    """
+    path = _write_collection(
+        tmp_path,
+        _track_xml("1", "Empty Study", total_time="0.3", tempos=tempos),
+    )
+
+    with pytest.raises(ValueError, match="grids state no measures"):
+        RekordboxLoader.from_file(path).create_timeline()
 
 
 def test_timeline_id_is_decoded_location_stem(tmp_path: Path) -> None:
@@ -285,30 +432,64 @@ def test_real_specimen_collection_and_mix_grids_are_exact() -> None:
     # The second grid opens on Battito 3 in bar 142: 142 + (3 - 1)/4.
     assert floating_measures(Fraction("212.972")) == 142.5
 
-    # m450 spans 672.722 -> 672.729: 7/1000 s * 160/60 = 7/375 q.
-    sliver = measure_map[449]
-    assert sliver.id == "m450"
-    assert isinstance(sliver, IrregularMeasure)
-    assert sliver.actual_length == Fraction(7, 1000) * Fraction(160, 60)
+    # 3518 downbeats plus the Battito 4 pickup as nominal bar 0. Under
+    # exact-equality precedence seven beats 1-11 ms before a grid boundary
+    # were counted as downbeats too, and every later bar number rose by one.
+    assert len(measure_map.measures) == 3519
+
+    # The bar running into the 672.729 boundary: 671.222 -> 672.729 is
+    # 1507/1000 s, and 1507/1000 * 160/60 = 1507/375 quarters. The 7 ms
+    # sliver that used to follow it was the displaced anchor beat.
+    boundary_bar = measure_map[448]
+    assert boundary_bar.id == "m449"
+    assert isinstance(boundary_bar, IrregularMeasure)
+    assert boundary_bar.actual_length == Fraction(1507, 375)
+    assert measure_map[449].actual_length == Fraction(4)
     assert all(
         measure.actual_length is not None and measure.actual_length.denominator < 10**7
         for measure in measure_map.measures
     )
 
+    # The second grid opens on Battito 1 in bar 449.
+    assert floating_measures(Fraction("672.729")) == 449.0
+
     canonical = QuartersToFloatingMeasures.from_measure_map(measure_map)
     total_quarters = sum(
         (measure.actual_length for measure in measure_map.measures), Fraction(0)
     )
+    assert total_quarters == Fraction(42215582827, 3000000)
+    assert canonical(total_quarters) == 3519.0
     assert floating_measures(Fraction(5277)) == canonical(total_quarters)
 
+    # 2867 downbeats fall in grids 1-12, so bar 2887 is the 20th downbeat
+    # of grid 13: 2150651/500 + 19 * (4 * 60 / 160.38) seconds. The source
+    # program displays this bar at 72:09.7.
+    assert mix_timeline.get_timestamp(Coordinate(2887, "fm")).get_coordinate_for(
+        mix_timeline.id, format="float"
+    ) == float(Fraction(5786690123, 1336500))
+
+    grid = mix_timeline.skeleton.create_beatgrid()
+    assert grid.n_segments == 14
+    assert grid.n_measures == 3519
+    assert grid.seconds_at(2887).value == 4329.734472876918
+    beats = grid.get_beat_table()
+    # 5277 s at a nominal 1.5 s bar is 3518 bars, so 3518 * 4 = 14072 beats.
+    assert len(beats) == 14072
+    # Grid 14 opens at 4435.981 and its 2243rd beat, 840.75 s later, is the
+    # last one below TotalTime.
+    assert beats["seconds"].iloc[-1] == 5276.731
+    assert beats["segment"].iloc[-1] == 13
+    assert beats["segment_seconds"].iloc[-1] == 840.75
+    assert beats["measure"].iloc[-1] == 3518
+    assert beats["beat"].iloc[-1] == 3
+
     brace = bundle.get_timeline("40. Brace For Impact")
-    brace_grid = next(
-        track for track in loader.tracks if track.name == brace.name
-    ).tempos[0]
+    brace_grid = brace.skeleton.create_beatgrid()
     brace_fm = brace.get_conversion_map(TimeUnit.floating_measures)
     # Battito 2 needs three 0.4 s beats: 0.145 + 3 * (60/150) = 1.345.
-    first_downbeat = brace_grid.inizio + 3 * brace_grid.beat_seconds
+    first_downbeat = Fraction("0.145") + 3 * Fraction(60, 150)
     assert first_downbeat == Fraction("1.345")
+    assert brace_grid.segments[0].first_downbeat == first_downbeat
     assert brace_fm(first_downbeat) == 1.0
 
 

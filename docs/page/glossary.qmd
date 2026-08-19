@@ -42,6 +42,26 @@ to the relevant section of the conceptual model.
 
 ## B
 
+**BeatGrid**
+:   An ordered set of **BeatGridSegment**s and the beats they generate on a
+    seconds axis. Each segment states one stretch of a recording --- an anchor
+    instant, a tempo, a {{< glossary BeatPolicy >}}, and which beat of a bar
+    the anchor is --- and generates beats without end; the grid orders the
+    segments, bounds each by its successor's start and the last by its extent,
+    and labels the resulting beats with measure and beat numbers. Each labelled
+    beat is a **GridBeat**. A BeatGrid is *not* a
+    {{< glossary Timeline >}} and stores nothing per beat.
+    See [How to Build Beat Grids](howto/how01_beat_grids.ipynb).
+
+**BeatPolicy**
+:   How one bar is counted in beats: a grouping cycle over one counted note
+    value. A 4/4 bar is four beats of a quarter, a compound 6/8 bar two beats
+    of three eighths, an uneven (3+2+3)/8 bar three beats of unequal length.
+    Beat lengths are derived from the grouping and the division, never stored.
+    One signature admits more than one counting: a {{< glossary BeatGrid >}}'s
+    lattice reads 6/8 as six beats of an eighth, because its beat-in-bar index
+    counts the notated value rather than the felt pulse.
+
 **Break**
 :   A {{< glossary ControlEvent >}} that voids {{< glossary Contiguity >}}
     at its {{< glossary Instant >}}. TimeIntervals cannot span a Break,

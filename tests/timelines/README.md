@@ -9,8 +9,7 @@ which implements the central Timeline class and its 6 domain-specific subclasses
 |--------|----------|--------|
 | `timelines/base.py` | 94% | Excellent |
 | `timelines/types.py` | 100% | Complete |
-| `timelines/mixins.py` | 100% | Complete |
-| `timelines/beatgrid.py` | 95% | Excellent |
+| `timelines/beatgrid.py` | 100% | Complete |
 | `timelines/regions.py` | 94% | Excellent |
 
 ### Merged Score Event Coordinates
@@ -87,13 +86,22 @@ timestamp cross-sections keep their left-inclusive, right-exclusive bounds.
 
 ### `test_fraction_generation.py` - Exact Logical Coordinate Generation
 
-These tests generate fraction-typed metrical timelines and inspect the stored
-PyArrow coordinate structs. Beat and measure event coordinates must retain the
-exact numerator/denominator pairs derived from the musical positions, including
-fractional positions such as `Fraction(3, 2)`. The tests also verify that
-`Timeline.from_events()` preserves an exact maximum coordinate as the timeline
-length. These assertions protect the rational fields that downstream alignment
-and serialization use; the convenience float field alone is not sufficient.
+These tests author fraction-typed metrical events on a logical timeline and
+inspect the stored PyArrow coordinate structs. Beat and measure event
+coordinates must retain the exact numerator/denominator pairs derived from the
+musical positions, including fractional positions such as `Fraction(3, 2)`.
+Eighth-note beats are the load-bearing choice: `1/2` has no exact float, so a
+lane that rounded on the way into storage shows up in the stored pair. The
+tests also verify that `Timeline.from_events()` preserves an exact maximum
+coordinate as the timeline length. These assertions protect the rational fields
+that downstream alignment and serialization use; the convenience float field
+alone is not sufficient.
+
+Two earlier tests here drove the same storage lane through timeline-side
+metrical *generators* that no longer exist. Their subject was the generator,
+not the storage, and the surviving test covers the storage claim in one place
+rather than twice; the beat lattice's own exactness is pinned in
+`test_beatgrid.py`.
 
 ### `test_fraction_engines.py` - Exact Coordinate Propagation
 
@@ -172,7 +180,7 @@ the axis's declared canonical number type.
      coordinates, so a `Fraction` timeline serializes to JSON and comes back
      exact. The format and its fixpoint guarantee are specified in
      `tests/core/README.md` (`test_wire_format.py`), which also holds the
-     exact-value tests for timeline lengths, offsets, and BeatGrid.
+     exact-value tests for timeline lengths and offsets.
 
 7. **Magic Methods Tests** (5 tests)
    - `__len__`, `__repr__`, `__str__`, `__contains__`
@@ -399,8 +407,6 @@ need contents opt in.
    - `create_child()` defaults its offset to zero and returns the parent's
      exact concrete class for all six concrete timeline types
    - Coordinate objects remain valid for child lengths and offsets
-   - BeatGrid children and slices are `ContinuousLogicalTimeline` instances
-     because they represent plain logical material rather than new grids
    - `create_children_from_boundaries()` creates named, contiguous children
      that tile the parent exactly, supports explicit names, and reports the
      same boundary-validation errors as `create_regions_from_boundaries()`
@@ -422,28 +428,6 @@ that share the same coordinate type. These tests verify:
 
 **Purpose:** Validates the 6 timeline types (3 domains x 2 modalities), the
 dynamic `SegmentLine[T]` class family, and timeline serialization dispatch.
-
-#### The metrical grid sits where the tempo says it sits
-
-`create_metrical_grid` connects a seconds timeline to a quarters grid through
-a group, because a logical timeline cannot be a child of a physical one. The
-placement has two independent parts and both were wrong: the group's first
-member defines the group's own coordinate space, so passing `start`/`end`
-alongside it does nothing, and the meter map holds **whole measures only** —
-stretching that shortened grid across the full audio window silently alters
-the tempo. The grid must therefore be the member that is placed, spanning
-from `first_beat_at` forward by exactly `length_quarters / quarters_per_second`.
-
-**Validity Rationale:** the tests assert positions that are derivable by hand
-from the tempo, which is the only way to catch this class of error — a wrong
-linear placement still returns plausible monotonic numbers, and every
-internal-consistency check passes on it. At 120 BPM in 4/4 with the first
-beat at 0.5 s, second 60.0 is `(60.0 - 0.5) * 2 = 119` quarters, measure 10
-beat 1 is quarter 36 and therefore second `0.5 + 18 = 18.5`, and quarter 100
-is second `0.5 + 50 = 50.5`. Each pins a different direction of the mapping
-(forward, metrical reverse, and group transfer) so a fix to one lane cannot
-mask a break in another. The previously shipped behaviour mapped 0 s to 0
-quarters and reported 118.67, 18.20 and 50.56.
 
 #### An empty timeline still has columns
 
@@ -525,114 +509,209 @@ Graphical) and 2 modalities (Continuous, Discrete). Each type has:
 
 ---
 
-### `test_beatgrid.py` - Metrical Timeline (BeatGrid)
+### `test_beatgrid.py` - Beat Grids
 
-**Purpose:** Validates the BeatGrid specialized timeline for metrical structure.
+**Purpose:** Validates `BeatGridSegment`, `GridBeat` and `BeatGrid` — the
+tempo-segment model that generates a labelled lattice of beats and answers
+measure/beat questions on a seconds axis.
 
-**BeatGrid Specification:**
+**What the object is.** A `BeatGridSegment` states only source facts: the
+anchor beat's second (`start`), the tempo (`bpm`), how lattice beats group
+into bars (`policy`), and which beat of a bar the anchor is (`battito`). A
+`BeatGrid` sorts the segments, bounds each by its successor's `start` and the
+last by the grid's `extent`, and generates beats forever from each one. Beat
+and bar lengths are derived, never stored beside the facts, so no test may
+assert a stored duration — it asserts the derivation.
 
-| Property | Value |
-|----------|-------|
-| Base Class | `ContinuousLogicalTimeline` |
-| Unit | `quarters` (fixed) |
-| Number Type | `Fraction` (for exact rhythmic representation) |
-| Built-in C-Maps | `measure_map`, `beat_map`, `metrical_map` |
+A `GridBeat` **stores** its position as `seconds`, the exact `Fraction` the
+grid's arithmetic produced, and **publishes** it as `instant`, a derived
+seconds `Coordinate`. One stored field, one derived view: exactness is what the
+grid computes with — the loader's fm anchors and the tempo integration read
+`seconds` — while `instant` is what a caller sees, built exactly as
+`seconds_at` builds its answer, on the float lane the seconds axis declares.
 
-**Test Categories:**
+That is the point of the split, and the tests pin it as such: **the two
+directions of the grid must compare equal**, so
+`grid.position_at(x).instant == grid.seconds_at(m, b)` holds whenever both name
+the same moment. A `fraction`-typed instant against a `float`-typed
+`seconds_at` never compared equal, which made the obvious cross-getter
+assertion fail on values that were in fact identical. The equality is asserted
+at 30.9375 s — a value every lane represents exactly, so it pins the equality
+rather than a shared rounding — and again at 7.01 s, where no exact float
+exists but both directions convert the same ratio and therefore still land
+together. A negative case (`position_at(30).instant != seconds_at(16)`) keeps
+the assertion from passing vacuously.
 
-1. **Basic Tests** (6 tests)
-   - Default initialization (4/4 time, quarter-note beat)
-   - Invalid beats_per_measure (< 1) raises ValueError
-   - Invalid beat_unit (<= 0) raises ValueError
-   - 4/4 time: 4 quarters per measure, 4 beats per measure
-   - 3/4 time: 3 quarters per measure, 3 beats per measure
-   - 6/8 time: 3 quarters per measure (6 eighth-note beats = 3 quarter-note beats)
+#### The boundary rule is the whole reason the grid exists
 
-2. **Metrical Map Tests** (5 tests)
-   - `measure_at()`: Returns 1-indexed measure number
-   - `beat_at()`: Returns 1-indexed beat within measure (cyclic)
-   - `metrical_position()`: Returns `{"measure": N, "beat": B}` dict
-   - `quarter_at()`: Inverse lookup (measure, beat) -> quarter coordinate
-   - `quarter_at()` validation: Rejects measure < start_measure, beat < 1
-    - Public coordinate queries preserve native `Fraction` values, convert
-      foreign-unit coordinates through attached C-Maps, and reject missing maps
-    - `beat_at()` returns exact `Fraction` values; callers can explicitly convert
-      the result to `float` when needed
-    - 6/8 and 2/2 beat queries scale quarter offsets by `quarters_per_beat`:
-      in 6/8, quarter 1/2 is beat 2 and quarter 5/2 is beat 6; in 2/2,
-      quarter 2 is beat 2
-    - Serialization rebuilds BeatGrid's attached meter maps from its metrical
-      construction parameters, preserving anacrusis labels and tempo state
-    - `to_dict()` excludes the three metrical maps (meter/beat/metrical) from
-      the serialized `conversion_maps` list, since `from_dict()` rebuilds them
-      from construction parameters instead; a plain grid serializes an empty
-      list, a `from_tempo` grid serializes exactly its tempo map, and any
-      user-attached map is serialized and restored via `ConversionMap.from_dict`
-      alongside it
+The rule under test: **a beat of segment *k* is dropped when it falls within
+HALF of segment *k*'s beat duration before segment *k+1*'s start; at exactly
+half a beat it is kept.** The rule applies at segment boundaries only, never
+at the end of the grid, where the extent alone bounds the last segment
+(`instant < extent`).
 
-3. **Materialization Tests** (4 tests)
-   - `materialize_beats()`: Creates Beat instant events at each beat position
-   - `materialize_beats(include_downbeats_only=True)`: Only beat 1
-   - `materialize_measures()`: Creates Measure interval events
-   - Partial measures at end handled correctly
+**Why a rule is needed at all.** A DJ-software export rounds each grid's
+anchor to three decimals, and when the analyst nudges a later grid's anchor
+to the right it freezes the beats to the left of it without inserting a
+fill-in. The beat the earlier segment would generate one or two hundredths of
+a second before the next anchor is therefore *the same beat*, displaced —
+counting both produces a phantom bar and shifts every measure number after
+it. Exact-equality precedence cannot see this: `10.5 != 10.51`.
 
-4. **Factory Method Tests** (4 tests)
-   - `from_tempo(length_quarters=...)`: Length specified in quarters
-   - `from_tempo(length_seconds=...)`: Length converted via tempo
-   - `from_tempo()` creates tempo C-Map (quarters -> seconds)
-   - Validation: Must provide exactly one of length_seconds or length_quarters
+**What proves it.** Three cases, each hand-derived, because a rule stated as
+an inequality fails at exactly one place — its boundary:
 
-5. **Cross-Domain Relationship Tests** (2 tests)
-   - BeatGrid relates to physical timelines via C-Maps (not as child)
-   - `start_measure` offset for non-default numbering
+| Case | Gap to the next segment | Half a beat | Expected |
+|---|---|---|---|
+| below | 0.01 s | 0.25 s | dropped |
+| exactly at | 0.5 s | 0.5 s | **kept** |
+| above | 0.30 s | 0.25 s | kept |
 
-6. **SUPRA Validation Tests** (10 tests)
-   - **Purpose:** Validate against SUPRA reference data (Wagner Meistersinger Prelude)
+The knife edge is what a `<=`/`<` slip breaks and nothing else catches, so it
+is asserted directly: a 60 BPM segment (beat 1 s, half-beat 0.5 s) whose next
+segment opens at 3.5 s generates a beat at 3.0 s, exactly half a beat before
+the boundary, and that beat is kept. A test suite that only asserted the
+"obviously phantom" 0.01 s case would pass with either comparison.
 
-**SUPRA Validation Details:**
+The rule is a **heuristic** and the tests say so: what the source program does
+for anchor displacements beyond half a beat has not been studied, so no test
+asserts behaviour there.
 
-The SUPRA tests use the Wagner Meistersinger Prelude as a gold standard reference:
+#### Numbering: two readings of one lattice
 
-| Parameter | Value | Source |
-|-----------|-------|--------|
-| Total Length | 888 quarter notes | DCML score annotation |
-| Time Signature | 4/4 throughout | Score metadata |
-| Total Measures | 222 | 888 / 4 = 222 |
-| First Beat | 1.3 seconds (approx) | Audio alignment |
-| Last Measure End | ~2 seconds before audio end | Audio alignment |
+Every generated beat carries its in-measure index
+`((battito - 1 + step) mod n_beats) + 1`; index 1 is a downbeat. Measures are
+counted by downbeats, in two schemes that must be produced by the same walk:
 
-**SUPRA Test Cases:**
+- **set** — one counter for the whole grid; the beats before the grid's first
+  downbeat are measure `0`, the first downbeat opens measure `1`. This is the
+  numbering the floating-measure lattice reads, where a pickup is bar 0.
+- **segment** — the same rule restarted at each segment, so a segment whose
+  anchor is mid-bar opens with local measure `0`, and its first downbeat is
+  its local measure 1.
 
-1. **Basic Dimensions**: length=888, n_measures=222, quarters_per_measure=4
-2. **Measure Boundaries**: Measure 1 @ quarter 0, Measure 222 @ quarter 884
-3. **All Measure Starts**: Exactly 222 distinct measure numbers (1-222)
-4. **Beat Positions**: All quarters map to beats 1.0, 2.0, 3.0, or 4.0
-5. **Reverse Lookup**: `quarter_at(m, b)` correctly inverts `measure_at()` + `beat_at()`
-6. **Round Trip**: `quarter_at(measure_at(q), beat_at(q)) == q` for all positions
-7. **Tempo Derivation**: At 120 BPM, 888 quarters = 444 seconds
-8. **Array Operations**: Vectorized measure_at/beat_at produce correct arrays
-9. **Metrical Position Array**: Combined (measure, beat) tuple output
-10. **Event Materialization**: Creates exactly 888 beat events, 222 measure events
+The two must be able to disagree, or the test proves nothing: a grid whose
+second segment anchors on beat 3 has an anchor beat with set measure 2 (it
+continues the measure the first segment opened) and segment measure 0. That
+one beat is asserted in both readings.
 
-**Validity Rationale:**
+`n_measures` counts distinct measure labels, so a grid opening off the
+downbeat has one more measure than it has downbeats.
 
-BeatGrid is a proper ContinuousLogicalTimeline, not a utility wrapper:
-- **It IS a timeline** with its own coordinate system (quarters in Fractions)
-- **It can hold events** (Beat, Measure events via materialization)
-- **It has built-in C-Maps** for metrical conversion
-- **It works as a child** of any compatible parent timeline
+#### The four conversion directions
 
-The SUPRA validation proves the implementation against real-world musical data.
-If BeatGrid correctly handles 888 quarters across 222 measures for Wagner's
-Meistersinger Prelude, it will handle any standard Western musical content.
+Each direction is asserted with values derivable from the tempo by hand,
+because a wrong linear placement still returns plausible monotonic numbers and
+passes every internal-consistency check.
 
-**Cross-Domain Relationships:**
+1. `seconds_at(measure, beat)` — the instant of a labelled beat. A fractional
+   beat interpolates between the two beats around it: at 120 BPM in 4/4, beat
+   2.5 of measure 1 is `0.5 + 0.5 * 0.5 = 0.75` s.
+2. `segment_seconds_at(...)` — the same instant minus the containing
+   segment's start, so the two answers must differ by exactly that start.
+3. `position_at(seconds)` — floor semantics: the last beat at or before the
+   position, carrying both numberings. Asserted at a position strictly
+   between two beats, so a rounding implementation lands on the wrong one.
+4. `get_beat_table()` — the tabular rendering of the same walk. Its row count
+   must equal the number of generated beats and its values must match the
+   scalar getters, since one is defined as a rendering of the other.
 
-Per the TTA model, children must share the parent's measuring unit. A BeatGrid
-(in quarters) cannot be a direct child of a physical timeline (in seconds).
-Instead, cross-domain relationships are established via:
-- **C-Maps**: The tempo map converts quarters to seconds
-- **Alignment Anchors**: Match objects link events across domains
+**Policy overrides.** A caller policy re-reads the beat index as a quarter-note
+offset from the downbeat and converts it back through the segments' tempi.
+`BeatPolicy.uniform(Fraction(1, 2), 8)` on a 4/4 segment counts eighths, so its
+beat 3 is quarter offset `2 x 1/2 = 1`; at 120 BPM in 4/4 (2 quarters per
+second) that is 0.5 s after the downbeat. The inverse reading is pinned beside
+it, at an instant where the two countings disagree: second 1.0 is quarter
+offset 2, which the eighth policy calls beat 5 and the grid's own lattice calls
+beat 3.
+
+#### `quarters_between` integrates, it does not average
+
+Tempo changes make an average wrong. The test spans a segment boundary: 60 BPM
+in 4/4 from 4 s to 6.01 s is `2.01` quarters and 120 BPM from 6.01 s to 7.01 s
+is `2.0`, so the interval `[4, 7.01)` is exactly `401/100` quarters — a value
+no single tempo produces. All decimal inputs are read as exact decimal
+rationals; a float input is documented to contribute its exact binary value,
+which is why the tests spell decimals as strings or `Fraction`s.
+
+#### One address, one beat
+
+`position_at` and `get_beat_table` read *instants*, which are unambiguous: a
+second belongs to exactly one beat. The reverse direction is not symmetric. A
+measure stays open until the next downbeat, and a segment that re-anchors
+mid-bar restarts its own beat count immediately — so one measure can state one
+beat index twice, and `(measure, beat)` then names no single instant.
+
+**The fixture that produces it.** Segments `(0 s, 120 bpm, 4/4, battito 1)` and
+`(30 s, 128 bpm, 4/4, battito 3)` over 32 seconds. At 120 BPM a beat is 0.5 s,
+so measure 15 opens at `56 × 0.5 = 28.0` and its four beats fall at 28.0, 28.5,
+29.0, 29.5; the beat at 30.0 would be the next one, but the extent of segment 1
+stops it (and the half-beat rule leaves 29.5 alone — the gap is a full 0.5 s
+against a 0.25 s half-beat). Segment 2 anchors on **beat 3** at 30.0 with a
+`60/128 = 0.46875` s beat, so 30.0 is beat 3 again and 30.46875 is beat 4 again;
+its first downbeat is `30.0 + 2 × 0.46875 = 30.9375`, which opens measure 16.
+Measure 15 therefore holds six beats — 1, 2, 3, 4, 3, 4.
+
+**The rule.** `seconds_at` and `segment_seconds_at` raise `ValueError` naming
+the candidate instants when the queried index is stated more than once —
+`seconds_at(15, 3)` lists 29 and 30 — because picking either one would answer a
+question the caller did not ask. A fractional beat interpolates between the
+*unique* beats ⌊b⌋ and ⌊b⌋+1 whichever segments they come from, and raises the
+same way when either index is missing or duplicated. Unaffected and asserted
+alongside: `seconds_at(15, 2)` still answers 28.5, and `get_beat_table()` lists
+all six rows of measure 15, because neither reading is ambiguous.
+
+#### Segments abut, and a stated end must say so
+
+A grid bounds each segment by the next one's `start` and the last by `extent`.
+A segment arriving with `end=None` is filled in; a segment arriving with an
+`end` of its own must state exactly that bound. Silently rebounding a stated
+end would discard a caller's declared fact, and honouring a different one would
+leave a gap or an overlap the lattice cannot represent — so a disagreement
+raises. Pinned in both directions: a segment stating the correct bound survives
+`__init__` unchanged, and one stating any other (including an `end` on the last
+segment of an unbounded grid) raises.
+
+#### `quarters_between` has a domain, and it is not the whole line
+
+The seconds direction (`_seconds_after`, reached through a caller policy)
+already raised past the extent. The quarters direction silently extrapolated,
+so one direction answered where the other refused. Both now share the domain
+**`[0, extent]`**, closed at both ends — `[0, ∞)` when the grid is unbounded.
+
+Closed at the extent is deliberate: no beat sounds there, but the grid does
+state a tempo up to it, and the final measure's length is exactly
+`quarters_between(last_downbeat, extent)`. Open at zero is equally deliberate:
+a grid whose first segment opens at 0.5 s still reads `[0, 0.5)` at that
+segment's tempo, because the floating-measure lattice hangs its `t = 0` anchor
+on precisely that stretch. Outside the domain the grid states no tempo, and
+both directions raise.
+
+#### Atomic raises
+
+Per the retrieval contract, an unresolvable **query** raises rather than
+answering approximately. Pinned: a position before the grid's first segment; a
+position at or after the extent (the half-open convention, so the extent
+itself raises); a `(measure, beat)` pair the grid does not state; a fractional
+beat whose upper neighbour is missing; a `(measure, beat)` the grid states
+twice; a `quarters_between` end outside `[0, extent]`; a coordinate carrying a
+unit other than seconds; and tabulating or counting measures of an unbounded
+grid, which generates beats without end.
+
+#### Serialization
+
+The grid has none this iteration, and the tests assert none. A grid is
+reconstructed from its segments, which are the source facts; a second wire
+format for them would be a second source of truth.
+
+#### `create_beatgrid()` on the structural view
+
+A structure read from a tempo-bearing source carries the grid that generated
+its measures, and `create_beatgrid()` returns that same object (identity, not
+a rebuild). A structure with no tempo segments raises: measure lengths alone
+do not state a tempo, and inventing one would fabricate a fact. Structural
+equality includes the grid, so two otherwise identical structures with
+different tempi are not equal.
 
 ---
 
@@ -1698,9 +1777,9 @@ member containing the event, and the present-timeline sequence reflects every
 coordinate surfaced by the timestamp. Bulk lookup preserves request order and
 keeps an explicit missing-event row.
 
-`test_beatgrid.py` exports a four-beat, two-beat-per-measure grid in every
-supported format. The expected files include headers, row order, labels, and
-boolean spellings so format-specific consumers receive a stable wire layout.
+`test_beatgrid.py` exports a grid in both supported annotation formats. The
+expected files include headers, row order, labels, and boolean spellings so
+format-specific consumers receive a stable wire layout.
 
 `test_factory.py` exercises `EventStore.create_timeline()` for direct events,
 multi-store children, and store selection. It pins child IDs and event counts

@@ -350,7 +350,7 @@ The implementation organises C-maps into families:
 | **Straight line** | Generates *(x, y)* pairs for a line | horizontal system in an image |
 | **Discretisation** | Rounds continuous to discrete | seconds to samples |
 | **Periodic** (RotationMap) | Wraps coordinates cyclically | repeating ostinato |
-| **Metric-aware** (FloorMap, MetricMap) | Beat and measure structure | BeatGrid |
+| **Metric-aware** (FloorMap, MetricMap) | Beat and measure structure | quarters to measure number |
 
 : Families of ConversionMaps in the `timetoalign` library. {#tbl-cmap-families}
 

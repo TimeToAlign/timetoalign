@@ -203,7 +203,7 @@ tox -e lint
 |---|---|
 | AlignmentAnchor | A set of TimeStamps corresponding to matched events, representing their temporal equivalence across timelines. From a MatchClaim for TimeIntervalEvents, the library derives a start anchor and end anchor. |
 | AlignmentBundle | The primary container object that manages a collection of timelines, their groupings, and transfers between them. |
-| BeatGrid | A specialized *ContinuousLogicalTimeline* representing metrical structure (measures and beats) using quarter notes as the underlying coordinate unit. |
+| BeatGrid | An ordered set of tempo segments and the beats they generate on a seconds axis. Each BeatGridSegment states an anchor instant, a tempo, a BeatPolicy and the anchor's beat-in-bar index, and generates beats without end; the grid bounds each segment by its successor and labels the beats with measure and beat numbers. Not a Timeline: nothing is stored per beat. |
 | Break | A control event that voids contiguity at its Instant. TimeIntervals cannot span a Break, and Breaks cannot be inserted into existing TimeIntervals. |
 | ChainMap | A composed ConversionMap that applies multiple ConversionMaps in sequence, creating a conversion path from source to target unit. |
 | Child | A timeline nested within a parent timeline, sharing the same measuring unit. Children are locked upon insertion to prevent side effects from modifications. |

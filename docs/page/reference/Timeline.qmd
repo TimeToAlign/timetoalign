@@ -89,6 +89,7 @@ subclass, use :meth:`to_typed`.
 | [append_child](#timetoalign.timelines.Timeline.append_child) | Append a child timeline at the current end of this timeline. |
 | [apply_flow](#timetoalign.timelines.Timeline.apply_flow) | Yield the unfolded timeline for an attached FlowMap. |
 | [as_segment_line](#timetoalign.timelines.Timeline.as_segment_line) | Cast a structurally contiguous hierarchy to a parameterized line. |
+| [attach](#timetoalign.timelines.Timeline.attach) | Refuse timeline-side enrollment. |
 | [convert_to](#timetoalign.timelines.Timeline.convert_to) | Convert coordinates to another unit using attached C-Maps. |
 | [create_child](#timetoalign.timelines.Timeline.create_child) | Create and embed a child selected by this timeline's spawn hook. |
 | [create_child_from_region](#timetoalign.timelines.Timeline.create_child_from_region) | Create a child timeline from a named region (partitioning). |
@@ -103,6 +104,7 @@ subclass, use :meth:`to_typed`.
 | [create_segment_line_by_grouping](#timetoalign.timelines.Timeline.create_segment_line_by_grouping) | Create a SegmentLine by grouping adjacent events on a field value. |
 | [create_segment_line_by_splitting](#timetoalign.timelines.Timeline.create_segment_line_by_splitting) | Create a SegmentLine by splitting at events matching a predicate. |
 | [create_segment_line_from_regions](#timetoalign.timelines.Timeline.create_segment_line_from_regions) | Create a SegmentLine from contiguous regions. |
+| [create_skeleton](#timetoalign.timelines.Timeline.create_skeleton) | Return structure already harvested for this timeline. |
 | [derive](#timetoalign.timelines.Timeline.derive) | Create a derivative timeline in a different unit via C-Map conversion. |
 | [diagram](#timetoalign.timelines.Timeline.diagram) | Generate ASCII diagram for this timeline. |
 | [empty](#timetoalign.timelines.Timeline.empty) | Create an empty Timeline with length 0. |
@@ -212,6 +214,12 @@ instances honor their own ``kind`` (nearest/previous/next/linear)
 and ``extrapolate`` policy directly, and analytical maps (e.g.
 ``ScalarMap``, ``LinearMap``) are likewise stored directly.
 
+Several maps may target the same unit — a piece can carry two
+readings of the same axis — and nothing is ever displaced:
+the unit registry holds a list, stamps and tables show every
+reading, and scalar lookup refuses to guess between them
+unless the caller names one.
+
 #### Parameters {.doc-section .doc-section-parameters}
 
 | Name   | Type                                                                     | Description               | Default    |
@@ -220,9 +228,9 @@ and ``extrapolate`` policy directly, and analytical maps (e.g.
 
 #### Raises {.doc-section .doc-section-raises}
 
-| Name   | Type                       | Description                               |
-|--------|----------------------------|-------------------------------------------|
-|        | [ValueError](`ValueError`) | If the map's source unit is incompatible. |
+| Name   | Type                       | Description                                                                                 |
+|--------|----------------------------|---------------------------------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If the map's source unit is incompatible, or if a map with the same id is already attached. |
 
 ### add_events { #timetoalign.timelines.Timeline.add_events }
 
@@ -533,6 +541,14 @@ timelines.Timeline.as_segment_line()
 ```
 
 Cast a structurally contiguous hierarchy to a parameterized line.
+
+### attach { #timetoalign.timelines.Timeline.attach }
+
+```python
+timelines.Timeline.attach(*args, **kwargs)
+```
+
+Refuse timeline-side enrollment.
 
 ### convert_to { #timetoalign.timelines.Timeline.convert_to }
 
@@ -1190,6 +1206,17 @@ Does NOT modify self.
 >>> seg_line = tl.create_segment_line_from_regions()
 ```
 
+### create_skeleton { #timetoalign.timelines.Timeline.create_skeleton }
+
+```python
+timelines.Timeline.create_skeleton(*args, **kwargs)
+```
+
+Return structure already harvested for this timeline.
+
+Creating structure from arbitrary events is intentionally unsupported:
+measures are structural scalars, not timeline events.
+
 ### derive { #timetoalign.timelines.Timeline.derive }
 
 ```python
@@ -1636,8 +1663,10 @@ timelines.Timeline.get_conversion_map(target_unit)
 Get a conversion map by target unit **or** by name/id.
 
 When *target_unit* is a valid `TimeUnit` value (or an alias such as
-``"seconds"``), the method returns the first attached map whose
-``target_unit`` matches.
+``"seconds"``), the method returns the attached map targeting that
+unit — and raises when several do, because picking one of two
+readings of the same axis is the caller's decision, not this
+method's.
 
 When *target_unit* is a string that does **not** correspond to any
 ``TimeUnit`` member, the method falls back to a name-based lookup:
@@ -1657,6 +1686,12 @@ back to raw partitura quarters).
 | Name   | Type                                                                             | Description                                             |
 |--------|----------------------------------------------------------------------------------|---------------------------------------------------------|
 |        | [ConversionMap](`timetoalign.maps.ConversionMap`)\[[Any](`typing.Any`)\] \| None | A matching ``ConversionMap``, or ``None`` if not found. |
+
+#### Raises {.doc-section .doc-section-raises}
+
+| Name   | Type                       | Description                                         |
+|--------|----------------------------|-----------------------------------------------------|
+|        | [ValueError](`ValueError`) | If several attached maps target the requested unit. |
 
 #### Examples {.doc-section .doc-section-examples}
 
@@ -2676,8 +2711,7 @@ prefers, in order:
    specific domain).
 
 Further-derived subclasses participate in the lookup and can be
-selected when they are the most specific matching candidate, such as
-a specialized ``BeatGrid`` subclass.
+selected when they are the most specific matching candidate.
 
 Falls back to the base ``Timeline`` if no subclass claims the unit.
 

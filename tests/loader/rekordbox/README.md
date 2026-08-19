@@ -11,9 +11,9 @@ with no range or approximation.
 
 | Fact | Value |
 |------|-------|
-| Collection ``TRACK`` elements | **46** (``COLLECTION Entries`` == 46) |
-| ``TRACK`` elements carrying ``TEMPO`` tags | 46 (every collection track has ≥ 1) |
-| Total ``TEMPO`` tags | **155** |
+| Collection ``TRACK`` elements | **38** (the ``COLLECTION Entries`` attribute still reads 46, from before the export was curated — the elements are what counts) |
+| ``TRACK`` elements carrying ``TEMPO`` tags | 38 (every collection track has ≥ 1) |
+| Total ``TEMPO`` tags | **147** |
 | The mix track ``TrackID`` | **147337955** |
 | Mix ``Name`` | ``001-samuel_moriero-impact_halloween_xxl_2025_full_set`` |
 | Mix ``TotalTime`` | **5277** (seconds) |
@@ -54,9 +54,22 @@ with no range or approximation.
   increases.
 - A grid **ends** at the next grid's ``Inizio``, or at the track ``TotalTime`` for
   the last grid.
-- **Boundary precedence.** If the last beat implied by one grid would coincide with
-  the first beat of the next grid, the **next grid takes precedence** — that instant
-  is counted once, as the next grid's beat, never doubled.
+- **Boundary precedence: the half-beat rule.** A beat of one grid that falls
+  within **half of that grid's beat duration** before the next grid's ``Inizio``
+  **is** the next grid's anchor beat, displaced, and is not counted separately.
+  At exactly half a beat the beat is kept. The rule applies at grid boundaries
+  only, never at ``TotalTime``, where the last grid simply stops
+  (``instant < TotalTime``).
+
+  **Why exact-equality precedence is not enough.** ``Inizio`` is rounded to
+  three decimals, and moving a grid's anchor to the right freezes the beats to
+  its left without inserting a fill-in, so the displaced beat and the anchor
+  are a hundredth of a second apart rather than equal. Counting both invents a
+  bar and shifts every measure number after it.
+
+  **The rule is a heuristic** and is documented as one: what the source program
+  does for anchor displacements beyond half a beat has not been studied, so
+  nothing is asserted there.
 
 ---
 
@@ -113,13 +126,58 @@ mid-measure (``Battito 4`` and ``3``) and the summation begins at the first grid
 onset ``0.333`` rather than ``0``; the ``0.333`` s of pre-grid material plus the
 truncated first pickup bar account for the remainder up to 3518.
 
+**And it is the arithmetic that catches the phantom bars.** Under the half-beat
+rule the mix generates exactly ``14072`` beats and ``3518`` downbeats — the
+independent 3518 above. Exact-equality precedence generated ``3525``: seven
+extra downbeats, one at each grid boundary whose predecessor ends 1–11 ms early.
+
+| Boundary (next ``Inizio``) | Phantom downbeat | Gap (s) | Half a beat (s) |
+|---|---|---|---|
+| 672.729 | 672.722 | 0.007 | 0.1875 |
+| 996.730 | 996.729 | 0.001 | 0.1875 |
+| 1428.737 | 1428.730 | 0.007 | 0.1875 |
+| 2097.748 | 2097.737 | 0.011 | 0.1875 |
+| 2685.796 | 2685.785 | 0.011 | 0.1875 |
+| 3411.804 | 3411.796 | 0.008 | 0.1875 |
+| 3479.312 | 3479.304 | 0.008 | 0.1875 |
+
+Every gap is far below ``0.1875`` s, so all seven are dropped
+and the mix's measure records fall from 3526 to **3519** — 3518 grid bars plus
+the ``Battito 4`` pickup as nominal bar 0.
+
+**What the fix moves.** The bar that runs into the 672.729 boundary was a 7 ms
+sliver (``m450``, ``7/1000 × 160/60 = 7/375`` quarters). It is gone; the bar
+carrying that boundary is now ``measure_map[448]`` — id ``m449``, an
+``IrregularMeasure`` spanning ``671.222 → 672.729``, whose actual length is
+``1507/1000 s × 160/60 = 1507/375`` quarters.
+
+The seven phantoms also pushed every later measure number up by one per
+phantom, which is the 7-bar drift the mix showed near its end. **Bar 2887,
+derived from the grids alone:** 2867 downbeats fall in grids 1–12, so bar 2887
+is the 20th downbeat of grid 13 (``Inizio 4301.302``, ``Bpm 160.38``, bar
+``4 × 60 / 160.38 = 4000/2673`` s), that is
+
+``2150651/500 + 19 × 4000/2673 = 5786690123/1336500 = 4329.734472876918`` s,
+
+which is the ``72:09.7`` the source program displays for that bar. Under
+exact-equality precedence the same query answered ``1924230041/445500 =
+4319.259351290684`` s — the 2887th downbeat of a list holding seven beats that
+are not downbeats, i.e. seven bars too early.
+
+**Whole-collection effect.** Four of the 38 tracks generate phantom beats under
+exact-equality precedence: the mix (−7), ``Fkn Raw`` (−1, at 156.839 before
+156.840), ``HEROINE - Samuel Moriero Remix (FREE DL)`` (−2, at 60.070 and
+63.070) and ``BLOW IT UP`` (−1, at 156.074 before 156.075). No track has a
+downbeat exactly at ``TotalTime``, so the end-of-track branch is unaffected by
+the change and is exercised synthetically.
+
 ---
 
-## (c) Loader expectations: 46 physical-domain timelines
+## (c) Loader expectations: 38 physical-domain timelines
 
-**Ground truth.** The 46 collection tracks.
+**Ground truth.** The 38 collection tracks.
 
-**Expected.** The loader yields **46 timelines** in the physical domain (seconds),
+**Expected.** The loader yields **38 timelines** in the physical domain (seconds),
 one per collection track. Each timeline affords **floating-measure (``fm``)**
 readings through its grids: given a seconds position, its ``fm`` value is derived
 from the grid that contains it (its ``Inizio``, ``Bpm``, ``Metro``, ``Battito``),
@@ -141,7 +199,7 @@ instant is an interpolation anchor, including grid changes that occur mid-bar.
   measure count must run continuously across all four grids (no reset at 48.088,
   102.464, or 156.840), and the ``Battito`` on each grid re-anchors where that
   grid's first downbeat falls.
-- **``Brace For Impact``** — single grid: ``Inizio 0.145``, ``Bpm 150.00``,
+- **``40. Brace For Impact``** — single grid: ``Inizio 0.145``, ``Bpm 150.00``,
   ``Metro 4/4``, ``Battito 2``, ``TotalTime 220``. Here the bpm is **not** 160:
   beat = ``60 / 150 = 0.4`` s, bar = ``1.6`` s. ``Battito 2`` puts the next
   downbeat ``3 × 0.4 = 1.2`` s after ``0.145`` s, at ``1.345`` s. This example
@@ -150,6 +208,14 @@ instant is an interpolation anchor, including grid changes that occur mid-bar.
 ---
 
 ## (d) `tracks-to-mix.csv` ingestion and name resolution
+
+> **Sections (d), (e) and (f) specify a lane no loader implements yet.** They
+> are the validation logic the alignment-CSV reader must satisfy when it is
+> written — derived from the two data files, and to be asserted then. Nothing
+> in `test_rekordbox_loader.py` currently covers them, so they must not be read
+> as a description of existing behaviour. Sections (a)–(c), (g) and (h) do
+> describe the implemented loader and are covered by tests.
+
 
 **Ground truth.** 96 data rows. The ``track`` column carries the source file's
 name stem — ``"NN. "`` prefix included (a number, an optional letter for split
@@ -198,10 +264,10 @@ mix loop is one full pass of the same track material.
 
 | track | track [start,end] (bars) | mix [start,end] (bars) | mix span | N | L | check span = N × track span |
 |-------|--------------------------|------------------------|----------|---|---|-----------------------------|
-| ``10. The Sound`` | [64, 65] = 1 | [827, 839] | 12 | 12 | 1 | 12 = 12 × 1 ✓ |
-| ``13. TURN IT UP!`` | [53, 61] = 8 | [1121, 1137] | 16 | 2 | 8 | 16 = 2 × 8 ✓ |
-| ``28. Fkn Raw`` | [47, 51] = 4 | [2447, 2455] | 8 | 2 | 4 | 8 = 2 × 4 ✓ |
-| ``32. GUCCI BAG - Revelation Live Edit`` | [76, 77] = 1 | [2866, 2878] | 12 | 12 | 1 | 12 = 12 × 1 ✓ |
+| ``10. The Sound`` | [64, 65] = 1 | [829, 841] | 12 | 12 | 1 | 12 = 12 × 1 ✓ |
+| ``13. TURN IT UP!`` | [53, 61] = 8 | [1123, 1139] | 16 | 2 | 8 | 16 = 2 × 8 ✓ |
+| ``28. Fkn Raw`` | [47, 51] = 4 | [2449, 2457] | 8 | 2 | 4 | 8 = 2 × 4 ✓ |
+| ``32. GUCCI BAG - Revelation Live Edit`` | [76, 77] = 1 | [2868, 2880] | 12 | 12 | 1 | 12 = 12 × 1 ✓ |
 | ``37. Annihilatiøn`` | [25, 26] = 1 | [3162, 3170] | 8 | 8 | 1 | 8 = 8 × 1 ✓ |
 | ``37. Annihilatiøn`` | [59, 60] = 1 | [3166, 3170] | 4 | 4 | 1 | 4 = 4 × 1 ✓ |
 
@@ -238,26 +304,26 @@ than folding them in silently.)
 both in bar units.
 
 **Concrete non-loop row — ``01. See Me Coming`` (first entry).**
-``track [1, 89]``, ``mix [1, 89]``. The claim records the mix interval
-``[1, 89]`` (88 bars) ↔ the track interval ``[1, 89]`` (88 bars). Endpoint
-arithmetic: mix span ``89 − 1 = 88``; track span ``89 − 1 = 88``; equal length,
-so this is a 1:1 pass with no stretch.
+``track [1, 89]``, ``mix [3, 91]``. The claim records the mix interval
+``[3, 91]`` (88 bars) ↔ the track interval ``[1, 89]`` (88 bars). Endpoint
+arithmetic: mix span ``91 − 3 = 88``; track span ``89 − 1 = 88``; equal length,
+so this is a 1:1 pass with no stretch, offset by two bars.
 
 **Concrete non-loop row — ``01. See Me Coming`` (second entry).**
-``track [121, 166]``, ``mix [89, 134]``. Claim: mix ``[89, 134]`` (45 bars) ↔
-track ``[121, 166]`` (45 bars). Endpoint arithmetic: ``134 − 89 = 45`` and
+``track [121, 166]``, ``mix [91, 136]``. Claim: mix ``[91, 136]`` (45 bars) ↔
+track ``[121, 166]`` (45 bars). Endpoint arithmetic: ``136 − 91 = 45`` and
 ``166 − 121 = 45`` — equal length again, but the track side jumps from bar 89 to
 bar 121, i.e. this row skips 32 bars of the source before re-entering.
 
-**Concrete loop row — ``13. TURN IT UP!``.** ``track [53, 61]``, ``mix [1121,
-1137]``, ``track_loop = 2``. With ``L = (1137 − 1121) / 2 = 8`` (= the track span
+**Concrete loop row — ``13. TURN IT UP!``.** ``track [53, 61]``, ``mix [1123,
+1139]``, ``track_loop = 2``. With ``L = (1139 − 1123) / 2 = 8`` (= the track span
 ``61 − 53``), the row expands to exactly two adjacent, equal-length claims, both
 naming the **same** track interval:
 
-- claim 1: mix ``[1121, 1129]`` ↔ track ``[53, 61]``;
-- claim 2: mix ``[1129, 1137]`` ↔ track ``[53, 61]``.
+- claim 1: mix ``[1123, 1131]`` ↔ track ``[53, 61]``;
+- claim 2: mix ``[1131, 1139]`` ↔ track ``[53, 61]``.
 
-They abut at bar 1129 and together cover ``[1121, 1137]``. A correct claim carries
+They abut at bar 1131 and together cover ``[1123, 1139]``. A correct claim carries
 both bar-unit intervals and their orientation (which axis is mix, which is track);
 loop expansion must preserve the shared track interval across all N copies.
 
@@ -282,8 +348,8 @@ track carrying **no** ``Location`` cannot derive a file identity, so its id must
 fall back to ``Name`` — never to an invented value. The proof requires the two
 values to be observably different in the first case and identical in the second.
 
-**Specimen anchors (exact).** All 46 collection tracks carry a ``Location``, so
-the bundle's timeline ids are exactly the 46 decoded file stems. Pinned members:
+**Specimen anchors (exact).** All 38 collection tracks carry a ``Location``, so
+the bundle's timeline ids are exactly the 38 decoded file stems. Pinned members:
 ``01. See Me Coming``, ``05. HUMBLE (Samuel Moriero REMIX)``,
 ``41b. Vielleicht Vielleicht``, and the mix
 ``001-samuel_moriero-impact_halloween_xxl_2025_full_set``. The six csv
@@ -306,5 +372,82 @@ axis, reached through the public retrieval surface (a ``Coordinate`` goes in, a
 no rounding ambiguity can hide an off-by-one. A track with **no** ``SampleRate``
 attribute states nothing about its resolution, and the loader must attach **no**
 samples axis — guessing a default sample rate would fabricate a fact the source
-does not carry. All 46 specimen tracks carry a ``SampleRate`` (only ``44100``
+does not carry. All 38 specimen tracks carry a ``SampleRate`` (only ``44100``
 and ``48000`` occur), so the absence branch has synthetic coverage only.
+
+---
+
+## (h) Synthetic grids: the boundary rule and mid-measure re-anchoring
+
+The specimen proves the rule at scale; two synthetic collections prove it at
+the places a specimen cannot isolate. Every value below is derived from the
+``TEMPO`` attributes alone.
+
+### Phantom suppression on both sides of the threshold
+
+``TotalTime 30``; grids ``(0.5, 120, 4/4, 1)``, ``(10.51, 120, 4/4, 1)``,
+``(20.31, 120, 4/4, 1)``. At 120 BPM a beat is ``0.5`` s, a bar ``2`` s and
+half a beat ``0.25`` s.
+
+- Grid 1's beats run ``0.5, 1.0, …``. Its 21st beat would fall at ``10.5``,
+  ``0.01`` s before grid 2's anchor — **below** half a beat, so it is the
+  displaced anchor and is dropped. Grid 1 therefore contributes 20 beats and
+  its downbeats are ``0.5, 2.5, 4.5, 6.5, 8.5``.
+- Grid 2's last beat falls at ``10.51 + 19 × 0.5 = 20.01``, ``0.30`` s before
+  grid 3's anchor — **above** half a beat, so it is kept. The same rule
+  therefore has one case dropping and one keeping in the same file.
+- Grid 3 is the last grid: it stops at ``TotalTime``, keeping every beat
+  strictly below ``30``; its last is ``20.31 + 19 × 0.5 = 29.81``.
+
+Fifteen downbeats, so **15 measure records** and no pickup (``Battito 1``).
+Three of them are irregular, one per grid boundary and one at the track end:
+
+| Measure | Span (s) | Actual length (quarters) |
+|---|---|---|
+| 5 | ``[8.5, 10.51)`` | ``2.01 × 2 = 201/50`` (4.02) |
+| 10 | ``[18.51, 20.31)`` | ``1.8 × 2 = 18/5`` (3.6) |
+| 15 | ``[28.31, 30)`` | ``1.69 × 2 = 169/50`` (3.38) |
+
+Floating-measure anchors: ``0 → 0.75`` (grid 1 opens ``0.5`` s = a quarter bar
+after nominal bar 1, so ``1 − 0.5/2``), ``10.51 → 6.0`` (six downbeats at or
+before it) and ``20.31 → 11.0``.
+
+Grid cross-checks, which must agree because the measure records are generated
+from the beat grid: ``seconds_at(6) == 10.51`` and ``position_at(10.505)``
+answers the beat at ``10.0`` — measure 5, beat 4, segment 0 — because a
+position between two beats floors to the earlier one, and 10.5 is not a beat.
+
+### A grid that re-anchors mid-measure
+
+``TotalTime 12``; grids ``(0, 60, 4/4, 1)`` and ``(6.01, 120, 4/4, 3)``. At 60
+BPM a beat is ``1`` s (half a beat ``0.5``); at 120 BPM it is ``0.5`` s.
+
+- Grid 1's beat at ``6.0`` is ``0.01`` s before grid 2's anchor, well inside
+  half of grid 1's beat, so it is dropped; grid 1 keeps ``0 … 5.0``.
+- Grid 2 anchors on ``Battito 3``, so its first two beats (``6.01``, ``6.51``)
+  belong to the measure grid 1 opened at ``4.0``: set measure **2**, segment
+  measure **0**. Its first downbeat is ``6.01 + 2 × 0.5 = 7.01``: set measure
+  **3**, segment measure **1**. This is the case where the two numberings must
+  differ.
+- Measure 2 spans ``[4, 7.01)`` across the tempo change: ``2.01 s × 1 q/s +
+  1.0 s × 2 q/s = 401/100`` quarters (4.01), a value neither tempo alone
+  produces.
+
+Grid cross-checks: ``seconds_at(3) == 7.01``; ``position_at(6.5)`` floors to
+the anchor beat at ``6.01`` — segment 1, set measure 2, segment measure 0,
+beat 3 — and ``position_at(6.6)`` reaches the next beat at ``6.51``, beat 4.
+
+### The knife edge
+
+The pickup/grid-change track (``(0, 60, 4/4, 4)``, ``(3.5, 120, 4/4, 2)``,
+``(7, 120, 4/4, 1)``, ``TotalTime 8``) carries the boundary case: grid 1 runs
+at 60 BPM, so half a beat is ``0.5`` s and its beat at ``3.0`` sits exactly
+that far before grid 2's anchor. **It is kept.**
+
+That beat is beat 3 of its measure, not a downbeat, so the measure records are
+the same either way — the measure map cannot see the difference and this
+track's measure expectations are unchanged by the rule. The beat lattice can:
+grid 1 contributes four beats (``0, 1, 2, 3``) rather than three, and
+``position_at(3.2)`` answers the beat at ``3.0`` rather than the one at
+``2.0``. Both are asserted at grid level, in `tests/timelines/test_beatgrid.py`,
+because a `<` / `<=` slip in the rule shows up nowhere else.

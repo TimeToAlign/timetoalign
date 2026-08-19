@@ -2312,10 +2312,15 @@ class BeatPolicy(BaseModel):
     stored: the source encoding is what a policy holds, and every rod,
     offset and index question is answered from it.
 
-    Args:
+    Attributes:
         grouping: How many divisions each beat spans, in order.
-        division: The counted note value, in quarters.
-        name: Optional human-readable label for the policy.
+        division: The counted note value, in quarters. Given either
+            directly or through *beat_size*, which completes it.
+        beat_size: The counted value as a typed duration in whole notes
+            or quarters. Completed from *division* when omitted.
+        bpm: Optional tempo indication, in counted beats per minute.
+        name: Optional human-readable label, typically the signature the
+            source spells.
     """
 
     model_config = ConfigDict(frozen=True, strict=True)
@@ -2388,17 +2393,21 @@ class BeatPolicy(BaseModel):
         return cls(grouping=(1,) * count, division=division)
 
     @classmethod
-    def uniform(cls, division: Fraction, count: int) -> BeatPolicy:
+    def uniform(
+        cls, division: Fraction, count: int, *, name: str | None = None
+    ) -> BeatPolicy:
         """Count *count* beats of one *division* each.
 
         Args:
             division: The counted note value, in quarters.
             count: How many such beats fill the bar.
+            name: Optional label, typically the signature the source
+                spells.
 
         Returns:
             A policy with an all-ones grouping.
         """
-        return cls(grouping=(1,) * count, division=Fraction(division))
+        return cls(grouping=(1,) * count, division=Fraction(division), name=name)
 
     @field_validator("grouping")
     @classmethod

@@ -98,7 +98,7 @@ The bundle translates between these two namespaces transparently.
 | [get_group_for_timeline](#timetoalign.alignment.AlignmentBundle.get_group_for_timeline) | Get the group containing a timeline. |
 | [get_match_claims](#timetoalign.alignment.AlignmentBundle.get_match_claims) | Query MatchClaims connecting timelines across groups. |
 | [get_matchstamp](#timetoalign.alignment.AlignmentBundle.get_matchstamp) | Dispatch a positional or event-key match-stamp query. |
-| [get_matchstamp_at](#timetoalign.alignment.AlignmentBundle.get_matchstamp_at) | Get a cross-group MatchStamp at a coordinate on a timeline. |
+| [get_matchstamp_at](#timetoalign.alignment.AlignmentBundle.get_matchstamp_at) | Get a cross-group match stamp at a coordinate on a timeline. |
 | [get_matchstamp_for](#timetoalign.alignment.AlignmentBundle.get_matchstamp_for) | Get the cross-group MatchStamp at a uniquely owned event. |
 | [get_matchstamp_table](#timetoalign.alignment.AlignmentBundle.get_matchstamp_table) | Get a table of MatchStamps for alignment queries. |
 | [get_matchstamps](#timetoalign.alignment.AlignmentBundle.get_matchstamps) | Get MatchStamps for the bundle's claims. |
@@ -174,9 +174,9 @@ Python-list ``cross_group_claims`` and one or more
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type                                                              | Description                                                        | Default    |
-|-------------|-------------------------------------------------------------------|--------------------------------------------------------------------|------------|
-| claim_field | [MatchClaimField](`timetoalign.alignment.claims.MatchClaimField`) | A :class:`MatchClaimField` of synchronous instant pairwise claims. | _required_ |
+| Name        | Type                                                              | Description                                                | Default    |
+|-------------|-------------------------------------------------------------------|------------------------------------------------------------|------------|
+| claim_field | [MatchClaimField](`timetoalign.alignment.claims.MatchClaimField`) | A :class:`MatchClaimField` of synchronous pairwise claims. | _required_ |
 
 #### Returns {.doc-section .doc-section-returns}
 
@@ -202,9 +202,9 @@ WarpMaps are built lazily on first ``transfer()`` or
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name   | Type                                                                      | Description                                                                                          | Default    |
-|--------|---------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|------------|
-| claims | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | List of MatchClaim objects.  Each synchronous claim connects two timelines via its ``start_anchor``. | _required_ |
+| Name   | Type                | Description                                                                                                                        | Default    |
+|--------|---------------------|------------------------------------------------------------------------------------------------------------------------------------|------------|
+| claims | [Any](`typing.Any`) | MatchClaim objects, claim tuples, or lists of claim tuples. A tuple is ``(timeline_a_id, interval_a, timeline_b_id, interval_b)``. | _required_ |
 
 #### Returns {.doc-section .doc-section-returns}
 
@@ -813,9 +813,9 @@ Dispatch a positional or event-key match-stamp query.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                                                                                               | Description                         |
-|--------|------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
-|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | The selected precise-getter result. |
+| Name   | Type                                                                                                                                                                                                                                                                                   | Description                         |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
+|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`) \| [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`)\] | The selected precise-getter result. |
 
 #### Raises {.doc-section .doc-section-raises}
 
@@ -839,7 +839,7 @@ alignment.AlignmentBundle.get_matchstamp_at(
 )
 ```
 
-Get a cross-group MatchStamp at a coordinate on a timeline.
+Get a cross-group match stamp at a coordinate on a timeline.
 
 This is the primary interface for cross-domain coordinate transfer.
 Given a coordinate on one timeline, returns coordinates on ALL
@@ -874,9 +874,11 @@ ever yields a negative coordinate or one beyond a timeline's length.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                   | Description                                  |
-|--------|--------------------------------------------------------|----------------------------------------------|
-|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) | MatchStamp spanning all connected timelines. |
+| Name   | Type                                                                                                                             | Description                                                      |
+|--------|----------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------|
+|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`) | A MatchIntervalStamp containing every directly relevant claim if |
+|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`) | at least one interval claim contains the query; otherwise a      |
+|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`) | MatchStamp spanning all connected instant timelines.             |
 
 #### Raises {.doc-section .doc-section-raises}
 
@@ -927,9 +929,9 @@ Get the cross-group MatchStamp at a uniquely owned event.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                   | Description                                  |
-|--------|--------------------------------------------------------|----------------------------------------------|
-|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) | MatchStamp spanning all connected timelines. |
+| Name   | Type                                                                                                                             | Description                                  |
+|--------|----------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------|
+|        | [MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`) | MatchStamp spanning all connected timelines. |
 
 #### Raises {.doc-section .doc-section-raises}
 
@@ -1122,10 +1124,10 @@ is preserved.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                                     | Description                                                       |
-|--------|--------------------------------------------------------------------------|-------------------------------------------------------------------|
-|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | One MatchStamp per input coordinate; an empty collection gives an |
-|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | empty list.                                                       |
+| Name   | Type                                                                                                                                               | Description                                                 |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------|
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`)\] | One match stamp per input coordinate; interval results pass |
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`)\] | through unchanged. An empty collection gives an empty list. |
 
 #### Examples {.doc-section .doc-section-examples}
 
@@ -1168,10 +1170,10 @@ Get cross-group MatchStamps for a collection of event IDs.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                                     | Description                                                       |
-|--------|--------------------------------------------------------------------------|-------------------------------------------------------------------|
-|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | One MatchStamp per key, in input order; an empty collection gives |
-|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`)\] | an empty list.                                                    |
+| Name   | Type                                                                                                                                               | Description                                                       |
+|--------|----------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------|
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`)\] | One MatchStamp per key, in input order; an empty collection gives |
+|        | [list](`list`)\[[MatchStamp](`timetoalign.alignment.graph.MatchStamp`) \| [MatchIntervalStamp](`timetoalign.alignment.graph.MatchIntervalStamp`)\] | an empty list.                                                    |
 
 #### Raises {.doc-section .doc-section-raises}
 

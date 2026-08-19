@@ -690,5 +690,6 @@ print(f"  Score diff: {abs(via_score - test_coord)} pixels")
 # %% [markdown]
 # ## Next Steps
 #
-# - **how01_beat_grids.ipynb**: Work with BeatGrid, FloorMap, and RotationMap
+# - **how01_beat_grids.ipynb**: Build a BeatGrid from tempo statements and
+#   export its beats for an annotation program
 # - **Advanced**: Implement WarpMap for non-linear alignment (expressive timing)

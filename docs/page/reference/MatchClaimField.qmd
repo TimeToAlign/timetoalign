@@ -13,7 +13,7 @@ alignment.MatchClaimField(
 A ``SemanticField[MatchClaim]`` columnar store for pairwise claims.
 
 ``MatchClaimField`` is the Field paired with the :class:`MatchClaim`
-scalar.  It holds a large set of synchronous-instant pairwise alignment
+scalar.  It holds a large set of synchronous pairwise alignment
 claims (millions of rows) in a single derived struct column instead of one
 frozen :class:`MatchClaim` per claim.  Individual claims are materialised
 lazily, only when a row is indexed or iterated.
@@ -29,12 +29,9 @@ in bulk, and :meth:`__getitem__` injects the field-level metadata into each
 materialised :class:`MatchClaim`.  This keeps the store compact (one struct
 column, no per-row metadata) while remaining a genuine SemanticField.
 
-**Scope (v1): synchronous instant pairwise claims only.** Every row
-represents a claim where ``is_synchronous is True``, ``start_anchor`` is
-present, and ``end_anchor`` is ``None`` (an instant). NOMATCH claims
-(non-synchronous) and interval claims (with an end anchor) are **out of
-scope** for this store; :meth:`from_claims` raises :class:`ValueError`
-when handed one.
+Every row represents a synchronous claim with a start anchor and an
+optional end anchor. NOMATCH claims remain outside this store because
+they carry no coordinate pair to query.
 
 ## Attributes {.doc-section .doc-section-attributes}
 
@@ -67,7 +64,7 @@ when handed one.
 
 | Name | Description |
 | --- | --- |
-| [at](#timetoalign.alignment.MatchClaimField.at) | Return the claims anchored at ``(timeline_id, coordinate)``. |
+| [at](#timetoalign.alignment.MatchClaimField.at) | Return claims relevant at ``(timeline_id, coordinate)``. |
 | [connecting](#timetoalign.alignment.MatchClaimField.connecting) | Return the claims that involve ``timeline_id`` on either side. |
 | [connects_groups](#timetoalign.alignment.MatchClaimField.connects_groups) | Whether any claim spans the two given sets of timeline ids. |
 | [coordinate_pairs](#timetoalign.alignment.MatchClaimField.coordinate_pairs) | Read the four defining columns in bulk, materialising no claim. |
@@ -85,26 +82,24 @@ when handed one.
 alignment.MatchClaimField.at(timeline_id, coordinate)
 ```
 
-Return the claims anchored at ``(timeline_id, coordinate)``.
+Return claims relevant at ``(timeline_id, coordinate)``.
 
 The selection is a vectorized PyArrow boolean mask over the struct
-column — rows where ``timeline_a_id == timeline_id`` and the anchor's
-``coordinate_a`` equals ``coordinate``, OR the symmetric
-``timeline_b_id`` / ``coordinate_b`` pair.  No claim is materialised
-and the rest of the field is never touched; the shared metadata
-carries over.
+column. Instant rows compare their start coordinate exactly. Interval
+rows use closed containment between their start and end coordinates.
+No claim is materialised and the rest of the field is never touched;
+the shared metadata carries over.
 
-Coordinate matching is **exact float equality** — a query coordinate
-must land on a value the field actually carries.  There is no
-tolerance and no nearest-value fallback, so the result agrees with a
-per-claim scan of the same claims.
+Coordinate matching is exact in the query coordinate's declared
+number representation. There is no tolerance or nearest-value
+fallback.
 
 #### Parameters {.doc-section .doc-section-parameters}
 
-| Name        | Type             | Description                                   | Default    |
-|-------------|------------------|-----------------------------------------------|------------|
-| timeline_id | [str](`str`)     | The timeline the queried coordinate lives on. | _required_ |
-| coordinate  | [float](`float`) | The exact coordinate value on that timeline.  | _required_ |
+| Name        | Type                                                | Description                                   | Default    |
+|-------------|-----------------------------------------------------|-----------------------------------------------|------------|
+| timeline_id | [str](`str`)                                        | The timeline the queried coordinate lives on. | _required_ |
+| coordinate  | [CoordinateSpec](`timetoalign.core.CoordinateSpec`) | A raw or typed coordinate on that timeline.   | _required_ |
 
 #### Returns {.doc-section .doc-section-returns}
 
@@ -248,8 +243,8 @@ alignment.MatchClaimField.from_claims(claims, *, metadata=None)
 
 Build a field from existing :class:`MatchClaim` objects.
 
-Every claim must be a synchronous instant (``is_synchronous is True``,
-``start_anchor`` present, ``end_anchor is None``) per the v1 scope.
+Every claim must be synchronous and carry a start anchor. Interval
+claims retain their end anchors.
 
 If ``metadata`` is ``None`` and all claims share one identical
 :class:`MatchMetadata` (by equality), that metadata is adopted as the
@@ -271,9 +266,9 @@ field-level provenance; otherwise the field's metadata stays ``None``
 
 #### Raises {.doc-section .doc-section-raises}
 
-| Name   | Type                       | Description                                                                                                 |
-|--------|----------------------------|-------------------------------------------------------------------------------------------------------------|
-|        | [ValueError](`ValueError`) | If any claim is non-synchronous (NOMATCH), lacks a start anchor, or is an interval (carries an end anchor). |
+| Name   | Type                       | Description                                                        |
+|--------|----------------------------|--------------------------------------------------------------------|
+|        | [ValueError](`ValueError`) | If any claim is non-synchronous (NOMATCH) or lacks a start anchor. |
 
 ### from_columns { #timetoalign.alignment.MatchClaimField.from_columns }
 
@@ -388,9 +383,9 @@ is provided for convenience and round-tripping, not for hot paths.
 
 #### Returns {.doc-section .doc-section-returns}
 
-| Name   | Type                                                                      | Description                                        |
-|--------|---------------------------------------------------------------------------|----------------------------------------------------|
-|        | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | A list of synchronous instant claims, one per row. |
+| Name   | Type                                                                      | Description                                |
+|--------|---------------------------------------------------------------------------|--------------------------------------------|
+|        | [list](`list`)\[[MatchClaim](`timetoalign.alignment.claims.MatchClaim`)\] | A list of synchronous claims, one per row. |
 
 ### to_dict { #timetoalign.alignment.MatchClaimField.to_dict }
 

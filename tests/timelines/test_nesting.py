@@ -27,7 +27,6 @@ import pytest
 
 from timetoalign.core import Coordinate, NumberType, TimeUnit, rational_to_wire
 from timetoalign.timelines import (
-    BeatGrid,
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
     ContinuousPhysicalTimeline,
@@ -324,25 +323,6 @@ class TestCreateChild:
 
         assert child.length.value == 2.0
         assert parent.get_child_offset("coordinate_child").value == 3.0
-
-    def test_beatgrid_create_child_returns_plain_logical_timeline(self) -> None:
-        """BeatGrid children contain logical material rather than another grid."""
-        grid = BeatGrid(length=Fraction(16, 1))
-
-        child = grid.create_child(length=Fraction(4, 1), uid="measure")
-
-        assert type(child) is ContinuousLogicalTimeline
-        assert child.length.value == Fraction(4, 1)
-        assert grid.get_child_offset("measure").value == Fraction(0, 1)
-
-    def test_beatgrid_get_slice_returns_plain_logical_timeline(self) -> None:
-        """BeatGrid slicing succeeds without invoking its specialized constructor."""
-        grid = BeatGrid(length=Fraction(16, 1))
-
-        sliced = grid.get_slice(Fraction(4, 1), Fraction(8, 1))
-
-        assert type(sliced) is ContinuousLogicalTimeline
-        assert sliced.length.value == Fraction(4, 1)
 
 
 class TestCreateChildrenFromBoundaries:
