@@ -2388,17 +2388,21 @@ class BeatPolicy(BaseModel):
         return cls(grouping=(1,) * count, division=division)
 
     @classmethod
-    def uniform(cls, division: Fraction, count: int) -> BeatPolicy:
+    def uniform(
+        cls, division: Fraction, count: int, *, name: str | None = None
+    ) -> BeatPolicy:
         """Count *count* beats of one *division* each.
 
         Args:
             division: The counted note value, in quarters.
             count: How many such beats fill the bar.
+            name: Optional label, typically the signature the source
+                spells.
 
         Returns:
             A policy with an all-ones grouping.
         """
-        return cls(grouping=(1,) * count, division=Fraction(division))
+        return cls(grouping=(1,) * count, division=Fraction(division), name=name)
 
     @field_validator("grouping")
     @classmethod

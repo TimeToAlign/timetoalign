@@ -363,8 +363,7 @@ class Timeline(
            specific domain).
 
         Further-derived subclasses participate in the lookup and can be
-        selected when they are the most specific matching candidate, such as
-        a specialized ``BeatGrid`` subclass.
+        selected when they are the most specific matching candidate.
 
         Falls back to the base ``Timeline`` if no subclass claims the unit.
 

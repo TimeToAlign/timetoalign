@@ -59,7 +59,7 @@ from timetoalign.maps.interval import (
     QuartersToMeasureNumber,
 )
 from timetoalign.maps.meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
-from timetoalign.timelines import BeatGrid, Timeline
+from timetoalign.timelines import Timeline
 from timetoalign.timelines.flow.measures import MeasureUnit
 from timetoalign.timelines.flow.sections import AtomicSection, PlaythroughSection
 
@@ -93,16 +93,6 @@ def _float_timeline() -> Timeline:
         Timeline(length=2.0, unit=TimeUnit.seconds, uid="tick"), offset=4.5
     )
     return timeline
-
-
-def _beatgrid() -> BeatGrid:
-    """A BeatGrid with an anacrusis, so every rational slot is populated."""
-    return BeatGrid(
-        length=Fraction(9, 1),
-        beats_per_measure=4,
-        beat_unit=Fraction(1, 4),
-        anacrusis_quarters=Fraction(1, 1),
-    )
 
 
 def _meter_map() -> MetricMap:
@@ -316,16 +306,6 @@ class TestTimelineWireFormat:
         restored = Timeline.from_dict(json.loads(json.dumps(data)))
         assert restored.to_dict(events=True, external_references=True) == data
 
-    def test_beatgrid_to_dict_is_a_json_fixpoint(self) -> None:
-        data = _beatgrid().to_dict(events=True, external_references=True)
-        restored = BeatGrid.from_dict(json.loads(json.dumps(data)))
-        assert restored.to_dict(events=True, external_references=True) == data
-
-    def test_beatgrid_rationals_use_the_wire_dict(self) -> None:
-        data = _beatgrid().to_dict()
-        assert data["beat_unit"]["denominator"] == 4
-        assert data["anacrusis_quarters"]["numerator"] == 1
-
 
 # endregion
 
@@ -415,7 +395,6 @@ def _json_safety_cases() -> list[tuple[str, dict[str, Any]]]:
             "Timeline.float",
             _float_timeline().to_dict(events=True, external_references=True),
         ),
-        ("BeatGrid", _beatgrid().to_dict(events=True, external_references=True)),
         ("Agent", agent.to_dict()),
         ("MatchMetadata", MatchMetadata(agent=agent, certainty=0.85).to_dict()),
         ("AlignmentAnchor", anchor.to_dict()),

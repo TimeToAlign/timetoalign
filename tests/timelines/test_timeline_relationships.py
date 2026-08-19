@@ -675,16 +675,15 @@ class TestSegmentLineParameterized:
 
     def test_segment_type_accepts_subclass(self):
         """segment_type enforcement allows subclasses (isinstance check)."""
-        from timetoalign.timelines import BeatGrid
 
-        # BeatGrid is a subclass of ContinuousLogicalTimeline
+        class AnnotatedLogicalTimeline(ContinuousLogicalTimeline):
+            """A subclass of the declared segment type."""
+
         sl = SegmentLine[ContinuousLogicalTimeline](
             length=0,
             unit=TimeUnit.quarters,
         )
-        # BeatGrid is a ContinuousLogicalTimeline subclass, so this should work
-        bg = BeatGrid(length=4)
-        sl.append_segment(bg)
+        sl.append_segment(AnnotatedLogicalTimeline(length=4))
         assert sl.n_segments == 1
 
     def test_from_segmentation_sets_segment_type(self):

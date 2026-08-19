@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fractions import Fraction
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from timetoalign.core import (
     Address,
@@ -26,6 +26,9 @@ from .bundle import AlignmentBundle
 from .claims import AlignmentAnchor, MatchClaim
 from .structure import MetricHierarchy, SectionHierarchy
 
+if TYPE_CHECKING:
+    from timetoalign.timelines import BeatGrid
+
 _skeleton_id_generator = IdGenerator(scope="skeleton")
 
 
@@ -33,8 +36,8 @@ class TimeSkeleton:
     """One authored temporal structure shared by participating timelines.
 
     Equality is structural: two skeletons compare equal when their section
-    hierarchy, metric hierarchy, and authored flows (flow ids and step
-    content) agree. Identity (``id``), participants, claims, and
+    hierarchy, metric hierarchy, beat grid, and authored flows (flow ids
+    and step content) agree. Identity (``id``), participants, claims, and
     materialized reference timelines are excluded, so equal skeletons are
     not interchangeable objects and instances are deliberately unhashable.
     """
@@ -46,10 +49,12 @@ class TimeSkeleton:
         *,
         uid: str | None = None,
         flows: dict[str, list[str | Gap]] | None = None,
+        beat_grid: BeatGrid | None = None,
     ) -> None:
         self._id = uid or _skeleton_id_generator.create(type_hint="skel")
         self._section_hierarchy = section_hierarchy
         self._metric_hierarchy = metric_hierarchy
+        self._beat_grid = beat_grid
         self._bundle = AlignmentBundle()
         self._participant_ids: set[str] = set()
         self._timeline_flows: dict[str, str] = {}
@@ -69,6 +74,7 @@ class TimeSkeleton:
         return (
             self._section_hierarchy == other._section_hierarchy
             and self._metric_hierarchy == other._metric_hierarchy
+            and self._beat_grid == other._beat_grid
             and self._flow_steps == other._flow_steps
         )
 
@@ -230,6 +236,25 @@ class TimeSkeleton:
         self._flows[id] = flow
         self._flow_steps[id] = normalized
         return flow
+
+    def create_beatgrid(self) -> BeatGrid:
+        """Return the tempo grid this structure was read from.
+
+        Returns:
+            The :class:`~timetoalign.timelines.BeatGrid` whose segments
+            generated this structure's measures.
+
+        Raises:
+            ValueError: If the structure carries no tempo segments —
+                a beat grid needs a tempo, which measure lengths alone
+                do not state.
+        """
+        if self._beat_grid is None:
+            raise ValueError(
+                f"Structure {self._id!r} carries no tempo segments, so it states "
+                "no beat grid"
+            )
+        return self._beat_grid
 
     def materialize(self, *, flow: str | None = None) -> Any:
         """Materialize the supported abstract or unfolded reference timeline."""

@@ -193,6 +193,8 @@ _DEFERRED_EXPORTS = {
     "TiliaJsonLoader": ("timetoalign.loader", "TiliaJsonLoader"),
     # Timeline layer
     "BeatGrid": ("timetoalign.timelines", "BeatGrid"),
+    "BeatGridSegment": ("timetoalign.timelines", "BeatGridSegment"),
+    "GridBeat": ("timetoalign.timelines", "GridBeat"),
     "ContinuousGraphicalTimeline": (
         "timetoalign.timelines",
         "ContinuousGraphicalTimeline",
@@ -341,6 +343,8 @@ __all__ = [
     "ContinuousGraphicalTimeline",
     "DiscreteGraphicalTimeline",
     "BeatGrid",
+    "BeatGridSegment",
+    "GridBeat",
     "SegmentNameGenerator",
     # Maps
     "ConstantMap",

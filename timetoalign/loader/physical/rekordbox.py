@@ -7,11 +7,14 @@ from bisect import bisect_right
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlparse
 
 from timetoalign.alignment import AlignmentBundle
 from timetoalign.loader.base import Loader
+
+if TYPE_CHECKING:
+    from timetoalign.timelines import BeatGrid
 
 
 @dataclass(frozen=True)
@@ -32,21 +35,6 @@ class RekordboxTempo:
     def denominator(self) -> int:
         """Return the meter denominator."""
         return int(self.metro.split("/", maxsplit=1)[1])
-
-    @property
-    def beat_seconds(self) -> Fraction:
-        """Return one grid beat in seconds."""
-        return Fraction(60) / self.bpm
-
-    @property
-    def bar_seconds(self) -> Fraction:
-        """Return one grid bar in seconds."""
-        return self.numerator * self.beat_seconds
-
-    @property
-    def nominal_quarters(self) -> Fraction:
-        """Return one nominal bar in exact quarter notes."""
-        return Fraction(self.numerator * 4, self.denominator)
 
 
 @dataclass(frozen=True)
@@ -178,11 +166,16 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         from timetoalign.maps import SecondsToSamples, TableMap
         from timetoalign.timelines import ContinuousPhysicalTimeline
 
-        downbeats = cls._downbeats(track)
-        measures = cls._measure_map(track, downbeats)
+        grid = cls._beat_grid(track)
+        downbeats = [
+            (beat.instant, grid.segments[beat.segment])
+            for beat in grid.iter_beats()
+            if beat.is_downbeat
+        ]
+        measures = cls._measure_map(grid, downbeats)
         measure_map = MeasureMap(measures)
         seconds, floating_measures = cls._conversion_anchors(
-            track, downbeats, measure_map
+            track, grid, downbeats, measure_map
         )
 
         uid = cls._track_uid(track)
@@ -212,7 +205,7 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         if track.sample_rate is not None:
             timeline.add_conversion_map(SecondsToSamples(sample_rate=track.sample_rate))
         hierarchy = SectionHierarchy.from_measures(measure_map)
-        TimeSkeleton(hierarchy, uid=f"{uid}/skeleton").attach(timeline)
+        TimeSkeleton(hierarchy, uid=f"{uid}/skeleton", beat_grid=grid).attach(timeline)
         return timeline
 
     @staticmethod
@@ -230,30 +223,31 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         return stem or track.name
 
     @staticmethod
-    def _downbeats(track: RekordboxTrack) -> list[tuple[Fraction, RekordboxTempo]]:
-        downbeats: list[tuple[Fraction, RekordboxTempo]] = []
-        for index, tempo in enumerate(track.tempos):
-            grid_end = (
-                track.tempos[index + 1].inizio
-                if index + 1 < len(track.tempos)
-                else track.total_time
-            )
-            offset_beats = (
-                0 if tempo.battito == 1 else tempo.numerator - tempo.battito + 1
-            )
-            first = tempo.inizio + offset_beats * tempo.beat_seconds
-            bar_index = 0
-            while True:
-                downbeat = first + bar_index * tempo.bar_seconds
-                if downbeat >= grid_end or downbeat > track.total_time:
-                    break
-                if not downbeats or downbeat > downbeats[-1][0]:
-                    downbeats.append((downbeat, tempo))
-                bar_index += 1
-        return downbeats
+    def _beat_grid(track: RekordboxTrack) -> BeatGrid:
+        """Build the track's beat grid from its ``TEMPO`` declarations.
 
-    @classmethod
-    def _measure_map(cls, track: RekordboxTrack, downbeats: list[Any]) -> list[Any]:
+        Each grid counts one beat per ``Metro`` numerator unit, which is
+        what ``Battito`` indexes; reading ``6/8`` as two dotted beats
+        would put the anchor index outside its own bar.
+        """
+        from timetoalign.core import BeatPolicy
+        from timetoalign.timelines import BeatGrid, BeatGridSegment
+
+        segments = [
+            BeatGridSegment(
+                start=tempo.inizio,
+                bpm=tempo.bpm,
+                policy=BeatPolicy.uniform(
+                    Fraction(4, tempo.denominator), tempo.numerator, name=tempo.metro
+                ),
+                battito=tempo.battito,
+            )
+            for tempo in track.tempos
+        ]
+        return BeatGrid(segments, extent=track.total_time)
+
+    @staticmethod
+    def _measure_map(grid: BeatGrid, downbeats: list[Any]) -> list[Any]:
         from timetoalign.core import (
             IrregularMeasure,
             MeasureConstituent,
@@ -261,56 +255,48 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         )
 
         measures: list[Any] = []
-        first_tempo = track.tempos[0]
-        if first_tempo.battito != 1:
-            remaining_beats = first_tempo.numerator - first_tempo.battito + 1
+        first = grid.segments[0]
+        if first.battito != 1:
+            offset = first.policy.offset_for(first.battito)
             measures.append(
                 MeasureConstituent(
                     number=0,
-                    time_signature=first_tempo.metro,
-                    nominal_length=first_tempo.nominal_quarters,
-                    actual_length=Fraction(
-                        remaining_beats * 4, first_tempo.denominator
-                    ),
-                    offset_within_measure=Fraction(
-                        (first_tempo.battito - 1) * 4,
-                        first_tempo.denominator,
-                    ),
+                    time_signature=first.policy.name,
+                    nominal_length=first.policy.span,
+                    actual_length=first.policy.span - offset,
+                    offset_within_measure=offset,
                 )
             )
 
-        for index, (downbeat, tempo) in enumerate(downbeats):
+        extent = grid.extent
+        assert extent is not None
+        for index, (downbeat, segment) in enumerate(downbeats):
             next_downbeat = (
-                downbeats[index + 1][0]
-                if index + 1 < len(downbeats)
-                else track.total_time
+                downbeats[index + 1][0] if index + 1 < len(downbeats) else extent
             )
-            if next_downbeat <= downbeat:
-                continue
-            actual_length = cls._quarters_between(track, downbeat, next_downbeat)
+            actual_length = grid.quarters_between(downbeat, next_downbeat)
+            nominal_length = segment.policy.span
             measure_type = (
-                RegularMeasure
-                if actual_length == tempo.nominal_quarters
-                else IrregularMeasure
+                RegularMeasure if actual_length == nominal_length else IrregularMeasure
             )
             measures.append(
                 measure_type(
                     number=index + 1,
-                    time_signature=tempo.metro,
-                    nominal_length=tempo.nominal_quarters,
+                    time_signature=segment.policy.name,
+                    nominal_length=nominal_length,
                     actual_length=actual_length,
                 )
             )
 
         if not measures:
-            raise ValueError(f"Rekordbox track {track.name!r} contains no measures")
+            raise ValueError("A Rekordbox track's grids state no measures")
         return measures
 
-    @classmethod
+    @staticmethod
     def _conversion_anchors(
-        cls,
         track: RekordboxTrack,
-        downbeats: list[tuple[Fraction, RekordboxTempo]],
+        grid: BeatGrid,
+        downbeats: list[Any],
         measure_map: Any,
     ) -> tuple[list[Fraction], list[Fraction]]:
         from timetoalign.maps import QuartersToFloatingMeasures
@@ -318,20 +304,20 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         downbeat_instants = [instant for instant, _ in downbeats]
         anchors: dict[Fraction, Fraction] = {}
 
-        first_tempo = track.tempos[0]
-        first_bar = bisect_right(downbeat_instants, first_tempo.inizio)
-        first_fm = Fraction(first_bar) + Fraction(
-            first_tempo.battito - 1, first_tempo.numerator
-        )
-        anchors[Fraction(0)] = first_fm - first_tempo.inizio / first_tempo.bar_seconds
-
-        for tempo in track.tempos:
-            bar_number = bisect_right(downbeat_instants, tempo.inizio)
-            anchors[tempo.inizio] = Fraction(bar_number) + Fraction(
-                tempo.battito - 1, tempo.numerator
+        def anchor_of(segment: Any) -> Fraction:
+            """Read a grid anchor as a bar ordinal plus its beat offset."""
+            bar_number = bisect_right(downbeat_instants, segment.start)
+            return Fraction(bar_number) + Fraction(
+                segment.battito - 1, segment.policy.n_beats
             )
 
-        for index, (instant, _) in enumerate(downbeats, start=1):
+        first = grid.segments[0]
+        anchors[Fraction(0)] = anchor_of(first) - first.start / first.bar_seconds
+
+        for segment in grid.segments:
+            anchors[segment.start] = anchor_of(segment)
+
+        for index, instant in enumerate(downbeat_instants, start=1):
             anchors[instant] = Fraction(index)
 
         canonical = QuartersToFloatingMeasures.from_measure_map(measure_map)
@@ -341,33 +327,3 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
 
         result = sorted(anchors.items())
         return [item[0] for item in result], [item[1] for item in result]
-
-    @classmethod
-    def _quarters_between(
-        cls,
-        track: RekordboxTrack,
-        start: Fraction,
-        end: Fraction,
-    ) -> Fraction:
-        """Integrate exact quarter-note length over a seconds interval."""
-        cursor = start
-        active = cls._tempo_at(track, start)
-        quarters = Fraction(0)
-        for tempo in track.tempos:
-            if tempo.inizio <= start:
-                continue
-            if tempo.inizio >= end:
-                break
-            quarters += (tempo.inizio - cursor) * active.bpm / 60
-            cursor = tempo.inizio
-            active = tempo
-        return quarters + (end - cursor) * active.bpm / 60
-
-    @staticmethod
-    def _tempo_at(track: RekordboxTrack, instant: Fraction) -> RekordboxTempo:
-        selected = track.tempos[0]
-        for tempo in track.tempos:
-            if tempo.inizio > instant:
-                break
-            selected = tempo
-        return selected

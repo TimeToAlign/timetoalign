@@ -12,8 +12,12 @@ Modalities:
 - Discrete: Integer coordinates
 
 Specialized timelines:
-- BeatGrid: Metrical timeline with measure/beat C-Maps
 - SegmentLine: Timeline with contiguous child segments
+
+Beat grids:
+- BeatGrid: Tempo segments generating a labelled lattice of beats
+- BeatGridSegment: One tempo segment of a beat grid
+- GridBeat: One labelled beat of a grid
 
 Structural components:
 - Region: Named TimeInterval (not a timeline itself)
@@ -50,7 +54,7 @@ Public API:
 - ContinuousLogicalTimeline, DiscreteLogicalTimeline
 - ContinuousPhysicalTimeline, DiscretePhysicalTimeline
 - ContinuousGraphicalTimeline, DiscreteGraphicalTimeline
-- BeatGrid: Metrical timeline for measure/beat information
+- BeatGrid: Tempo segments generating a labelled lattice of beats
 - SegmentLine: Timeline where all children are contiguous
 - Region: Named TimeInterval for partitioning
 - create_timeline: Factory function for creating timelines from bundles/stores
@@ -60,7 +64,7 @@ Public API:
 from __future__ import annotations
 
 from .base import Timeline
-from .beatgrid import BeatGrid
+from .beatgrid import BeatGrid, BeatGridSegment, GridBeat
 from .factory import create_timeline
 from .flow import (
     AtomicSection,
@@ -123,8 +127,11 @@ __all__ = [
     "ContinuousGraphicalTimeline",
     "DiscreteGraphicalTimeline",
     # Specialized timelines
-    "BeatGrid",
     "SegmentLine",
+    # Beat grids
+    "BeatGrid",
+    "BeatGridSegment",
+    "GridBeat",
     # Structural components
     "Region",
     # Flow API
