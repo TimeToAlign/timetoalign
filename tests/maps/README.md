@@ -307,10 +307,23 @@ from the printed labels in them. The Wagner *Walküre* file loaded through
 derived above, and not the `1.0` that reading the label `"1"` off the pickup row
 would produce. Where a score's structure cannot be expressed as an fm lattice —
 WoO 71's split bars, below — the timeline is loaded with **no** floating-measure
-conversion at all and a warning naming the offending position. Its absence is
-honest; numbers derived from a rule the source does not support are not, and a
-silent fallback to label-derived ordinals is the worst of the three, because
-nothing downstream can tell the two kinds of fm apart.
+conversion at all. Its absence is honest; numbers derived from a rule the
+source does not support are not, and a silent fallback to label-derived
+ordinals is the worst of the three, because nothing downstream can tell the two
+kinds of fm apart.
+
+**Split bars are a documented known issue, not a runtime warning.** Two measure
+records sharing one notated downbeat — a bar divided across a repeat sign —
+cannot both anchor the same ordinal, and no reachable input makes them
+expressible, so the limitation belongs in the loader's and store's docstrings
+(`Ms3Loader.create_timeline`, `ScoreStore.get_cmaps`) and here, where a reader
+meets it before loading rather than after. Emitting a `UserWarning` on every
+load of such a score told a caller nothing they could act on and landed in the
+output of every notebook that loads one. **The validation logic is therefore
+that the load succeeds with no warning at all**: the score loads, its measure
+structure and every other conversion are intact, `TimeUnit.floating_measures`
+is simply not among its units, and a test asserts the silence explicitly rather
+than leaving it unobserved.
 
 **The inverse** interpolates linearly over the same knots and performs no
 truncation-reconstruction: a value that was truncated on the way out carries at

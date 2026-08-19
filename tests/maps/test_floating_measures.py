@@ -6,6 +6,7 @@ section "test_floating_measures.py".
 
 from __future__ import annotations
 
+import warnings
 from fractions import Fraction
 
 import numpy as np
@@ -354,17 +355,23 @@ class TestScoreFloatingMeasures:
         assert reading.value == 0.888
         assert reading.unit is TimeUnit.floating_measures
 
-    def test_a_split_bar_score_gets_no_conversion_and_says_so(self) -> None:
+    def test_a_split_bar_score_gets_no_conversion_and_no_warning(self) -> None:
         """An absent conversion never supplies wrong numbers or a silent fallback.
 
         WoO 71 splits bars, so its fm lattice is not expressible (see
         ``TestRefusals``). The score still loads and every other conversion is
-        intact, but the fm axis is simply not among its units, and the
-        warning names the position that made it impossible.
+        intact; the fm axis is simply not among its units. The limitation is
+        documented on the loader rather than warned about at load time —
+        nothing a caller could act on, and one warning per load of any such
+        score — so the absence of a warning is asserted here rather than left
+        unobserved.
         """
-        with pytest.warns(UserWarning, match="same nominal downbeat"):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
             timeline = Ms3Loader.from_file(WOO71_MEASURES).create_timeline()
 
         assert TimeUnit.floating_measures not in timeline._get_available_units()
         assert timeline.get_conversion_map(TimeUnit.floating_measures) is None
         assert TimeUnit.ticks in timeline._get_available_units()
+        # The structure itself is intact: only the derived lattice is absent.
+        assert timeline.skeleton.section_hierarchy.n_measures > 0

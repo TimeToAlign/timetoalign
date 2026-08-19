@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import logging
-import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -268,6 +267,14 @@ class ScoreStore(EventStore):
         - "seconds": quarters -> seconds (if tempo markings available)
         - "measures": quarters -> measures (if measure data available)
 
+        Known limitation: a score whose measures are **split** — two
+        records sharing one notated downbeat, as when a bar is divided
+        across a repeat sign — has no floating-measure lattice, because
+        the two halves cannot both anchor the same ordinal. The
+        ``"measures"`` entry is then simply absent; no approximate
+        lattice is built in its place, since an fm reading those measures
+        do not support is worse than no fm reading.
+
         Args:
             ppq: Pulses per quarter note for ticks conversion. Defaults to 480.
 
@@ -309,15 +316,13 @@ class ScoreStore(EventStore):
                 cmaps["measures"] = QuartersToFloatingMeasures.from_measure_map(
                     measure_map
                 )
-            except ValueError as exc:
+            except ValueError:
                 # A structure the fm lattice cannot express — split bars
                 # share one notated downbeat and cannot anchor two
-                # ordinals. Leave the conversion absent: an fm reading these
-                # measures do not support is worse than no fm reading.
-                warnings.warn(
-                    f"No floating-measure conversion built for these measures: {exc}",
-                    stacklevel=2,
-                )
+                # ordinals. Leave the conversion absent (documented above):
+                # an fm reading these measures do not support is worse than
+                # no fm reading.
+                pass
 
         return cmaps
 
