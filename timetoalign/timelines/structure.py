@@ -54,6 +54,11 @@ class MeasureMap:
         return cls._from_measure_rows(data)
 
     @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> MeasureMap:
+        """Restore a map through its validating public constructor."""
+        return cls(Measure.from_dict(measure) for measure in data["measures"])
+
+    @classmethod
     def _from_measure_rows(cls, source: Iterable[Mapping[str, Any]]) -> MeasureMap:
         """Build a measure map from normalized loader facts."""
         rows = list(source)
@@ -123,6 +128,11 @@ class MeasureMap:
 
     def __init__(self, measures: Iterable[Measure]) -> None:
         source = tuple(measures)
+        ids = [
+            measure.id or f"m{count}" for count, measure in enumerate(source, start=1)
+        ]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Measure IDs must be unique within a MeasureMap")
         normalized: list[Measure] = []
         running: Fraction | None = Fraction(0)
         for count, measure in enumerate(source, start=1):
@@ -156,10 +166,12 @@ class MeasureMap:
                     if measure.actual_length is not None
                     else None
                 )
-        ids = [measure.id for measure in normalized]
-        if len(ids) != len(set(ids)):
-            raise ValueError("Measure IDs must be unique within a MeasureMap")
         self._measures = tuple(normalized)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, MeasureMap):
+            return NotImplemented
+        return self.measures == other.measures
 
     def __iter__(self) -> Iterator[Measure]:
         return iter(self._measures)
@@ -196,6 +208,10 @@ class MeasureMap:
                 return measure
         raise KeyError(measure_id)
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return this map as a JSON-safe sequence of measure payloads."""
+        return {"measures": [measure.to_dict() for measure in self._measures]}
+
 
 class SectionHierarchy:
     """A section partition whose leaves carry immutable measure-map segments."""
@@ -212,7 +228,7 @@ class SectionHierarchy:
     ) -> SectionHierarchy:
         """Build sections from flat, nested, mapped, or already-mapped measures."""
         if isinstance(source, MeasureMap):
-            named_groups = [(None, source.measures)]
+            return cls.from_measure_map(source)
         elif isinstance(source, Mapping):
             named_groups = [(str(name), tuple(group)) for name, group in source.items()]
         else:
@@ -222,6 +238,50 @@ class SectionHierarchy:
             else:
                 named_groups = [(None, tuple(group)) for group in values]
         return cls._from_groups(named_groups)
+
+    @classmethod
+    def from_measure_map(
+        cls,
+        measure_map: MeasureMap,
+        *,
+        counts: Iterable[int] | None = None,
+    ) -> SectionHierarchy:
+        """Partition an existing map without rebuilding its measures.
+
+        Args:
+            measure_map: The map retained as the hierarchy's whole-work map.
+            counts: Consecutive leaf sizes. ``None`` creates one leaf.
+
+        Returns:
+            A hierarchy whose ``measure_map`` is the supplied object.
+
+        Raises:
+            ValueError: If the counts do not sum to the map length.
+        """
+        section_counts = (len(measure_map),) if counts is None else tuple(counts)
+        if any(count < 0 for count in section_counts) or sum(section_counts) != len(
+            measure_map
+        ):
+            raise ValueError(
+                f"Section counts must sum to MeasureMap length {len(measure_map)}, "
+                f"got {section_counts}"
+            )
+        leaves: list[AtomicSection] = []
+        start = 0
+        for index, count in enumerate(section_counts, start=1):
+            end = start + count
+            leaves.append(
+                AtomicSection(
+                    id=f"sec{index}",
+                    mc_start=start + 1,
+                    mc_end=end + 1,
+                    measure_map=MeasureMap._from_normalized(
+                        measure_map.measures[start:end]
+                    ),
+                )
+            )
+            start = end
+        return cls(measure_map, leaves)
 
     @classmethod
     def from_measure_counts(
@@ -337,6 +397,20 @@ class MetricHierarchy:
         ]
         return cls(normalized)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> MetricHierarchy:
+        """Restore section policies and named policies from wire data."""
+        return cls(
+            (
+                (BeatPolicy.from_dict(policy) for policy in section)
+                for section in data.get("sections", [])
+            ),
+            policies={
+                name: BeatPolicy.from_dict(policy)
+                for name, policy in data.get("policies", {}).items()
+            },
+        )
+
     def __init__(
         self,
         sections: Iterable[Iterable[BeatPolicy]],
@@ -374,3 +448,14 @@ class MetricHierarchy:
             )
             for entry in spec
         )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return section policies and the named policy registry."""
+        return {
+            "sections": [
+                [policy.to_dict() for policy in section] for section in self._sections
+            ],
+            "policies": {
+                name: policy.to_dict() for name, policy in self._policies.items()
+            },
+        }

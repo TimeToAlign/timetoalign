@@ -11,7 +11,7 @@ import pandas as pd
 
 from .enums import NumberType, TimeUnit
 from .events import Address
-from .time import Coordinate, IdCoordinate
+from .time import Coordinate, IdCoordinate, wire_to_rational
 
 CoordinateInput: TypeAlias = (
     int | float | Fraction | Coordinate | IdCoordinate | Address
@@ -470,3 +470,19 @@ def coordinate_wire_entry(coordinate: Coordinate) -> dict[str, object]:
         "unit": coordinate.unit.value,
         "number_type": coordinate.number_type.name,
     }
+
+
+def coordinate_from_wire_entry(entry: Mapping[str, Any]) -> Coordinate:
+    """Restore one coordinate from a typed rational wire entry.
+
+    Args:
+        entry: Typed coordinate wire dictionary.
+
+    Returns:
+        The exact coordinate declared by the entry.
+    """
+    return Coordinate(
+        wire_to_rational(dict(entry)),
+        TimeUnit(entry["unit"]),
+        number_type=NumberType[entry["number_type"]],
+    )

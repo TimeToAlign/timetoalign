@@ -29,7 +29,16 @@ from timetoalign.alignment.claims import (
 from timetoalign.alignment.graph import MatchGraph
 from timetoalign.alignment.matchline import MatchLine
 from timetoalign.alignment.warpmap import WarpMap
-from timetoalign.core import AgentType, Coordinate, IdCoordinate, TimeUnit
+from timetoalign.core import (
+    ActivationCondition,
+    AgentType,
+    BeatPolicy,
+    Coordinate,
+    FlowControlElement,
+    IdCoordinate,
+    Measure,
+    TimeUnit,
+)
 from timetoalign.core.time import (
     is_rational_wire,
     rational_to_wire,
@@ -59,9 +68,10 @@ from timetoalign.maps.interval import (
     QuartersToMeasureNumber,
 )
 from timetoalign.maps.meter import BeatInMeasureMap, MetricalPositionMap, MetricMap
-from timetoalign.timelines import Timeline
+from timetoalign.timelines import MeasureMap, MetricHierarchy, Timeline
 from timetoalign.timelines.flow.measures import MeasureUnit
 from timetoalign.timelines.flow.sections import AtomicSection, PlaythroughSection
+from timetoalign.timelines.flowcontrol import Break, Jump
 
 # region Fixtures
 
@@ -91,6 +101,44 @@ def _float_timeline() -> Timeline:
     timeline.add_events([{"start": 0.1, "end": 0.3, "event_type": "Note"}])
     timeline.add_child(
         Timeline(length=2.0, unit=TimeUnit.seconds, uid="tick"), offset=4.5
+    )
+    return timeline
+
+
+def _structured_timeline() -> Timeline:
+    """A timeline carrying every timeline-native structural object."""
+    timeline = Timeline(
+        length=Fraction(4),
+        unit=TimeUnit.quarters,
+        number_type="fraction",
+        uid="structure",
+    )
+    timeline.add_measure_map(
+        MeasureMap([Measure(actual_length=Fraction(4, 3)) for _ in range(3)])
+    )
+    timeline.add_metric_hierarchy(
+        MetricHierarchy.from_sections(
+            [BeatPolicy(grouping=(1, 1, 1), division=Fraction(1), name="triple")]
+        )
+    )
+    timeline.create_region("middle", Fraction(1, 3), Fraction(2, 3))
+    timeline.flow_control.add_break(
+        Break(
+            Coordinate(Fraction(2, 3), TimeUnit.quarters),
+            control_type=FlowControlElement.section_break,
+            condition=ActivationCondition.always,
+        )
+    )
+    timeline.flow_control.add_jump(
+        Jump(
+            Coordinate(Fraction(4), TimeUnit.quarters),
+            Coordinate(Fraction(1, 3), TimeUnit.quarters),
+            control_type=FlowControlElement.repeat_end,
+            condition=ActivationCondition.first_n,
+        )
+    )
+    timeline.flow_control.add_marker(
+        "segno", Coordinate(Fraction(1, 3), TimeUnit.quarters)
     )
     return timeline
 
@@ -299,7 +347,9 @@ class TestTimelineWireFormat:
         assert restored.get_child_offset("child").value == Fraction(5, 3)
 
     @pytest.mark.parametrize(
-        "factory", [_fraction_timeline, _float_timeline], ids=["fraction", "float"]
+        "factory",
+        [_fraction_timeline, _float_timeline, _structured_timeline],
+        ids=["fraction", "float", "structure"],
     )
     def test_to_dict_is_a_json_fixpoint(self, factory: Callable[[], Timeline]) -> None:
         data = factory().to_dict(events=True, external_references=True)

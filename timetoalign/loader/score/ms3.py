@@ -34,8 +34,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from timetoalign.alignment import MeasureMap
-    from timetoalign.timelines import ContinuousLogicalTimeline
+    from timetoalign.timelines import ContinuousLogicalTimeline, MeasureMap
 
 
 class Ms3Loader(ScoreLoader):
@@ -87,7 +86,6 @@ class Ms3Loader(ScoreLoader):
         """
         super().__init__(*args, **kwargs)
         self._auto_discover = auto_discover
-        self._measure_map = None
         self._section_counts: list[int] = []
 
     @classmethod
@@ -658,10 +656,15 @@ class Ms3Loader(ScoreLoader):
 
     @property
     def measure_map(self) -> MeasureMap:
-        """The immutable measure structure parsed from a measures TSV."""
-        if self._measure_map is None:
+        """The immutable measure structure parsed from a measures TSV.
+
+        Each access constructs a new ``MeasureMap`` from the measure store.
+        """
+        if len(self.store.measures) == 0:
             raise ValueError("No measures TSV has been loaded")
-        return self._measure_map
+        from timetoalign.timelines import MeasureMap
+
+        return MeasureMap.from_measure_data(self.store.measures)
 
     def create_timeline(
         self,
@@ -682,23 +685,24 @@ class Ms3Loader(ScoreLoader):
         approximate lattice is built in its place, since an fm reading
         those measures do not support is worse than no fm reading.
         """
-        from timetoalign.alignment import SectionHierarchy, TimeSkeleton
-        from timetoalign.maps import ScalarMap
-        from timetoalign.maps.interval import QuartersToFloatingMeasures
-        from timetoalign.timelines import ContinuousLogicalTimeline
+        from timetoalign.alignment import TimeSkeleton
+        from timetoalign.timelines import ContinuousLogicalTimeline, SectionHierarchy
 
-        if self._measure_map is not None and all(
+        has_measures = len(self.store.measures) > 0
+        if has_measures and all(
             len(store) == 0
             for store in (self.store.notes, self.store.controls, self.store.annotations)
         ):
-            length = self._measure_map.total_actual_length or Fraction(0)
             timeline = ContinuousLogicalTimeline(
-                length=length,
+                length=0,
                 unit=TimeUnit.quarters,
                 number_type=NumberType.fraction,
                 uid=uid,
                 name=name,
             )
+            self._populate_timeline_structure(timeline)
+            for cmap in self.store.get_cmaps().values():
+                timeline.add_conversion_map(cmap)
         else:
             excluded = list(kwargs.pop("exclude_stores", []) or [])
             if "measures" not in excluded:
@@ -709,38 +713,17 @@ class Ms3Loader(ScoreLoader):
                 flatten=flatten,
                 **kwargs,
             )
-            if self._measure_map is not None:
-                notated_length = self._measure_map.total_actual_length or Fraction(0)
-                timeline.length = max(timeline.length.value, notated_length)
             if name is not None:
                 timeline.name = name
 
-        if self._measure_map is not None:
-            timeline.add_conversion_map(
-                ScalarMap(
-                    scalar=480,
-                    source_unit=TimeUnit.quarters,
-                    target_unit=TimeUnit.ticks,
-                )
-            )
-            try:
-                timeline.add_conversion_map(
-                    QuartersToFloatingMeasures.from_measure_map(self._measure_map)
-                )
-            except ValueError:
-                # Split bars cannot anchor two fm ordinals, so the lattice
-                # is left absent rather than approximated (documented on
-                # this method).
-                pass
+        if timeline.measure_map is not None:
+            notated_length = timeline.measure_map.total_actual_length or Fraction(0)
+            timeline.length = max(timeline.length.value, notated_length)
             if not flatten:
-                groups = []
-                start = 0
-                counts = self._section_counts or [len(self._measure_map)]
-                for count in counts:
-                    stop = start + count
-                    groups.append(self._measure_map.measures[start:stop])
-                    start += count
-                hierarchy = SectionHierarchy.from_measures(groups)
+                counts = self._section_counts or [len(timeline.measure_map)]
+                hierarchy = SectionHierarchy.from_measure_map(
+                    timeline.measure_map, counts=counts
+                )
                 TimeSkeleton(hierarchy).attach(timeline)
         return timeline
 
@@ -954,9 +937,6 @@ class Ms3Loader(ScoreLoader):
                 }
             )
 
-        from timetoalign.alignment.structure import MeasureMap
-
-        self._measure_map = MeasureMap._from_measure_rows(measure_rows)
         measures_data = MeasureData.from_dicts(
             measure_rows,
             unit=TimeUnit.quarters,

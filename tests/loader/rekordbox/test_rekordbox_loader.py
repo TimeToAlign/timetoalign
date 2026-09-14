@@ -1,5 +1,6 @@
 """Exact validation for Rekordbox collection loading."""
 
+import json
 from fractions import Fraction
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from timetoalign import Coordinate, GridBeat, Interval, NumberType, TimeUnit
 from timetoalign.core.events import IrregularMeasure, MeasureConstituent
 from timetoalign.loader import RekordboxLoader
 from timetoalign.maps import QuartersToFloatingMeasures
+from timetoalign.timelines import MeasureMap, Timeline
 
 SPECIMEN = Path(
     "/home/laser/git/tta/tta_test_data/data/audio/moriero_dj_set/rekordbox.xml"
@@ -72,7 +74,9 @@ def test_pickup_grid_change_and_trailing_measure_are_exact(tmp_path: Path) -> No
 
     loader = RekordboxLoader.from_file(path)
     timeline = loader.create_timeline()
-    measures = timeline.skeleton.section_hierarchy.measure_map.measures
+    assert isinstance(timeline.measure_map, MeasureMap)
+    assert timeline.measure_map is timeline.skeleton.section_hierarchy.measure_map
+    measures = timeline.measure_map.measures
     floating_measures = timeline.get_conversion_map(TimeUnit.floating_measures)
 
     assert len(loader.tracks) == 1
@@ -83,6 +87,12 @@ def test_pickup_grid_change_and_trailing_measure_are_exact(tmp_path: Path) -> No
     assert [tempo.metro for tempo in loader.tracks[0].tempos] == ["4/4"] * 3
     assert (first_tempo.numerator, first_tempo.denominator) == (4, 4)
     assert [measure.id for measure in measures] == ["m1", "m2", "m3", "m4"]
+    assert len(timeline.measure_map) == 4
+    assert timeline.flow_control.to_dict() == {
+        "breaks": [],
+        "jumps": [],
+        "markers": {},
+    }
     assert [measure.number for measure in measures] == [0, 1, 2, 3]
     assert isinstance(measures[0], MeasureConstituent)
     assert measures[0].offset_within_measure == Fraction(3)
@@ -110,6 +120,8 @@ def test_pickup_grid_change_and_trailing_measure_are_exact(tmp_path: Path) -> No
         "SampleRate": 48000,
         "POSITION_MARK": [{"Name": "cue", "Type": "0", "Start": "1.25", "Num": "0"}],
     }
+    restored = Timeline.from_dict(json.loads(json.dumps(timeline.to_dict())))
+    assert restored.measure_map == timeline.measure_map
 
 
 def test_displaced_anchor_beats_are_not_counted_twice(tmp_path: Path) -> None:

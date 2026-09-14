@@ -106,6 +106,22 @@ class TestRegionDataclass:
         # Before start is not included
         assert region.contains(9.99) is False
 
+    def test_region_contains_rejects_a_coordinate_in_another_unit(self):
+        """A coordinate object must name the region's unit; raw numbers do not."""
+        region = Region(
+            name="Test",
+            start=Coordinate(10.0, TimeUnit.seconds),
+            end=Coordinate(20.0, TimeUnit.seconds),
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Coordinate unit quarters does not match region unit seconds",
+        ):
+            region.contains(Coordinate(15, TimeUnit.quarters))
+        assert region.contains(Coordinate(15.0, TimeUnit.seconds)) is True
+        assert region.contains(15.0) is True
+
     def test_region_overlaps(self):
         """Region.overlaps detects overlapping regions."""
         r1 = Region(

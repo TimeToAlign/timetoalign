@@ -161,10 +161,14 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
 
     @classmethod
     def _create_track_timeline(cls, track: RekordboxTrack) -> Any:
-        from timetoalign.alignment import MeasureMap, SectionHierarchy, TimeSkeleton
+        from timetoalign.alignment import TimeSkeleton
         from timetoalign.core import NumberType, TimeUnit
         from timetoalign.maps import SecondsToSamples, TableMap
-        from timetoalign.timelines import ContinuousPhysicalTimeline
+        from timetoalign.timelines import (
+            ContinuousPhysicalTimeline,
+            MeasureMap,
+            SectionHierarchy,
+        )
 
         grid = cls._beat_grid(track)
         downbeats = [
@@ -193,6 +197,7 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
                 "POSITION_MARK": [dict(mark) for mark in track.position_marks],
             },
         )
+        timeline.add_measure_map(measure_map)
         timeline.add_conversion_map(
             TableMap(
                 x_values=seconds,
@@ -204,7 +209,7 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         )
         if track.sample_rate is not None:
             timeline.add_conversion_map(SecondsToSamples(sample_rate=track.sample_rate))
-        hierarchy = SectionHierarchy.from_measures(measure_map)
+        hierarchy = SectionHierarchy.from_measure_map(measure_map)
         TimeSkeleton(hierarchy, uid=f"{uid}/skeleton", beat_grid=grid).attach(timeline)
         return timeline
 

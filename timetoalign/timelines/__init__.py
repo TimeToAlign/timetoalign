@@ -22,6 +22,10 @@ Beat grids:
 
 Structural components:
 - Region: Named TimeInterval (not a timeline itself)
+- MeasureMap: Immutable printed-order measure structure
+- SectionHierarchy: Section partition over one MeasureMap
+- MetricHierarchy: Beat policies grouped by section
+- MetricHierarchyComponent: Measure-anchored metrical change point
 
 Flow API (MeasureUnit architecture):
 - MeasureUnit: Fundamental building block (one per MeasureData row)
@@ -94,6 +98,12 @@ from .flow import (
 )
 from .groups import GroupTimestamp, TimelineGroup
 from .regions import Region
+from .structure import (
+    MeasureMap,
+    MetricHierarchy,
+    MetricHierarchyComponent,
+    SectionHierarchy,
+)
 from .types import (
     ContinuousGraphicalTimeline,
     ContinuousLogicalTimeline,
@@ -136,6 +146,10 @@ __all__ = [
     "policy_for_metro",
     # Structural components
     "Region",
+    "MeasureMap",
+    "SectionHierarchy",
+    "MetricHierarchy",
+    "MetricHierarchyComponent",
     # Flow API
     "MeasureUnit",
     # Typed MeasureUnit subclasses (Typing step)

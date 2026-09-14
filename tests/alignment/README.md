@@ -1430,43 +1430,7 @@ Each leaf ``MeasureMap`` segment is immutable and standard-conformant: measure i
 here (1..203); ``time_signature`` ``3/4``; ``nominal_length`` == ``actual_length``
 == 3 quarters; no ``start_repeat``/``end_repeat``/``volta``.
 
-### (a) Construction equivalences
-
-**Ground truth.** The same three-section hierarchy can be spelled three ways.
-
-**Derivation / inputs that must compare equal.**
-
-1. Nested measure lists: ``[[m1..m78], [m79..m143], [m144..m203]]``.
-2. Per-section counts: ``[78, 65, 60]``.
-3. Name→count mapping: ``{"I": 78, "II": 65, "III": 60}`` (any display names).
-
-**Expected.** All three constructions compare **equal**. Equality is decided on
-structural facts only — number of leaf sections (3), the ordered leaf measure
-counts (78, 65, 60), the derived total measure count (203), and the per-leaf
-quarter spans (234, 195, 180). **Display names are excluded from equality**: two
-hierarchies that differ only in section names are equal, and the name→count
-construction is equal to the count-only construction despite carrying names.
-
-### (b) Metric-hierarchy equivalence
-
-**Ground truth.** *Trois Gymnopédies* is in ``3/4`` throughout with no tempo mark,
-so the beat is a quarter note and bpm is absent.
-
-**Derivation / inputs that must compare equal.**
-
-1. A name→policy mapping (``{"slow": BeatPolicy(beat=quarter, bpm=None)}``) plus a
-   section grouping that assigns the ``"slow"`` policy to all three sections.
-2. Per-section named policies: each of the three sections given its own
-   ``BeatPolicy(beat=quarter, bpm=None)``.
-
-**Expected.** The two ``MetricHierarchy`` objects compare **equal**. Equality
-compares only the metric facts of each policy: the **beat size** (one quarter =
-``Fraction(1)`` quarter, three beats per ``3/4`` bar) and the **bpm** (``None``
-here). The policy **display name is excluded** from equality, exactly as section
-display names are in (a). A test that changed a bpm from ``None`` to a number, or
-the beat size from a quarter to an eighth, must break equality.
-
-### (c) Skeleton-from-load
+### Skeleton-from-load
 
 **Ground truth.** Loading `trois-gymnopedies.measures.tsv`.
 

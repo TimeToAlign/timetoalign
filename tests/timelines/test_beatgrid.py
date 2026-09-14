@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.alignment import SectionHierarchy, TimeSkeleton
+from timetoalign.alignment import TimeSkeleton
 from timetoalign.core import (
     BeatPolicy,
     Coordinate,
@@ -22,7 +22,7 @@ from timetoalign.core import (
     RegularMeasure,
     TimeUnit,
 )
-from timetoalign.timelines import BeatGrid, BeatGridSegment, GridBeat
+from timetoalign.timelines import BeatGrid, BeatGridSegment, GridBeat, SectionHierarchy
 from timetoalign.timelines.beatgrid import policy_for_metro
 
 FOUR_FOUR = policy_for_metro("4/4")

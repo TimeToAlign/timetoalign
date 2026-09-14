@@ -163,6 +163,59 @@ coordinates with values returned by Partitura's genuinely floating-point `quarte
 
 ## MeasureMap and flow CSV contracts
 
+### Timeline-native structure on the Rondeau specimen
+
+The Couperin Rondeau expectations are derived directly from
+``c11n08_Rondeau.measures.tsv`` resolved through the score corpus. Its 60 rows
+carry repeat ends at MC ``9``, ``18``, ``27``, and ``60``. The explicit repeat
+starts and piece-start fallback therefore pair those ends with MC ``1``, ``10``,
+``19``, and ``28`` respectively. The timeline registry must contain those exact
+repeat jumps, with each source coordinate equal to that measure's exact
+``qstamp + actual_length`` and each destination equal to the target measure's
+exact ``qstamp``. This derives expected coordinates from independently parsed
+measure facts rather than copying controller output.
+
+The ``jump_bwd`` column adds two da capo jumps. It holds ``start`` on MC ``18``
+and MC ``27`` and is empty everywhere else. A backward target of ``start`` names
+the beginning of the piece, so each jump leaves the end of its measure and lands
+on the start of MC ``1``. Prefix sums of ``act_dur`` × 4 over the timeline's own
+measure map give the end of MC ``18`` as ``23 + 1 = 24`` quarters and the end of
+MC ``27`` as ``35 + 1 = 36`` quarters. MC ``1`` starts at ``0``, so the jumps are
+exactly ``24 → 0`` and ``36 → 0``, in quarters. The ``play_until`` cells
+(``segno``) do not appear in the ``coda`` or ``fine`` spellings that would make
+them da capo al coda or al fine jumps. The registry therefore holds exactly
+``6`` jumps: ``4`` repeat ends and ``2`` da capo jumps.
+
+The TSV has no ``breaks`` cell containing ``section`` and no ``fine`` marker, so
+the exact break count is ``0``. Its sole flow target marker in the supported
+segno/coda/fine vocabulary is ``segno`` at MC ``9``; the exact marker coordinate
+is the start of that measure, ``Fraction(11)`` quarters. The other ``markers``
+cells (``1e``, ``2e``, and ``3e``) name ending boundaries, not segno/coda/fine
+targets, and therefore do not enter the registry. These values are pinned from
+the source columns and the documented mapping: section and fine breaks occur at
+measure ends, while target markers occur at measure starts.
+
+Both normal and flattened timeline creation must store one ``MeasureMap`` and the
+same flow-control facts. The normal timeline also has a skeleton whose section
+hierarchy holds that identical map object; flattening opts out only of section
+children and skeleton attachment. The normal timeline is serialized through JSON
+and restored. The restored payload must equal the original payload, which is a
+fixpoint over every structural key. The restored registry must hold exactly
+``6`` jumps. The restored measure map must equal the original under type-aware
+measure equality.
+
+An unfolded measures table cannot be a measure map. The map lists measures in
+printed order, and each measure id is ``m`` plus its printed measure count
+(``mc``). ``c11n08_Rondeau_unfolded.measures.tsv`` has ``138`` rows that replay
+the printed measures in performance order: its ``mc`` column reads
+``1..9, 1..18, 10..18, 1..9, 19..27, ...``. The count ``1`` therefore occurs
+more than once, and so does the id ``m1``. Creating a timeline from that table
+must raise ``ValueError`` stating that measure IDs must be unique within a
+``MeasureMap``. The rows are a defect of the source, not a lossy reading of it,
+so the loader must not return a timeline without its measure structure. The
+uniqueness check runs before any per-measure count or ``qstamp`` comparison, so
+it must emit no warning at all.
+
 MeasureMap tests require unique MC values, monotonic `qstamp`, valid `next` references, exact
 linear/repeat traversals, 397 folded and 505 unfolded WoO71 measures, and matching MS3 MCs and
 repeat presence. Its schema must include flow-control and identity fields. The synthetic summary

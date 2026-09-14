@@ -25,8 +25,8 @@ if TYPE_CHECKING:
 
     import pandas as pd
 
-    from timetoalign.alignment.structure import MeasureMap
     from timetoalign.display.ascii import Diagram
+    from timetoalign.timelines.structure import MeasureMap
 
     from .controller import ScoreFlowController
 

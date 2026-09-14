@@ -31,9 +31,9 @@ from timetoalign.maps.table import TableMap
 if TYPE_CHECKING:
     from typing_extensions import Self
 
-    from timetoalign.alignment.structure import MeasureMap
     from timetoalign.loader.score.stores.measures import MeasureData
     from timetoalign.maps.meter import MetricMap
+    from timetoalign.timelines.structure import MeasureMap
 
 
 def _as_exact(value: CoordinateValue) -> Fraction:

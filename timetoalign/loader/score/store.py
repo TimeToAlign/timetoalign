@@ -290,9 +290,9 @@ class ScoreStore(EventStore):
             >>> measure_map = cmaps["measures"]
             >>> measure_map(4.0)  # e.g., 2.0 (start of measure 2)
         """
-        from timetoalign.alignment.structure import MeasureMap
         from timetoalign.maps import ScalarMap
         from timetoalign.maps.interval import QuartersToFloatingMeasures
+        from timetoalign.timelines.structure import MeasureMap
 
         cmaps: dict[str, ConversionMap] = {}
 

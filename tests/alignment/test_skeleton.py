@@ -16,10 +16,15 @@ from pathlib import Path
 
 import pytest
 
-from timetoalign.alignment import MetricHierarchy, SectionHierarchy, TimeSkeleton
+from timetoalign.alignment import TimeSkeleton
 from timetoalign.core import BeatPolicy, Gap, Measure, NumberType, TimeUnit
 from timetoalign.loader.score.ms3 import Ms3Loader
-from timetoalign.timelines import ContinuousLogicalTimeline, ContinuousPhysicalTimeline
+from timetoalign.timelines import (
+    ContinuousLogicalTimeline,
+    ContinuousPhysicalTimeline,
+    MetricHierarchy,
+    SectionHierarchy,
+)
 
 # The published Satie reference score (203 bars of 3/4, section closers on the
 # ``breaks`` column of mc 78 and mc 143).

@@ -145,9 +145,9 @@ _DEFERRED_EXPORTS = {
     "BeatPolicy": ("timetoalign.core", "BeatPolicy"),
     "Duration": ("timetoalign.core", "Duration"),
     "Measure": ("timetoalign.core", "Measure"),
-    "MeasureMap": ("timetoalign.alignment", "MeasureMap"),
-    "MetricHierarchy": ("timetoalign.alignment", "MetricHierarchy"),
-    "SectionHierarchy": ("timetoalign.alignment", "SectionHierarchy"),
+    "MeasureMap": ("timetoalign.timelines", "MeasureMap"),
+    "MetricHierarchy": ("timetoalign.timelines", "MetricHierarchy"),
+    "SectionHierarchy": ("timetoalign.timelines", "SectionHierarchy"),
     "TimeSkeleton": ("timetoalign.alignment", "TimeSkeleton"),
     # Loader layer
     "AudioInfo": ("timetoalign.loader", "AudioInfo"),

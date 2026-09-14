@@ -30,12 +30,17 @@ Common music notation mappings:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from fractions import Fraction
 from typing import Any
 
-from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.core import Coordinate, IdCoordinate, NumberType, TimeUnit
 from timetoalign.core.enums import ActivationCondition, FlowControlElement
+from timetoalign.core.retrieval import (
+    coordinate_from_wire_entry,
+    coordinate_wire_entry,
+)
+from timetoalign.core.time import express_scalar_as
 
 module_logger = logging.getLogger(__name__)
 
@@ -98,6 +103,19 @@ class Break:
     name: str | None = None  # Instance name for target markers
     meta: dict[str, Any] = field(default_factory=dict)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Break:
+        """Restore a break from its wire representation."""
+        return cls(
+            coordinate=coordinate_from_wire_entry(data["coordinate"]),
+            control_type=FlowControlElement(data["control_type"]),
+            condition=ActivationCondition(data["condition"]),
+            repeat_count=data["repeat_count"],
+            label=data.get("label"),
+            name=data.get("name"),
+            meta=dict(data.get("meta", {})),
+        )
+
     def __post_init__(self) -> None:
         """Validate break configuration."""
         # Validate that control_type is actually a break type
@@ -135,6 +153,18 @@ class Break:
         elif self.condition == ActivationCondition.after_dc_ds:
             return after_dc_ds
         return False
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this break as a JSON-safe wire dictionary."""
+        return {
+            "coordinate": coordinate_wire_entry(self.coordinate),
+            "control_type": self.control_type.value,
+            "condition": self.condition.value,
+            "repeat_count": self.repeat_count,
+            "label": self.label,
+            "name": self.name,
+            "meta": self.meta,
+        }
 
     def __repr__(self) -> str:
         type_str = self.control_type.name
@@ -207,6 +237,20 @@ class Jump:
     target_name: str | None = None  # Name of target marker to resolve
     label: str | None = None
     meta: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Jump:
+        """Restore a jump from its wire representation."""
+        return cls(
+            from_coordinate=coordinate_from_wire_entry(data["from_coordinate"]),
+            to_coordinate=coordinate_from_wire_entry(data["to_coordinate"]),
+            control_type=FlowControlElement(data["control_type"]),
+            condition=ActivationCondition(data["condition"]),
+            repeat_count=data["repeat_count"],
+            target_name=data.get("target_name"),
+            label=data.get("label"),
+            meta=dict(data.get("meta", {})),
+        )
 
     def __post_init__(self) -> None:
         """Validate jump configuration."""
@@ -282,6 +326,19 @@ class Jump:
             return float("inf")  # type: ignore
         return 0
 
+    def to_dict(self) -> dict[str, Any]:
+        """Return this jump as a JSON-safe wire dictionary."""
+        return {
+            "from_coordinate": coordinate_wire_entry(self.from_coordinate),
+            "to_coordinate": coordinate_wire_entry(self.to_coordinate),
+            "control_type": self.control_type.value,
+            "condition": self.condition.value,
+            "repeat_count": self.repeat_count,
+            "target_name": self.target_name,
+            "label": self.label,
+            "meta": self.meta,
+        }
+
     def __repr__(self) -> str:
         type_str = self.control_type.name
         from_pos = self.from_position
@@ -318,6 +375,103 @@ class FlowControlRegistry:
     breaks: list[Break] = field(default_factory=list)
     jumps: list[Jump] = field(default_factory=list)
     markers: dict[str, Coordinate] = field(default_factory=dict)
+    unit: TimeUnit | None = field(default=None, kw_only=True)
+    number_type: NumberType | None = field(default=None, kw_only=True)
+
+    @classmethod
+    def from_dict(
+        cls,
+        data: dict[str, Any],
+        *,
+        unit: TimeUnit | str | None = None,
+        number_type: NumberType | str | None = None,
+    ) -> FlowControlRegistry:
+        """Restore a registry, validating through its public add methods."""
+        resolved_unit = TimeUnit(unit) if isinstance(unit, str) else unit
+        resolved_number_type = (
+            NumberType(number_type) if isinstance(number_type, str) else number_type
+        )
+        registry = cls(unit=resolved_unit, number_type=resolved_number_type)
+        for brk in data.get("breaks", []):
+            registry.add_break(Break.from_dict(brk))
+        for jump in data.get("jumps", []):
+            registry.add_jump(Jump.from_dict(jump))
+        for name, coordinate in data.get("markers", {}).items():
+            registry.add_marker(name, coordinate_from_wire_entry(coordinate))
+        return registry
+
+    def __post_init__(self) -> None:
+        """Normalize binding enum spellings and any constructor content."""
+        if isinstance(self.unit, str):
+            self.unit = TimeUnit(self.unit)
+        if isinstance(self.number_type, str):
+            self.number_type = NumberType(self.number_type)
+        original_breaks = list(self.breaks)
+        original_jumps = list(self.jumps)
+        original_markers = dict(self.markers)
+        self.breaks = []
+        self.jumps = []
+        self.markers = {}
+        for brk in original_breaks:
+            self.add_break(brk)
+        for jump in original_jumps:
+            self.add_jump(jump)
+        for name, coordinate in original_markers.items():
+            self.add_marker(name, coordinate)
+
+    def _on_axis(self, coordinate: Coordinate) -> Coordinate:
+        """Validate and re-express a coordinate on this registry's axis."""
+        if self.unit is not None and coordinate.unit is not self.unit:
+            raise ValueError(
+                f"Flow-control coordinate unit {coordinate.unit} does not match "
+                f"registry unit {self.unit}"
+            )
+        if self.number_type is not None:
+            coordinate = express_scalar_as(coordinate, self.number_type)
+        return coordinate
+
+    def _coordinate(
+        self, coordinate: int | float | Fraction | Coordinate | IdCoordinate
+    ) -> Coordinate:
+        """Coerce one public coordinate input for storage.
+
+        An unbound registry stores a given coordinate object unchanged; a raw
+        number requires a bound registry unit.
+        """
+        if not isinstance(coordinate, Coordinate):
+            if self.unit is None:
+                raise ValueError(
+                    "A raw marker coordinate requires a bound registry unit"
+                )
+            coordinate = Coordinate(coordinate, self.unit)
+        elif self.unit is None and self.number_type is None:
+            return coordinate
+        if isinstance(coordinate, IdCoordinate):
+            coordinate = Coordinate(
+                coordinate.value,
+                coordinate.unit,
+                number_type=coordinate.number_type,
+            )
+        return self._on_axis(coordinate)
+
+    def _value(
+        self,
+        coordinate: int | float | Fraction | Coordinate | IdCoordinate,
+    ) -> int | float | Fraction:
+        """Return the numeric value of one accepted query coordinate.
+
+        Raises:
+            ValueError: If a coordinate object's unit differs from the unit of
+                a bound registry.
+        """
+        if not isinstance(coordinate, Coordinate):
+            return coordinate
+        if self.unit is not None and coordinate.unit is not self.unit:
+            raise ValueError(
+                f"Query coordinate unit {coordinate.unit} does not match "
+                f"registry unit {self.unit}"
+            )
+        return coordinate.value
 
     def add_break(self, brk: Break) -> None:
         """Add a break to the registry.
@@ -325,7 +479,12 @@ class FlowControlRegistry:
         Args:
             brk: The Break to add.
         """
-        self.breaks.append(brk)
+        stored = (
+            brk
+            if self.unit is None and self.number_type is None
+            else replace(brk, coordinate=self._on_axis(brk.coordinate))
+        )
+        self.breaks.append(stored)
         # Sort by coordinate for efficient lookup
         self.breaks.sort(key=lambda b: b.position)
 
@@ -335,20 +494,35 @@ class FlowControlRegistry:
         Args:
             jump: The Jump to add.
         """
-        self.jumps.append(jump)
+        stored = (
+            jump
+            if self.unit is None and self.number_type is None
+            else replace(
+                jump,
+                from_coordinate=self._on_axis(jump.from_coordinate),
+                to_coordinate=self._on_axis(jump.to_coordinate),
+            )
+        )
+        self.jumps.append(stored)
         # Sort by from_coordinate for traversal order
         self.jumps.sort(key=lambda j: j.from_position)
 
-    def add_marker(self, name: str, coordinate: Coordinate) -> None:
+    def add_marker(
+        self,
+        name: str,
+        coordinate: int | float | Fraction | Coordinate | IdCoordinate,
+    ) -> None:
         """Add a named marker (Segno, Coda, etc.).
 
         Args:
             name: The marker name (e.g., "segno", "coda").
             coordinate: The coordinate of the marker.
         """
-        self.markers[name] = coordinate
+        self.markers[name] = self._coordinate(coordinate)
 
-    def breaks_at(self, coordinate: float | Fraction) -> list[Break]:
+    def breaks_at(
+        self, coordinate: int | float | Fraction | Coordinate | IdCoordinate
+    ) -> list[Break]:
         """Get all breaks at a specific coordinate.
 
         Args:
@@ -357,9 +531,12 @@ class FlowControlRegistry:
         Returns:
             List of breaks at that coordinate.
         """
-        return [b for b in self.breaks if b.position == coordinate]
+        value = self._value(coordinate)
+        return [b for b in self.breaks if b.position == value]
 
-    def jumps_from(self, coordinate: float | Fraction) -> list[Jump]:
+    def jumps_from(
+        self, coordinate: int | float | Fraction | Coordinate | IdCoordinate
+    ) -> list[Jump]:
         """Get all jumps originating from a specific coordinate.
 
         Args:
@@ -368,9 +545,12 @@ class FlowControlRegistry:
         Returns:
             List of jumps from that coordinate.
         """
-        return [j for j in self.jumps if j.from_position == coordinate]
+        value = self._value(coordinate)
+        return [j for j in self.jumps if j.from_position == value]
 
-    def jumps_to(self, coordinate: float | Fraction) -> list[Jump]:
+    def jumps_to(
+        self, coordinate: int | float | Fraction | Coordinate | IdCoordinate
+    ) -> list[Jump]:
         """Get all jumps landing at a specific coordinate.
 
         Args:
@@ -379,9 +559,12 @@ class FlowControlRegistry:
         Returns:
             List of jumps to that coordinate.
         """
-        return [j for j in self.jumps if j.to_position == coordinate]
+        value = self._value(coordinate)
+        return [j for j in self.jumps if j.to_position == value]
 
-    def has_break_at(self, coordinate: float | Fraction) -> bool:
+    def has_break_at(
+        self, coordinate: int | float | Fraction | Coordinate | IdCoordinate
+    ) -> bool:
         """Check if there's a break at the coordinate.
 
         Args:
@@ -390,7 +573,8 @@ class FlowControlRegistry:
         Returns:
             True if a break exists at that coordinate.
         """
-        return any(b.position == coordinate for b in self.breaks)
+        value = self._value(coordinate)
+        return any(b.position == value for b in self.breaks)
 
     def has_flow_control(self) -> bool:
         """Check if any flow control events exist.
@@ -420,6 +604,23 @@ class FlowControlRegistry:
         self.breaks.clear()
         self.jumps.clear()
         self.markers.clear()
+
+    def copy(self) -> FlowControlRegistry:
+        """Return an independent registry with the same binding and content."""
+        return FlowControlRegistry.from_dict(
+            self.to_dict(), unit=self.unit, number_type=self.number_type
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return all control events as a JSON-safe wire dictionary."""
+        return {
+            "breaks": [brk.to_dict() for brk in self.breaks],
+            "jumps": [jump.to_dict() for jump in self.jumps],
+            "markers": {
+                name: coordinate_wire_entry(coordinate)
+                for name, coordinate in self.markers.items()
+            },
+        }
 
     def __repr__(self) -> str:
         return (

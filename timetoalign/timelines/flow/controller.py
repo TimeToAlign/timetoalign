@@ -996,7 +996,7 @@ class ScoreFlowController(FlowControllerBase):
         """Return all `Break` events derived from the score's flow control.
 
         Currently emits one `Break` per measure flagged as a section break.
-        Each `Break` is positioned at the START coordinate of its MC and
+        Each `Break` is positioned at the END coordinate of its MC and
         carries a label indicating the source MC.
 
         Returns:

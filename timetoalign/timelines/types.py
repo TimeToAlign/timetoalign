@@ -501,6 +501,9 @@ class SegmentLineMixin:
             timeline.add_conversion_map(cmap)
         timeline._regions.update(self._regions)
         timeline._flow_maps.update(self._flow_maps)
+        timeline._measure_map = self._measure_map
+        timeline._metric_hierarchy = self._metric_hierarchy
+        timeline._flow_control = self._flow_control.copy()
         timeline._length = timeline._make_coordinate(self._length.value)
         timeline._locked = self._locked
         return timeline

@@ -7,7 +7,6 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
-from timetoalign.alignment import MeasureMap
 from timetoalign.core import Measure, MeasureConstituent
 from timetoalign.core.enums import InterpolationKind
 from timetoalign.maps.interval import (
@@ -16,6 +15,7 @@ from timetoalign.maps.interval import (
     QuartersToMeasureNumber,
 )
 from timetoalign.maps.meter import MetricMap
+from timetoalign.timelines import MeasureMap
 
 
 class TestIntervalToConstantMap:

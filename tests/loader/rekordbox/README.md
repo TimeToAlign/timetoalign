@@ -5,6 +5,18 @@ correct under the TimeToAlign! Zero Tolerance Validation Policy. Every anchor is
 derived directly from the two ground-truth data files and stated as an exact value
 with no range or approximation.
 
+## Timeline-native measure structure
+
+The synthetic single-track XML fixture already fixes the generated measure count
+from its TEMPO grid. The track timeline must store a ``MeasureMap`` of exactly
+that count, and the attached skeleton hierarchy must reference the same map
+object, proving there is one authored structure rather than two equivalent
+copies. Rekordbox TEMPO data states no score repeat, jump, break, or target marker,
+so the bound flow-control registry must have exactly zero breaks, zero jumps, and
+an empty marker mapping. A JSON timeline round trip must reproduce the exact
+measure map even though the timeline axis is seconds and measure lengths remain
+quarter-note fractions.
+
 ## Ground-truth data files
 
 **`rekordbox.xml`** — a Rekordbox library export.

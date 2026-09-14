@@ -47,7 +47,9 @@ from .engines import conversion as _conversion_engine
 from .engines import (
     empty_external_reference_table,
 )
+from .flowcontrol import FlowControlRegistry
 from .regions import Region
+from .structure import MeasureMap, MetricHierarchy
 
 if TYPE_CHECKING:
     from timetoalign.display.ascii import Diagram
@@ -308,6 +310,13 @@ class Timeline(
         # Region storage (named TimeIntervals)
         # A Region is a named part of a timeline defined by a TimeInterval.
         self._regions: dict[str, Region] = {}
+
+        # Authored structure and control events belong to this exact extent.
+        self._measure_map: MeasureMap | None = None
+        self._metric_hierarchy: MetricHierarchy | None = None
+        self._flow_control = FlowControlRegistry(
+            unit=self._unit, number_type=self._number_type
+        )
 
         # FlowMap storage (coordinate transformations for flow control)
         # Timelines store FlowMaps (not FlowControllers).
@@ -659,6 +668,39 @@ class Timeline(
         """Metadata dictionary."""
         return dict(self._meta)
 
+    @property
+    def measure_map(self) -> MeasureMap | None:
+        """Authored measure structure, absent on fresh and derived slices."""
+        return self._measure_map
+
+    @property
+    def metric_hierarchy(self) -> MetricHierarchy | None:
+        """Authored metric structure, absent on fresh and derived slices."""
+        return self._metric_hierarchy
+
+    @property
+    def flow_control(self) -> FlowControlRegistry:
+        """Axis-bound breaks, jumps, and named control markers."""
+        return self._flow_control
+
+    # endregion
+
+    # region Authored Structure
+
+    def add_measure_map(self, measure_map: MeasureMap) -> Self:
+        """Attach the timeline's single authored measure map."""
+        if self._measure_map is not None:
+            raise ValueError(f"Timeline {self._id!r} already has a measure map")
+        self._measure_map = measure_map
+        return self
+
+    def add_metric_hierarchy(self, metric_hierarchy: MetricHierarchy) -> Self:
+        """Attach the timeline's single authored metric hierarchy."""
+        if self._metric_hierarchy is not None:
+            raise ValueError(f"Timeline {self._id!r} already has a metric hierarchy")
+        self._metric_hierarchy = metric_hierarchy
+        return self
+
     # endregion
 
     # region Coordinate Factory
@@ -859,6 +901,9 @@ class Timeline(
             segment_line.add_conversion_map(cmap)
         segment_line._regions.update(self._regions)
         segment_line._flow_maps.update(self._flow_maps)
+        segment_line._measure_map = self._measure_map
+        segment_line._metric_hierarchy = self._metric_hierarchy
+        segment_line._flow_control = self._flow_control.copy()
         segment_line._locked = self._locked
         return segment_line
 
@@ -874,10 +919,13 @@ class Timeline(
     ) -> dict[str, Any]:
         """Convert timeline to a dictionary for serialization.
 
-        The default output describes the timeline's structure only: the
-        ``"events"`` and ``"external_references"`` keys are **absent**
-        unless explicitly requested, which keeps the payload small for the
-        common case of persisting a hierarchy rather than its contents.
+        The default output is the timeline's complete structure: its axis,
+        children, conversion maps, regions, measure map, metric hierarchy,
+        and flow control. ``"events"`` and ``"external_references"`` are
+        **absent** unless explicitly requested. This structural payload is
+        called the eventless payload: it preserves authored structure without
+        carrying event rows. Structure is not inferred for slices, children
+        created from regions, or unfolded timelines.
 
         Coordinate-valued members — ``length`` and every child
         ``offset`` — are emitted as the canonical rational wire dict
@@ -926,6 +974,16 @@ class Timeline(
             "conversion_maps": [
                 cmap.to_dict() for cmap in self._conversion_maps.values()
             ],
+            "regions": [region.to_dict() for region in self._regions.values()],
+            "flow_control": self._flow_control.to_dict(),
+            "measure_map": (
+                self._measure_map.to_dict() if self._measure_map is not None else None
+            ),
+            "metric_hierarchy": (
+                self._metric_hierarchy.to_dict()
+                if self._metric_hierarchy is not None
+                else None
+            ),
         }
 
         if events:
@@ -1015,6 +1073,23 @@ class Timeline(
         for map_data in data.get("conversion_maps", []):
             cmap = ConversionMap.from_dict(map_data)
             timeline.add_conversion_map(cmap)
+
+        # Restore annotations and authored structures before subclass finalization.
+        for region_data in data.get("regions", []):
+            timeline.add_region(Region.from_dict(region_data))
+        timeline._flow_control = FlowControlRegistry.from_dict(
+            data.get("flow_control", {}),
+            unit=timeline.unit,
+            number_type=timeline.number_type,
+        )
+        measure_map_data = data.get("measure_map")
+        if measure_map_data is not None:
+            timeline.add_measure_map(MeasureMap.from_dict(measure_map_data))
+        metric_hierarchy_data = data.get("metric_hierarchy")
+        if metric_hierarchy_data is not None:
+            timeline.add_metric_hierarchy(
+                MetricHierarchy.from_dict(metric_hierarchy_data)
+            )
 
         timeline._finalize_from_dict(data)
         timeline._locked = data.get("locked", False)
@@ -1119,6 +1194,10 @@ class Timeline(
         # Transfer flow maps
         for flow_id, flow_map in self._flow_maps.items():
             typed._flow_maps[flow_id] = flow_map
+
+        typed._measure_map = self._measure_map
+        typed._metric_hierarchy = self._metric_hierarchy
+        typed._flow_control = self._flow_control.copy()
 
         typed._length = typed._make_coordinate(self._length.value)
         typed._locked = self._locked

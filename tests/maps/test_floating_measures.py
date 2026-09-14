@@ -12,11 +12,11 @@ from fractions import Fraction
 import numpy as np
 import pytest
 
-from timetoalign.alignment import MeasureMap
 from timetoalign.core import Measure, MeasureConstituent, NumberType, TimeUnit
 from timetoalign.loader.score import Ms3Loader
 from timetoalign.maps.interval import QuartersToFloatingMeasures
 from timetoalign.testdata import ensure_data
+from timetoalign.timelines import MeasureMap
 
 SCORE_DIR = ensure_data("score")
 WAGNER_MEASURES = (

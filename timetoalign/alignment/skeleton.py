@@ -21,10 +21,10 @@ from timetoalign.core import (
     TimeUnit,
 )
 from timetoalign.timelines.flow import Flow, PlaythroughSection
+from timetoalign.timelines.structure import MetricHierarchy, SectionHierarchy
 
 from .bundle import AlignmentBundle
 from .claims import AlignmentAnchor, MatchClaim
-from .structure import MetricHierarchy, SectionHierarchy
 
 if TYPE_CHECKING:
     from timetoalign.timelines import BeatGrid

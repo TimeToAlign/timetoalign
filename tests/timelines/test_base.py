@@ -18,14 +18,95 @@ Validity Rationale:
 
 from __future__ import annotations
 
+import json
 import time
 from fractions import Fraction
 from typing import Any
 
 import pytest
 
-from timetoalign.core import Coordinate, NumberType, TimeUnit
-from timetoalign.timelines import ContinuousPhysicalTimeline, Timeline
+from timetoalign.core import (
+    ActivationCondition,
+    BeatPolicy,
+    Coordinate,
+    FlowControlElement,
+    IrregularMeasure,
+    MeasureConstituent,
+    NumberType,
+    RegularMeasure,
+    TimeUnit,
+)
+from timetoalign.maps import ScalarMap
+from timetoalign.timelines import (
+    ContinuousLogicalTimeline,
+    ContinuousPhysicalTimeline,
+    MeasureMap,
+    MetricHierarchy,
+    SegmentLine,
+    Timeline,
+)
+from timetoalign.timelines.flowcontrol import Break, Jump
+
+
+def _structure_bearing_timeline() -> Timeline:
+    """Build one base timeline carrying every structural constituent."""
+    timeline = Timeline(
+        length=Fraction(4),
+        unit=TimeUnit.quarters,
+        number_type=NumberType.fraction,
+        uid="structured",
+    )
+    timeline.add_measure_map(
+        MeasureMap(
+            [
+                RegularMeasure(actual_length=Fraction(1, 3)),
+                IrregularMeasure(actual_length=Fraction(2, 3)),
+                MeasureConstituent(
+                    actual_length=Fraction(3),
+                    offset_within_measure=Fraction(1, 3),
+                ),
+            ]
+        )
+    )
+    timeline.add_metric_hierarchy(
+        MetricHierarchy.from_sections(
+            [BeatPolicy(grouping=(1, 1, 1), division=Fraction(1), name="triple")]
+        )
+    )
+    timeline.create_region("opening", Fraction(1, 3), Fraction(4, 3), meta={"n": 1})
+    timeline.flow_control.add_break(
+        Break(
+            Coordinate(Fraction(4, 3), TimeUnit.quarters),
+            control_type=FlowControlElement.section_break,
+            condition=ActivationCondition.always,
+            label="boundary",
+        )
+    )
+    timeline.flow_control.add_jump(
+        Jump(
+            Coordinate(Fraction(10, 3), TimeUnit.quarters),
+            Coordinate(Fraction(1, 3), TimeUnit.quarters),
+            control_type=FlowControlElement.repeat_end,
+            condition=ActivationCondition.first_n,
+            repeat_count=2,
+            label="repeat",
+        )
+    )
+    timeline.flow_control.add_marker(
+        "segno", Coordinate(Fraction(1, 3), TimeUnit.quarters)
+    )
+    timeline.add_child(
+        ContinuousLogicalTimeline(length=Fraction(4), uid="whole"), offset=0
+    )
+    timeline.add_conversion_map(
+        ScalarMap(
+            scalar=480,
+            source_unit=TimeUnit.quarters,
+            target_unit=TimeUnit.ticks,
+        )
+    )
+    return timeline
+
 
 # region Construction Tests
 
@@ -429,6 +510,23 @@ class TestSerialization:
             "denominator": None,
         }
         assert data["locked"] is False
+        assert set(data) == {
+            "id",
+            "name",
+            "class",
+            "unit",
+            "number_type",
+            "length",
+            "locked",
+            "meta",
+            "children",
+            "conversion_maps",
+            "regions",
+            "flow_control",
+            "measure_map",
+            "metric_hierarchy",
+        }
+        assert "events" not in data
 
     def test_to_dict_with_events(self, mixed_event_rows: list[dict[str, Any]]):
         """to_dict(events=True) includes events."""
@@ -489,6 +587,69 @@ class TestSerialization:
             match="Timeline.*ContinuousPhysicalTimeline",
         ):
             ContinuousPhysicalTimeline.from_dict(data)
+
+    def test_structure_bearing_timeline_json_round_trip(self) -> None:
+        original = _structure_bearing_timeline()
+        payload = json.loads(json.dumps(original.to_dict()))
+        restored = Timeline.from_dict(payload)
+        assert restored.to_dict() == payload
+        assert restored.measure_map == original.measure_map
+        assert restored.metric_hierarchy == original.metric_hierarchy
+        assert restored.get_region("opening") == original.get_region("opening")
+        assert restored.flow_control.breaks == original.flow_control.breaks
+        assert restored.flow_control.jumps == original.flow_control.jumps
+        assert restored.flow_control.markers == original.flow_control.markers
+        assert (
+            restored.get_child("whole").to_dict()
+            == original.get_child("whole").to_dict()
+        )
+        assert [cmap.to_dict() for cmap in restored._conversion_maps.values()] == [
+            cmap.to_dict() for cmap in original._conversion_maps.values()
+        ]
+
+    def test_each_authored_structure_slot_accepts_only_one_value(self) -> None:
+        timeline = _structure_bearing_timeline()
+        assert timeline.measure_map is not None
+        assert timeline.metric_hierarchy is not None
+        with pytest.raises(ValueError, match="already has a measure map"):
+            timeline.add_measure_map(timeline.measure_map)
+        with pytest.raises(ValueError, match="already has a metric hierarchy"):
+            timeline.add_metric_hierarchy(timeline.metric_hierarchy)
+
+    @pytest.mark.parametrize("conversion", ["typed", "segment", "timeline"])
+    def test_same_extent_conversion_carries_structure(self, conversion: str) -> None:
+        source = _structure_bearing_timeline()
+        if conversion == "typed":
+            converted = source.to_typed()
+        else:
+            segment_line = source.as_segment_line()
+            converted = (
+                segment_line if conversion == "segment" else segment_line.to_timeline()
+            )
+        assert converted is not source
+        assert converted.measure_map is source.measure_map
+        assert converted.metric_hierarchy is source.metric_hierarchy
+        assert converted.flow_control is not source.flow_control
+        assert converted.flow_control.to_dict() == source.flow_control.to_dict()
+
+    def test_slice_does_not_inherit_authored_structure(self) -> None:
+        source = _structure_bearing_timeline()
+        sliced = source.get_slice(Fraction(1, 3), Fraction(4, 3))
+        assert sliced.measure_map is None
+        assert sliced.metric_hierarchy is None
+        assert sliced.flow_control.to_dict() == {
+            "breaks": [],
+            "jumps": [],
+            "markers": {},
+        }
+
+    def test_segment_line_finalization_preserves_restored_structure(self) -> None:
+        segment_line = _structure_bearing_timeline().as_segment_line()
+        restored = Timeline.from_dict(json.loads(json.dumps(segment_line.to_dict())))
+        assert isinstance(restored, SegmentLine)
+        assert restored.measure_map == segment_line.measure_map
+        assert restored.metric_hierarchy == segment_line.metric_hierarchy
+        assert restored.flow_control.to_dict() == segment_line.flow_control.to_dict()
 
 
 # endregion

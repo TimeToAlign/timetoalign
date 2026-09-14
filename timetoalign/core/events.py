@@ -51,6 +51,7 @@ from .protocols import TwelveTETPitchMixin
 from .time import (
     Coordinate,
     Duration,
+    rational_to_wire,
     wire_to_rational,
 )
 
@@ -2155,6 +2156,66 @@ class Measure(ScalarVocabulary, BaseModel):
     next: tuple[str, ...] | None = None
     volta: int | None = None
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Measure:
+        """Restore the concrete measure class named by a wire payload.
+
+        Args:
+            data: Measure wire dictionary carrying a concrete ``class`` tag.
+
+        Returns:
+            A measure of the tagged concrete class.
+
+        Raises:
+            ValueError: If the tag is missing, unknown, or incompatible with
+                the receiving subclass.
+        """
+
+        def descendants(parent: type[Measure]) -> list[type[Measure]]:
+            children: list[type[Measure]] = []
+            for child in parent.__subclasses__():
+                children.append(child)
+                children.extend(descendants(child))
+            return children
+
+        known_classes = [Measure, *descendants(Measure)]
+        known = {
+            measure_class.__name__: measure_class for measure_class in known_classes
+        }
+        class_tag = data.get("class")
+        target = known.get(class_tag) if isinstance(class_tag, str) else None
+        if target is None:
+            raise ValueError(
+                f"Unknown or missing Measure class {class_tag!r}; "
+                f"known classes: {', '.join(sorted(known))}"
+            )
+        if cls is not Measure and target is not cls:
+            raise ValueError(
+                f"Measure class {class_tag!r} does not match receiving "
+                f"subclass {cls.__name__!r}"
+            )
+
+        values = {key: value for key, value in data.items() if key != "class"}
+        unknown_keys = sorted(set(values) - set(target.model_fields))
+        if unknown_keys:
+            raise ValueError(
+                f"Measure class {target.__name__!r} does not declare the keys: "
+                f"{', '.join(unknown_keys)}"
+            )
+        for key in ("qstamp", "nominal_length", "actual_length"):
+            if values.get(key) is not None:
+                values[key] = wire_to_rational(values[key])
+        if values.get("next") is not None:
+            values["next"] = tuple(values["next"])
+        if (
+            issubclass(target, MeasureConstituent)
+            and values.get("offset_within_measure") is not None
+        ):
+            values["offset_within_measure"] = wire_to_rational(
+                values["offset_within_measure"]
+            )
+        return target(**values)
+
     @field_validator("qstamp", "nominal_length", "actual_length", mode="before")
     @classmethod
     def _as_exact_quarters(cls, value: Any) -> Any:
@@ -2190,6 +2251,37 @@ class Measure(ScalarVocabulary, BaseModel):
 
     def __str__(self) -> str:
         return self.name or (self.id or "Measure")
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the concrete measure as a JSON-safe wire dictionary."""
+        data: dict[str, Any] = {
+            "class": type(self).__name__,
+            "id": self.id,
+            "count": self.count,
+            "qstamp": (
+                rational_to_wire(self.qstamp) if self.qstamp is not None else None
+            ),
+            "number": self.number,
+            "name": self.name,
+            "time_signature": self.time_signature,
+            "nominal_length": (
+                rational_to_wire(self.nominal_length)
+                if self.nominal_length is not None
+                else None
+            ),
+            "actual_length": (
+                rational_to_wire(self.actual_length)
+                if self.actual_length is not None
+                else None
+            ),
+            "start_repeat": self.start_repeat,
+            "end_repeat": self.end_repeat,
+            "next": list(self.next) if self.next is not None else None,
+            "volta": self.volta,
+        }
+        if isinstance(self, MeasureConstituent):
+            data["offset_within_measure"] = rational_to_wire(self.offset_within_measure)
+        return data
 
 
 class MeasureField(SemanticField[Measure]):
@@ -2393,6 +2485,20 @@ class BeatPolicy(BaseModel):
         return cls(grouping=(1,) * count, division=division)
 
     @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> BeatPolicy:
+        """Restore a beat policy from its JSON wire representation."""
+        beat_size = data["beat_size"]
+        return cls(
+            grouping=tuple(data["grouping"]),
+            beat_size=Duration(
+                wire_to_rational(beat_size["value"]),
+                beat_size["unit"],
+            ),
+            bpm=data.get("bpm"),
+            name=data.get("name"),
+        )
+
+    @classmethod
     def uniform(
         cls, division: Fraction, count: int, *, name: str | None = None
     ) -> BeatPolicy:
@@ -2537,6 +2643,20 @@ class BeatPolicy(BaseModel):
 
     def __str__(self) -> str:
         return self.name or repr(self)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this policy as a JSON-safe wire dictionary."""
+        if self.beat_size is None:
+            raise ValueError("BeatPolicy states no beat size")
+        return {
+            "grouping": list(self.grouping),
+            "beat_size": {
+                "value": rational_to_wire(self.beat_size.value),
+                "unit": self.beat_size.unit.value,
+            },
+            "bpm": self.bpm,
+            "name": self.name,
+        }
 
 
 def _bpm_field(_model_cls: type[BaseModel], name: str, _info: object) -> list[Any]:

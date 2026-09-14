@@ -6,7 +6,7 @@ import logging
 from abc import abstractmethod
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from typing_extensions import Self
 
@@ -17,6 +17,7 @@ from .store import ScoreStore
 from .stores.notes import NoteEventData
 
 if TYPE_CHECKING:
+    from timetoalign.timelines import Timeline
     from timetoalign.timelines.flow import ScoreFlowController, SegmentNameGenerator
 
 module_logger = logging.getLogger(__name__)
@@ -110,6 +111,39 @@ class ScoreLoader(EventLoader):
         """Clear all loaded sources and store data."""
         super().clear()
         self._store = ScoreStore.empty()
+
+    def create_timeline(self, uid: str | None = None, **kwargs: Any) -> Timeline:
+        """Create a score timeline with measure and flow-control structure."""
+        timeline = super().create_timeline(uid=uid, **kwargs)
+        self._populate_timeline_structure(timeline)
+        return timeline
+
+    def _populate_timeline_structure(self, timeline: Timeline) -> None:
+        """Attach structure derivable from a non-empty measure store.
+
+        The measure store must describe one measure map in printed order. A
+        store whose measures cannot form that map is a defect of the source,
+        not a lossy reading of it: an unfolded measures table repeats printed
+        measure counts and therefore measure ids. Such a store raises instead
+        of producing a timeline without its measure structure.
+
+        Raises:
+            ValueError: If the stored measures cannot form a ``MeasureMap``.
+        """
+        if len(self._store.measures) == 0:
+            return
+
+        from timetoalign.timelines import MeasureMap
+
+        timeline.add_measure_map(MeasureMap.from_measure_data(self._store.measures))
+
+        registry = self.create_flow_controller().get_flow_control_registry()
+        for brk in registry.breaks:
+            timeline.flow_control.add_break(brk)
+        for jump in registry.jumps:
+            timeline.flow_control.add_jump(jump)
+        for name, coordinate in registry.markers.items():
+            timeline.flow_control.add_marker(name, coordinate)
 
     # region Flow Control
 

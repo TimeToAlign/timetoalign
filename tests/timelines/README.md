@@ -19,6 +19,99 @@ directly.  It counts populated ``start``, ``end``, and ``duration`` structs,
 checks that every populated struct has an exact pair, and verifies that all
 instant control and annotation rows keep null ``end`` and ``duration`` cells.
 
+## Native Timeline Structure and Flow-Control Validation
+
+Timeline structure is validated as one hierarchy-wide storage contract. A fresh
+instance of the base timeline, each of the six domain/modality classes, and a
+parameterized segment line must expose an axis-bound flow-control registry while
+both optional measure structures are exactly ``None``. Adding either structure a
+second time must raise, because replacing the authored structure would describe a
+different timeline.
+
+The number-type boundary is proved in both directions and through every storing
+entry point: a break coordinate, both coordinates of a jump, and a marker. A
+quarters registry bound to fractions receives float-authored coordinates at
+``1.5`` and must store the exact ``Fraction(3, 2)``, because ``1.5`` is a dyadic
+double whose exact value is three halves; a seconds registry bound to floats
+receives ``Fraction(1, 3)`` and must store exactly Python's
+``0.3333333333333333``, the nearest double to one third. Break, jump, and marker
+unit mismatches are each rejected with both units named. A query coordinate
+object whose unit differs from a bound registry's unit is rejected with both
+units named as well, since comparing its bare value with stored values of another
+unit would answer a different question; a raw number query still compares by
+value, and an unbound registry compares values as it always has.
+
+An unbound registry retains the input objects unchanged: an added break, jump, or
+coordinate object is stored as the identical object, so an ``IdCoordinate``
+marker stays that ``IdCoordinate``. A raw marker number names no unit, so an
+unbound registry rejects it. Constructor content passes through the same add
+methods, but the registry copies the given containers first. The caller's list
+therefore remains a distinct object in its original order, even though the
+registry sorts its own copy by coordinate. Copying a registry must reproduce its
+binding and exact content while subsequent mutation of either registry leaves the
+other unchanged.
+
+A region answers containment for raw numbers by value on its own axis. A
+coordinate object in another unit is rejected with both units named instead of
+comparing values that measure different quantities.
+
+Breaks, jumps, markers, and regions serialize every coordinate as a typed entry
+containing the exact rational components, unit, and declared number type. Their
+round trips pin every enum value, label/name field, repeat count, and metadata
+dictionary. The registry payload has exactly ``breaks``, ``jumps``, and
+``markers``; a JSON encode/decode cycle cannot change it.
+
+A structure-bearing timeline combines a measure map containing regular,
+irregular, and constituent measures; a metric hierarchy; a region; one break;
+one jump; one marker; one child; and one conversion map. Its default payload has
+exactly ``id``, ``name``, ``class``, ``unit``, ``number_type``, ``length``,
+``locked``, ``meta``, ``children``, ``conversion_maps``, ``regions``,
+``flow_control``, ``measure_map``, and ``metric_hierarchy``; ``events`` remains
+absent. JSON must be a fixpoint, and restoration must reproduce each constituent
+by exact equality. Same-extent retyping and conversions to and from a segment
+line preserve both structure slots and copy the registry into a distinct object.
+A slice carries none of those three objects, pinning the current derivation
+boundary: slicing, child derivation, and unfolding do not infer how authored
+structure should be partitioned.
+
+### Measure and hierarchy structure
+
+Measure serialization is tested with all six concrete subclasses and
+non-dyadic fractions such as ``Fraction(1, 3)``. The exact class name and every
+field must survive JSON; a float detour would change at least one denominator and
+fail. An unknown or missing class name is rejected with the complete known-class
+vocabulary. A payload key the tagged class does not declare is rejected by name:
+a ``RegularMeasure`` payload carrying ``offset_within_measure`` would otherwise
+lose the offset silently, so accepting it would not be a faithful restoration.
+A measure-map round trip uses the public constructor, emits no deviation warning,
+and compares its type-aware measure sequence exactly. Two independently built
+maps of the same concrete measure classes are equal; changing only one element
+from ``RegularMeasure`` to ``IrregularMeasure`` makes the maps unequal even when
+all field values match.
+
+The same three-section hierarchy is constructed from nested measure lists, the
+counts ``[78, 65, 60]``, and the named counts
+``{"I": 78, "II": 65, "III": 60}``. All compare equal because their ordered
+leaf counts are exactly ``(78, 65, 60)`` and their total is exactly ``203``;
+at three quarters per ``3/4`` bar, the per-leaf quarter spans are exactly
+``(234, 195, 180)``. Display names do not alter structure. Building from an existing map must retain
+that exact map object. Counts partition it into consecutive normalized slices,
+and any count sum other than the map length raises instead of dropping or
+inventing measures.
+
+Metric wire tests cover a whole-note beat size, a quarters beat size, and a policy
+authored from division alone. Each reconstructed policy must equal the original
+full pydantic scalar, including its name and the authored beat-size unit. A metric
+hierarchy round trip must preserve both its section policies and its named policy
+registry, proved by creating the same named section grouping after restoration.
+
+For equivalence independent of wire form, a registered quarter-note policy named
+``slow`` and assigned to three sections compares equal to three directly authored
+quarter-note policies. Both describe exactly three quarter beats in each ``3/4``
+bar and have ``bpm is None``. Policy display names are excluded from hierarchy
+equality; changing bpm from ``None`` to ``120`` or the counted value from a
+quarter to an eighth makes the hierarchies unequal.
+
 ### `test_groups.py` - Timeline Groups
 
 `TimelineGroup` and `GroupTimestamp` are timeline-layer concepts, so their tests
@@ -282,7 +375,8 @@ exactly:
 
 The remaining keys are identical in all four cases: `id`, `name`, `class`,
 `unit`, `number_type`, `length`, `locked`, `meta`, `children`,
-`conversion_maps`. The tests assert that exact key set for the default call.
+`conversion_maps`, `regions`, `flow_control`, `measure_map`, and
+`metric_hierarchy`. The tests assert that exact key set for the default call.
 
 Reference rows serialize as plain dicts with `access_points` a nested list of
 `{"uri": ..., "kind": ...}` dicts, so the payload is JSON-safe; JSON safety of

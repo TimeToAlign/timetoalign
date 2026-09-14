@@ -46,6 +46,10 @@ STRUCTURAL_KEYS = {
     "meta",
     "children",
     "conversion_maps",
+    "regions",
+    "flow_control",
+    "measure_map",
+    "metric_hierarchy",
 }
 
 

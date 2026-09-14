@@ -14,9 +14,14 @@ from a Region.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import Any
 
-from timetoalign.core import Coordinate, TimeUnit
+from timetoalign.core import Coordinate, IdCoordinate, TimeUnit
+from timetoalign.core.retrieval import (
+    coordinate_from_wire_entry,
+    coordinate_wire_entry,
+)
 from timetoalign.core.time import Duration, Interval
 
 # region Region
@@ -66,6 +71,16 @@ end=Coordinate(Fraction(32, 1), quarters))
     end: Coordinate
     meta: dict[str, Any] = field(default_factory=dict)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Region:
+        """Restore a region from its typed coordinate wire representation."""
+        return cls(
+            name=data["name"],
+            start=coordinate_from_wire_entry(data["start"]),
+            end=coordinate_from_wire_entry(data["end"]),
+            meta=dict(data.get("meta", {})),
+        )
+
     def __post_init__(self) -> None:
         """Validate region bounds and units."""
         if self.end.value < self.start.value:
@@ -94,7 +109,9 @@ end=Coordinate(Fraction(32, 1), quarters))
         """The region's extent as a typed :class:`Interval`."""
         return Interval(start=self.start, end=self.end)
 
-    def contains(self, coord: float) -> bool:
+    def contains(
+        self, coord: int | float | Fraction | Coordinate | IdCoordinate
+    ) -> bool:
         """Check if a coordinate is within this region (left-inclusive).
 
         Following TTA convention, intervals are [start, end) - left-inclusive,
@@ -105,8 +122,20 @@ end=Coordinate(Fraction(32, 1), quarters))
 
         Returns:
             True if start <= coord < end.
+
+        Raises:
+            ValueError: If a coordinate object's unit differs from the region's.
         """
-        return self.start.value <= coord < self.end.value
+        if isinstance(coord, Coordinate):
+            if coord.unit is not self.unit:
+                raise ValueError(
+                    f"Coordinate unit {coord.unit} does not match region unit "
+                    f"{self.unit}"
+                )
+            value = coord.value
+        else:
+            value = coord
+        return self.start.value <= value < self.end.value
 
     def overlaps(self, other: Region) -> bool:
         """Check if this region overlaps with another.
@@ -118,6 +147,15 @@ end=Coordinate(Fraction(32, 1), quarters))
             True if the regions overlap (share any coordinates).
         """
         return self.start.value < other.end.value and other.start.value < self.end.value
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this region as a JSON-safe wire dictionary."""
+        return {
+            "name": self.name,
+            "start": coordinate_wire_entry(self.start),
+            "end": coordinate_wire_entry(self.end),
+            "meta": self.meta,
+        }
 
     def __repr__(self) -> str:
         return f"Region({self.name!r}, {self.start.value}-{self.end.value} {self.unit})"
