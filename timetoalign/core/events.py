@@ -2410,7 +2410,6 @@ class BeatPolicy(BaseModel):
             directly or through *beat_size*, which completes it.
         beat_size: The counted value as a typed duration in whole notes
             or quarters. Completed from *division* when omitted.
-        bpm: Optional tempo indication, in counted beats per minute.
         name: Optional human-readable label, typically the signature the
             source spells.
     """
@@ -2420,7 +2419,6 @@ class BeatPolicy(BaseModel):
     grouping: tuple[int, ...] = (1,)
     division: Fraction | None = None
     beat_size: Duration | None = None
-    bpm: int | float | None = None
     name: str | None = None
 
     @classmethod
@@ -2451,50 +2449,53 @@ class BeatPolicy(BaseModel):
         if not text:
             raise ValueError("Time signature must not be empty")
         if text in ("C", "c"):
-            return cls(grouping=(1,) * 4, division=Fraction(1))
+            return cls(grouping=(1,) * 4, division=Fraction(1), name=text)
         if text in ("C|", "c|", "cut", "CUT"):
-            return cls(grouping=(1,) * 2, division=Fraction(2))
+            return cls(grouping=(1,) * 2, division=Fraction(2), name=text)
 
-        terms = [term.strip() for term in text.split("+")]
         numerators: list[int] = []
         denominator: int | None = None
-        for term in terms:
-            match = re.fullmatch(r"(\d+)\s*/\s*(\d+)", term)
-            if match is None:
+        shorthand = re.fullmatch(r"(\d+(?:\s*\+\s*\d+)*)\s*/\s*(\d+)", text)
+        if shorthand is not None:
+            numerators = [int(numerator) for numerator in shorthand.group(1).split("+")]
+            denominator = int(shorthand.group(2))
+            if any(numerator < 1 for numerator in numerators) or denominator < 1:
                 raise ValueError(f"Cannot read time signature {signature!r}")
-            numerator, term_denominator = int(match.group(1)), int(match.group(2))
-            if numerator < 1 or term_denominator < 1:
-                raise ValueError(f"Cannot read time signature {signature!r}")
-            if denominator is None:
-                denominator = term_denominator
-            elif denominator != term_denominator:
-                raise ValueError(
-                    f"Composite time signature {signature!r} mixes denominators; "
-                    "every term must share one denominator"
-                )
-            numerators.append(numerator)
+        else:
+            terms = [term.strip() for term in text.split("+")]
+            for term in terms:
+                match = re.fullmatch(r"(\d+)\s*/\s*(\d+)", term)
+                if match is None:
+                    raise ValueError(f"Cannot read time signature {signature!r}")
+                numerator = int(match.group(1))
+                term_denominator = int(match.group(2))
+                if numerator < 1 or term_denominator < 1:
+                    raise ValueError(f"Cannot read time signature {signature!r}")
+                if denominator is None:
+                    denominator = term_denominator
+                elif denominator != term_denominator:
+                    raise ValueError(
+                        f"Composite time signature {signature!r} mixes denominators; "
+                        "every term must share one denominator"
+                    )
+                numerators.append(numerator)
         assert denominator is not None
         division = Fraction(4, denominator)
 
         if len(numerators) > 1:
-            return cls(grouping=tuple(numerators), division=division)
+            return cls(grouping=tuple(numerators), division=division, name=text)
 
         count = numerators[0]
         if count % 3 == 0 and count > 3 and denominator >= 8:
-            return cls(grouping=(3,) * (count // 3), division=division)
-        return cls(grouping=(1,) * count, division=division)
+            return cls(grouping=(3,) * (count // 3), division=division, name=text)
+        return cls(grouping=(1,) * count, division=division, name=text)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> BeatPolicy:
         """Restore a beat policy from its JSON wire representation."""
-        beat_size = data["beat_size"]
         return cls(
             grouping=tuple(data["grouping"]),
-            beat_size=Duration(
-                wire_to_rational(beat_size["value"]),
-                beat_size["unit"],
-            ),
-            bpm=data.get("bpm"),
+            beat_size=_duration_from_wire(data["beat_size"]),
             name=data.get("name"),
         )
 
@@ -2551,6 +2552,18 @@ class BeatPolicy(BaseModel):
             else:
                 raise ValueError("BeatPolicy beat_size must use whole_note or quarters")
             object.__setattr__(self, "division", division)
+        elif beat_size is not None:
+            if beat_size.unit is TimeUnit.whole_note:
+                stated_division = Fraction(beat_size.value) * 4
+            elif beat_size.unit is TimeUnit.quarters:
+                stated_division = Fraction(beat_size.value)
+            else:
+                raise ValueError("BeatPolicy beat_size must use whole_note or quarters")
+            if stated_division != division:
+                raise ValueError(
+                    "BeatPolicy division and beat_size disagree: "
+                    f"{division} quarters != {stated_division} quarters"
+                )
         if beat_size is None:
             object.__setattr__(
                 self,
@@ -2574,6 +2587,20 @@ class BeatPolicy(BaseModel):
     def span(self) -> Fraction:
         """Total length of one counted bar, in quarters."""
         return sum(self.rods, Fraction(0))
+
+    def as_divisions(self) -> BeatPolicy:
+        """Return the same bar counted once per source division.
+
+        Returns:
+            A policy whose grouping contains one entry for every counted
+            division, with the original division and name preserved.
+        """
+        assert self.division is not None
+        return type(self)(
+            grouping=(1,) * sum(self.grouping),
+            division=self.division,
+            name=self.name,
+        )
 
     def rod_for(self, index: int) -> Fraction:
         """Return the length of beat *index* (1-based), in quarters.
@@ -2650,21 +2677,9 @@ class BeatPolicy(BaseModel):
             raise ValueError("BeatPolicy states no beat size")
         return {
             "grouping": list(self.grouping),
-            "beat_size": {
-                "value": rational_to_wire(self.beat_size.value),
-                "unit": self.beat_size.unit.value,
-            },
-            "bpm": self.bpm,
+            "beat_size": _duration_to_wire(self.beat_size),
             "name": self.name,
         }
-
-
-def _bpm_field(_model_cls: type[BaseModel], name: str, _info: object) -> list[Any]:
-    """Store integer-or-float tempo values on one nullable float column."""
-    return [pa.field(name, pa.float64(), nullable=True)]
-
-
-register_value_projector(BeatPolicy, "bpm", _bpm_field)
 
 
 class BeatPolicyField(SemanticField[BeatPolicy]):
@@ -2676,6 +2691,164 @@ class BeatPolicyField(SemanticField[BeatPolicy]):
     a stable home and to integrate with
     ``EventData.get_field(BeatPolicy)`` dispatch.
     """
+
+
+def _exact_optional(value: object, *, field_name: str) -> Fraction | None:
+    """Read an optional exact scalar without guessing a nearby ratio."""
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float, str, Fraction)):
+        raise TypeError(f"Tempo {field_name} must be a number or decimal string")
+    return Fraction(value)
+
+
+_INT64_MIN = -(2**63)
+_INT64_MAX = 2**63 - 1
+
+
+def _duration_to_wire(value: Duration | None) -> dict[str, Any] | None:
+    """Encode an optional duration with its exact value and unit."""
+    if value is None:
+        return None
+    return {
+        "value": rational_to_wire(value.value),
+        "unit": value.unit.value,
+        "number_type": value.number_type.name,
+    }
+
+
+def _duration_from_wire(value: dict[str, Any] | None) -> Duration | None:
+    """Restore an optional duration from its typed wire entry."""
+    if value is None:
+        return None
+    from .enums import NumberType, TimeUnit
+
+    return Duration(
+        wire_to_rational(dict(value["value"])),
+        TimeUnit(value["unit"]),
+        number_type=NumberType[value["number_type"]],
+    )
+
+
+class Tempo(BaseModel):
+    """A stated tempo rate, independent of any metrical reading.
+
+    Attributes:
+        bpm: Beats per minute at the start of the statement.
+        beat: The duration unit for which the rate is stated.
+        to_bpm: Optional target rate of a ramp.
+        mean_at: Optional share of the ramp span at which its mean occurs.
+        text: Optional verbal indication supplied by the source.
+    """
+
+    model_config = ConfigDict(frozen=True, strict=True)
+
+    bpm: Fraction | None
+    beat: Duration | None = None
+    to_bpm: Fraction | None = None
+    mean_at: Fraction | None = None
+    text: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Tempo:
+        """Restore a tempo from its JSON wire representation.
+
+        Args:
+            data: JSON-safe tempo dictionary.
+
+        Returns:
+            The restored exact tempo statement.
+        """
+        return cls(
+            bpm=(
+                None
+                if data.get("bpm") is None
+                else Fraction(wire_to_rational(data["bpm"]))
+            ),
+            beat=_duration_from_wire(data.get("beat")),
+            to_bpm=(
+                None
+                if data.get("to_bpm") is None
+                else Fraction(wire_to_rational(data["to_bpm"]))
+            ),
+            mean_at=(
+                None
+                if data.get("mean_at") is None
+                else Fraction(wire_to_rational(data["mean_at"]))
+            ),
+            text=data.get("text"),
+        )
+
+    @field_validator("bpm", "to_bpm", "mean_at", mode="before")
+    @classmethod
+    def _coerce_exact_rate(cls, value: object, info: Any) -> Fraction | None:
+        return _exact_optional(value, field_name=info.field_name)
+
+    @field_validator("bpm", "to_bpm")
+    @classmethod
+    def _validate_positive_rate(cls, value: Fraction | None) -> Fraction | None:
+        if value is not None and value <= 0:
+            raise ValueError("Tempo rates must be positive")
+        return value
+
+    @field_validator("bpm", "to_bpm", "mean_at")
+    @classmethod
+    def _validate_exact_wire_range(
+        cls, value: Fraction | None, info: Any
+    ) -> Fraction | None:
+        if value is None:
+            return None
+        if not (
+            _INT64_MIN <= value.numerator <= _INT64_MAX
+            and value.denominator <= _INT64_MAX
+        ):
+            raise ValueError(
+                f"Tempo {info.field_name} value {value} exceeds the signed int64 "
+                f"wire limit {_INT64_MAX}"
+            )
+        return value
+
+    @model_validator(mode="after")
+    def _validate_ramp_mean(self) -> Tempo:
+        if self.mean_at is None:
+            return self
+        if not 0 < self.mean_at < 1:
+            raise ValueError("Tempo mean_at must satisfy 0 < mean_at < 1")
+        if self.to_bpm is None:
+            raise ValueError("Tempo mean_at requires to_bpm")
+        return self
+
+    def __repr__(self) -> str:
+        parts = [f"bpm={self.bpm!r}"]
+        if self.beat is not None:
+            parts.append(f"beat={self.beat!r}")
+        if self.to_bpm is not None:
+            parts.append(f"to_bpm={self.to_bpm!r}")
+        if self.mean_at is not None:
+            parts.append(f"mean_at={self.mean_at!r}")
+        if self.text is not None:
+            parts.append(f"text={self.text!r}")
+        return f"Tempo({', '.join(parts)})"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this tempo as a JSON-safe wire dictionary.
+
+        Returns:
+            A dictionary retaining every exact rational value.
+        """
+        return {
+            "bpm": None if self.bpm is None else rational_to_wire(self.bpm),
+            "beat": _duration_to_wire(self.beat),
+            "to_bpm": (None if self.to_bpm is None else rational_to_wire(self.to_bpm)),
+            "mean_at": (
+                None if self.mean_at is None else rational_to_wire(self.mean_at)
+            ),
+            "text": self.text,
+        }
+
+
+class TempoField(SemanticField[Tempo]):
+    """Paired Field for :class:`Tempo`."""
 
 
 class Address(BaseModel):
@@ -2695,7 +2868,6 @@ class Address(BaseModel):
     model_config = ConfigDict(frozen=True, strict=True)
 
     rendition: int | None = None
-    skeleton_id: str | None = None
 
     @classmethod
     def parse(
@@ -2786,7 +2958,6 @@ class MeasureNumber(Address):
             volta=row.get("volta"),
             section=row.get("section"),
             rendition=row.get("rendition"),
-            skeleton_id=row.get("skeleton_id"),
         )
 
     @field_validator("mn", mode="before")
@@ -2991,8 +3162,9 @@ class Beat(Address):
     Args:
         index: 1-based beat index.
         policy: Counting override, or ``None`` for the bar's default.
-        level: Metrical level; ``0`` is the beat, ``1`` and above are
-            hypermetrical.
+        level: Metrical level; ``0`` is the pulse, negative levels are
+            groove below the pulse, and positive levels above it carry no
+            name of their own — a reading names the levels it states.
     """
 
     index: int
@@ -3020,7 +3192,6 @@ class Beat(Address):
             policy=policy,
             level=int(row.get("level") or 0),
             rendition=row.get("rendition"),
-            skeleton_id=row.get("skeleton_id"),
         )
 
     @field_validator("index")
@@ -3028,13 +3199,6 @@ class Beat(Address):
     def _validate_index(cls, value: int) -> int:
         if value < 1:
             raise ValueError("Beat index is 1-based; beat 1 is the downbeat")
-        return value
-
-    @field_validator("level")
-    @classmethod
-    def _validate_level(cls, value: int) -> int:
-        if value < 0:
-            raise ValueError("Beat level must not be negative")
         return value
 
     @property

@@ -67,7 +67,6 @@ class TestSoloLoaderCounts:
         # measure count and no volta, so both stay null.
         assert table["measure_number"][0].as_py() == {
             "rendition": None,
-            "skeleton_id": None,
             "mc": None,
             "mn": "0",
             "volta": None,
@@ -93,7 +92,6 @@ class TestSoloLoaderCounts:
         table = loader.events.table
         assert table["measure_number"][1].as_py() == {
             "rendition": None,
-            "skeleton_id": None,
             "mc": None,
             "mn": "1",
             "volta": None,
@@ -114,7 +112,6 @@ class TestSoloLoaderCounts:
         # Row 12 (zero-indexed): "1+3/8\t1/2\t90\t58\t0\tn1fst1u3"
         assert table["measure_number"][12].as_py() == {
             "rendition": None,
-            "skeleton_id": None,
             "mc": None,
             "mn": "1",
             "volta": None,
@@ -223,4 +220,4 @@ class TestSoloLoaderFieldSpecs:
         mn_col = table["measure_number"]
         assert pa.types.is_struct(mn_col.type)
         sub_names = [mn_col.type.field(i).name for i in range(mn_col.type.num_fields)]
-        assert sub_names == ["rendition", "skeleton_id", "mc", "mn", "volta", "section"]
+        assert sub_names == ["rendition", "mc", "mn", "volta", "section"]

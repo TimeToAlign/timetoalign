@@ -16,7 +16,6 @@ lengths across tempo changes.
 from __future__ import annotations
 
 import csv
-import re
 from dataclasses import dataclass, replace
 from fractions import Fraction
 from pathlib import Path
@@ -29,8 +28,6 @@ if TYPE_CHECKING:
 
 #: Accepted spellings of a position or duration in seconds.
 SecondsSpec = int | float | Fraction | str | Coordinate | IdCoordinate
-
-_METRO_PATTERN = re.compile(r"(\d+)\s*/\s*(\d+)")
 
 
 def _as_fraction(value: Any, *, what: str) -> Fraction:
@@ -86,34 +83,6 @@ def _as_seconds(value: SecondsSpec, *, what: str = "A position") -> Fraction:
             )
         return _as_fraction(value.value, what=what)
     return _as_fraction(value, what=what)
-
-
-def policy_for_metro(metro: str) -> BeatPolicy:
-    """Read a grid's meter string as one beat per counted note value.
-
-    A beat-grid lattice ticks once per counted value, so ``"6/8"`` is six
-    beats of an eighth each — the reading a grid's beat-in-bar index
-    follows.  It is deliberately not
-    :meth:`~timetoalign.core.BeatPolicy.from_time_signature`, which reads
-    ``6/8`` as two dotted beats and would put the anchor index outside
-    the bar.
-
-    Args:
-        metro: The meter as the source spells it, ``"n/d"``.
-
-    Returns:
-        A policy of ``n`` beats of ``4/d`` quarters, named *metro*.
-
-    Raises:
-        ValueError: If *metro* cannot be read.
-    """
-    match = _METRO_PATTERN.fullmatch(metro.strip())
-    if match is None:
-        raise ValueError(f"Cannot read grid meter {metro!r}; expected 'n/d'")
-    numerator, denominator = int(match.group(1)), int(match.group(2))
-    if numerator < 1 or denominator < 1:
-        raise ValueError(f"Cannot read grid meter {metro!r}; expected 'n/d'")
-    return BeatPolicy.uniform(Fraction(4, denominator), numerator, name=metro)
 
 
 @dataclass(frozen=True)
@@ -289,7 +258,11 @@ class BeatGrid:
         segment = BeatGridSegment(
             start=_as_seconds(start, what="A grid start"),
             bpm=_as_fraction(bpm, what="A grid tempo"),
-            policy=policy if policy is not None else policy_for_metro(metro),
+            policy=(
+                policy
+                if policy is not None
+                else BeatPolicy.from_time_signature(metro).as_divisions()
+            ),
             battito=battito,
         )
         bound = None if extent is None else _as_seconds(extent, what="A grid extent")

@@ -23,9 +23,8 @@ from timetoalign.core import (
     TimeUnit,
 )
 from timetoalign.timelines import BeatGrid, BeatGridSegment, GridBeat, SectionHierarchy
-from timetoalign.timelines.beatgrid import policy_for_metro
 
-FOUR_FOUR = policy_for_metro("4/4")
+FOUR_FOUR = BeatPolicy.from_time_signature("4/4").as_divisions()
 
 
 def _segment(
@@ -38,7 +37,7 @@ def _segment(
     return BeatGridSegment(
         start=Fraction(str(start)),
         bpm=Fraction(bpm),
-        policy=policy_for_metro(metro),
+        policy=BeatPolicy.from_time_signature(metro).as_divisions(),
         battito=battito,
     )
 
@@ -190,7 +189,7 @@ class TestSegmentAssembly:
 
     def test_metro_is_read_as_one_beat_per_counted_value(self) -> None:
         """6/8 counts six eighth beats, not two dotted ones."""
-        policy = policy_for_metro("6/8")
+        policy = BeatPolicy.from_time_signature("6/8").as_divisions()
 
         assert policy.n_beats == 6
         assert policy.division == Fraction(1, 2)
@@ -200,10 +199,10 @@ class TestSegmentAssembly:
 
     def test_unreadable_metro_raises(self) -> None:
         """A meter the grid cannot read is refused, never defaulted."""
-        with pytest.raises(ValueError, match="Cannot read grid meter"):
-            policy_for_metro("common")
-        with pytest.raises(ValueError, match="Cannot read grid meter"):
-            policy_for_metro("0/4")
+        with pytest.raises(ValueError, match="Cannot read time signature"):
+            BeatPolicy.from_time_signature("common").as_divisions()
+        with pytest.raises(ValueError, match="Cannot read time signature"):
+            BeatPolicy.from_time_signature("0/4").as_divisions()
 
     def test_a_value_that_is_not_a_number_raises(self) -> None:
         """Coordinate input accepts numbers and coordinates, nothing else."""

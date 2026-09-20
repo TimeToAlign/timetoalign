@@ -32,11 +32,11 @@ from timetoalign.alignment.warpmap import WarpMap
 from timetoalign.core import (
     ActivationCondition,
     AgentType,
-    BeatPolicy,
     Coordinate,
     FlowControlElement,
     IdCoordinate,
     Measure,
+    Tempo,
     TimeUnit,
 )
 from timetoalign.core.time import (
@@ -117,9 +117,7 @@ def _structured_timeline() -> Timeline:
         MeasureMap([Measure(actual_length=Fraction(4, 3)) for _ in range(3)])
     )
     timeline.add_metric_hierarchy(
-        MetricHierarchy.from_sections(
-            [BeatPolicy(grouping=(1, 1, 1), division=Fraction(1), name="triple")]
-        )
+        MetricHierarchy.from_sections([Tempo(bpm=Fraction(120), text="triple")])
     )
     timeline.create_region("middle", Fraction(1, 3), Fraction(2, 3))
     timeline.flow_control.add_break(

@@ -27,13 +27,13 @@ import pytest
 
 from timetoalign.core import (
     ActivationCondition,
-    BeatPolicy,
     Coordinate,
     FlowControlElement,
     IrregularMeasure,
     MeasureConstituent,
     NumberType,
     RegularMeasure,
+    Tempo,
     TimeUnit,
 )
 from timetoalign.maps import ScalarMap
@@ -69,9 +69,7 @@ def _structure_bearing_timeline() -> Timeline:
         )
     )
     timeline.add_metric_hierarchy(
-        MetricHierarchy.from_sections(
-            [BeatPolicy(grouping=(1, 1, 1), division=Fraction(1), name="triple")]
-        )
+        MetricHierarchy.from_sections([Tempo(bpm=Fraction(120), text="triple")])
     )
     timeline.create_region("opening", Fraction(1, 3), Fraction(4, 3), meta={"n": 1})
     timeline.flow_control.add_break(

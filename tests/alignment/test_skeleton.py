@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from timetoalign.alignment import TimeSkeleton
-from timetoalign.core import BeatPolicy, Gap, Measure, NumberType, TimeUnit
+from timetoalign.core import Gap, Measure, NumberType, Tempo, TimeUnit
 from timetoalign.loader.score.ms3 import Ms3Loader
 from timetoalign.timelines import (
     ContinuousLogicalTimeline,
@@ -458,9 +458,9 @@ class TestStructuralEquality:
         with pytest.raises(TypeError, match="unhashable"):
             hash(TimeSkeleton(_concrete_hierarchy(3)))
 
-    def test_differing_metric_hierarchy_breaks_equality(self) -> None:
-        slow = BeatPolicy.from_time_signature("3/4").model_copy(update={"bpm": 60})
-        fast = BeatPolicy.from_time_signature("3/4").model_copy(update={"bpm": 120})
+    def test_differing_tempo_maps_do_not_break_structural_equality(self) -> None:
+        slow = Tempo(bpm=Fraction(60))
+        fast = Tempo(bpm=Fraction(120))
         first = TimeSkeleton(
             _concrete_hierarchy(3, 2, 2), MetricHierarchy.from_sections([slow] * 3)
         )
@@ -470,7 +470,7 @@ class TestStructuralEquality:
         third = TimeSkeleton(
             _concrete_hierarchy(3, 2, 2), MetricHierarchy.from_sections([slow] * 3)
         )
-        assert first != second
+        assert first == second
         assert first == third
 
     def test_authored_flows_are_compared_by_content(self) -> None:

@@ -3,9 +3,9 @@
 These tests pin the ground truths documented in ``tests/timelines/README.md``
 under *Native Timeline Structure and Flow-Control Validation*, subsection
 *Measure and hierarchy structure*, for the ``SectionHierarchy``, ``MetricHierarchy`` and
-``Measure`` scalars: construction equivalences, name-blind hierarchy equality,
-name-aware policy equality, and the derived ``count``/``qstamp`` arithmetic of a
-``MeasureMap``. Every expected value is exact, never a range.
+``Measure`` scalars: construction equivalences, forest-only hierarchy equality,
+name-aware policy equality, and the derived ``count``/``qstamp`` arithmetic of
+a ``MeasureMap``. Every expected value is exact, never a range.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import warnings
 from fractions import Fraction
+from numbers import Real
 
 import pydantic
 import pytest
@@ -20,17 +21,30 @@ import pytest
 from timetoalign.core import (
     BeatPolicy,
     CadenzaMeasure,
+    Coordinate,
     Duration,
+    Interval,
     IrregularMeasure,
     Measure,
     MeasureConstituent,
     RegularMeasure,
     SplitIrregularMeasure,
     SplitRegularMeasure,
+    Tempo,
     TimeUnit,
 )
 from timetoalign.core.time import rational_to_wire
-from timetoalign.timelines import MeasureMap, MetricHierarchy, SectionHierarchy
+from timetoalign.timelines import (
+    Expansion,
+    MeasureMap,
+    MetricHierarchy,
+    MetricNode,
+    Reading,
+    SectionHierarchy,
+    TempoEntry,
+    TempoMap,
+    Timeline,
+)
 
 # The canonical three-section shape used throughout: 78 + 65 + 60 == 203.
 SECTION_COUNTS = (78, 65, 60)
@@ -40,16 +54,6 @@ TOTAL_MEASURES = 203
 def _abstract(count: int) -> list[Measure]:
     """A run of ``count`` length-less measures, as ``from_measure_counts`` mints."""
     return [Measure() for _ in range(count)]
-
-
-def _quarter_policy() -> BeatPolicy:
-    """A quarter-note beat with three beats per bar and no tempo (``3/4``)."""
-    return BeatPolicy(grouping=(1, 1, 1), division=Fraction(1))
-
-
-def _eighth_policy() -> BeatPolicy:
-    """A three-beat bar counted in eighth notes (``3/8``)."""
-    return BeatPolicy(grouping=(1, 1, 1), division=Fraction(1, 2))
 
 
 # region (a) Construction equivalences
@@ -226,40 +230,392 @@ class TestMeasureMapEqualityAndWire:
 
 
 class TestMetricHierarchyEquivalence:
-    """Metric equality compares section shape and each policy's beat/bpm only."""
+    """Metric equality is exactly the attributed forest."""
 
-    def test_from_beat_policies_equals_from_sections(self) -> None:
-        registered = MetricHierarchy.from_beat_policies({"slow": _quarter_policy()})
-        registered.create_sections(["slow", "slow", "slow"])
-        direct = MetricHierarchy.from_sections(
-            [_quarter_policy(), _quarter_policy(), _quarter_policy()]
-        )
-        assert registered == direct
-        assert len(registered.sections) == 3
-        assert len(direct.sections) == 3
+    def test_authored_sections_retain_shape_and_every_tempo(self) -> None:
+        beat_sizes = [
+            Duration(value, "w")
+            for value in (
+                Fraction(1, 2),
+                Fraction(3, 4),
+                Fraction(1, 8),
+                Fraction(1, 16),
+                Fraction(1, 4),
+            )
+        ]
+        rates = [138, 80, 92, 76, 144]
+        tempi = [Tempo(beat=beat, bpm=rate) for beat, rate in zip(beat_sizes, rates)]
+        hierarchy = MetricHierarchy.from_sections(tempi[:3] + [tempi[3:]])
 
-    def test_policy_display_names_excluded_from_equality(self) -> None:
-        anonymous = MetricHierarchy.from_sections([_quarter_policy() for _ in range(3)])
-        named = MetricHierarchy.from_sections(
-            [_quarter_policy().model_copy(update={"name": "slow"}) for _ in range(3)]
+        assert len(hierarchy.root.expansions) == 1
+        assert len(hierarchy.root.expansions[0].children) == 4
+        assert [entry.tempo for entry in hierarchy.tempo_maps[0].entries] == tempi
+        assert hierarchy.root.level is None
+        assert all(
+            child.level is None for child in hierarchy.root.expansions[0].children
         )
-        assert anonymous == named
+        assert all(entry.at is None for entry in hierarchy.tempo_maps[0].entries)
+        assert hierarchy.tempo_maps[0].kind == "indication"
+        assert hierarchy.readings[0].source == "notation"
 
-    def test_bpm_difference_breaks_equality(self) -> None:
-        without_tempo = MetricHierarchy.from_sections(
-            [_quarter_policy() for _ in range(3)]
+        pulse_claim = hierarchy.root.model_copy(
+            update={
+                "expansions": (
+                    hierarchy.root.expansions[0].model_copy(
+                        update={
+                            "children": tuple(
+                                child.model_copy(update={"level": 0})
+                                for child in hierarchy.root.expansions[0].children
+                            )
+                        }
+                    ),
+                )
+            }
         )
-        with_tempo = MetricHierarchy.from_sections(
-            [_quarter_policy().model_copy(update={"bpm": 120}) for _ in range(3)]
+        assert hierarchy != MetricHierarchy(
+            root=pulse_claim,
+            readings=hierarchy.readings,
+            tempo_maps=hierarchy.tempo_maps,
         )
-        assert without_tempo != with_tempo
 
-    def test_beat_size_difference_breaks_equality(self) -> None:
-        in_quarters = MetricHierarchy.from_sections(
-            [_quarter_policy() for _ in range(3)]
+    def test_tempo_text_is_outside_structural_equality(self) -> None:
+        plain = MetricHierarchy.from_sections([Tempo(bpm=120)])
+        named = MetricHierarchy.from_sections([Tempo(bpm=120, text="Allegro")])
+        assert plain == named
+
+    def test_nested_and_flat_partitions_are_not_equal(self) -> None:
+        nested_children = tuple(
+            MetricNode(
+                proportion=Fraction(1, 2),
+                expansions=(
+                    Expansion(
+                        children=tuple(
+                            MetricNode(proportion=Fraction(1, 3)) for _ in range(3)
+                        ),
+                        readings=frozenset({"r"}),
+                    ),
+                ),
+            )
+            for _ in range(2)
         )
-        in_eighths = MetricHierarchy.from_sections([_eighth_policy() for _ in range(3)])
-        assert in_quarters != in_eighths
+        nested = MetricHierarchy(
+            root=MetricNode(
+                expansions=(
+                    Expansion(children=nested_children, readings=frozenset({"r"})),
+                )
+            ),
+            readings=(Reading(id="r", source="notation"),),
+        )
+        flat = MetricHierarchy(
+            root=MetricNode(
+                expansions=(
+                    Expansion(
+                        children=tuple(
+                            MetricNode(proportion=Fraction(1, 6)) for _ in range(6)
+                        ),
+                        readings=frozenset({"r"}),
+                    ),
+                )
+            ),
+            readings=nested.readings,
+        )
+
+        assert nested != flat
+
+    def test_reading_membership_participates_in_forest_equality(self) -> None:
+        children = (MetricNode(proportion=Fraction(1)),)
+        first = MetricHierarchy(
+            root=MetricNode(
+                expansions=(
+                    Expansion(children=children, readings=frozenset({"first"})),
+                )
+            ),
+            readings=(
+                Reading(id="first", source="analysis"),
+                Reading(id="second", source="analysis"),
+            ),
+        )
+        second = MetricHierarchy(
+            root=MetricNode(
+                expansions=(
+                    Expansion(children=children, readings=frozenset({"second"})),
+                )
+            ),
+            readings=first.readings,
+        )
+
+        assert first != second
+
+    def test_realization_and_reading_provenance_are_outside_equality(self) -> None:
+        base = MetricHierarchy.from_sections([Tempo(bpm=120)])
+        changed_reading = MetricHierarchy(
+            root=base.root,
+            readings=(
+                Reading(
+                    id=base.readings[0].id,
+                    source=base.readings[0].source,
+                    by="editor",
+                    reinterprets="engraved",
+                    level_names={1: "bar"},
+                ),
+            ),
+            tempo_maps=base.tempo_maps,
+        )
+        extra = TempoMap(
+            kind="observed",
+            entries=(
+                TempoEntry(at=Coordinate(Fraction(0), "quarters"), tempo=Tempo(bpm=90)),
+            ),
+            provenance={"by": "probe"},
+        )
+
+        assert base.readings[0].reinterprets is None
+        assert changed_reading.readings[0].reinterprets == "engraved"
+        assert changed_reading == base
+        assert base.with_tempo_map(extra) == base
+        assert len(base.with_tempo_map(extra).tempo_maps) == 2
+        assert len(base.tempo_maps) == 1
+
+
+class TestMetricHierarchyReadings:
+    """Readings share matching partitions and retain divergent alternatives."""
+
+    def test_with_reading_coalesces_an_agreeing_partition(self) -> None:
+        children = (
+            MetricNode(proportion=Fraction(1, 2)),
+            MetricNode(proportion=Fraction(1, 2)),
+        )
+        hierarchy = MetricHierarchy(
+            root=MetricNode(
+                expansions=(
+                    Expansion(children=children, readings=frozenset({"first"})),
+                )
+            ),
+            readings=(Reading(id="first", source="analysis"),),
+        )
+
+        merged = hierarchy.with_reading(
+            Reading(id="second", source="performance"),
+            (Expansion(children=children, readings=frozenset()),),
+        )
+
+        assert len(merged.root.expansions) == 1
+        assert merged.root.expansions[0].readings == frozenset({"first", "second"})
+        assert merged.root.expansions[0].children[0] is children[0]
+        assert hierarchy.root.expansions[0].readings == frozenset({"first"})
+
+    def test_with_reading_retains_a_divergent_partition(self) -> None:
+        halves = (
+            MetricNode(proportion=Fraction(1, 2)),
+            MetricNode(proportion=Fraction(1, 2)),
+        )
+        thirds = tuple(MetricNode(proportion=Fraction(1, 3)) for _ in range(3))
+        hierarchy = MetricHierarchy(
+            root=MetricNode(
+                expansions=(Expansion(children=halves, readings=frozenset({"first"})),)
+            ),
+            readings=(Reading(id="first", source="analysis"),),
+        )
+
+        merged = hierarchy.with_reading(
+            Reading(id="second", source="performance"),
+            (Expansion(children=thirds, readings=frozenset()),),
+        )
+
+        assert len(merged.root.expansions) == 2
+        assert merged.root.expansions[0].readings == frozenset({"first"})
+        assert merged.root.expansions[1].readings == frozenset({"second"})
+        assert merged.root.expansions[0].children == halves
+        assert merged.root.expansions[1].children == thirds
+
+    def test_policy_at_uses_only_the_named_reading(self) -> None:
+        halves = Expansion(
+            children=(
+                MetricNode(proportion=Fraction(1, 2)),
+                MetricNode(proportion=Fraction(1, 2)),
+            ),
+            readings=frozenset({"halves"}),
+        )
+        thirds = Expansion(
+            children=tuple(MetricNode(proportion=Fraction(1, 3)) for _ in range(3)),
+            readings=frozenset({"thirds"}),
+        )
+        hierarchy = MetricHierarchy(
+            root=MetricNode(level=1, expansions=(halves, thirds)),
+            readings=(
+                Reading(id="halves", source="analysis"),
+                Reading(id="thirds", source="analysis"),
+            ),
+        )
+
+        assert hierarchy.root.expansions == (halves, thirds)
+        assert hierarchy.policy_at("halves", Fraction(0)) == BeatPolicy(
+            grouping=(1, 1), division=Fraction(1, 2)
+        )
+        assert hierarchy.policy_at("thirds", Fraction(0)) == BeatPolicy(
+            grouping=(1, 1, 1), division=Fraction(1, 3)
+        )
+
+    def test_policy_at_rejects_unasserted_reading_and_physical_position(self) -> None:
+        hierarchy = MetricHierarchy(
+            root=MetricNode(
+                expansions=(
+                    Expansion(
+                        children=(MetricNode(proportion=Fraction(1)),),
+                        readings=frozenset({"asserted"}),
+                    ),
+                )
+            ),
+            readings=(
+                Reading(id="asserted", source="analysis"),
+                Reading(id="silent", source="analysis"),
+            ),
+        )
+
+        with pytest.raises(ValueError, match="silent.*asserts no expansion"):
+            hierarchy.policy_at("silent", Fraction(0))
+        with pytest.raises(ValueError, match="seconds.*allowed units"):
+            hierarchy.policy_at("asserted", Coordinate(Fraction(1, 2), "seconds"))
+
+    def test_unknown_expansion_reading_is_rejected(self) -> None:
+        root = MetricNode(
+            expansions=(
+                Expansion(
+                    children=(MetricNode(proportion=Fraction(1)),),
+                    readings=frozenset({"missing"}),
+                ),
+            )
+        )
+        with pytest.raises(ValueError, match="unknown reading id 'missing'"):
+            MetricHierarchy(root=root, readings=())
+
+
+class TestTempoRealizationValues:
+    """Tempo-map values preserve exact, distinct, immutable source evidence."""
+
+    def test_observation_states_are_distinct_and_round_trip(self) -> None:
+        point = TempoEntry(observed=Coordinate(Fraction(1, 3), "seconds"))
+        interval = TempoEntry(
+            observed=Interval(
+                Coordinate(Fraction(1, 3), "seconds"),
+                Coordinate(Fraction(2, 3), "seconds"),
+            )
+        )
+        undefined = TempoEntry(observation_undefined=True)
+        unstated = TempoEntry()
+
+        assert point.to_dict()["observed"]["type"] == "coordinate"
+        assert interval.to_dict()["observed"]["type"] == "interval"
+        assert undefined.to_dict()["observed"] is None
+        assert undefined.to_dict()["observation_undefined"] is True
+        assert unstated.to_dict()["observed"] is None
+        assert unstated.to_dict()["observation_undefined"] is False
+        assert len({point, interval, undefined, unstated}) == 4
+
+        for entry in (point, interval, undefined, unstated):
+            payload = json.loads(json.dumps(entry.to_dict()))
+            restored = TempoEntry.from_dict(payload)
+            assert restored == entry
+            assert restored.to_dict() == payload
+
+    def test_observation_cannot_be_present_and_explicitly_undefined(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="cannot be true"):
+            TempoEntry(
+                observed=Coordinate(Fraction(1), "seconds"),
+                observation_undefined=True,
+            )
+
+    def test_symbolic_position_rejects_physical_unit(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="seconds.*allowed units"):
+            TempoEntry(at=Coordinate(Fraction(3), "seconds"))
+
+    def test_alternative_weights_are_exact_and_bounded(self) -> None:
+        entry = TempoEntry(
+            alternatives=((Coordinate(Fraction(1), "seconds"), Fraction(1, 3)),)
+        )
+        payload = json.loads(json.dumps(entry.to_dict()))
+
+        assert entry.alternatives[0][1] == Fraction(1, 3)
+        assert type(entry.alternatives[0][1]) is Fraction
+        assert payload["alternatives"][0]["weight"] == rational_to_wire(Fraction(1, 3))
+        assert TempoEntry.from_dict(payload) == entry
+
+    @pytest.mark.parametrize(
+        "weight",
+        [float("nan"), float("inf"), Fraction(0), Fraction(-1), Fraction(2)],
+    )
+    def test_invalid_alternative_weight_is_rejected(self, weight: Real) -> None:
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="finite real number greater than zero and at most one",
+        ):
+            TempoEntry(alternatives=((Coordinate(Fraction(1), "seconds"), weight),))
+
+    def test_provenance_and_level_names_are_immutable(self) -> None:
+        tempo_map = TempoMap(
+            kind="steady",
+            entries=(),
+            provenance={"nested": {"x": 1}},
+        )
+        reading = Reading(
+            id="analysis",
+            source="analysis",
+            level_names={-1: "groove"},
+        )
+
+        with pytest.raises(TypeError):
+            tempo_map.provenance["new"] = 2  # type: ignore[index]
+        with pytest.raises(TypeError):
+            tempo_map.provenance["nested"]["x"] = 2  # type: ignore[index]
+        with pytest.raises(TypeError):
+            reading.level_names[-1] = "changed"  # type: ignore[index]
+        assert tempo_map.to_dict()["provenance"] == {"nested": {"x": 1}}
+        assert reading.level_names[-1] == "groove"
+
+    def test_non_json_provenance_is_rejected_at_construction(self) -> None:
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="key 'ratio'.*type Fraction",
+        ):
+            TempoMap(
+                kind="indication",
+                entries=(),
+                provenance={"ratio": Fraction(1, 3)},
+            )
+
+    def test_non_default_members_appear_in_representations(self) -> None:
+        observed = Coordinate(Fraction(2), "seconds")
+        entry = TempoEntry(
+            at=Coordinate(Fraction(1), "quarters"),
+            tempo=Tempo(bpm=90),
+            observed=observed,
+            alternatives=((Coordinate(Fraction(3), "seconds"), Fraction(1)),),
+            is_interpolated=True,
+        )
+        tempo_map = TempoMap(
+            kind="steady", entries=(entry,), provenance={"by": "probe"}
+        )
+        reading = Reading(
+            id="performed",
+            source="performance",
+            by="A. Player",
+            reinterprets="notation",
+            level_names={-1: "groove"},
+        )
+        node = MetricNode(
+            level=0,
+            proportion=Fraction(3, 8),
+            expansions=(Expansion(children=(), readings=frozenset({"performed"})),),
+        )
+
+        assert "proportion=Fraction(3, 8)" in repr(node)
+        assert f"observed={observed!r}" in repr(entry)
+        assert "alternatives=" in repr(entry)
+        assert "is_interpolated=True" in repr(entry)
+        assert "provenance={'by': 'probe'}" in repr(tempo_map)
+        assert "by='A. Player'" in repr(reading)
+        assert "reinterprets='notation'" in repr(reading)
+        assert "level_names={-1: 'groove'}" in repr(reading)
 
 
 class TestBeatPolicyScalarEquality:
@@ -277,7 +633,7 @@ class TestBeatPolicyScalarEquality:
 
 
 class TestBeatPolicyAndMetricHierarchyWire:
-    """Metric wire forms preserve authored units, names, and policy registries."""
+    """Metric wire forms preserve authored units and complete forest values."""
 
     @pytest.mark.parametrize(
         "policy",
@@ -285,13 +641,11 @@ class TestBeatPolicyAndMetricHierarchyWire:
             BeatPolicy(
                 grouping=(1, 2),
                 beat_size=Duration(Fraction(1, 3), TimeUnit.whole_note),
-                bpm=90,
                 name="whole-note spelling",
             ),
             BeatPolicy(
                 grouping=(2, 1),
                 beat_size=Duration(Fraction(1, 3), TimeUnit.quarters),
-                bpm=91.5,
                 name="quarters spelling",
             ),
             BeatPolicy(
@@ -309,21 +663,100 @@ class TestBeatPolicyAndMetricHierarchyWire:
         restored = BeatPolicy.from_dict(payload)
         assert restored == policy
         assert restored.to_dict() == payload
+        assert payload["beat_size"]["number_type"] == "fraction"
 
-    def test_metric_hierarchy_round_trip_preserves_named_policies(self) -> None:
-        slow = BeatPolicy(grouping=(1, 1, 1), division=Fraction(1), name="slow")
-        fast = BeatPolicy(
-            grouping=(3, 3), division=Fraction(1, 2), bpm=120, name="fast"
-        )
+    def test_metric_hierarchy_round_trip_preserves_forest_and_maps(self) -> None:
         hierarchy = MetricHierarchy(
-            sections=((slow,), (slow, fast)), policies={"slow": slow, "fast": fast}
+            root=MetricNode(
+                level=1,
+                proportion=Fraction(1),
+                expansions=(
+                    Expansion(
+                        children=(
+                            MetricNode(level=0, proportion=Fraction(1, 3)),
+                            MetricNode(level=0, proportion=Fraction(2, 3)),
+                        ),
+                        readings=frozenset({"performed"}),
+                    ),
+                ),
+            ),
+            readings=(
+                Reading(id="notation", source="notation"),
+                Reading(
+                    id="performed",
+                    source="performance",
+                    reinterprets="notation",
+                ),
+            ),
+            tempo_maps=(
+                TempoMap(
+                    kind="indication",
+                    entries=(
+                        TempoEntry(
+                            at=Coordinate(Fraction(1, 3), "quarters"),
+                            tempo=Tempo(bpm=Fraction(90)),
+                        ),
+                    ),
+                    provenance={"source": "score"},
+                ),
+            ),
         )
         payload = json.loads(json.dumps(hierarchy.to_dict()))
         restored = MetricHierarchy.from_dict(payload)
         assert restored == hierarchy
         assert restored.to_dict() == payload
-        restored.create_sections(["fast", ["slow", "fast"]])
-        assert restored.sections == ((fast,), (slow, fast))
+        assert restored.tempo_maps == hierarchy.tempo_maps
+        assert restored.root.proportion == Fraction(1)
+        assert restored.root.expansions[0].children[0].proportion == Fraction(1, 3)
+        assert restored.readings[1].reinterprets == "notation"
+
+    def test_timeline_payload_carries_the_same_hierarchy_wire(self) -> None:
+        hierarchy = MetricHierarchy(
+            root=MetricNode(
+                level=1,
+                proportion=Fraction(1),
+                expansions=(
+                    Expansion(
+                        children=(
+                            MetricNode(level=0, proportion=Fraction(1, 3)),
+                            MetricNode(level=0, proportion=Fraction(2, 3)),
+                        ),
+                        readings=frozenset({"notation"}),
+                    ),
+                ),
+            ),
+            readings=(Reading(id="notation", source="notation"),),
+            tempo_maps=(
+                TempoMap(
+                    kind="indication",
+                    entries=(
+                        TempoEntry(
+                            at=Coordinate(Fraction(1, 3), "quarters"),
+                            tempo=Tempo(bpm=Fraction(90)),
+                        ),
+                    ),
+                    provenance={"source": "score"},
+                ),
+            ),
+        )
+        timeline = Timeline(
+            length=Fraction(3),
+            unit=TimeUnit.quarters,
+            uid="metric_wire",
+        )
+        timeline.add_metric_hierarchy(hierarchy)
+
+        payload = json.loads(json.dumps(timeline.to_dict(events=False)))
+        restored = Timeline.from_dict(payload)
+
+        assert restored.metric_hierarchy == hierarchy
+        assert restored.metric_hierarchy.to_dict() == hierarchy.to_dict()
+        assert restored.metric_hierarchy.root.expansions[0].children[0].proportion == (
+            Fraction(1, 3)
+        )
+        assert restored.metric_hierarchy.tempo_maps == hierarchy.tempo_maps
+        assert restored.to_dict(events=False) == payload
+        assert "events" not in payload
 
 
 # endregion

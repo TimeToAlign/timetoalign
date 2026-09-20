@@ -235,13 +235,14 @@ class RekordboxLoader(Loader[list[RekordboxTrack]]):
         what ``Battito`` indexes; reading ``6/8`` as two dotted beats
         would put the anchor index outside its own bar.
         """
-        from timetoalign.timelines import BeatGrid, BeatGridSegment, policy_for_metro
+        from timetoalign.core import BeatPolicy
+        from timetoalign.timelines import BeatGrid, BeatGridSegment
 
         segments = [
             BeatGridSegment(
                 start=tempo.inizio,
                 bpm=tempo.bpm,
-                policy=policy_for_metro(tempo.metro),
+                policy=BeatPolicy.from_time_signature(tempo.metro).as_divisions(),
                 battito=tempo.battito,
             )
             for tempo in track.tempos

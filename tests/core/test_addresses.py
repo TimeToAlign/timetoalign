@@ -153,15 +153,14 @@ class TestMeasureNumberField:
 
         assert [field.name for field in schema] == [
             "rendition",
-            "skeleton_id",
             "mc",
             "mn",
             "volta",
             "section",
         ]
         assert schema.field(0).type == pa.int64()
-        assert schema.field(1).type == pa.string()
-        assert schema.field(2).type == pa.int64()
+        assert schema.field(1).type == pa.int64()
+        assert schema.field(2).type == pa.string()
 
     def test_round_trip_of_a_split_bar_label(self) -> None:
         """WoO 71 bar 237b is measure count 261 in its second ending."""
@@ -176,7 +175,6 @@ class TestMeasureNumberField:
         assert array.to_pylist() == [
             {
                 "rendition": None,
-                "skeleton_id": None,
                 "mc": 261,
                 "mn": "237b",
                 "volta": 2,
@@ -195,7 +193,6 @@ class TestMeasureNumberField:
         assert field[2] == MeasureNumber(mn="237b")
         assert field.data.to_pylist()[2] == {
             "rendition": None,
-            "skeleton_id": None,
             "mc": None,
             "mn": "237b",
             "volta": None,

@@ -76,6 +76,46 @@ structure should be partitioned.
 
 ### Measure and hierarchy structure
 
+The metric-hierarchy tests treat the forest as the structural identity and
+tempo maps as independent realization evidence. The five-indication authored
+specimen creates four section nodes and retains all five tempo statements in
+one indication map, while leaving section levels and tempo positions unstated.
+It must differ from a hierarchy that claims those sections are pulse-level.
+This proves authored order is retained without fabricating metrical or symbolic
+coordinates.
+
+One nested specimen partitions a node into two groups of three, with each group
+partitioned into three units; another partitions the node directly into six
+units. They must compare unequal. Forests that differ only in the reading ids
+asserting an otherwise identical partition must also compare unequal.
+Conversely, appending a tempo map or changing a reading's author,
+reinterpretation link, or level-name vocabulary must preserve equality.
+
+Reading merge tests add one agreeing and one diverging partition. Agreement
+must reuse the existing child nodes and unite the expansion's reading-id set;
+divergence must preserve both alternatives and attribute only the new one to
+the new reading. A two-alternative query proves that policy derivation uses
+only the named reading's partition. Queries where that reading asserts no
+partition, physical-coordinate queries, and unknown forest reading ids must
+fail explicitly. These cases rule out cross-reading arithmetic and confusion
+between symbolic and physical axes.
+
+Tempo-entry tests distinguish a physical point, a support interval, a source
+that explicitly declares the observation undefined, and a source that states
+nothing. Exact ``Fraction`` weights survive the rational wire and invalid or
+non-finite weights fail at construction. Symbolic positions accept logical
+units only. Tempo-map provenance and reading level names cannot be mutated
+through returned mappings, and provenance that JSON cannot represent is
+rejected with its key and value type identified.
+
+The nested forest, readings, tempo maps, exact proportions, typed coordinates,
+and reinterpretation links are serialized through JSON and compared both as
+restored values and as a wire fixpoint. Embedding the same hierarchy in a
+timeline and restoring an events-free timeline payload proves the public
+timeline path uses that exact wire contract rather than a private
+approximation. Compact representations expose every non-default member so
+diagnostic output does not conceal structural or realization evidence.
+
 Measure serialization is tested with all six concrete subclasses and
 non-dyadic fractions such as ``Fraction(1, 3)``. The exact class name and every
 field must survive JSON; a float detour would change at least one denominator and
@@ -102,15 +142,13 @@ inventing measures.
 Metric wire tests cover a whole-note beat size, a quarters beat size, and a policy
 authored from division alone. Each reconstructed policy must equal the original
 full pydantic scalar, including its name and the authored beat-size unit. A metric
-hierarchy round trip must preserve both its section policies and its named policy
-registry, proved by creating the same named section grouping after restoration.
+hierarchy round trip preserves the recursive forest, attributed reading ids,
+reading provenance, and every independent tempo map as an exact JSON fixpoint.
 
-For equivalence independent of wire form, a registered quarter-note policy named
-``slow`` and assigned to three sections compares equal to three directly authored
-quarter-note policies. Both describe exactly three quarter beats in each ``3/4``
-bar and have ``bpm is None``. Policy display names are excluded from hierarchy
-equality; changing bpm from ``None`` to ``120`` or the counted value from a
-quarter to an eighth makes the hierarchies unequal.
+Equivalence is deliberately narrower than the wire contract. Alternative child
+partitions and their asserting reading ids define structural identity. Tempo
+maps, verbal tempo text, reading authorship, reinterpretation links, and local
+level vocabulary remain queryable but do not affect equality.
 
 ### `test_groups.py` - Timeline Groups
 

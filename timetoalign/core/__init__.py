@@ -6,8 +6,8 @@ Flat module layout (no sub-packages):
   ``Duration`` and their Id-variants (``IdCoordinate``, ``IdDuration``),
   plus the paired ``CoordinateField`` / ``IdCoordinateField`` /
   ``DurationField`` / ``IdDurationField`` field wrappers.
-* :mod:`timetoalign.core.events` — pitch / harmony / Note / Measure
-  scalars and their paired Fields.
+* :mod:`timetoalign.core.events` — pitch, harmony, event, and tempo-marking
+  scalars with their paired Fields.
 * :mod:`timetoalign.core.fields` — ``DataField`` / ``SemanticField``
   hierarchy (including the raw ``NumberField`` / ``RedundantNumberField`` /
   ``DenominateNumberField`` branch), the pydantic → PyArrow translator,
@@ -102,6 +102,8 @@ from .events import (
     SplitIrregularMeasureField,
     SplitRegularMeasure,
     SplitRegularMeasureField,
+    Tempo,
+    TempoField,
     WesternTertianHarmony,
     WesternTertianHarmonyField,
     WesternTertianSchema,
@@ -335,6 +337,8 @@ __all__ = [
     "SplitIrregularMeasureField",
     "SplitRegularMeasure",
     "SplitRegularMeasureField",
+    "Tempo",
+    "TempoField",
     "MidiEvent",
     "MidiEventField",
     "Note",

@@ -18,14 +18,17 @@ Beat grids:
 - BeatGrid: Tempo segments generating a labelled lattice of beats
 - BeatGridSegment: One tempo segment of a beat grid
 - GridBeat: One labelled beat of a grid
-- policy_for_metro: Read an "n/d" lattice meter as one beat per counted value
 
 Structural components:
 - Region: Named TimeInterval (not a timeline itself)
 - MeasureMap: Immutable printed-order measure structure
 - SectionHierarchy: Section partition over one MeasureMap
-- MetricHierarchy: Beat policies grouped by section
-- MetricHierarchyComponent: Measure-anchored metrical change point
+- MetricNode: One timespan in a packed metrical forest
+- Expansion: An attributed partition of a metric node
+- Reading: Provenance and vocabulary for one forest reading
+- TempoEntry: One symbolic-axis tempo or observation fact
+- TempoMap: An independent sequence of tempo facts
+- MetricHierarchy: Packed metrical forest with independent tempo maps
 
 Flow API (MeasureUnit architecture):
 - MeasureUnit: Fundamental building block (one per MeasureData row)
@@ -69,7 +72,7 @@ Public API:
 from __future__ import annotations
 
 from .base import Timeline
-from .beatgrid import BeatGrid, BeatGridSegment, GridBeat, policy_for_metro
+from .beatgrid import BeatGrid, BeatGridSegment, GridBeat
 from .factory import create_timeline
 from .flow import (
     AtomicSection,
@@ -99,10 +102,14 @@ from .flow import (
 from .groups import GroupTimestamp, TimelineGroup
 from .regions import Region
 from .structure import (
+    Expansion,
     MeasureMap,
     MetricHierarchy,
-    MetricHierarchyComponent,
+    MetricNode,
+    Reading,
     SectionHierarchy,
+    TempoEntry,
+    TempoMap,
 )
 from .types import (
     ContinuousGraphicalTimeline,
@@ -143,13 +150,16 @@ __all__ = [
     "BeatGrid",
     "BeatGridSegment",
     "GridBeat",
-    "policy_for_metro",
     # Structural components
     "Region",
     "MeasureMap",
     "SectionHierarchy",
+    "MetricNode",
+    "Expansion",
+    "Reading",
+    "TempoEntry",
+    "TempoMap",
     "MetricHierarchy",
-    "MetricHierarchyComponent",
     # Flow API
     "MeasureUnit",
     # Typed MeasureUnit subclasses (Typing step)

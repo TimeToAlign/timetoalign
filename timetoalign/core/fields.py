@@ -924,12 +924,14 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
         super().__init_subclass__(**kw)
         own_scalar = cls.__dict__.get("scalar_cls")
         if isinstance(own_scalar, type) and issubclass(own_scalar, BaseModel):
-            cls.pa_schema = derive_arrow_struct(own_scalar)
+            scalar = own_scalar
         else:
             scalar = _resolve_scalar_cls(cls)
             if scalar is not None:
                 cls.scalar_cls = scalar
-                cls.pa_schema = derive_arrow_struct(scalar)
+
+        if scalar is not None:
+            cls.pa_schema = derive_arrow_struct(scalar)
 
         # Parity check: every @data_shaped method on the paired scalar
         # MUST be mirrored (by name) on this Field subclass or any of
@@ -941,7 +943,7 @@ class SemanticField(DataField, FieldVocabulary, Generic[T]):
         _register_paired_semantic_field(cls)
         required: set[str] = set()
         for klass in scalar_cls.__mro__:
-            for name, member in vars(klass).items():
+            for name, member in list(vars(klass).items()):
                 if _is_data_shaped(member):
                     required.add(name)
         if not required:

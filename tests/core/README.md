@@ -14,6 +14,38 @@ This directory contains tests for the `timetoalign.core` module, which provides 
 | `core/protocols.py` | Complete |
 | `core/timestamp.py` | Complete |
 
+## Metrical and realization scalars
+
+The scalar tests separate metrical structure from tempo realization. Exact
+time-signature specimens (``6/8``, ``4/4``, common time, cut time, and an
+additive eighth-note signature) pin grouping, division, derived rods, beat
+count, span, and source spelling. Re-expressing each specimen as counted
+divisions must preserve its division and name, produce one unit group per
+division, and be idempotent. This rules out both a meter reader that forgets
+how the source grouped a bar and a grid policy that silently changes its unit.
+
+A policy authored with both ``division`` and ``beat_size`` is accepted only
+when the two exact quantities agree in quarters. A contradictory quarter and
+whole-note pair must fail validation, while the matching pair constructs and
+survives JSON unchanged. Testing every time-signature shape through both
+round-trip equality and a second serialization proves that completion cannot
+turn a policy into a different value.
+
+Tempo specimens cover integer, float, decimal-string, and ``Fraction`` rates,
+including ramps. Their exact stored fractions and rational wire members are
+asserted directly; positive-rate validation is checked at both ramp ends. A
+ramp mean must lie strictly inside its span and cannot exist without a target
+rate. Construction rejects exact values outside the signed 64-bit rational
+wire before serialization, while the largest permitted denominator survives.
+These cases rule out delayed serialization failures and invented ramp meaning.
+
+Negative-level beats construct to demonstrate groove below the pulse, while a
+zero beat index remains invalid. Address storage is inspected to prove that it
+contains no obsolete skeleton identifier. Timeline-structure values are tested
+with their owning hierarchy rather than as event scalars; their absence from
+the paired-field registry proves that recursive forests are not advertised as
+columnar event payloads.
+
 ## Test Files
 
 ### `test_fraction_field_arithmetic.py` - Exact Coordinate Arithmetic

@@ -2,21 +2,33 @@
 
 from __future__ import annotations
 
+import json
 import warnings
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import TYPE_CHECKING, Any
+from math import gcd, isfinite, lcm
+from numbers import Real
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from timetoalign.core import (
     BeatPolicy,
     CadenzaMeasure,
+    Coordinate,
+    Domain,
+    Interval,
     IrregularMeasure,
     Measure,
     MeasureConstituent,
     RegularMeasure,
+    Tempo,
+    TimeUnit,
 )
-from timetoalign.core.time import wire_to_rational
+from timetoalign.core.retrieval import coordinate_from_wire_entry, coordinate_wire_entry
+from timetoalign.core.time import rational_to_wire, wire_to_rational
 from timetoalign.timelines.flow import AtomicSection
 
 if TYPE_CHECKING:
@@ -369,93 +381,786 @@ class SectionHierarchy:
         return list(self._sections)
 
 
-@dataclass(frozen=True)
-class MetricHierarchyComponent:
-    """A measure-anchored metrical change point."""
-
-    first: int
-    policy: BeatPolicy
-    hypermeter: tuple[int, ...] | None = None
+def _coordinate_to_wire(value: Coordinate) -> dict[str, Any]:
+    """Encode a coordinate through the shared typed wire contract."""
+    return dict(coordinate_wire_entry(value))
 
 
-class MetricHierarchy:
-    """Beat policies grouped by section."""
+def _coordinate_from_wire(value: Mapping[str, Any]) -> Coordinate:
+    """Restore a coordinate through the shared typed wire contract."""
+    return coordinate_from_wire_entry(value)
+
+
+def _unsupported_json_type(value: Any, seen: set[int] | None = None) -> type | None:
+    """Return the first type that the standard JSON encoder cannot carry."""
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return None
+    if seen is None:
+        seen = set()
+    identity = id(value)
+    if identity in seen:
+        return type(value)
+    seen.add(identity)
+    if isinstance(value, Mapping):
+        for key, child in value.items():
+            if not isinstance(key, str):
+                return type(key)
+            unsupported = _unsupported_json_type(child, seen)
+            if unsupported is not None:
+                return unsupported
+        return None
+    if isinstance(value, (list, tuple)):
+        for child in value:
+            unsupported = _unsupported_json_type(child, seen)
+            if unsupported is not None:
+                return unsupported
+        return None
+    return type(value)
+
+
+def _require_physical_unit(unit: TimeUnit, member: str) -> None:
+    """Refuse an observation coordinate that is not on the physical axis.
+
+    Args:
+        unit: Unit of the coordinate given for that member.
+        member: Name of the ``TempoEntry`` member being validated.
+
+    Raises:
+        ValueError: If *unit* does not belong to the physical domain.
+    """
+    if unit.domain is Domain.physical:
+        return
+    allowed = ", ".join(
+        sorted(
+            candidate.value
+            for candidate in TimeUnit
+            if candidate.domain is Domain.physical
+        )
+    )
+    raise ValueError(
+        f"TempoEntry {member} unit {unit.value!r} is not physical; "
+        f"allowed units: {allowed}"
+    )
+
+
+def _freeze_json(value: Any) -> Any:
+    """Return an immutable copy of a JSON-compatible value."""
+    if isinstance(value, Mapping):
+        return MappingProxyType(
+            {key: _freeze_json(child) for key, child in value.items()}
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_json(child) for child in value)
+    return value
+
+
+def _thaw_json(value: Any) -> Any:
+    """Return a JSON-encodable copy of an immutable provenance value."""
+    if isinstance(value, Mapping):
+        return {key: _thaw_json(child) for key, child in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw_json(child) for child in value]
+    return value
+
+
+class TempoEntry(BaseModel):
+    """One optionally positioned symbolic-axis row in a tempo map.
+
+    Attributes:
+        at: Exact symbolic position, when stated by the source.
+        tempo: Optional rate law stated at that position.
+        observed: Optional physical point or support interval.
+        observation_undefined: Whether the source explicitly states no onset.
+        alternatives: Weighted alternative physical positions.
+        is_interpolated: Whether the symbolic position was derived.
+    """
+
+    model_config = ConfigDict(frozen=True, strict=True)
+
+    at: Coordinate | None = None
+    tempo: Tempo | None = None
+    observed: Coordinate | Interval | None = None
+    observation_undefined: bool = False
+    alternatives: tuple[tuple[Coordinate, Fraction], ...] = ()
+    is_interpolated: bool = False
 
     @classmethod
-    def from_beat_policies(cls, policies: Mapping[str, BeatPolicy]) -> MetricHierarchy:
-        """Create a hierarchy with named policies ready for section authoring."""
-        return cls((), policies=dict(policies))
+    def from_dict(cls, data: dict[str, Any]) -> TempoEntry:
+        """Restore a tempo entry from its JSON wire representation.
 
-    @classmethod
-    def from_sections(
-        cls, sections: list[BeatPolicy | list[BeatPolicy]]
-    ) -> MetricHierarchy:
-        """Create a hierarchy directly from section policy groups."""
-        normalized = [
-            (section,) if isinstance(section, BeatPolicy) else tuple(section)
-            for section in sections
-        ]
-        return cls(normalized)
+        Args:
+            data: JSON-safe tempo-entry dictionary.
 
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> MetricHierarchy:
-        """Restore section policies and named policies from wire data."""
+        Returns:
+            The restored tempo entry.
+        """
+        observed_data = data.get("observed")
+        observed: Coordinate | Interval | None
+        if observed_data is None:
+            observed = None
+        elif observed_data["type"] == "coordinate":
+            observed = _coordinate_from_wire(observed_data["value"])
+        elif observed_data["type"] == "interval":
+            observed = Interval(
+                start=_coordinate_from_wire(observed_data["start"]),
+                end=_coordinate_from_wire(observed_data["end"]),
+            )
+        else:
+            raise ValueError(
+                f"Unknown tempo observation type {observed_data['type']!r}"
+            )
         return cls(
-            (
-                (BeatPolicy.from_dict(policy) for policy in section)
-                for section in data.get("sections", [])
+            at=(None if data.get("at") is None else _coordinate_from_wire(data["at"])),
+            tempo=(
+                None if data.get("tempo") is None else Tempo.from_dict(data["tempo"])
             ),
-            policies={
-                name: BeatPolicy.from_dict(policy)
-                for name, policy in data.get("policies", {}).items()
-            },
+            observed=observed,
+            observation_undefined=bool(data.get("observation_undefined", False)),
+            alternatives=tuple(
+                (
+                    _coordinate_from_wire(item["at"]),
+                    Fraction(wire_to_rational(item["weight"])),
+                )
+                for item in data.get("alternatives", [])
+            ),
+            is_interpolated=bool(data.get("is_interpolated", False)),
         )
 
-    def __init__(
-        self,
-        sections: Iterable[Iterable[BeatPolicy]],
-        *,
-        policies: Mapping[str, BeatPolicy] | None = None,
-    ) -> None:
-        self._sections = tuple(tuple(section) for section in sections)
-        self._policies = dict(policies or {})
+    @field_validator("at")
+    @classmethod
+    def _validate_symbolic_position(cls, value: Coordinate | None) -> Coordinate | None:
+        if value is None or value.unit.domain is Domain.logical:
+            return value
+        allowed = ", ".join(
+            sorted(unit.value for unit in TimeUnit if unit.domain is Domain.logical)
+        )
+        raise ValueError(
+            f"TempoEntry at unit {value.unit.value!r} is not symbolic; "
+            f"allowed units: {allowed}"
+        )
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, MetricHierarchy):
-            return NotImplemented
+    @field_validator("observed")
+    @classmethod
+    def _validate_physical_observation(
+        cls, value: Coordinate | Interval | None
+    ) -> Coordinate | Interval | None:
+        if isinstance(value, Interval):
+            _require_physical_unit(value.start.unit, "observed")
+            _require_physical_unit(value.end.unit, "observed")
+        elif value is not None:
+            _require_physical_unit(value.unit, "observed")
+        return value
 
-        def shape(
-            hierarchy: MetricHierarchy,
-        ) -> tuple[tuple[tuple[Any, Any], ...], ...]:
-            return tuple(
-                tuple((policy.beat_size, policy.bpm) for policy in section)
-                for section in hierarchy._sections
+    @field_validator("alternatives", mode="after")
+    @classmethod
+    def _validate_physical_alternatives(
+        cls, value: tuple[tuple[Coordinate, Fraction], ...]
+    ) -> tuple[tuple[Coordinate, Fraction], ...]:
+        for at, _weight in value:
+            _require_physical_unit(at.unit, "alternative")
+        return value
+
+    @field_validator("alternatives", mode="before")
+    @classmethod
+    def _coerce_and_validate_weights(cls, value: object) -> object:
+        if not isinstance(value, (list, tuple)):
+            return value
+        normalized: list[tuple[object, Fraction]] = []
+        for item in value:
+            if not isinstance(item, (list, tuple)) or len(item) != 2:
+                return value
+            at, weight = item
+            if (
+                isinstance(weight, bool)
+                or not isinstance(weight, Real)
+                or weight <= 0
+                or weight > 1
+                or not isfinite(float(weight))
+            ):
+                raise ValueError(
+                    "TempoEntry alternative weight must be a finite real number "
+                    "greater than zero and at most one"
+                )
+            normalized.append((at, Fraction(weight)))
+        return tuple(normalized)
+
+    @model_validator(mode="after")
+    def _validate_observation_state(self) -> TempoEntry:
+        if self.observation_undefined and self.observed is not None:
+            raise ValueError(
+                "TempoEntry observation_undefined cannot be true when observed is set"
             )
+        return self
 
-        return shape(self) == shape(other)
+    def __repr__(self) -> str:
+        parts: list[str] = []
+        if self.at is not None:
+            parts.append(f"at={self.at!r}")
+        if self.tempo is not None:
+            parts.append(f"tempo={self.tempo!r}")
+        if self.observed is not None:
+            parts.append(f"observed={self.observed!r}")
+        if self.observation_undefined:
+            parts.append("observation_undefined=True")
+        if self.alternatives:
+            parts.append(f"alternatives={self.alternatives!r}")
+        if self.is_interpolated:
+            parts.append("is_interpolated=True")
+        return f"TempoEntry({', '.join(parts)})"
 
-    @property
-    def sections(self) -> tuple[tuple[BeatPolicy, ...], ...]:
-        """Policies grouped by section."""
-        return self._sections
+    def to_dict(self) -> dict[str, Any]:
+        """Return this entry as a JSON-safe wire dictionary.
 
-    def create_sections(self, spec: list[str | list[str]]) -> None:
-        """Group registered policies according to a section specification."""
-        self._sections = tuple(
-            tuple(
-                self._policies[name]
-                for name in (entry if isinstance(entry, list) else [entry])
-            )
-            for entry in spec
+        Returns:
+            A dictionary retaining typed coordinates and exact tempo values.
+        """
+        observed: dict[str, Any] | None
+        if self.observed is None:
+            observed = None
+        elif isinstance(self.observed, Interval):
+            observed = {
+                "type": "interval",
+                "start": _coordinate_to_wire(self.observed.start),
+                "end": _coordinate_to_wire(self.observed.end),
+            }
+        else:
+            observed = {
+                "type": "coordinate",
+                "value": _coordinate_to_wire(self.observed),
+            }
+        return {
+            "at": None if self.at is None else _coordinate_to_wire(self.at),
+            "tempo": None if self.tempo is None else self.tempo.to_dict(),
+            "observed": observed,
+            "observation_undefined": self.observation_undefined,
+            "alternatives": [
+                {"at": _coordinate_to_wire(at), "weight": rational_to_wire(weight)}
+                for at, weight in self.alternatives
+            ],
+            "is_interpolated": self.is_interpolated,
+        }
+
+
+class TempoMap(BaseModel):
+    """An independent sequence of tempo facts from one source.
+
+    The ``steady`` kind declares that entries are anchor-and-rate generators
+    which abut; consumers use the kind rather than the producing format's
+    name to select that rule.
+
+    Attributes:
+        kind: Behaviour of the map's entries.
+        entries: Tempo facts in source order.
+        provenance: Immutable JSON-compatible source metadata.
+    """
+
+    model_config = ConfigDict(frozen=True, strict=True)
+
+    kind: Literal["indication", "steady", "observed", "modelled"]
+    entries: tuple[TempoEntry, ...]
+    provenance: Mapping[str, Any]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> TempoMap:
+        """Restore a tempo map from its JSON wire representation.
+
+        Args:
+            data: JSON-safe tempo-map dictionary.
+
+        Returns:
+            The restored tempo map.
+        """
+        return cls(
+            kind=data["kind"],
+            entries=tuple(TempoEntry.from_dict(entry) for entry in data["entries"]),
+            provenance=dict(data["provenance"]),
+        )
+
+    @field_validator("provenance", mode="after")
+    @classmethod
+    def _validate_and_freeze_provenance(
+        cls, value: Mapping[str, Any]
+    ) -> Mapping[str, Any]:
+        for key, item in value.items():
+            unsupported = _unsupported_json_type(item)
+            try:
+                json.dumps(item, allow_nan=False)
+            except (TypeError, ValueError):
+                value_type = unsupported or type(item)
+                raise ValueError(
+                    f"TempoMap provenance key {key!r} has a non-JSON-serializable "
+                    f"value of type {value_type.__name__}"
+                ) from None
+        return MappingProxyType(
+            {key: _freeze_json(item) for key, item in value.items()}
+        )
+
+    def __repr__(self) -> str:
+        parts = [f"kind={self.kind!r}", f"entries={len(self.entries)}"]
+        if self.provenance:
+            parts.append(f"provenance={_thaw_json(self.provenance)!r}")
+        return f"TempoMap({', '.join(parts)})"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this map as a JSON-safe wire dictionary.
+
+        Returns:
+            A dictionary retaining entries and provenance unchanged.
+        """
+        return {
+            "kind": self.kind,
+            "entries": [entry.to_dict() for entry in self.entries],
+            "provenance": _thaw_json(self.provenance),
+        }
+
+
+class MetricNode(BaseModel):
+    """A metrical timespan with alternative attributed partitions.
+
+    Attributes:
+        level: Stated metrical level, with pulse at zero and groove below zero.
+        proportion: Exact share of the parent span, when stated.
+        expansions: Alternative partitions of this span.
+    """
+
+    model_config = ConfigDict(frozen=True, strict=True)
+
+    level: int | None = None
+    proportion: Fraction | None = None
+    expansions: tuple[Expansion, ...] = ()
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> MetricNode:
+        """Restore a metric node from its JSON wire representation.
+
+        Args:
+            data: JSON-safe metric-node dictionary.
+
+        Returns:
+            The restored node and all descendant expansions.
+        """
+        return cls(
+            level=data.get("level"),
+            proportion=(
+                None
+                if data.get("proportion") is None
+                else Fraction(wire_to_rational(data["proportion"]))
+            ),
+            expansions=tuple(
+                Expansion.from_dict(expansion) for expansion in data["expansions"]
+            ),
+        )
+
+    def __repr__(self) -> str:
+        parts: list[str] = []
+        if self.level is not None:
+            parts.append(f"level={self.level}")
+        if self.proportion is not None:
+            parts.append(f"proportion={self.proportion!r}")
+        if self.expansions:
+            parts.append(f"expansions={len(self.expansions)}")
+        return f"MetricNode({', '.join(parts)})"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this node as a JSON-safe recursive wire dictionary.
+
+        Returns:
+            A dictionary retaining exact proportions and all alternatives.
+        """
+        return {
+            "level": self.level,
+            "proportion": (
+                None if self.proportion is None else rational_to_wire(self.proportion)
+            ),
+            "expansions": [expansion.to_dict() for expansion in self.expansions],
+        }
+
+
+class Expansion(BaseModel):
+    """One partition of a metric node, attributed to readings.
+
+    Attributes:
+        children: Ordered child timespans forming the partition.
+        readings: Reading identifiers which assert the partition.
+    """
+
+    model_config = ConfigDict(frozen=True, strict=True)
+
+    children: tuple[MetricNode, ...]
+    readings: frozenset[str]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Expansion:
+        """Restore an expansion from its JSON wire representation.
+
+        Args:
+            data: JSON-safe expansion dictionary.
+
+        Returns:
+            The restored attributed partition.
+        """
+        return cls(
+            children=tuple(MetricNode.from_dict(child) for child in data["children"]),
+            readings=frozenset(data["readings"]),
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"Expansion(children={len(self.children)}, "
+            f"readings={sorted(self.readings)!r})"
         )
 
     def to_dict(self) -> dict[str, Any]:
-        """Return section policies and the named policy registry."""
+        """Return this expansion as a JSON-safe wire dictionary.
+
+        Returns:
+            A dictionary retaining children and sorted reading identifiers.
+        """
         return {
-            "sections": [
-                [policy.to_dict() for policy in section] for section in self._sections
-            ],
-            "policies": {
-                name: policy.to_dict() for name, policy in self._policies.items()
+            "children": [child.to_dict() for child in self.children],
+            "readings": sorted(self.readings),
+        }
+
+
+class Reading(BaseModel):
+    """Provenance and vocabulary for one consistent forest reading.
+
+    Attributes:
+        id: Identifier used by attributed expansions.
+        source: Epistemic source of the reading.
+        by: Optional author or system name.
+        reinterprets: Optional identifier of a prior reading.
+        level_names: Reading-local names for metrical levels.
+    """
+
+    model_config = ConfigDict(frozen=True, strict=True)
+
+    id: str
+    source: Literal["notation", "performance", "analysis", "algorithm"]
+    by: str | None = None
+    reinterprets: str | None = None
+    level_names: Mapping[int, str] = Field(default_factory=dict)
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Reading:
+        """Restore reading provenance from its JSON wire representation.
+
+        Args:
+            data: JSON-safe reading dictionary.
+
+        Returns:
+            The restored reading.
+        """
+        return cls(
+            id=data["id"],
+            source=data["source"],
+            by=data.get("by"),
+            reinterprets=data.get("reinterprets"),
+            level_names={
+                int(level): name for level, name in data["level_names"].items()
             },
+        )
+
+    @field_validator("level_names", mode="after")
+    @classmethod
+    def _freeze_level_names(cls, value: Mapping[int, str]) -> Mapping[int, str]:
+        return MappingProxyType(dict(value))
+
+    def __repr__(self) -> str:
+        parts = [f"id={self.id!r}", f"source={self.source!r}"]
+        if self.by is not None:
+            parts.append(f"by={self.by!r}")
+        if self.reinterprets is not None:
+            parts.append(f"reinterprets={self.reinterprets!r}")
+        if self.level_names:
+            parts.append(f"level_names={dict(self.level_names)!r}")
+        return f"Reading({', '.join(parts)})"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return this reading as a JSON-safe wire dictionary.
+
+        Returns:
+            A dictionary retaining provenance and level vocabulary.
+        """
+        return {
+            "id": self.id,
+            "source": self.source,
+            "by": self.by,
+            "reinterprets": self.reinterprets,
+            "level_names": {
+                str(level): name for level, name in self.level_names.items()
+            },
+        }
+
+
+MetricNode.model_rebuild()
+
+
+@dataclass(frozen=True, eq=False, kw_only=True)
+class MetricHierarchy:
+    """One packed metrical forest with independent tempo realizations.
+
+    Attributes:
+        root: Node spanning the complete symbolic extent.
+        readings: Provenance records for attributed structural readings.
+        tempo_maps: Independent collections of tempo and observation facts.
+    """
+
+    root: MetricNode
+    readings: tuple[Reading, ...] = ()
+    tempo_maps: tuple[TempoMap, ...] = ()
+
+    __hash__ = None
+
+    @classmethod
+    def from_sections(
+        cls, sections: Iterable[Tempo | Iterable[Tempo]]
+    ) -> MetricHierarchy:
+        """Build the authored abstract hierarchy from tempo-bearing sections.
+
+        Args:
+            sections: Each authored section as one tempo statement or an
+                iterable of tempo statements.
+
+        Returns:
+            A hierarchy with one notation reading, one root partition, and
+            one indication tempo map containing every statement in order.
+        """
+        normalized = tuple(
+            (section,) if isinstance(section, Tempo) else tuple(section)
+            for section in sections
+        )
+        if any(
+            not isinstance(tempo, Tempo) for section in normalized for tempo in section
+        ):
+            raise TypeError("MetricHierarchy sections must contain Tempo values")
+        reading = Reading(id="notation", source="notation")
+        children = tuple(MetricNode() for _ in normalized)
+        root = MetricNode(
+            expansions=(
+                Expansion(children=children, readings=frozenset({reading.id})),
+            ),
+        )
+        entries = tuple(
+            TempoEntry(tempo=tempo) for section in normalized for tempo in section
+        )
+        tempo_map = TempoMap(kind="indication", entries=entries, provenance={})
+        return cls(root=root, readings=(reading,), tempo_maps=(tempo_map,))
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> MetricHierarchy:
+        """Restore a packed forest and its independent metadata.
+
+        Args:
+            data: JSON-safe hierarchy dictionary.
+
+        Returns:
+            The restored immutable hierarchy.
+        """
+        return cls(
+            root=MetricNode.from_dict(data["root"]),
+            readings=tuple(Reading.from_dict(item) for item in data["readings"]),
+            tempo_maps=tuple(TempoMap.from_dict(item) for item in data["tempo_maps"]),
+        )
+
+    def __post_init__(self) -> None:
+        known = {reading.id for reading in self.readings}
+
+        def validate(node: MetricNode) -> None:
+            for expansion in node.expansions:
+                for reading_id in expansion.readings:
+                    if reading_id not in known:
+                        raise ValueError(
+                            f"Metric expansion names unknown reading id {reading_id!r}"
+                        )
+                for child in expansion.children:
+                    validate(child)
+
+        validate(self.root)
+
+    def __eq__(self, other: object) -> bool:
+        """Compare only the attributed metrical forest."""
+        if not isinstance(other, MetricHierarchy):
+            return NotImplemented
+        return self.root == other.root
+
+    def with_reading(
+        self,
+        reading: Reading,
+        expansions: Mapping[tuple[int, ...], Expansion] | Iterable[Expansion],
+    ) -> MetricHierarchy:
+        """Return a hierarchy with one reading's partitions merged in.
+
+        A mapping addresses nodes by child-index paths through the first
+        expansion at each ancestor; an iterable contributes alternatives at
+        the root. Structurally identical alternatives are coalesced and their
+        reading-id sets united.
+
+        Args:
+            reading: Provenance for the added reading.
+            expansions: Node paths mapped to asserted partitions, or root
+                partitions as a plain iterable.
+
+        Returns:
+            A new hierarchy sharing every unchanged node.
+
+        Raises:
+            ValueError: If the reading id is already registered or a path is
+                not present in the forest.
+        """
+        if any(existing.id == reading.id for existing in self.readings):
+            raise ValueError(f"Reading id {reading.id!r} is already registered")
+
+        def attributed(expansion: Expansion) -> Expansion:
+            return expansion.model_copy(
+                update={"readings": expansion.readings | {reading.id}}
+            )
+
+        def merge(node: MetricNode, expansion: Expansion) -> MetricNode:
+            for index, existing in enumerate(node.expansions):
+                if existing.children == expansion.children:
+                    united = existing.model_copy(
+                        update={"readings": existing.readings | expansion.readings}
+                    )
+                    alternatives = list(node.expansions)
+                    alternatives[index] = united
+                    return node.model_copy(update={"expansions": tuple(alternatives)})
+            return node.model_copy(update={"expansions": (*node.expansions, expansion)})
+
+        def merge_at(
+            node: MetricNode, path: tuple[int, ...], expansion: Expansion
+        ) -> MetricNode:
+            if not path:
+                return merge(node, attributed(expansion))
+            if not node.expansions:
+                raise ValueError(f"Expansion path {path!r} leaves the forest")
+            child_index = path[0]
+            children = list(node.expansions[0].children)
+            if child_index < 0 or child_index >= len(children):
+                raise ValueError(f"Expansion path {path!r} leaves the forest")
+            children[child_index] = merge_at(children[child_index], path[1:], expansion)
+            first = node.expansions[0].model_copy(update={"children": tuple(children)})
+            return node.model_copy(update={"expansions": (first, *node.expansions[1:])})
+
+        root = self.root
+        items = (
+            expansions.items()
+            if isinstance(expansions, Mapping)
+            else (((), expansion) for expansion in expansions)
+        )
+        for path, expansion in items:
+            root = merge_at(root, tuple(path), expansion)
+        return type(self)(
+            root=root,
+            readings=(*self.readings, reading),
+            tempo_maps=self.tempo_maps,
+        )
+
+    def with_tempo_map(self, tempo_map: TempoMap) -> MetricHierarchy:
+        """Return a hierarchy with an independent tempo map appended.
+
+        Args:
+            tempo_map: Map to append.
+
+        Returns:
+            A new hierarchy with the same forest and readings.
+        """
+        return type(self)(
+            root=self.root,
+            readings=self.readings,
+            tempo_maps=(*self.tempo_maps, tempo_map),
+        )
+
+    def policy_at(
+        self, reading: Reading | str, at: Coordinate | Fraction | int | float
+    ) -> BeatPolicy:
+        """Derive the selected reading's counting at a symbolic position.
+
+        Positions are expressed as a share of the root span. Traversal uses
+        stated child proportions and returns the deepest asserted partition
+        containing the position.
+
+        Args:
+            reading: Reading object or registered reading identifier.
+            at: Position in the normalized root span.
+
+        Returns:
+            A beat-policy view whose grouping reflects the selected partition.
+
+        Raises:
+            ValueError: If the reading is unknown, the position is outside the
+                root, or the selected partition lacks exact proportions.
+        """
+        reading_id = reading.id if isinstance(reading, Reading) else reading
+        if not any(item.id == reading_id for item in self.readings):
+            raise ValueError(f"Unknown metric reading {reading_id!r}")
+        if isinstance(at, Coordinate) and at.unit.domain is not Domain.logical:
+            allowed = ", ".join(
+                sorted(unit.value for unit in TimeUnit if unit.domain is Domain.logical)
+            )
+            raise ValueError(
+                f"Metric position unit {at.unit.value!r} is not symbolic; "
+                f"allowed units: {allowed}"
+            )
+        raw_position = at.value if isinstance(at, Coordinate) else at
+        position = Fraction(raw_position)
+        if position < 0 or position >= 1:
+            raise ValueError("Metric positions must lie in the root span [0, 1)")
+
+        node = self.root
+        selected: Expansion | None = None
+        while True:
+            asserted = [
+                expansion
+                for expansion in node.expansions
+                if reading_id in expansion.readings
+            ]
+            if not asserted:
+                break
+            if len(asserted) > 1:
+                raise ValueError(
+                    f"Reading {reading_id!r} asserts multiple expansions at one node"
+                )
+            selected = asserted[0]
+            proportions = [child.proportion for child in selected.children]
+            if any(value is None for value in proportions):
+                break
+            exact = [Fraction(value) for value in proportions if value is not None]
+            running = Fraction(0)
+            child_match: tuple[MetricNode, Fraction] | None = None
+            for child, share in zip(selected.children, exact, strict=True):
+                if share <= 0:
+                    raise ValueError("Metric child proportions must be positive")
+                if running <= position < running + share:
+                    child_match = (child, (position - running) / share)
+                    break
+                running += share
+            if child_match is None:
+                break
+            node, position = child_match
+
+        if selected is None:
+            raise ValueError(f"Reading {reading_id!r} asserts no expansion at {at!r}")
+        proportions = [child.proportion for child in selected.children]
+        if not proportions or any(value is None for value in proportions):
+            raise ValueError("A BeatPolicy view requires exact child proportions")
+        exact = [Fraction(value) for value in proportions if value is not None]
+        denominator = lcm(*(value.denominator for value in exact))
+        quantum_numerator = gcd(
+            *(value.numerator * (denominator // value.denominator) for value in exact)
+        )
+        quantum = Fraction(quantum_numerator, denominator)
+        grouping = tuple(int(value / quantum) for value in exact)
+        return BeatPolicy(grouping=grouping, division=quantum)
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the forest, readings, and tempo maps as JSON-safe data.
+
+        Returns:
+            A complete hierarchy wire dictionary.
+        """
+        return {
+            "root": self.root.to_dict(),
+            "readings": [reading.to_dict() for reading in self.readings],
+            "tempo_maps": [tempo_map.to_dict() for tempo_map in self.tempo_maps],
         }
